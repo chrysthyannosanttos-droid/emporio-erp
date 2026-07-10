@@ -1,0 +1,19 @@
+services:
+  # ─── API NestJS ─────────────────────────────────────────────────────────────
+  - type: web
+    name: emporio-api
+    runtime: docker
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+      - key: DATABASE_URL
+        sync: false   # Preencher manualmente no painel Render
+      - key: DIRECT_URL
+        sync: false   # Preencher manualmente no painel Render
+    healthCheckPath: /
+    autoDeploy: true

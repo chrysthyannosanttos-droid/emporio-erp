@@ -1,0 +1,815 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Multi-tenant Architecture: Company represents a Tenant
+model Company {
+  id        String   @id @default(uuid())
+  name      String
+  document  String   @unique // CNPJ or CPF
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users         User[]
+  products      Product[]
+  categories    Category[]
+  customers     Customer[]
+  sales         Sale[]
+  cashRegisters CashRegister[]
+  transactions  Transaction[]
+  subscriptions Subscription[]
+  stockEntries  StockEntry[]
+  sellers       Seller[]
+  orders        Order[]
+  invoices       Invoice[]
+  fiscalConfig   FiscalConfig?
+  suppliers      Supplier[]
+  purchaseOrders PurchaseOrder[]
+  recipes        Recipe[]
+  productionLogs ProductionLog[]
+  campaigns      Campaign[]
+  luckyCoupons   LuckyCoupon[]
+  deviceSyncs    DeviceSync[]
+  taxGrids       TaxGrid[]
+  theme          TenantTheme?
+  returns        Return[]
+  losses         Loss[]
+
+  @@map("companies")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      String   @default("OPERATOR")
+  active    Boolean  @default(true)
+  companyId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sales         Sale[]
+  cashRegisters CashRegister[] @relation("CashierOperator")
+  cashMovements CashMovement[] @relation("MovementUser")
+  stockEntries  StockEntry[]
+  purchaseOrders PurchaseOrder[]
+  seller        Seller?
+  productionLogs ProductionLog[]
+  returns        Return[]
+  losses         Loss[]
+
+  @@map("users")
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String
+  companyId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  products Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id      String   @id @default(uuid())
+  name    String
+  barcode String?
+  price   Decimal
+  cost    Decimal?
+  stock   Float    @default(0)
+  unit    String   @default("UN") // UN, KG, LT
+
+  // Fiscal Info (Antigos e Novos Reforma)
+  ncm   String?
+  cest  String?
+  cfop  String?
+  cst   String?
+  csosn String?
+  
+  // Reforma Tributária
+  ibsRate Decimal? @default(0) // Imposto sobre Bens e Serviços
+  cbsRate Decimal? @default(0) // Contribuição sobre Bens e Serviços
+  isRate  Decimal? @default(0) // Imposto Seletivo
+
+  categoryId String?
+  companyId  String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Label/Price tracking
+  priceChangedAt  DateTime?  // Última alteração de preço
+  labelPrintedAt  DateTime?  // Última impressão de etiqueta
+
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category        Category?         @relation(fields: [categoryId], references: [id])
+  saleItems       SaleItem[]
+  batches         ProductBatch[]
+  stockEntryItems StockEntryItem[]
+  orderItems      OrderItem[]
+  purchaseItems   PurchaseOrderItem[]
+  recipe          Recipe?
+  recipeItems     RecipeItem[]
+  returnItems     ReturnItem[]
+  losses          Loss[]
+  campaigns       Campaign[]
+
+  @@unique([barcode, companyId])
+  @@map("products")
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  name      String
+  document  String?
+  email     String?
+  phone     String?
+  address   String?
+  companyId String
+  sellerId  String?  // Vendedor responsável pelo cliente
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Fidelidade e CRM
+  cashbackBalance Decimal  @default(0)
+  pointsBalance   Int      @default(0)
+
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  seller        Seller?        @relation(fields: [sellerId], references: [id])
+  sales         Sale[]
+  subscriptions Subscription[]
+  orders        Order[]
+  cashbackLogs  CashbackLog[]
+  pointsLogs    PointsLog[]
+  luckyCoupons  LuckyCoupon[]
+  returns       Return[]
+
+  @@map("customers")
+}
+
+model Sale {
+  id       String  @id @default(uuid())
+  subtotal Decimal
+  discount Decimal @default(0)
+  total    Decimal
+  status   String  @default("COMPLETED")
+
+  userId         String
+  customerId     String?
+  cashRegisterId String?
+  companyId      String
+  sellerId       String?  // Vendedor da venda
+  orderId        String?  // Pedido de televendas origem
+  invoiceId      String?  // NF-e emitida
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id])
+  customer     Customer?     @relation(fields: [customerId], references: [id])
+  cashRegister CashRegister? @relation(fields: [cashRegisterId], references: [id])
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  seller       Seller?       @relation(fields: [sellerId], references: [id])
+
+  items    SaleItem[]
+  payments SalePayment[]
+  returns  Return[]
+
+  @@map("sales")
+}
+
+model SaleItem {
+  id        String  @id @default(uuid())
+  saleId    String
+  productId String
+  quantity  Float
+  unitPrice Decimal
+  total     Decimal
+
+  sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("sale_items")
+}
+
+model SalePayment {
+  id            String  @id @default(uuid())
+  saleId        String
+  amount        Decimal
+  paymentMethod String
+
+  sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@map("sale_payments")
+}
+
+model CashRegister {
+  id            String    @id @default(uuid())
+  openingTime   DateTime  @default(now())
+  closingTime   DateTime?
+  initialValue  Decimal
+  finalValue    Decimal?
+  expectedValue Decimal?
+  status        String    @default("OPEN")
+
+  operatorId String
+  companyId  String
+
+  operator  User           @relation("CashierOperator", fields: [operatorId], references: [id])
+  company   Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  movements CashMovement[]
+  sales     Sale[]
+
+  @@map("cash_registers")
+}
+
+model CashMovement {
+  id          String   @id @default(uuid())
+  type        String
+  amount      Decimal
+  description String?
+  timestamp   DateTime @default(now())
+
+  cashRegisterId String
+  userId         String
+
+  cashRegister CashRegister @relation(fields: [cashRegisterId], references: [id], onDelete: Cascade)
+  user         User         @relation("MovementUser", fields: [userId], references: [id])
+
+  @@map("cash_movements")
+}
+
+model Transaction {
+  id            String    @id @default(uuid())
+  type          String
+  description   String
+  category      String?
+  amount        Decimal
+  paymentMethod String?
+  dueDate       DateTime
+  paymentDate   DateTime?
+  status        String    @default("PENDING")
+  provider      String?
+  attachmentUrl String?
+
+  companyId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("transactions")
+}
+
+model Subscription {
+  id       String  @id @default(uuid())
+  planName String
+  amount   Decimal
+  dueDate  Int // Day of the month
+  status   String  @default("ACTIVE")
+
+  customerId String
+  companyId  String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id])
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("subscriptions")
+}
+
+model StockEntry {
+  id          String   @id @default(uuid())
+  invoiceNum  String?  // Número da NF
+  totalAmount Decimal
+  entryDate   DateTime @default(now())
+
+  companyId   String
+  userId      String
+  supplierId  String?
+  purchaseOrderId String?
+
+  company       Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user          User              @relation(fields: [userId], references: [id])
+  supplier      Supplier?         @relation(fields: [supplierId], references: [id])
+  purchaseOrder PurchaseOrder?    @relation(fields: [purchaseOrderId], references: [id])
+  items         StockEntryItem[]
+
+  @@map("stock_entries")
+}
+
+model StockEntryItem {
+  id             String   @id @default(uuid())
+  quantity       Float
+  unitCost       Decimal
+  expirationDate DateTime?
+  batchNumber    String?
+
+  stockEntryId   String
+  productId      String
+
+  stockEntry     StockEntry @relation(fields: [stockEntryId], references: [id], onDelete: Cascade)
+  product        Product    @relation(fields: [productId], references: [id])
+
+  @@map("stock_entry_items")
+}
+
+model ProductBatch {
+  id             String   @id @default(uuid())
+  batchNumber    String?
+  expirationDate DateTime
+  initialStock   Float
+  currentStock   Float
+  
+  productId      String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  product        Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_batches")
+}
+
+model Supplier {
+  id        String   @id @default(uuid())
+  name      String
+  document  String?
+  email     String?
+  phone     String?
+  companyId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  stockEntries   StockEntry[]
+  purchaseOrders PurchaseOrder[]
+
+  @@map("suppliers")
+}
+
+// ─────────────────────────────────────────────
+// COMPRAS E RECEBIMENTO
+// ─────────────────────────────────────────────
+
+model PurchaseOrder {
+  id          String   @id @default(uuid())
+  orderNumber String?
+  status      String   @default("DRAFT") // DRAFT, APPROVED, SENT, RECEIVED, PARTIAL, CANCELED
+  totalAmount Decimal
+  companyId   String
+  supplierId  String
+  userId      String   // Usuário que criou/aprovou
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company      Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user         User                @relation(fields: [userId], references: [id])
+  supplier     Supplier            @relation(fields: [supplierId], references: [id])
+  items        PurchaseOrderItem[]
+  stockEntries StockEntry[]
+
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              String   @id @default(uuid())
+  quantity        Float
+  receivedQty     Float    @default(0)
+  unitCost        Decimal
+  total           Decimal
+  
+  purchaseOrderId String
+  productId       String
+
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  product         Product       @relation(fields: [productId], references: [id])
+
+  @@map("purchase_order_items")
+}
+
+// ─────────────────────────────────────────────
+// TELEVENDAS & FISCAL
+// ─────────────────────────────────────────────
+
+model Seller {
+  id           String   @id @default(uuid())
+  name         String
+  phone        String?
+  email        String?
+  commission   Float    @default(0)  // % de comissão
+  goal         Decimal? // Meta mensal
+  active       Boolean  @default(true)
+  companyId    String
+  userId       String   @unique       // Vinculado a um User
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user      User       @relation(fields: [userId], references: [id])
+  customers Customer[]
+  orders    Order[]
+  sales     Sale[]
+
+  @@map("sellers")
+}
+
+model Order {
+  id         String   @id @default(uuid())
+  status     String   @default("DRAFT") // DRAFT | CONFIRMED | INVOICED | DELIVERED | CANCELED
+  subtotal   Decimal
+  discount   Decimal  @default(0)
+  total      Decimal
+  notes      String?
+
+  customerId String?
+  sellerId   String?
+  companyId  String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  customer  Customer?   @relation(fields: [customerId], references: [id])
+  seller    Seller?     @relation(fields: [sellerId], references: [id])
+  company   Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  items     OrderItem[]
+  invoices  Invoice[]
+
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  productId String
+  quantity  Float
+  unitPrice Decimal
+  discount  Decimal @default(0)
+  total     Decimal
+  cost      Decimal @default(0) // Custo unitário para cálculo de margem
+
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("order_items")
+}
+
+model Invoice {
+  id          String   @id @default(uuid())
+  type        String   // NFe | NFCe | Cupom
+  number      String?
+  series      String   @default("1")
+  accessKey   String?  // Chave 44 dígitos
+  status      String   @default("PENDING") // PENDING | AUTHORIZED | CANCELED | REJECTED
+  environment String   @default("homologacao") // homologacao | producao
+  xmlUrl      String?
+  pdfUrl      String?
+  errorMsg    String?
+
+  orderId   String?
+  companyId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  order   Order?  @relation(fields: [orderId], references: [id])
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  returns Return[]
+
+  @@map("invoices")
+}
+
+model FiscalConfig {
+  id                String   @id @default(uuid())
+  cnpj              String
+  ie                String?  // Inscrição Estadual
+  im                String?  // Inscrição Municipal
+  companyName       String
+  tradeName         String?
+  taxRegime         String   @default("SN") // SN | LP | LR (Simples Nacional, Lucro Presumido, Lucro Real)
+  environment       String   @default("homologacao") // homologacao | producao
+  nfeSeries         String   @default("1")
+  nfceeSeries       String   @default("1")
+  nextNfeNumber     Int      @default(1)
+  nextNfceNumber    Int      @default(1)
+  
+  // Endereço
+  street            String?
+  number            String?
+  district          String?
+  city              String?
+  state             String?
+  zipCode           String?
+  
+  // Emissor NF-e (Focus NFe)
+  focusNfeToken     String?  // Token da API Focus NFe
+  emitterEndpoint   String?  // Endpoint personalizado
+  
+  // Certificado Digital A1
+  certPath          String?  // Caminho do arquivo .pfx no servidor
+  certPassword      String?  // Senha criptografada
+  certExpiration    DateTime? // Data de expiração do certificado
+  certUploaded      Boolean  @default(false)
+
+  companyId String @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("fiscal_configs")
+}
+
+// Ficha Técnica (Receita)
+model Recipe {
+  id          String       @id @default(uuid())
+  productId   String       @unique // Produto acabado produzido (ex: Pão Francês)
+  yield       Float        @default(1) // Rendimento da receita (ex: 50 unidades ou 1kg)
+  instructions String?     // Modo de preparo
+  companyId   String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  product     Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  items       RecipeItem[]
+  productions ProductionLog[]
+
+  @@map("recipes")
+}
+
+// Item da Ficha Técnica (Insumo)
+model RecipeItem {
+  id         String   @id @default(uuid())
+  recipeId   String
+  productId  String   // Insumo utilizado (ex: Farinha de Trigo)
+  quantity   Float    // Quantidade necessária para o rendimento
+  unit       String   @default("KG") // Unidade do insumo (KG, G, L, UN)
+
+  recipe     Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  product    Product  @relation(fields: [productId], references: [id])
+
+  @@map("recipe_items")
+}
+
+// Histórico/Log de Produção
+model ProductionLog {
+  id               String   @id @default(uuid())
+  recipeId         String
+  quantityProduced Float
+  batchNumber      String?  // Lote gerado
+  expirationDate   DateTime? // Validade calculada
+  userId           String
+  companyId        String
+  createdAt        DateTime @default(now())
+
+  recipe           Recipe   @relation(fields: [recipeId], references: [id])
+  user             User     @relation(fields: [userId], references: [id])
+  company          Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("production_logs")
+}
+
+// ─────────────────────────────────────────────
+// CRM E MARKETING
+// ─────────────────────────────────────────────
+
+model Campaign {
+  id             String   @id @default(uuid())
+  name           String
+  type           String   // DISCOUNT, CASHBACK, BOGO (Buy one get one), POINTS, RAFFLE
+  description    String?
+  startDate      DateTime
+  endDate        DateTime?
+  active         Boolean  @default(true)
+  rules          String?  // JSON with specific rules
+  productId      String?
+  product        Product? @relation(fields: [productId], references: [id])
+  
+  companyId      String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  luckyCoupons   LuckyCoupon[]
+
+  @@map("campaigns")
+}
+
+model LuckyCoupon {
+  id             String   @id @default(uuid())
+  code           String   // Unique generated code
+  qrCodeUrl      String?
+  used           Boolean  @default(false)
+  issuedAt       DateTime @default(now())
+  
+  campaignId     String
+  customerId     String?
+  companyId      String
+
+  campaign       Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  customer       Customer? @relation(fields: [customerId], references: [id])
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("lucky_coupons")
+}
+
+model CashbackLog {
+  id             String   @id @default(uuid())
+  amount         Decimal
+  type           String   // EARN, REDEEM, EXPIRE
+  description    String?
+  createdAt      DateTime @default(now())
+
+  customerId     String
+  saleId         String?  // If tied to a specific sale
+
+  customer       Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("cashback_logs")
+}
+
+model PointsLog {
+  id             String   @id @default(uuid())
+  points         Int
+  type           String   // EARN, REDEEM, EXPIRE
+  description    String?
+  createdAt      DateTime @default(now())
+
+  customerId     String
+  saleId         String?  // If tied to a specific sale
+
+  customer       Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@map("points_logs")
+}
+
+// ─────────────────────────────────────────────
+// CYBERSYNC SERVICE
+// ─────────────────────────────────────────────
+
+model DeviceSync {
+  id             String   @id @default(uuid())
+  deviceName     String
+  deviceIp       String?
+  lastSync       DateTime @default(now())
+  status         String   @default("ONLINE") // ONLINE, OFFLINE, SYNCING
+  version        String?  // Software version of PDV
+  
+  companyId      String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("device_syncs")
+}
+
+// ─────────────────────────────────────────────
+// FISCAL E GRADE TRIBUTÁRIA
+// ─────────────────────────────────────────────
+
+model TaxGrid {
+  id             String   @id @default(uuid())
+  name           String   // Ex: "Regime Normal - Varejo", "Simples Nacional"
+  description    String?
+  active         Boolean  @default(true)
+  
+  companyId      String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  company        Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  rules          TaxGridRule[]
+
+  @@map("tax_grids")
+}
+
+model TaxGridRule {
+  id             String   @id @default(uuid())
+  taxGridId      String
+  
+  // Condições (Match)
+  ncmPattern     String   @default("*") // Ex: "2204.*" ou exato
+  cfopOrigin     String?  // Ex: "5102"
+  cfopDest       String?  // Ex: "6102"
+  stateOrigin    String?  // Ex: "SP"
+  stateDest      String?  // Ex: "RJ"
+  
+  // Resultados (Alíquotas e Códigos)
+  cstIcms        String?  // Ex: "00", "40", "60"
+  csosn          String?  // Ex: "102", "500"
+  icmsRate       Decimal  @default(0)
+  pisRate        Decimal  @default(0)
+  cofinsRate     Decimal  @default(0)
+  
+  // Reforma Tributária
+  ibsRate        Decimal  @default(0)
+  cbsRate        Decimal  @default(0)
+  isRate         Decimal  @default(0)
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  taxGrid        TaxGrid  @relation(fields: [taxGridId], references: [id], onDelete: Cascade)
+
+  @@map("tax_grid_rules")
+}
+
+// ─────────────────────────────────────────────
+// WHITE LABEL E TEMAS
+// ─────────────────────────────────────────────
+
+model TenantTheme {
+  id                 String   @id @default(uuid())
+  companyId          String   @unique
+  logoPrincipal      String?
+  logoPdv            String?
+  logoImpressao      String?
+  favicon            String?
+  backgroundLogin    String?
+  backgroundSistema  String?
+  corPrimaria        String?
+  corSecundaria      String?
+  corMenu            String?
+  corBotao           String?
+  tema               String   @default("auto") // light, dark, auto
+  customDomain       String?  @unique // Ex: erp.minhaempresa.com.br
+  
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  company            Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("tenant_themes")
+}
+
+// ─────────────────────────────────────────────
+// TROCAS, DEVOLUÇÕES E PERDAS
+// ─────────────────────────────────────────────
+
+model Return {
+  id            String   @id @default(uuid())
+  saleId        String?  // Reference to original sale
+  invoiceId     String?  // Reference to original invoice
+  customerId    String   // Cliente obrigatório
+  companyId     String
+  userId        String
+  status        String   @default("COMPLETED")
+  totalAmount   Decimal
+  creditApplied Boolean  @default(false)
+  reason        String?
+  createdAt     DateTime @default(now())
+
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customer    Customer @relation(fields: [customerId], references: [id])
+  user        User     @relation(fields: [userId], references: [id])
+  sale        Sale?    @relation(fields: [saleId], references: [id])
+  invoice     Invoice? @relation(fields: [invoiceId], references: [id])
+  items       ReturnItem[]
+
+  @@map("returns")
+}
+
+model ReturnItem {
+  id          String   @id @default(uuid())
+  returnId    String
+  productId   String
+  quantity    Float
+  unitPrice   Decimal
+  total       Decimal
+  destiny     String   @default("STOCK") // STOCK, LOSS
+
+  return      Return   @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id])
+  loss        Loss?
+
+  @@map("return_items")
+}
+
+model Loss {
+  id          String   @id @default(uuid())
+  productId   String
+  quantity    Float
+  reason      String?
+  companyId   String
+  userId      String
+  createdAt   DateTime @default(now())
+  
+  returnItemId String? @unique
+
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id])
+  product     Product  @relation(fields: [productId], references: [id])
+  returnItem  ReturnItem? @relation(fields: [returnItemId], references: [id])
+
+  @@map("losses")
+}
