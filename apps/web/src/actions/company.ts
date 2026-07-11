@@ -15,6 +15,7 @@ export async function createCompany(formData: FormData) {
   const adminName = formData.get("adminName") as string;
   const adminEmail = formData.get("adminEmail") as string;
   const adminPassword = formData.get("adminPassword") as string;
+  const days = Number(formData.get("licenseDays") || "30");
 
   if (!name || !document || !adminName || !adminEmail || !adminPassword) {
     return { error: "Todos os campos são obrigatórios." };
@@ -24,10 +25,14 @@ export async function createCompany(formData: FormData) {
   const existing = await prisma.company.findFirst({ where: { document } });
   if (existing) return { error: "CNPJ/CPF já cadastrado." };
 
+  const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+
   const company = await prisma.company.create({
     data: {
       name,
       document,
+      licenseStatus: "ACTIVE",
+      licenseExpiresAt: expiresAt,
       users: {
         create: {
           name: adminName,
@@ -67,6 +72,30 @@ export async function listCompanies() {
   return { companies };
 }
 
+// ─── Atualizar licença da empresa ─────────────────────────────────────────────
+export async function updateCompanyLicense(companyId: string, status: string, expiresAtStr: string) {
+  const cookieStore = await cookies();
+  const role = cookieStore.get("session_role")?.value;
+  if (role !== "SUPER_ADMIN") redirect("/login");
+
+  if (!companyId || !status || !expiresAtStr) {
+    return { error: "Parâmetros inválidos." };
+  }
+
+  try {
+    const company = await prisma.company.update({
+      where: { id: companyId },
+      data: {
+        licenseStatus: status,
+        licenseExpiresAt: new Date(expiresAtStr),
+      },
+    });
+    return { success: true, company };
+  } catch (err: any) {
+    return { error: err.message };
+  }
+}
+
 // ─── Dados públicos de uma empresa (para a página da loja) ───────────────────
 export async function getPublicCompany(companyId: string) {
   const company = await prisma.company.findUnique({
@@ -99,6 +128,11 @@ export async function getPublicCompany(companyId: string) {
       },
     },
   });
+
+  // Verificar se a licença não está suspensa ou expirada
+  if (company && (company.licenseStatus === "SUSPENDED" || new Date(company.licenseExpiresAt) < new Date())) {
+    return { company: null, licenseIssue: true };
+  }
 
   return { company };
 }

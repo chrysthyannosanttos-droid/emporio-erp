@@ -13,6 +13,8 @@ model Company {
   id        String   @id @default(uuid())
   name      String
   document  String   @unique // CNPJ or CPF
+  licenseStatus String   @default("ACTIVE") // ACTIVE, SUSPENDED, TRIAL, EXPIRED
+  licenseExpiresAt DateTime @default(now())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
