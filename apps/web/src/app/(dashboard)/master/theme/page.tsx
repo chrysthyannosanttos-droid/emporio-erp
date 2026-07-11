@@ -473,7 +473,7 @@ export default function MasterPanelPage() {
               <p style={{ fontSize: 14, margin: 0 }}>Selecione uma empresa acima para configurar o tema.</p>
             </div>
           )}
-        </>
+        </div>
       )}
 
       {/* ══════════ MODAL: NOVA EMPRESA ══════════ */}
