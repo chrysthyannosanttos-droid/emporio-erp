@@ -61,7 +61,7 @@ export class ReceivingService {
         const poItem = po.items.find(i => i.productId === rItem.productId);
         
         await tx.purchaseOrderItem.update({
-          where: { id: poItem.id },
+          where: { id: poItem!.id },
           data: { receivedQty: { increment: rItem.receivedQty } }
         });
 
@@ -73,7 +73,7 @@ export class ReceivingService {
 
       // 3. Update PO Status to RECEIVED if fully received
       const updatedPo = await tx.purchaseOrder.findUnique({ where: { id: po.id }, include: { items: true } });
-      const isFullyReceived = updatedPo.items.every(i => i.receivedQty >= i.quantity);
+      const isFullyReceived = updatedPo!.items.every(i => i.receivedQty >= i.quantity);
       
       await tx.purchaseOrder.update({
         where: { id: po.id },
