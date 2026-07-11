@@ -50,7 +50,7 @@ export default async function Dashboard() {
 
   // Decision-making calculation mocks & computed metrics
   const faturamento = stats?.faturamento || 0;
-  const ticketMedioVal = stats?.vendasHoje > 0 ? faturamento / 15.5 : 42.5; // Simulated realistic ticket medio
+  const ticketMedioVal = (stats?.vendasHoje ?? 0) > 0 ? faturamento / 15.5 : 42.5; // Simulated realistic ticket medio
   const markupEstimado = 28.4; // 28.4% average margin
   const faturamentoPerdidoEst = (stats?.estoqueBaixo || 0) * 18.50; // Estimated lost faturamento due to stockout
 
