@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npx turbo run build --filter=web",
+  "buildCommand": "npx prisma generate --schema=packages/database/prisma/schema.prisma && npx turbo run build --filter=web",
   "outputDirectory": "apps/web/.next",
   "framework": "nextjs",
   "ignoreCommand": "git diff --quiet HEAD^ HEAD -- apps/web packages/database"
