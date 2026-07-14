@@ -79,6 +79,7 @@ export default async function DashboardLayout({
           <SectionLabel>2. ESTOQUE & SUPRIMENTOS</SectionLabel>
           <NavItem href="/stock" icon={<Package size={15} />} label="Estoque Principal" />
           <NavItem href="/stock/new" icon={<Tag size={15} />} label="Cadastro de Produtos" />
+          <NavItem href="/suppliers" icon={<Truck size={15} />} label="Cadastro de Fornecedores" />
           <NavItem href="/purchases" icon={<ShoppingCart size={15} />} label="Pedidos de Compra" />
           <NavItem href="/fiscal/radar" icon={<FileText size={15} />} label="Radar XML (Entrada NF)" />
           <NavItem href="/logistics/collector" icon={<ClipboardList size={15} />} label="Coletor de Dados" />
