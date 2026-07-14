@@ -356,9 +356,51 @@ model ProductBatch {
 model Supplier {
   id        String   @id @default(uuid())
   name      String
-  document  String?
+  tradeName String?  // Nome Fantasia
+  document  String?  // CNPJ / CPF
+  stateReg  String?  // Inscrição Estadual (IE)
+  municipalReg String? // Inscrição Municipal (IM)
+  taxRegime String?  // Simples Nacional, Lucro Presumido, Lucro Real, MEI
+  isIcmsContributor Boolean @default(false)
+  suframa   String?  // Código Suframa
+  
+  // Condições Comerciais Padrão
+  defaultPaymentTerm String? // ex: 30 dias
+  discountPercent    Decimal @default(0)
+
+  // Contato Geral
   email     String?
   phone     String?
+  phone2    String?
+  quoteEmail String? // E-mail específico para cotações
+
+  // Pessoa de Contato
+  contactName  String?
+  contactPhone String?
+  contactEmail String?
+
+  // Endereço
+  zipCode      String?
+  street       String?
+  number       String?
+  complement   String?
+  neighborhood String?
+  city         String?
+  state        String?
+  country      String? @default("Brasil")
+
+  // Logística / Entregas
+  deliveryDays      String? // Dias de entrega (JSON ou string de dias, ex: "Seg,Quar")
+  deliveryLeadDays  Int?    @default(0) // Dias de prazo de entrega
+  minOrderValue     Decimal @default(0)
+  deliveryNotes     String?
+
+  // Categoria, Avaliação e Status
+  category  String? @default("Outros")
+  rating    Int     @default(5)
+  status    String  @default("ACTIVE") // ACTIVE, INACTIVE, BLOCKED
+  notes     String? // Observações Gerais
+
   companyId String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
