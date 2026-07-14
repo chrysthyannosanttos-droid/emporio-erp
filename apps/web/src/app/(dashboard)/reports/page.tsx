@@ -1,4 +1,6 @@
-import { FileText, Download } from "lucide-react";
+"use client";
+
+import { FileText, Printer } from "lucide-react";
 
 export default function ReportsPage() {
   return (
@@ -20,6 +22,11 @@ export default function ReportsPage() {
 }
 
 function ReportCard({ title, desc }: { title: string; desc: string }) {
+  const handleOpenReport = () => {
+    const url = `/reports/view?title=${encodeURIComponent(title)}&desc=${encodeURIComponent(desc)}`;
+    window.open(url, "_blank");
+  };
+
   return (
     <div className="bg-[#111528] p-5 rounded-2xl border border-indigo-500/10 hover:border-indigo-500/20 transition-all group cursor-pointer flex flex-col">
       <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center mb-3 group-hover:scale-105 transition-all border border-indigo-500/15">
@@ -27,8 +34,8 @@ function ReportCard({ title, desc }: { title: string; desc: string }) {
       </div>
       <h3 className="text-sm font-bold text-white mb-1">{title}</h3>
       <p className="text-xs text-slate-500 mb-4 flex-1">{desc}</p>
-      <button className="flex items-center gap-1.5 text-indigo-400 font-semibold text-xs hover:text-indigo-300 transition-colors">
-        <Download size={13} /> Gerar Relatório
+      <button onClick={handleOpenReport} className="flex items-center gap-1.5 text-indigo-400 font-semibold text-xs hover:text-indigo-300 transition-colors">
+        <Printer size={13} /> Visualizar & Imprimir
       </button>
     </div>
   );

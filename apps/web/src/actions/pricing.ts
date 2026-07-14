@@ -166,10 +166,30 @@ export async function getPricingData() {
 
 export async function updatePricing(productId: string, newPrice: number) {
   try {
+    const product = await prisma.product.findUnique({
+      where: { id: productId }
+    });
+
+    if (!product) return { error: "Produto não encontrado" };
+
+    // Atualiza o produto alvo
     await prisma.product.update({
       where: { id: productId },
       data: { price: newPrice }
     });
+
+    // Propagação em cadeia para produtos da mesma família (familiarização por sabor/fragrância)
+    const familyId = product.parentProductId || product.id;
+    await prisma.product.updateMany({
+      where: {
+        OR: [
+          { id: familyId },
+          { parentProductId: familyId }
+        ]
+      },
+      data: { price: newPrice }
+    });
+
     revalidatePath("/pricing");
     return { success: true };
   } catch (err: any) {

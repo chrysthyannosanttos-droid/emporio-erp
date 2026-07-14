@@ -26,11 +26,30 @@ export async function createProduct(formData: FormData) {
     const ibsRate = parseFloat(formData.get("ibsRate") as string) || 0;
     const cbsRate = parseFloat(formData.get("cbsRate") as string) || 0;
     const isRate = parseFloat(formData.get("isRate") as string) || 0;
+    const isSelfProduced = formData.get("isSelfProduced") === "true";
+    let internalCode = formData.get("internalCode") as string;
+    const parentProductId = formData.get("parentProductId") as string || undefined;
 
     if (!name || isNaN(price)) return { error: "Nome e Preço são obrigatórios e válidos" };
 
     const company = await getOrCreateCompany();
     const companyId = company.id;
+
+    // Geração automática de código interno de 5 dígitos para produtos de fabricação própria
+    if (isSelfProduced && !internalCode) {
+      const lastProduct = await prisma.product.findFirst({
+        where: { companyId, isSelfProduced: true, internalCode: { not: null } },
+        orderBy: { createdAt: 'desc' }
+      });
+      let nextNum = 1;
+      if (lastProduct && lastProduct.internalCode) {
+        const lastNum = parseInt(lastProduct.internalCode, 10);
+        if (!isNaN(lastNum)) {
+          nextNum = lastNum + 1;
+        }
+      }
+      internalCode = String(nextNum).padStart(5, '0');
+    }
 
     await prisma.product.create({
       data: {
@@ -45,6 +64,9 @@ export async function createProduct(formData: FormData) {
         ibsRate,
         cbsRate,
         isRate,
+        isSelfProduced,
+        internalCode: internalCode || null,
+        parentProductId,
         companyId,
       }
     });

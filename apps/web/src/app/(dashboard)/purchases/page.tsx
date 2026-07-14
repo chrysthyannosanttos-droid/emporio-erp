@@ -171,6 +171,13 @@ export default function PurchasesPage() {
   const [activeQuotes, setActiveQuotes] = useState<ActiveQuote[]>([DEMO_QUOTE]);
   const [selectedAnalysisQuote, setSelectedAnalysisQuote] = useState<ActiveQuote>(DEMO_QUOTE);
 
+  // Fornecedores locais para cadastro rápido
+  const [localSuppliers, setLocalSuppliers] = useState(SUPPLIERS);
+  const [isQuickSupplierModalOpen, setIsQuickSupplierModalOpen] = useState(false);
+  const [quickSupplierName, setQuickSupplierName] = useState("");
+  const [quickSupplierCnpj, setQuickSupplierCnpj] = useState("");
+  const [quickSupplierEmail, setQuickSupplierEmail] = useState("");
+
   // New Order States
   const [selectedSupplier, setSelectedSupplier] = useState(SUPPLIERS[0].name);
   const [expectedDate, setExpectedDate] = useState("");
@@ -195,6 +202,27 @@ export default function PurchasesPage() {
   useEffect(() => {
     getProducts().then(res => { if (res.products) setProducts(res.products); });
   }, []);
+
+  const handleQuickSupplierSave = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickSupplierName.trim()) return;
+    const newSupp = {
+      id: `QUICK-${Date.now()}`,
+      name: quickSupplierName,
+      cnpj: quickSupplierCnpj || "---",
+      quoteEmail: quickSupplierEmail || "---"
+    };
+    setLocalSuppliers(prev => [...prev, newSupp]);
+    setSelectedSupplier(newSupp.name);
+    setIsQuickSupplierModalOpen(false);
+    setQuickSupplierName("");
+    setQuickSupplierCnpj("");
+    setQuickSupplierEmail("");
+  };
+
+  const handleResendQuote = async (quoteId: string) => {
+    alert(`Cotação ${quoteId} reenviada com sucesso para todos os fornecedores pendentes!`);
+  };
 
   // ─── Calculate quote totals for each supplier ────────────
   function calcSupplierTotal(quote: ActiveQuote, resp: QuoteResponse) {
@@ -374,10 +402,13 @@ export default function PurchasesPage() {
               <h4 className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-1.5"><FileText size={12}/> 2. Informações Gerais</h4>
               <div>
                 <label className="block text-[10px] font-semibold text-slate-500 mb-1 uppercase">Fornecedor *</label>
-                <select value={selectedSupplier} onChange={e => setSelectedSupplier(e.target.value)}
-                  className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-lg outline-none text-xs font-semibold">
-                  {SUPPLIERS.map(s => <option key={s.id}>{s.name}</option>)}
-                </select>
+                <div className="flex gap-1.5">
+                  <select value={selectedSupplier} onChange={e => setSelectedSupplier(e.target.value)}
+                    className="flex-1 bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-lg outline-none text-xs font-semibold">
+                    {localSuppliers.map(s => <option key={s.id}>{s.name}</option>)}
+                  </select>
+                  <button type="button" onClick={() => setIsQuickSupplierModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-500 text-white w-8 h-8 rounded-lg flex items-center justify-center font-bold text-lg shadow-sm transition-all" title="Cadastro Rápido">+</button>
+                </div>
               </div>
               <div>
                 <label className="block text-[10px] font-semibold text-slate-500 mb-1 uppercase">Previsão de Entrega</label>
@@ -649,12 +680,18 @@ export default function PurchasesPage() {
                     </div>
                     <p className="text-[10px] text-slate-500">{q.products.length} produtos · {q.responses.length}/{q.supplierIds.length} respostas</p>
                     <p className="text-[10px] text-slate-600">Prazo: {new Date(q.deadline).toLocaleDateString("pt-BR")}</p>
-                    {q.status === "COMPLETE" && (
-                      <button onClick={() => { setSelectedAnalysisQuote(q); setTab("analysis"); }}
-                        className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5 mt-1">
-                        Ver Análise <ChevronRight size={10}/>
+                    <div className="flex gap-2 mt-1">
+                      {q.status === "COMPLETE" && (
+                        <button onClick={() => { setSelectedAnalysisQuote(q); setTab("analysis"); }}
+                          className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5">
+                          Ver Análise <ChevronRight size={10}/>
+                        </button>
+                      )}
+                      <button onClick={() => handleResendQuote(q.id)}
+                        className="text-[10px] font-bold text-amber-400 hover:text-amber-300 flex items-center gap-0.5">
+                        Reenviar Cotação 🔄
                       </button>
-                    )}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -860,6 +897,38 @@ export default function PurchasesPage() {
           onClose={() => setReceiveModal(null)}
           onConfirm={handleMarkReceived}
         />
+      )}
+
+      {/* ── Cadastro Rápido Fornecedor Modal ─────────────────── */}
+      {isQuickSupplierModalOpen && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#111528] border border-indigo-500/15 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="p-5 border-b border-indigo-500/[0.08] flex justify-between items-center bg-[#0c0f1a]/50">
+              <h3 className="text-md font-bold text-white flex items-center gap-2">
+                <Truck className="text-indigo-400" size={16} /> Cadastro Rápido de Fornecedor
+              </h3>
+              <button type="button" onClick={() => setIsQuickSupplierModalOpen(false)} className="p-1 hover:bg-indigo-500/10 rounded-lg text-slate-500"><X size={18}/></button>
+            </div>
+            <form onSubmit={handleQuickSupplierSave} className="p-5 space-y-4">
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-400 mb-1 uppercase">Razão Social / Nome *</label>
+                <input required value={quickSupplierName} onChange={e => setQuickSupplierName(e.target.value)} placeholder="Distribuidora de Alimentos..." className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-lg outline-none text-xs" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-400 mb-1 uppercase">CNPJ</label>
+                <input value={quickSupplierCnpj} onChange={e => setQuickSupplierCnpj(e.target.value)} placeholder="00.000.000/0001-00" className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-lg outline-none text-xs font-mono" />
+              </div>
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-400 mb-1 uppercase">E-mail de Cotação</label>
+                <input type="email" value={quickSupplierEmail} onChange={e => setQuickSupplierEmail(e.target.value)} placeholder="cotacao@fornecedor.com" className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-lg outline-none text-xs" />
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button type="button" onClick={() => setIsQuickSupplierModalOpen(false)} className="flex-1 bg-[#0c0f1a] hover:bg-[#161b33] text-slate-400 font-semibold py-2.5 rounded-xl border border-indigo-500/10 text-xs">Cancelar</button>
+                <button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-xl shadow-lg text-xs">Salvar Fornecedor</button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );

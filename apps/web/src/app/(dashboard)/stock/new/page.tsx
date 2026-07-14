@@ -29,10 +29,22 @@ export default function NewProductPage() {
   const [ibsRate, setIbsRate] = useState("");
   const [cbsRate, setCbsRate] = useState("");
   const [isRate, setIsRate] = useState("");
+  const [isSelfProduced, setIsSelfProduced] = useState(false);
+  const [internalCode, setInternalCode] = useState("");
 
   const [activeTab, setActiveTab] = useState<"general" | "fiscal" | "rates">("general");
 
   const [manualMode, setManualMode] = useState(false);
+
+  // Margem dinâmica calculada em tempo real
+  const computedMargin = (() => {
+    const pVal = parseFloat(price);
+    const cVal = parseFloat(cost);
+    if (!isNaN(pVal) && !isNaN(cVal) && cVal > 0) {
+      return (((pVal - cVal) / cVal) * 100).toFixed(2);
+    }
+    return null;
+  })();
 
   // Auto-lookup with debounce
   useEffect(() => {
@@ -87,6 +99,8 @@ export default function NewProductPage() {
     formData.append("ibsRate", ibsRate);
     formData.append("cbsRate", cbsRate);
     formData.append("isRate", isRate);
+    formData.append("isSelfProduced", String(isSelfProduced));
+    formData.append("internalCode", internalCode);
 
     const result = await createProduct(formData);
 
@@ -198,10 +212,27 @@ export default function NewProductPage() {
                       />
                       <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Digitar Manualmente</span>
                     </label>
+                    
+                    <label className="flex items-center gap-2 mt-2 cursor-pointer w-fit">
+                      <input 
+                        type="checkbox" 
+                        checked={isSelfProduced}
+                        onChange={e => setIsSelfProduced(e.target.checked)}
+                        className="rounded bg-[#0c0f1a] border-indigo-500/20 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-0"
+                      />
+                      <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Produção Própria (Balança Prix)</span>
+                    </label>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Código Interno</label>
-                    <input type="text" disabled className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] text-slate-500 px-3 py-2 text-sm rounded outline-none" placeholder="Automático" />
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Cód. Interno / Toledo</label>
+                    <input 
+                      type="text" 
+                      value={internalCode}
+                      onChange={e => setInternalCode(e.target.value)}
+                      disabled={isSelfProduced && !internalCode}
+                      className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] text-white px-3 py-2 text-sm rounded outline-none placeholder:text-slate-600 disabled:text-slate-500" 
+                      placeholder={isSelfProduced ? "Automático (5 dígitos)" : "Ex: 00123"} 
+                    />
                   </div>
                 </div>
 
@@ -227,7 +258,7 @@ export default function NewProductPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                   <div>
                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Preço de Venda (R$) *</label>
                     <input 
@@ -250,6 +281,12 @@ export default function NewProductPage() {
                       className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-3 py-2 text-sm rounded outline-none font-mono"
                       placeholder="0.00"
                     />
+                  </div>
+                  <div className="bg-[#0c0f1a] border border-indigo-500/10 rounded px-3 py-2 flex flex-col justify-center h-[38px]">
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block leading-none">Margem de Lucro</span>
+                    <span className="text-sm font-black font-mono text-emerald-400 mt-1">
+                      {computedMargin ? `${computedMargin}%` : "---"}
+                    </span>
                   </div>
                   <div>
                     <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Estoque Inicial</label>

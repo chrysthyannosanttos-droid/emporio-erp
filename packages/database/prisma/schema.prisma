@@ -100,6 +100,15 @@ model Product {
   cst   String?
   csosn String?
   
+  // Balança e Produção Própria
+  isSelfProduced Boolean @default(false)
+  internalCode   String? // 5 dígitos para Prix Toledo
+  
+  // Familiarização / Variações
+  parentProductId String?
+  parentProduct   Product?  @relation("ProductFamily", fields: [parentProductId], references: [id])
+  variations      Product[] @relation("ProductFamily")
+
   // Reforma Tributária
   ibsRate Decimal? @default(0) // Imposto sobre Bens e Serviços
   cbsRate Decimal? @default(0) // Contribuição sobre Bens e Serviços
@@ -128,6 +137,7 @@ model Product {
   campaigns       Campaign[]
 
   @@unique([barcode, companyId])
+  @@unique([internalCode, companyId])
   @@map("products")
 }
 

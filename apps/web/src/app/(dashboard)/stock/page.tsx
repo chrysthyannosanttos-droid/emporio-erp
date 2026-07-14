@@ -28,6 +28,8 @@ export default function StockPage() {
     ],
   };
 
+  const [stockArea, setStockArea] = useState<"ALL" | "SALE" | "LOSS" | "PRODUCTION">("ALL");
+
   useEffect(() => { loadProducts(); }, []);
 
   const loadProducts = async () => {
@@ -51,9 +53,22 @@ export default function StockPage() {
     setXmlLoading(false);
   };
 
-  const filtered = products.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase()) || (p.barcode && p.barcode.includes(search))
-  );
+  const filtered = products.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || (p.barcode && p.barcode.includes(search));
+    if (!matchesSearch) return false;
+
+    if (stockArea === "SALE") {
+      return !p.isSelfProduced && p.stock > 0;
+    }
+    if (stockArea === "PRODUCTION") {
+      return p.isSelfProduced === true;
+    }
+    if (stockArea === "LOSS") {
+      // Exibe produtos avariados/críticos com estoque baixo ou perdas
+      return p.stock <= 5;
+    }
+    return true;
+  });
 
   return (
     <div className="h-full flex flex-col gap-5">
@@ -75,11 +90,31 @@ export default function StockPage() {
 
       {/* Table */}
       <div className="bg-[#111528] rounded-2xl border border-indigo-500/10 overflow-hidden flex-1 flex flex-col min-h-0">
-        <div className="p-4 border-b border-indigo-500/[0.08] shrink-0">
-          <div className="relative max-w-sm">
+        <div className="p-4 border-b border-indigo-500/[0.08] shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="relative max-w-sm w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
             <input type="text" placeholder="Buscar por nome ou código..." value={search} onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-9 pr-4 py-2 bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-white rounded-lg outline-none text-sm font-medium placeholder:text-slate-600" />
+          </div>
+          <div className="flex gap-1.5 flex-wrap">
+            {[
+              { key: "ALL", label: "Estoque Geral" },
+              { key: "SALE", label: "Área de Venda" },
+              { key: "LOSS", label: "Avaria / Crítico" },
+              { key: "PRODUCTION", label: "Produção Própria" }
+            ].map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setStockArea(tab.key as any)}
+                className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                  stockArea === tab.key
+                    ? "bg-indigo-600 border-indigo-500 text-white shadow-md shadow-indigo-600/10"
+                    : "bg-[#0c0f1a] border-indigo-500/10 text-slate-400 hover:text-white"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -94,6 +129,7 @@ export default function StockPage() {
                 <tr>
                   <th className="px-5 py-3 font-semibold uppercase tracking-wider text-[10px]">Produto</th>
                   <th className="px-5 py-3 font-semibold uppercase tracking-wider text-[10px]">Código (EAN)</th>
+                  <th className="px-5 py-3 font-semibold uppercase tracking-wider text-[10px]">Cód. Toledo (Prix)</th>
                   <th className="px-5 py-3 font-semibold uppercase tracking-wider text-[10px] text-right">Preço Venda</th>
                   <th className="px-5 py-3 font-semibold uppercase tracking-wider text-[10px] text-right">Estoque</th>
                   <th className="px-5 py-3 font-semibold uppercase tracking-wider text-[10px] text-right">Ações</th>
@@ -101,7 +137,7 @@ export default function StockPage() {
               </thead>
               <tbody className="divide-y divide-indigo-500/[0.06]">
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={5} className="px-5 py-10 text-center text-slate-600">Nenhum produto cadastrado.</td></tr>
+                  <tr><td colSpan={6} className="px-5 py-10 text-center text-slate-600">Nenhum produto cadastrado.</td></tr>
                 ) : (
                   filtered.map(p => (
                     <tr key={p.id} className="hover:bg-indigo-500/[0.04] transition-colors">
@@ -109,9 +145,13 @@ export default function StockPage() {
                         <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/15 shrink-0">
                           <Package size={14} />
                         </div>
-                        <span className="truncate">{p.name}</span>
+                        <div className="flex flex-col">
+                          <span className="truncate">{p.name}</span>
+                          {p.isSelfProduced && <span className="text-[9px] text-emerald-400 font-bold uppercase tracking-wider">Produção Própria</span>}
+                        </div>
                       </td>
                       <td className="px-5 py-3 text-slate-500 font-mono text-xs">{p.barcode || "---"}</td>
+                      <td className="px-5 py-3 text-slate-400 font-mono text-xs font-bold">{p.internalCode || "---"}</td>
                       <td className="px-5 py-3 text-slate-300 text-right font-mono text-xs">R$ {Number(p.price).toFixed(2).replace('.', ',')}</td>
                       <td className="px-5 py-3 text-right">
                         <span className={`px-2 py-1 rounded-md text-[10px] font-bold ${
