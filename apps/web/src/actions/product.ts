@@ -36,6 +36,18 @@ export async function createProduct(formData: FormData) {
     const ibsRate = parseFloat(formData.get("ibsRate") as string) || 0;
     const cbsRate = parseFloat(formData.get("cbsRate") as string) || 0;
     const isRate = parseFloat(formData.get("isRate") as string) || 0;
+    // Entrada (compra)
+    const cfopIn = (formData.get("cfopIn") as string) || null;
+    const cstIn = (formData.get("cstIn") as string) || null;
+    const icmsRateIn = parseFloat(formData.get("icmsRateIn") as string) || 0;
+    const icmsRedBaseRateIn = parseFloat(formData.get("icmsRedBaseRateIn") as string) || 0;
+    const fecoepRateIn = parseFloat(formData.get("fecoepRateIn") as string) || 0;
+    const cstPisIn = (formData.get("cstPisIn") as string) || null;
+    const pisRateIn = parseFloat(formData.get("pisRateIn") as string) || 0;
+    const cstCofinsIn = (formData.get("cstCofinsIn") as string) || null;
+    const cofinsRateIn = parseFloat(formData.get("cofinsRateIn") as string) || 0;
+    const cstIpiIn = (formData.get("cstIpiIn") as string) || null;
+    const ipiRateIn = parseFloat(formData.get("ipiRateIn") as string) || 0;
     const isSelfProduced = formData.get("isSelfProduced") === "true";
     let internalCode = formData.get("internalCode") as string;
     const parentProductId = formData.get("parentProductId") as string || undefined;
@@ -84,6 +96,17 @@ export async function createProduct(formData: FormData) {
         ibsRate,
         cbsRate,
         isRate,
+        cfopIn: cfopIn || null,
+        cstIn: cstIn || null,
+        icmsRateIn,
+        icmsRedBaseRateIn,
+        fecoepRateIn,
+        cstPisIn,
+        pisRateIn,
+        cstCofinsIn,
+        cofinsRateIn,
+        cstIpiIn,
+        ipiRateIn,
         isSelfProduced,
         internalCode: internalCode || null,
         parentProductId,
@@ -328,6 +351,7 @@ function serializeProduct(p: any) {
     ...p,
     price: Number(p.price),
     cost: p.cost ? Number(p.cost) : null,
+    // Saída
     icmsRate: p.icmsRate ? Number(p.icmsRate) : null,
     icmsRedBaseRate: p.icmsRedBaseRate ? Number(p.icmsRedBaseRate) : null,
     pisRate: p.pisRate ? Number(p.pisRate) : null,
@@ -337,6 +361,13 @@ function serializeProduct(p: any) {
     ibsRate: p.ibsRate ? Number(p.ibsRate) : null,
     cbsRate: p.cbsRate ? Number(p.cbsRate) : null,
     isRate: p.isRate ? Number(p.isRate) : null,
+    // Entrada
+    icmsRateIn: p.icmsRateIn ? Number(p.icmsRateIn) : null,
+    icmsRedBaseRateIn: p.icmsRedBaseRateIn ? Number(p.icmsRedBaseRateIn) : null,
+    fecoepRateIn: p.fecoepRateIn ? Number(p.fecoepRateIn) : null,
+    pisRateIn: p.pisRateIn ? Number(p.pisRateIn) : null,
+    cofinsRateIn: p.cofinsRateIn ? Number(p.cofinsRateIn) : null,
+    ipiRateIn: p.ipiRateIn ? Number(p.ipiRateIn) : null,
   };
 }
 

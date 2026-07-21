@@ -96,19 +96,34 @@ model Product {
   // Fiscal Info (Antigos e Novos Reforma)
   ncm             String?
   cest            String?
+
+  // Saída (Emissão NF-e de Venda)
   cfop            String?
   cst             String?
   csosn           String?
   origin          String?  @default("0") // Origem da Mercadoria (0, 1, 2, etc.)
-  icmsRate        Decimal? @default(0)   // Alíquota ICMS (%)
-  icmsRedBaseRate Decimal? @default(0)   // Redução BC ICMS (%)
-  cstPis          String?                // CST PIS
-  pisRate         Decimal? @default(0)   // Alíquota PIS (%)
-  cstCofins       String?                // CST COFINS
-  cofinsRate      Decimal? @default(0)   // Alíquota COFINS (%)
-  cstIpi          String?                // CST IPI
-  ipiRate         Decimal? @default(0)   // Alíquota IPI (%)
-  fecoepRate      Decimal? @default(0)   // Alíquota FECOEP / FCP (%)
+  icmsRate        Decimal? @default(0)   // Alíquota ICMS Saída (%)
+  icmsRedBaseRate Decimal? @default(0)   // Redução BC ICMS Saída (%)
+  cstPis          String?                // CST PIS Saída
+  pisRate         Decimal? @default(0)   // Alíquota PIS Saída (%)
+  cstCofins       String?                // CST COFINS Saída
+  cofinsRate      Decimal? @default(0)   // Alíquota COFINS Saída (%)
+  cstIpi          String?                // CST IPI Saída
+  ipiRate         Decimal? @default(0)   // Alíquota IPI Saída (%)
+  fecoepRate      Decimal? @default(0)   // Alíquota FECOEP / FCP Saída (%)
+
+  // Entrada (Recebimento / Compra)
+  cfopIn          String?                // CFOP Entrada (ex: 1102, 2102)
+  cstIn           String?                // CST/CSOSN Entrada
+  icmsRateIn      Decimal? @default(0)   // Alíquota ICMS Entrada (%)
+  icmsRedBaseRateIn Decimal? @default(0) // Redução BC ICMS Entrada (%)
+  fecoepRateIn    Decimal? @default(0)   // Alíquota FECOEP / FCP Entrada (%)
+  cstPisIn        String?                // CST PIS Entrada
+  pisRateIn       Decimal? @default(0)   // Alíquota PIS Entrada (%)
+  cstCofinsIn     String?                // CST COFINS Entrada
+  cofinsRateIn    Decimal? @default(0)   // Alíquota COFINS Entrada (%)
+  cstIpiIn        String?                // CST IPI Entrada
+  ipiRateIn       Decimal? @default(0)   // Alíquota IPI Entrada (%)
   
   // Balança e Produção Própria
   isSelfProduced Boolean @default(false)

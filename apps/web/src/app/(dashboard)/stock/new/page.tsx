@@ -68,12 +68,26 @@ export default function NewProductPage() {
   const [cstIpi, setCstIpi] = useState("");
   const [ipiRate, setIpiRate] = useState("");
 
+  // Impostos de Entrada
+  const [cfopIn, setCfopIn] = useState("1102");
+  const [cstIn, setCstIn] = useState("");
+  const [icmsRateIn, setIcmsRateIn] = useState("");
+  const [icmsRedBaseRateIn, setIcmsRedBaseRateIn] = useState("");
+  const [fecoepRateIn, setFecoepRateIn] = useState("");
+  const [cstPisIn, setCstPisIn] = useState("");
+  const [pisRateIn, setPisRateIn] = useState("");
+  const [cstCofinsIn, setCstCofinsIn] = useState("");
+  const [cofinsRateIn, setCofinsRateIn] = useState("");
+  const [cstIpiIn, setCstIpiIn] = useState("");
+  const [ipiRateIn, setIpiRateIn] = useState("");
+
   // Reforma Tributária
   const [ibsRate, setIbsRate] = useState("");
   const [cbsRate, setCbsRate] = useState("");
   const [isRate, setIsRate] = useState("");
 
   const [activeTab, setActiveTab] = useState<"general" | "fiscal" | "rates">("general");
+  const [fiscalSubTab, setFiscalSubTab] = useState<"saida" | "entrada">("saida");
 
   // Margem dinâmica calculada em tempo real
   const computedMargin = (() => {
@@ -151,6 +165,18 @@ export default function NewProductPage() {
     formData.append("ibsRate", ibsRate);
     formData.append("cbsRate", cbsRate);
     formData.append("isRate", isRate);
+    // Entrada
+    formData.append("cfopIn", cfopIn);
+    formData.append("cstIn", cstIn);
+    formData.append("icmsRateIn", icmsRateIn);
+    formData.append("icmsRedBaseRateIn", icmsRedBaseRateIn);
+    formData.append("fecoepRateIn", fecoepRateIn);
+    formData.append("cstPisIn", cstPisIn);
+    formData.append("pisRateIn", pisRateIn);
+    formData.append("cstCofinsIn", cstCofinsIn);
+    formData.append("cofinsRateIn", cofinsRateIn);
+    formData.append("cstIpiIn", cstIpiIn);
+    formData.append("ipiRateIn", ipiRateIn);
     formData.append("isSelfProduced", String(isSelfProduced));
     formData.append("internalCode", internalCode);
 
@@ -314,86 +340,197 @@ export default function NewProductPage() {
                       <input type="text" value={cest} onChange={(e) => setCest(e.target.value)} className={inputClass} placeholder="Ex: 01.001.00" />
                     </div>
                     <div>
-                      <label className={labelClass}>CFOP Padrão</label>
-                      <input type="text" value={cfop} onChange={(e) => setCfop(e.target.value)} className={inputClass} placeholder="Ex: 5102" />
+                      <label className={labelClass}>Origem da Mercadoria</label>
+                      <select value={origin} onChange={(e) => setOrigin(e.target.value)} className={inputClass}>
+                        {ORIGIN_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>{o.label}</option>
+                        ))}
+                      </select>
                     </div>
-                    <div>
-                      <label className={labelClass}>CST / CSOSN</label>
-                      <input type="text" value={cst} onChange={(e) => setCst(e.target.value)} className={inputClass} placeholder="Ex: 102" />
-                    </div>
-                  </div>
-                  <div className="mt-4">
-                    <label className={labelClass}>Origem da Mercadoria</label>
-                    <select value={origin} onChange={(e) => setOrigin(e.target.value)} className={inputClass}>
-                      {ORIGIN_OPTIONS.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                      ))}
-                    </select>
+                    <div />
                   </div>
                 </div>
 
-                {/* ICMS / FECOEP */}
-                <div>
-                  <p className={sectionTitleClass}>ICMS / FECOEP — Imposto sobre Circulação de Mercadorias e Fundo de Combate à Pobreza</p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                      <label className={labelClass}>Alíquota ICMS (%)</label>
-                      <input type="number" step="0.01" min="0" max="100" value={icmsRate}
-                        onChange={(e) => setIcmsRate(e.target.value)} className={inputMonoClass} placeholder="Ex: 12.00" />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Redução Base ICMS (%)</label>
-                      <input type="number" step="0.01" min="0" max="100" value={icmsRedBaseRate}
-                        onChange={(e) => setIcmsRedBaseRate(e.target.value)} className={inputMonoClass} placeholder="Ex: 33.33" />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Alíquota FECOEP / FCP (%)</label>
-                      <input type="number" step="0.01" min="0" max="100" value={fecoepRate}
-                        onChange={(e) => setFecoepRate(e.target.value)} className={inputMonoClass} placeholder="Ex: 2.00" />
-                    </div>
-                  </div>
+                {/* Sub-abas Entrada / Saída */}
+                <div className="flex gap-1 border-b border-indigo-500/10 mb-0">
+                  {[
+                    { key: "saida", label: "🔼 Saída (Emissão NF-e de Venda)", color: "emerald" },
+                    { key: "entrada", label: "🔽 Entrada (Recebimento de Compra)", color: "amber" },
+                  ].map((sub) => (
+                    <button
+                      key={sub.key}
+                      type="button"
+                      onClick={() => setFiscalSubTab(sub.key as typeof fiscalSubTab)}
+                      className={`px-4 py-2.5 text-xs font-bold rounded-t-lg border-b-2 transition-all ${
+                        fiscalSubTab === sub.key
+                          ? sub.key === "saida"
+                            ? "border-emerald-500 text-emerald-400 bg-emerald-500/5"
+                            : "border-amber-500 text-amber-400 bg-amber-500/5"
+                          : "border-transparent text-slate-500 hover:text-slate-300"
+                      }`}
+                    >
+                      {sub.label}
+                    </button>
+                  ))}
                 </div>
 
-                {/* PIS / COFINS */}
-                <div>
-                  <p className={sectionTitleClass}>PIS / COFINS — Contribuições Sociais</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div>
-                      <label className={labelClass}>CST PIS</label>
-                      <input type="text" value={cstPis} onChange={(e) => setCstPis(e.target.value)} className={inputClass} placeholder="Ex: 01" />
+                {/* ─── ABA SAÍDA ─── */}
+                {fiscalSubTab === "saida" && (
+                  <div className="space-y-5 pt-2">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={labelClass}>CFOP Saída</label>
+                        <input type="text" value={cfop} onChange={(e) => setCfop(e.target.value)} className={inputClass} placeholder="Ex: 5102" />
+                        <p className="text-[10px] text-slate-600 mt-1">Saída Interna: 5xxx | Saída Interestadual: 6xxx</p>
+                      </div>
+                      <div>
+                        <label className={labelClass}>CST / CSOSN Saída</label>
+                        <input type="text" value={cst} onChange={(e) => setCst(e.target.value)} className={inputClass} placeholder="Ex: 102" />
+                      </div>
                     </div>
-                    <div>
-                      <label className={labelClass}>Alíquota PIS (%)</label>
-                      <input type="number" step="0.01" min="0" max="100" value={pisRate}
-                        onChange={(e) => setPisRate(e.target.value)} className={inputMonoClass} placeholder="Ex: 1.65" />
-                    </div>
-                    <div>
-                      <label className={labelClass}>CST COFINS</label>
-                      <input type="text" value={cstCofins} onChange={(e) => setCstCofins(e.target.value)} className={inputClass} placeholder="Ex: 01" />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Alíquota COFINS (%)</label>
-                      <input type="number" step="0.01" min="0" max="100" value={cofinsRate}
-                        onChange={(e) => setCofinsRate(e.target.value)} className={inputMonoClass} placeholder="Ex: 7.60" />
-                    </div>
-                  </div>
-                </div>
 
-                {/* IPI */}
-                <div>
-                  <p className={sectionTitleClass}>IPI — Imposto sobre Produtos Industrializados</p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                      <label className={labelClass}>CST IPI</label>
-                      <input type="text" value={cstIpi} onChange={(e) => setCstIpi(e.target.value)} className={inputClass} placeholder="Ex: 50" />
+                      <p className={sectionTitleClass}>ICMS / FECOEP — Saída</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className={labelClass}>Alíquota ICMS (%)</label>
+                          <input type="number" step="0.01" min="0" max="100" value={icmsRate}
+                            onChange={(e) => setIcmsRate(e.target.value)} className={inputMonoClass} placeholder="Ex: 12.00" />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Redução Base ICMS (%)</label>
+                          <input type="number" step="0.01" min="0" max="100" value={icmsRedBaseRate}
+                            onChange={(e) => setIcmsRedBaseRate(e.target.value)} className={inputMonoClass} placeholder="Ex: 33.33" />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Alíquota FECOEP / FCP (%)</label>
+                          <input type="number" step="0.01" min="0" max="100" value={fecoepRate}
+                            onChange={(e) => setFecoepRate(e.target.value)} className={inputMonoClass} placeholder="Ex: 2.00" />
+                        </div>
+                      </div>
                     </div>
+
                     <div>
-                      <label className={labelClass}>Alíquota IPI (%)</label>
-                      <input type="number" step="0.01" min="0" max="100" value={ipiRate}
-                        onChange={(e) => setIpiRate(e.target.value)} className={inputMonoClass} placeholder="Ex: 5.00" />
+                      <p className={sectionTitleClass}>PIS / COFINS — Saída</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div>
+                          <label className={labelClass}>CST PIS</label>
+                          <input type="text" value={cstPis} onChange={(e) => setCstPis(e.target.value)} className={inputClass} placeholder="Ex: 01" />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Alíquota PIS (%)</label>
+                          <input type="number" step="0.01" min="0" max="100" value={pisRate}
+                            onChange={(e) => setPisRate(e.target.value)} className={inputMonoClass} placeholder="Ex: 1.65" />
+                        </div>
+                        <div>
+                          <label className={labelClass}>CST COFINS</label>
+                          <input type="text" value={cstCofins} onChange={(e) => setCstCofins(e.target.value)} className={inputClass} placeholder="Ex: 01" />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Alíquota COFINS (%)</label>
+                          <input type="number" step="0.01" min="0" max="100" value={cofinsRate}
+                            onChange={(e) => setCofinsRate(e.target.value)} className={inputMonoClass} placeholder="Ex: 7.60" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className={sectionTitleClass}>IPI — Saída</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className={labelClass}>CST IPI</label>
+                          <input type="text" value={cstIpi} onChange={(e) => setCstIpi(e.target.value)} className={inputClass} placeholder="Ex: 50" />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Alíquota IPI (%)</label>
+                          <input type="number" step="0.01" min="0" max="100" value={ipiRate}
+                            onChange={(e) => setIpiRate(e.target.value)} className={inputMonoClass} placeholder="Ex: 5.00" />
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
+
+                {/* ─── ABA ENTRADA ─── */}
+                {fiscalSubTab === "entrada" && (
+                  <div className="space-y-5 pt-2">
+                    <div className="p-3 bg-amber-500/5 border border-amber-500/15 rounded-xl text-xs text-amber-300">
+                      <strong>Impostos de Entrada</strong> são usados no cálculo do custo real de compra e na somatória tributária do Pedido de Compra. CFOP de Entrada: 1xxx (compras estaduais), 2xxx (interestaduais), 3xxx (exterior).
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className={labelClass}>CFOP Entrada</label>
+                        <input type="text" value={cfopIn} onChange={(e) => setCfopIn(e.target.value)} className={inputClass} placeholder="Ex: 1102" />
+                        <p className="text-[10px] text-slate-600 mt-1">Entrada Interna: 1xxx | Entrada Interestadual: 2xxx</p>
+                      </div>
+                      <div>
+                        <label className={labelClass}>CST / CSOSN Entrada</label>
+                        <input type="text" value={cstIn} onChange={(e) => setCstIn(e.target.value)} className={inputClass} placeholder="Ex: 102" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className={sectionTitleClass}>ICMS / FECOEP — Entrada</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                          <label className={labelClass}>Alíquota ICMS Entrada (%)</label>
+                          <input type="number" step="0.01" min="0" max="100" value={icmsRateIn}
+                            onChange={(e) => setIcmsRateIn(e.target.value)} className={inputMonoClass} placeholder="Ex: 12.00" />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Redução Base ICMS Entrada (%)</label>
+                          <input type="number" step="0.01" min="0" max="100" value={icmsRedBaseRateIn}
+                            onChange={(e) => setIcmsRedBaseRateIn(e.target.value)} className={inputMonoClass} placeholder="Ex: 0.00" />
+                        </div>
+                        <div>
+                          <label className={labelClass}>FECOEP / FCP Entrada (%)</label>
+                          <input type="number" step="0.01" min="0" max="100" value={fecoepRateIn}
+                            onChange={(e) => setFecoepRateIn(e.target.value)} className={inputMonoClass} placeholder="Ex: 2.00" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className={sectionTitleClass}>PIS / COFINS — Entrada</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div>
+                          <label className={labelClass}>CST PIS Entrada</label>
+                          <input type="text" value={cstPisIn} onChange={(e) => setCstPisIn(e.target.value)} className={inputClass} placeholder="Ex: 50" />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Alíquota PIS Entrada (%)</label>
+                          <input type="number" step="0.01" min="0" max="100" value={pisRateIn}
+                            onChange={(e) => setPisRateIn(e.target.value)} className={inputMonoClass} placeholder="Ex: 1.65" />
+                        </div>
+                        <div>
+                          <label className={labelClass}>CST COFINS Entrada</label>
+                          <input type="text" value={cstCofinsIn} onChange={(e) => setCstCofinsIn(e.target.value)} className={inputClass} placeholder="Ex: 50" />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Alíquota COFINS Entrada (%)</label>
+                          <input type="number" step="0.01" min="0" max="100" value={cofinsRateIn}
+                            onChange={(e) => setCofinsRateIn(e.target.value)} className={inputMonoClass} placeholder="Ex: 7.60" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <p className={sectionTitleClass}>IPI — Entrada</p>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className={labelClass}>CST IPI Entrada</label>
+                          <input type="text" value={cstIpiIn} onChange={(e) => setCstIpiIn(e.target.value)} className={inputClass} placeholder="Ex: 00" />
+                        </div>
+                        <div>
+                          <label className={labelClass}>Alíquota IPI Entrada (%)</label>
+                          <input type="number" step="0.01" min="0" max="100" value={ipiRateIn}
+                            onChange={(e) => setIpiRateIn(e.target.value)} className={inputMonoClass} placeholder="Ex: 5.00" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
               </div>
             )}
