@@ -23,6 +23,16 @@ export async function createProduct(formData: FormData) {
     const cest = formData.get("cest") as string;
     const cfop = formData.get("cfop") as string;
     const cst = formData.get("cst") as string;
+    const origin = (formData.get("origin") as string) || "0";
+    const icmsRate = parseFloat(formData.get("icmsRate") as string) || 0;
+    const icmsRedBaseRate = parseFloat(formData.get("icmsRedBaseRate") as string) || 0;
+    const cstPis = (formData.get("cstPis") as string) || null;
+    const pisRate = parseFloat(formData.get("pisRate") as string) || 0;
+    const cstCofins = (formData.get("cstCofins") as string) || null;
+    const cofinsRate = parseFloat(formData.get("cofinsRate") as string) || 0;
+    const cstIpi = (formData.get("cstIpi") as string) || null;
+    const ipiRate = parseFloat(formData.get("ipiRate") as string) || 0;
+    const fecoepRate = parseFloat(formData.get("fecoepRate") as string) || 0;
     const ibsRate = parseFloat(formData.get("ibsRate") as string) || 0;
     const cbsRate = parseFloat(formData.get("cbsRate") as string) || 0;
     const isRate = parseFloat(formData.get("isRate") as string) || 0;
@@ -61,6 +71,16 @@ export async function createProduct(formData: FormData) {
         cest: cest || null,
         cfop: cfop || null,
         cst: cst || null,
+        origin: origin || "0",
+        icmsRate,
+        icmsRedBaseRate,
+        cstPis,
+        pisRate,
+        cstCofins,
+        cofinsRate,
+        cstIpi,
+        ipiRate,
+        fecoepRate,
         ibsRate,
         cbsRate,
         isRate,
@@ -222,6 +242,9 @@ export async function getProductInfoByAiBarcode(barcode: string) {
             if (rule.cfopOrigin) resultTemplate.cfop = rule.cfopOrigin;
             // Usa CST de ICMS ou CSOSN dependendo do que estiver configurado
             if (rule.cstIcms || rule.csosn) resultTemplate.cst = rule.csosn || rule.cstIcms;
+            resultTemplate.icmsRate = Number(rule.icmsRate) || 0;
+            resultTemplate.pisRate = Number(rule.pisRate) || 0;
+            resultTemplate.cofinsRate = Number(rule.cofinsRate) || 0;
             resultTemplate.ibsRate = Number(rule.ibsRate) || 0;
             resultTemplate.cbsRate = Number(rule.cbsRate) || 0;
             resultTemplate.isRate = Number(rule.isRate) || 0;
@@ -305,6 +328,12 @@ function serializeProduct(p: any) {
     ...p,
     price: Number(p.price),
     cost: p.cost ? Number(p.cost) : null,
+    icmsRate: p.icmsRate ? Number(p.icmsRate) : null,
+    icmsRedBaseRate: p.icmsRedBaseRate ? Number(p.icmsRedBaseRate) : null,
+    pisRate: p.pisRate ? Number(p.pisRate) : null,
+    cofinsRate: p.cofinsRate ? Number(p.cofinsRate) : null,
+    ipiRate: p.ipiRate ? Number(p.ipiRate) : null,
+    fecoepRate: p.fecoepRate ? Number(p.fecoepRate) : null,
     ibsRate: p.ibsRate ? Number(p.ibsRate) : null,
     cbsRate: p.cbsRate ? Number(p.cbsRate) : null,
     isRate: p.isRate ? Number(p.isRate) : null,

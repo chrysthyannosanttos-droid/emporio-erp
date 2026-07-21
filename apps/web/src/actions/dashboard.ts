@@ -175,7 +175,18 @@ export async function getDashboardStats() {
       }
     };
   } catch (err: any) {
-    return { error: err.message };
+    return { 
+      error: err.message,
+      stats: {
+        faturamento: 0,
+        faturamentoTrend: 0,
+        vendasHoje: 0,
+        vendasTrend: 0,
+        novosClientes: 0,
+        clientesTrend: 0,
+        estoqueBaixo: 0
+      }
+    };
   }
 }
 
@@ -253,6 +264,7 @@ export async function getDashboardAlerts() {
     });
 
     expiringSoon.forEach(item => {
+      if (!item.expirationDate) return;
       const days = Math.ceil((item.expirationDate!.getTime() - new Date().getTime()) / (1000 * 3600 * 24));
       alerts.push({
         title: "Vencimento próximo",

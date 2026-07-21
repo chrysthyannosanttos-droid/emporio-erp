@@ -76,43 +76,31 @@ export default function SuppliersPage() {
     setLoading(false);
   }
 
-  // Consulta CNPJ Pública via Receita WS (CORS-free callback fallback ou fetch direto)
+  // Consulta CNPJ Pública via Receita WS / BrasilAPI / CNPJ.ws
   async function handleCnpjLookup() {
     const cleanCnpj = formData.document.replace(/\D/g, "");
     if (cleanCnpj.length !== 14) return alert("Digite um CNPJ válido de 14 dígitos.");
     
     setCnpjLoading(true);
     try {
-      const res = await fetch(`https://publica.cnpj.ws/cnpj/${cleanCnpj}`);
-      if (!res.ok) throw new Error();
-      const data = await res.json();
-      
-      setFormData(prev => ({
-        ...prev,
-        name: data.razao_social || "",
-        tradeName: data.estabelecimento?.nome_fantasia || "",
-        zipCode: data.estabelecimento?.cep || "",
-        street: data.estabelecimento?.logradouro || "",
-        number: data.estabelecimento?.numero || "",
-        complement: data.estabelecimento?.complemento || "",
-        neighborhood: data.estabelecimento?.bairro || "",
-        city: data.estabelecimento?.cidade?.nome || "",
-        state: data.estabelecimento?.estado?.sigla || "AL",
-        phone: data.estabelecimento?.ddd1 && data.estabelecimento?.telefone1 
-          ? `(${data.estabelecimento.ddd1}) ${data.estabelecimento.telefone1}` 
-          : "",
-        email: data.estabelecimento?.email || ""
-      }));
-    } catch (err) {
-      // Tentar via ReceitaWS API gratuita em fallback
-      try {
-        const res = await fetch(`https://minhareceita.org/${cleanCnpj}`);
-        if (!res.ok) throw new Error();
+      // Tentar via BrasilAPI primeiro (retorna opção pelo Simples / MEI e dados gerais)
+      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${cleanCnpj}`);
+      if (res.ok) {
         const data = await res.json();
+        
+        let detectedRegime = "Simples Nacional";
+        if (data.opcao_pelo_mei) detectedRegime = "MEI";
+        else if (data.opcao_pelo_simples) detectedRegime = "Simples Nacional";
+        else detectedRegime = "Lucro Presumido";
+
         setFormData(prev => ({
           ...prev,
           name: data.razao_social || "",
           tradeName: data.nome_fantasia || "",
+          taxRegime: detectedRegime,
+          stateReg: data.inscricao_estadual || prev.stateReg || "",
+          municipalReg: data.inscricao_municipal || prev.municipalReg || "",
+          isIcmsContributor: !data.opcao_pelo_mei,
           zipCode: data.cep || "",
           street: data.logradouro || "",
           number: data.numero || "",
@@ -120,8 +108,42 @@ export default function SuppliersPage() {
           neighborhood: data.bairro || "",
           city: data.municipio || "",
           state: data.uf || "AL",
+          phone: data.ddd_telefone_1 ? `(${data.ddd_telefone_1.slice(0,2)}) ${data.ddd_telefone_1.slice(2)}` : "",
+          email: data.email || ""
         }));
-      } catch (e) {
+        return;
+      }
+      throw new Error("BrasilAPI fallback");
+    } catch (_) {
+      try {
+        const res = await fetch(`https://publica.cnpj.ws/cnpj/${cleanCnpj}`);
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        
+        const isSimples = data.simples?.optante === "Sim";
+        const isMei = data.simples?.mei === "Sim";
+        const regime = isMei ? "MEI" : isSimples ? "Simples Nacional" : "Lucro Presumido";
+        const ie = data.estabelecimento?.inscricoes_estaduais?.[0]?.inscricao_estadual || "";
+
+        setFormData(prev => ({
+          ...prev,
+          name: data.razao_social || "",
+          tradeName: data.estabelecimento?.nome_fantasia || "",
+          taxRegime: regime,
+          stateReg: ie || prev.stateReg,
+          zipCode: data.estabelecimento?.cep || "",
+          street: data.estabelecimento?.logradouro || "",
+          number: data.estabelecimento?.numero || "",
+          complement: data.estabelecimento?.complemento || "",
+          neighborhood: data.estabelecimento?.bairro || "",
+          city: data.estabelecimento?.cidade?.nome || "",
+          state: data.estabelecimento?.estado?.sigla || "AL",
+          phone: data.estabelecimento?.ddd1 && data.estabelecimento?.telefone1 
+            ? `(${data.estabelecimento.ddd1}) ${data.estabelecimento.telefone1}` 
+            : "",
+          email: data.estabelecimento?.email || ""
+        }));
+      } catch (err) {
         alert("Fornecedor não encontrado nas bases públicas ou limite de requisições excedido. Preencha manualmente.");
       }
     } finally {

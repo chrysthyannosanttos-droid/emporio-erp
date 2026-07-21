@@ -94,11 +94,21 @@ model Product {
   unit    String   @default("UN") // UN, KG, LT
 
   // Fiscal Info (Antigos e Novos Reforma)
-  ncm   String?
-  cest  String?
-  cfop  String?
-  cst   String?
-  csosn String?
+  ncm             String?
+  cest            String?
+  cfop            String?
+  cst             String?
+  csosn           String?
+  origin          String?  @default("0") // Origem da Mercadoria (0, 1, 2, etc.)
+  icmsRate        Decimal? @default(0)   // Alíquota ICMS (%)
+  icmsRedBaseRate Decimal? @default(0)   // Redução BC ICMS (%)
+  cstPis          String?                // CST PIS
+  pisRate         Decimal? @default(0)   // Alíquota PIS (%)
+  cstCofins       String?                // CST COFINS
+  cofinsRate      Decimal? @default(0)   // Alíquota COFINS (%)
+  cstIpi          String?                // CST IPI
+  ipiRate         Decimal? @default(0)   // Alíquota IPI (%)
+  fecoepRate      Decimal? @default(0)   // Alíquota FECOEP / FCP (%)
   
   // Balança e Produção Própria
   isSelfProduced Boolean @default(false)

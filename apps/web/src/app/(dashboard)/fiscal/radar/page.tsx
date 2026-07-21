@@ -78,6 +78,29 @@ export default function RadarXMLPage() {
     setImportWizardOpen(true);
   };
 
+  // Return Note Generation State
+  const [returnModalData, setReturnModalData] = useState<any>(null);
+
+  const handleGenerateReturnNote = (type: "TOTAL" | "DIVERGINCIAS_ONLY") => {
+    if (!selectedInvoice) return;
+    const isTotal = type === "TOTAL";
+    const returnedItems = isTotal ? XML_ITEMS_MOCK : [
+      { name: "Cerveja Pilsen Lata 350ml - Fardo 12", qty: 10, ucom: "FD", vUnCom: 35.00, vProd: 350.00, reason: "Divergência de Quantidade (Faltando na entrega física)" }
+    ];
+    const totalReturnVal = returnedItems.reduce((a, i) => a + i.vProd, 0);
+
+    setReturnModalData({
+      type,
+      title: isTotal ? "NF-e de Devolução Total da Nota" : "NF-e de Devolução Apenas das Divergências",
+      accessKeyRef: selectedInvoice.accessKey,
+      supplier: selectedInvoice.supplier,
+      cnpj: selectedInvoice.cnpj,
+      cfop: "5202",
+      items: returnedItems,
+      totalValue: totalReturnVal
+    });
+  };
+
   const finishImport = () => {
     setInvoices(prev => prev.map(i => i.id === selectedInvoice.id ? { ...i, status: "IMPORTED" } : i));
     setImportWizardOpen(false);
@@ -251,8 +274,34 @@ export default function RadarXMLPage() {
                   <div className="bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-4 flex items-start gap-3">
                     <AlertCircle className="text-indigo-400 shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="text-indigo-300 font-bold text-sm">Associação de Produtos (De/Para)</h4>
+                      <h4 className="text-indigo-300 font-bold text-sm">Associação de Produtos (De/Para) & Validação Fiscal</h4>
                       <p className="text-indigo-200/70 text-xs mt-1">O sistema tentou vincular automaticamente os itens da nota com o seu estoque pelo código EAN. Associe os itens faltantes para dar entrada correta.</p>
+                    </div>
+                  </div>
+
+                  {/* Banner de Sugestão de Devolução e Divergências */}
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2 text-amber-300 font-bold text-xs">
+                        <AlertCircle size={16} /> 
+                        <span>Divergência Detectada! (Ex: Cerveja Pilsen veio com 10 unidades a menos no caminhão)</span>
+                      </div>
+                      <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded font-mono font-bold">1 Divergência</span>
+                    </div>
+                    
+                    <div className="flex gap-2 pt-1">
+                      <button 
+                        onClick={() => handleGenerateReturnNote("TOTAL")}
+                        className="bg-red-600/90 hover:bg-red-500 text-white px-3 py-2 rounded-lg text-xs font-bold transition-all shadow-md flex items-center gap-1.5"
+                      >
+                        🚫 Sugerir Devolução Total da Nota
+                      </button>
+                      <button 
+                        onClick={() => handleGenerateReturnNote("DIVERGINCIAS_ONLY")}
+                        className="bg-amber-600 hover:bg-amber-500 text-white px-3 py-2 rounded-lg text-xs font-bold transition-all shadow-md flex items-center gap-1.5"
+                      >
+                        ⚡ Gerar Nota de Devolução Apenas das Divergências
+                      </button>
                     </div>
                   </div>
 
@@ -261,7 +310,7 @@ export default function RadarXMLPage() {
                       <thead className="bg-[#111528] border-b border-slate-800 text-slate-400">
                         <tr>
                           <th className="px-4 py-3 font-semibold text-xs uppercase">Produto no XML (Fornecedor)</th>
-                          <th className="px-4 py-3 font-semibold text-xs uppercase">Qtd</th>
+                          <th className="px-4 py-3 font-semibold text-xs uppercase">Qtd XML</th>
                           <th className="px-4 py-3 font-semibold text-xs uppercase">Custo Unit</th>
                           <th className="px-4 py-3 font-semibold text-xs uppercase">Produto no Estoque (Seu Sistema)</th>
                         </tr>
@@ -340,6 +389,86 @@ export default function RadarXMLPage() {
                   <CheckCircle2 size={18} /> Confirmar Entrada
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal de Emissão de Nota de Devolução (Total ou Parcial) ── */}
+      {returnModalData && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-[#0c0f1a] border border-amber-500/30 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col">
+            <div className="bg-[#111528] px-6 py-4 border-b border-amber-500/20 flex justify-between items-center">
+              <h3 className="text-lg font-bold text-amber-400 flex items-center gap-2">
+                <FileText size={20} /> {returnModalData.title}
+              </h3>
+              <button onClick={() => setReturnModalData(null)} className="p-1 hover:bg-amber-500/10 rounded-lg text-slate-500"><X size={18}/></button>
+            </div>
+            
+            <div className="p-6 space-y-4 text-xs">
+              <div className="bg-[#111528] p-4 rounded-xl border border-indigo-500/10 grid grid-cols-2 gap-3">
+                <div>
+                  <span className="text-slate-500 font-bold block uppercase">Destinatário (Fornecedor)</span>
+                  <span className="text-white font-bold">{returnModalData.supplier}</span>
+                  <span className="text-slate-400 block font-mono">{returnModalData.cnpj}</span>
+                </div>
+                <div>
+                  <span className="text-slate-500 font-bold block uppercase">NF-e de Referência</span>
+                  <span className="text-indigo-300 font-mono text-[10px] block truncate">{returnModalData.accessKeyRef}</span>
+                  <span className="text-amber-400 font-bold mt-1 block">CFOP: {returnModalData.cfop} - Devolução de Compras</span>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-bold text-white mb-2 uppercase tracking-wider text-[10px]">Itens a serem devolvidos na NF-e</h4>
+                <div className="border border-slate-800 rounded-xl overflow-hidden max-h-48 overflow-y-auto">
+                  <table className="w-full text-left">
+                    <thead className="bg-[#111528] text-slate-400 text-[10px] uppercase border-b border-slate-800">
+                      <tr>
+                        <th className="p-2.5">Item</th>
+                        <th className="p-2.5 text-right">Qtd</th>
+                        <th className="p-2.5 text-right">Unit.</th>
+                        <th className="p-2.5 text-right">Subtotal</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800/60 font-mono">
+                      {returnModalData.items.map((it: any, idx: number) => (
+                        <tr key={idx} className="bg-[#0c0f1a]">
+                          <td className="p-2.5 font-sans font-medium text-slate-200">
+                            <div>{it.name}</div>
+                            {it.reason && <div className="text-[10px] text-amber-400 font-sans mt-0.5">{it.reason}</div>}
+                          </td>
+                          <td className="p-2.5 text-right text-slate-300">{it.qty} {it.ucom}</td>
+                          <td className="p-2.5 text-right text-slate-300">R$ {fmt(it.vUnCom)}</td>
+                          <td className="p-2.5 text-right text-emerald-400 font-bold">R$ {fmt(it.vProd)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-xl flex justify-between items-center">
+                <div>
+                  <span className="text-amber-300 font-bold block">Valor Total da Nota de Devolução</span>
+                  <span className="text-slate-400 text-[10px]">Será gerado XML com tag de NF-e Referenciada e transmitida à SEFAZ.</span>
+                </div>
+                <span className="text-2xl font-black font-mono text-amber-300">R$ {fmt(returnModalData.totalValue)}</span>
+              </div>
+            </div>
+
+            <div className="bg-[#111528] px-6 py-4 border-t border-amber-500/20 flex justify-between items-center">
+              <button onClick={() => setReturnModalData(null)} className="px-4 py-2 rounded-xl text-slate-400 font-semibold hover:bg-slate-800">Cancelar</button>
+              <button 
+                onClick={() => {
+                  alert(`NF-e de Devolução transmitida com sucesso para a SEFAZ!\nChave de Devolução: 352310999...${Date.now().toString().slice(-6)}\nDocumento enviado ao Fornecedor.`);
+                  setReturnModalData(null);
+                  setImportWizardOpen(false);
+                }}
+                className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-6 py-2.5 rounded-xl shadow-lg flex items-center gap-2 transition-all"
+              >
+                <CheckCircle2 size={16} /> Emitir & Transmitir NF-e de Devolução
+              </button>
             </div>
           </div>
         </div>

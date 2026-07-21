@@ -2,9 +2,27 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Package, Sparkles, Loader2, AlertCircle, Check } from "lucide-react";
+import { ArrowLeft, Save, Loader2, AlertCircle, Check } from "lucide-react";
 import Link from "next/link";
 import { createProduct, getProductInfoByAiBarcode } from "@/actions/product";
+
+const inputClass =
+  "w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-3 py-2 text-sm rounded outline-none";
+const inputMonoClass = inputClass + " font-mono";
+const labelClass = "block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1";
+const sectionTitleClass = "text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-3 pb-1.5 border-b border-indigo-500/10";
+
+const ORIGIN_OPTIONS = [
+  { value: "0", label: "0 – Nacional" },
+  { value: "1", label: "1 – Estrangeira (Importação Direta)" },
+  { value: "2", label: "2 – Estrangeira (Adquirida Mercado Interno)" },
+  { value: "3", label: "3 – Nacional c/ >40% Conteúdo Estrangeiro" },
+  { value: "4", label: "4 – Nacional (produção básica)" },
+  { value: "5", label: "5 – Nacional c/ <40% Conteúdo Estrangeiro" },
+  { value: "6", label: "6 – Estrangeira (Importação Direta, sem similar)" },
+  { value: "7", label: "7 – Estrangeira (Mercado Interno, sem similar)" },
+  { value: "8", label: "8 – Nacional c/ produção básica (CIDE)" },
+];
 
 export default function NewProductPage() {
   const router = useRouter();
@@ -22,19 +40,40 @@ export default function NewProductPage() {
   const [price, setPrice] = useState("");
   const [cost, setCost] = useState("");
   const [stock, setStock] = useState("");
+  const [isSelfProduced, setIsSelfProduced] = useState(false);
+  const [internalCode, setInternalCode] = useState("");
+  const [manualMode, setManualMode] = useState(false);
+
+  // Dados Fiscais Base
   const [ncm, setNcm] = useState("");
   const [cest, setCest] = useState("");
   const [cfop, setCfop] = useState("5102");
   const [cst, setCst] = useState("102");
+  const [origin, setOrigin] = useState("0");
+
+  // ICMS & FECOEP
+  const [icmsRate, setIcmsRate] = useState("");
+  const [icmsRedBaseRate, setIcmsRedBaseRate] = useState("");
+  const [fecoepRate, setFecoepRate] = useState("");
+
+  // PIS
+  const [cstPis, setCstPis] = useState("");
+  const [pisRate, setPisRate] = useState("");
+
+  // COFINS
+  const [cstCofins, setCstCofins] = useState("");
+  const [cofinsRate, setCofinsRate] = useState("");
+
+  // IPI
+  const [cstIpi, setCstIpi] = useState("");
+  const [ipiRate, setIpiRate] = useState("");
+
+  // Reforma Tributária
   const [ibsRate, setIbsRate] = useState("");
   const [cbsRate, setCbsRate] = useState("");
   const [isRate, setIsRate] = useState("");
-  const [isSelfProduced, setIsSelfProduced] = useState(false);
-  const [internalCode, setInternalCode] = useState("");
 
   const [activeTab, setActiveTab] = useState<"general" | "fiscal" | "rates">("general");
-
-  const [manualMode, setManualMode] = useState(false);
 
   // Margem dinâmica calculada em tempo real
   const computedMargin = (() => {
@@ -71,6 +110,9 @@ export default function NewProductPage() {
       if (res.cest) setCest(res.cest);
       if (res.cfop) setCfop(res.cfop);
       if (res.cst) setCst(res.cst);
+      if (res.icmsRate !== undefined) setIcmsRate(String(res.icmsRate));
+      if (res.pisRate !== undefined) setPisRate(String(res.pisRate));
+      if (res.cofinsRate !== undefined) setCofinsRate(String(res.cofinsRate));
       if (res.ibsRate !== undefined) setIbsRate(String(res.ibsRate));
       if (res.cbsRate !== undefined) setCbsRate(String(res.cbsRate));
       if (res.isRate !== undefined) setIsRate(String(res.isRate));
@@ -96,6 +138,16 @@ export default function NewProductPage() {
     formData.append("cest", cest);
     formData.append("cfop", cfop);
     formData.append("cst", cst);
+    formData.append("origin", origin);
+    formData.append("icmsRate", icmsRate);
+    formData.append("icmsRedBaseRate", icmsRedBaseRate);
+    formData.append("fecoepRate", fecoepRate);
+    formData.append("cstPis", cstPis);
+    formData.append("pisRate", pisRate);
+    formData.append("cstCofins", cstCofins);
+    formData.append("cofinsRate", cofinsRate);
+    formData.append("cstIpi", cstIpi);
+    formData.append("ipiRate", ipiRate);
     formData.append("ibsRate", ibsRate);
     formData.append("cbsRate", cbsRate);
     formData.append("isRate", isRate);
@@ -126,39 +178,24 @@ export default function NewProductPage() {
       <div className="bg-[#111528] rounded-xl border border-indigo-500/[0.08] shadow-xl overflow-hidden">
         {/* Abas de Navegação Estilo Agenda */}
         <div className="flex border-b border-indigo-500/10 bg-[#0c0f1a]/20">
-          <button
-            type="button"
-            onClick={() => setActiveTab("general")}
-            className={`px-6 py-4 text-xs uppercase tracking-wider font-bold border-b-2 transition-all ${
-              activeTab === "general"
-                ? "border-indigo-500 text-indigo-400 bg-indigo-500/5"
-                : "border-transparent text-slate-400 hover:text-slate-100"
-            }`}
-          >
-            Produto ou Serviço
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("fiscal")}
-            className={`px-6 py-4 text-xs uppercase tracking-wider font-bold border-b-2 transition-all ${
-              activeTab === "fiscal"
-                ? "border-indigo-500 text-indigo-400 bg-indigo-500/5"
-                : "border-transparent text-slate-400 hover:text-slate-100"
-            }`}
-          >
-            Dados Fiscais
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("rates")}
-            className={`px-6 py-4 text-xs uppercase tracking-wider font-bold border-b-2 transition-all ${
-              activeTab === "rates"
-                ? "border-indigo-500 text-indigo-400 bg-indigo-500/5"
-                : "border-transparent text-slate-400 hover:text-slate-100"
-            }`}
-          >
-            Reforma Tributária
-          </button>
+          {[
+            { key: "general", label: "Produto ou Serviço" },
+            { key: "fiscal",  label: "Dados Fiscais" },
+            { key: "rates",   label: "Reforma Tributária" },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key as typeof activeTab)}
+              className={`px-6 py-4 text-xs uppercase tracking-wider font-bold border-b-2 transition-all ${
+                activeTab === tab.key
+                  ? "border-indigo-500 text-indigo-400 bg-indigo-500/5"
+                  : "border-transparent text-slate-400 hover:text-slate-100"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         <div className="p-6">
@@ -188,13 +225,13 @@ export default function NewProductPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="md:col-span-2">
-                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Código de Barras (EAN)</label>
+                    <label className={labelClass}>Código de Barras (EAN)</label>
                     <div className="flex gap-2">
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         value={barcode}
                         onChange={(e) => setBarcode(e.target.value)}
-                        className="flex-1 bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-3 py-2 text-sm rounded outline-none font-mono"
+                        className={`flex-1 ${inputMonoClass}`}
                         placeholder="Ex: 7891234567890"
                       />
                     </div>
@@ -204,53 +241,33 @@ export default function NewProductPage() {
                       </div>
                     )}
                     <label className="flex items-center gap-2 mt-2 cursor-pointer w-fit">
-                      <input 
-                        type="checkbox" 
-                        checked={manualMode}
-                        onChange={e => setManualMode(e.target.checked)}
-                        className="rounded bg-[#0c0f1a] border-indigo-500/20 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-0"
-                      />
+                      <input type="checkbox" checked={manualMode} onChange={(e) => setManualMode(e.target.checked)}
+                        className="rounded bg-[#0c0f1a] border-indigo-500/20 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-0" />
                       <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Digitar Manualmente</span>
                     </label>
-                    
                     <label className="flex items-center gap-2 mt-2 cursor-pointer w-fit">
-                      <input 
-                        type="checkbox" 
-                        checked={isSelfProduced}
-                        onChange={e => setIsSelfProduced(e.target.checked)}
-                        className="rounded bg-[#0c0f1a] border-indigo-500/20 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-0"
-                      />
+                      <input type="checkbox" checked={isSelfProduced} onChange={(e) => setIsSelfProduced(e.target.checked)}
+                        className="rounded bg-[#0c0f1a] border-indigo-500/20 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-0" />
                       <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Produção Própria (Balança Prix)</span>
                     </label>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Cód. Interno / Toledo</label>
-                    <input 
-                      type="text" 
-                      value={internalCode}
-                      onChange={e => setInternalCode(e.target.value)}
+                    <label className={labelClass}>Cód. Interno / Toledo</label>
+                    <input type="text" value={internalCode} onChange={(e) => setInternalCode(e.target.value)}
                       disabled={isSelfProduced && !internalCode}
-                      className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] text-white px-3 py-2 text-sm rounded outline-none placeholder:text-slate-600 disabled:text-slate-500" 
-                      placeholder={isSelfProduced ? "Automático (5 dígitos)" : "Ex: 00123"} 
-                    />
+                      className={`${inputClass} placeholder:text-slate-600 disabled:text-slate-500`}
+                      placeholder={isSelfProduced ? "Automático (5 dígitos)" : "Ex: 00123"} />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="md:col-span-2">
-                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Nome do Produto *</label>
-                    <input 
-                      type="text" 
-                      required
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-3 py-2 text-sm rounded outline-none"
-                      placeholder="Ex: Cerveja Heineken 350ml"
-                    />
+                    <label className={labelClass}>Nome do Produto *</label>
+                    <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className={inputClass} placeholder="Ex: Cerveja Heineken 350ml" />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Unidade de Medida</label>
-                    <select className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] text-white px-3 py-2 text-sm rounded outline-none">
+                    <label className={labelClass}>Unidade de Medida</label>
+                    <select className={inputClass}>
                       <option value="UN">Unidade (UN)</option>
                       <option value="KG">Quilo (KG)</option>
                       <option value="LT">Litro (LT)</option>
@@ -260,27 +277,12 @@ export default function NewProductPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                   <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Preço de Venda (R$) *</label>
-                    <input 
-                      type="number" 
-                      step="0.01"
-                      required
-                      value={price}
-                      onChange={(e) => setPrice(e.target.value)}
-                      className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-3 py-2 text-sm rounded outline-none font-mono"
-                      placeholder="0.00"
-                    />
+                    <label className={labelClass}>Preço de Venda (R$) *</label>
+                    <input type="number" step="0.01" required value={price} onChange={(e) => setPrice(e.target.value)} className={inputMonoClass} placeholder="0.00" />
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Preço de Custo (R$)</label>
-                    <input 
-                      type="number" 
-                      step="0.01"
-                      value={cost}
-                      onChange={(e) => setCost(e.target.value)}
-                      className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-3 py-2 text-sm rounded outline-none font-mono"
-                      placeholder="0.00"
-                    />
+                    <label className={labelClass}>Preço de Custo (R$)</label>
+                    <input type="number" step="0.01" value={cost} onChange={(e) => setCost(e.target.value)} className={inputMonoClass} placeholder="0.00" />
                   </div>
                   <div className="bg-[#0c0f1a] border border-indigo-500/10 rounded px-3 py-2 flex flex-col justify-center h-[38px]">
                     <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block leading-none">Margem de Lucro</span>
@@ -289,98 +291,134 @@ export default function NewProductPage() {
                     </span>
                   </div>
                   <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Estoque Inicial</label>
-                    <input 
-                      type="number" 
-                      value={stock}
-                      onChange={(e) => setStock(e.target.value)}
-                      className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-3 py-2 text-sm rounded outline-none font-mono"
-                      placeholder="0"
-                    />
+                    <label className={labelClass}>Estoque Inicial</label>
+                    <input type="number" value={stock} onChange={(e) => setStock(e.target.value)} className={inputMonoClass} placeholder="0" />
                   </div>
                 </div>
               </div>
             )}
 
             {activeTab === "fiscal" && (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="space-y-6">
+
+                {/* Identificação Fiscal */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">NCM</label>
-                  <input 
-                    type="text" 
-                    value={ncm}
-                    onChange={(e) => setNcm(e.target.value)}
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-3 py-2 text-sm rounded outline-none" 
-                    placeholder="Ex: 2203.00.00" 
-                  />
+                  <p className={sectionTitleClass}>Identificação Fiscal</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                      <label className={labelClass}>NCM</label>
+                      <input type="text" value={ncm} onChange={(e) => setNcm(e.target.value)} className={inputClass} placeholder="Ex: 2203.00.00" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>CEST</label>
+                      <input type="text" value={cest} onChange={(e) => setCest(e.target.value)} className={inputClass} placeholder="Ex: 01.001.00" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>CFOP Padrão</label>
+                      <input type="text" value={cfop} onChange={(e) => setCfop(e.target.value)} className={inputClass} placeholder="Ex: 5102" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>CST / CSOSN</label>
+                      <input type="text" value={cst} onChange={(e) => setCst(e.target.value)} className={inputClass} placeholder="Ex: 102" />
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <label className={labelClass}>Origem da Mercadoria</label>
+                    <select value={origin} onChange={(e) => setOrigin(e.target.value)} className={inputClass}>
+                      {ORIGIN_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
+
+                {/* ICMS / FECOEP */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">CEST</label>
-                  <input 
-                    type="text" 
-                    value={cest}
-                    onChange={(e) => setCest(e.target.value)}
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-3 py-2 text-sm rounded outline-none" 
-                    placeholder="Ex: 01.001.00" 
-                  />
+                  <p className={sectionTitleClass}>ICMS / FECOEP — Imposto sobre Circulação de Mercadorias e Fundo de Combate à Pobreza</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className={labelClass}>Alíquota ICMS (%)</label>
+                      <input type="number" step="0.01" min="0" max="100" value={icmsRate}
+                        onChange={(e) => setIcmsRate(e.target.value)} className={inputMonoClass} placeholder="Ex: 12.00" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Redução Base ICMS (%)</label>
+                      <input type="number" step="0.01" min="0" max="100" value={icmsRedBaseRate}
+                        onChange={(e) => setIcmsRedBaseRate(e.target.value)} className={inputMonoClass} placeholder="Ex: 33.33" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Alíquota FECOEP / FCP (%)</label>
+                      <input type="number" step="0.01" min="0" max="100" value={fecoepRate}
+                        onChange={(e) => setFecoepRate(e.target.value)} className={inputMonoClass} placeholder="Ex: 2.00" />
+                    </div>
+                  </div>
                 </div>
+
+                {/* PIS / COFINS */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">CFOP Padrão</label>
-                  <input 
-                    type="text" 
-                    value={cfop}
-                    onChange={(e) => setCfop(e.target.value)}
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-3 py-2 text-sm rounded outline-none" 
-                    placeholder="Ex: 5102" 
-                  />
+                  <p className={sectionTitleClass}>PIS / COFINS — Contribuições Sociais</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div>
+                      <label className={labelClass}>CST PIS</label>
+                      <input type="text" value={cstPis} onChange={(e) => setCstPis(e.target.value)} className={inputClass} placeholder="Ex: 01" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Alíquota PIS (%)</label>
+                      <input type="number" step="0.01" min="0" max="100" value={pisRate}
+                        onChange={(e) => setPisRate(e.target.value)} className={inputMonoClass} placeholder="Ex: 1.65" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>CST COFINS</label>
+                      <input type="text" value={cstCofins} onChange={(e) => setCstCofins(e.target.value)} className={inputClass} placeholder="Ex: 01" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Alíquota COFINS (%)</label>
+                      <input type="number" step="0.01" min="0" max="100" value={cofinsRate}
+                        onChange={(e) => setCofinsRate(e.target.value)} className={inputMonoClass} placeholder="Ex: 7.60" />
+                    </div>
+                  </div>
                 </div>
+
+                {/* IPI */}
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">CST / CSOSN Padrão</label>
-                  <input 
-                    type="text" 
-                    value={cst}
-                    onChange={(e) => setCst(e.target.value)}
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-3 py-2 text-sm rounded outline-none" 
-                    placeholder="Ex: 102" 
-                  />
+                  <p className={sectionTitleClass}>IPI — Imposto sobre Produtos Industrializados</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelClass}>CST IPI</label>
+                      <input type="text" value={cstIpi} onChange={(e) => setCstIpi(e.target.value)} className={inputClass} placeholder="Ex: 50" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Alíquota IPI (%)</label>
+                      <input type="number" step="0.01" min="0" max="100" value={ipiRate}
+                        onChange={(e) => setIpiRate(e.target.value)} className={inputMonoClass} placeholder="Ex: 5.00" />
+                    </div>
+                  </div>
                 </div>
+
               </div>
             )}
 
             {activeTab === "rates" && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Alíquota IBS (%)</label>
-                  <input 
-                    type="number" 
-                    step="0.01" 
-                    value={ibsRate}
-                    onChange={(e) => setIbsRate(e.target.value)}
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-3 py-2 text-sm rounded outline-none font-mono" 
-                    placeholder="0.00" 
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Alíquota CBS (%)</label>
-                  <input 
-                    type="number" 
-                    step="0.01" 
-                    value={cbsRate}
-                    onChange={(e) => setCbsRate(e.target.value)}
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-3 py-2 text-sm rounded outline-none font-mono" 
-                    placeholder="0.00" 
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Imp. Seletivo (IS) (%)</label>
-                  <input 
-                    type="number" 
-                    step="0.01" 
-                    value={isRate}
-                    onChange={(e) => setIsRate(e.target.value)}
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-3 py-2 text-sm rounded outline-none font-mono" 
-                    placeholder="0.00" 
-                  />
+              <div className="space-y-4">
+                <p className="text-xs text-slate-500 border border-indigo-500/10 bg-indigo-500/5 rounded-lg px-4 py-3">
+                  Campos relativos à <span className="text-indigo-300 font-bold">Reforma Tributária (EC 132/2023)</span>. Preenchidos automaticamente pela grade tributária quando o NCM do produto estiver configurado.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className={labelClass}>Alíquota IBS (%)</label>
+                    <input type="number" step="0.01" value={ibsRate} onChange={(e) => setIbsRate(e.target.value)} className={inputMonoClass} placeholder="0.00" />
+                    <p className="text-[10px] text-slate-600 mt-1">Imposto sobre Bens e Serviços</p>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Alíquota CBS (%)</label>
+                    <input type="number" step="0.01" value={cbsRate} onChange={(e) => setCbsRate(e.target.value)} className={inputMonoClass} placeholder="0.00" />
+                    <p className="text-[10px] text-slate-600 mt-1">Contribuição sobre Bens e Serviços</p>
+                  </div>
+                  <div>
+                    <label className={labelClass}>Imp. Seletivo (IS) (%)</label>
+                    <input type="number" step="0.01" value={isRate} onChange={(e) => setIsRate(e.target.value)} className={inputMonoClass} placeholder="0.00" />
+                    <p className="text-[10px] text-slate-600 mt-1">Imposto Seletivo (bebidas, tabaco, etc.)</p>
+                  </div>
                 </div>
               </div>
             )}

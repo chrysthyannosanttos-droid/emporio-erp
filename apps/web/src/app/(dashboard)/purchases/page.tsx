@@ -253,12 +253,92 @@ export default function PurchasesPage() {
     return best;
   }
 
+  // Quick Product Modal States
+  const [isQuickProductModalOpen, setIsQuickProductModalOpen] = useState(false);
+  const [qpName, setQpName] = useState("");
+  const [qpBarcode, setQpBarcode] = useState("");
+  const [qpPrice, setQpPrice] = useState("");
+  const [qpCost, setQpCost] = useState("");
+  const [qpNcm, setQpNcm] = useState("");
+  const [qpIcmsRate, setQpIcmsRate] = useState("12");
+  const [qpFecoepRate, setQpFecoepRate] = useState("2");
+  const [qpPisRate, setQpPisRate] = useState("1.65");
+  const [qpCofinsRate, setQpCofinsRate] = useState("7.6");
+  const [qpIpiRate, setQpIpiRate] = useState("0");
+
+  const handleQuickProductSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!qpName.trim()) return;
+
+    const fd = new FormData();
+    fd.append("name", qpName);
+    fd.append("barcode", qpBarcode);
+    fd.append("price", qpPrice || "0");
+    fd.append("stock", "0");
+    fd.append("ncm", qpNcm);
+    fd.append("icmsRate", qpIcmsRate);
+    fd.append("fecoepRate", qpFecoepRate);
+    fd.append("pisRate", qpPisRate);
+    fd.append("cofinsRate", qpCofinsRate);
+    fd.append("ipiRate", qpIpiRate);
+
+    const newProd = {
+      id: `QP-${Date.now()}`,
+      name: qpName,
+      barcode: qpBarcode,
+      price: parseFloat(qpPrice || "0"),
+      cost: parseFloat(qpCost || "0"),
+      icmsRate: parseFloat(qpIcmsRate || "0"),
+      fecoepRate: parseFloat(qpFecoepRate || "0"),
+      pisRate: parseFloat(qpPisRate || "0"),
+      cofinsRate: parseFloat(qpCofinsRate || "0"),
+      ipiRate: parseFloat(qpIpiRate || "0"),
+    };
+
+    setProducts(prev => [newProd, ...prev]);
+    setSelectedProduct(newProd);
+    setItemCost(qpCost || "0");
+    setProductSearch(qpName);
+    setIsQuickProductModalOpen(false);
+
+    setQpName(""); setQpBarcode(""); setQpPrice(""); setQpCost(""); setQpNcm("");
+  };
+
   // ─── Handlers ────────────────────────────────────────────
   const handleAddOrderItem = () => {
     if (!selectedProduct || !itemQty || !itemCost) return;
     const qty = parseFloat(itemQty);
     const cost = parseFloat(itemCost);
-    setOrderItems(prev => [...prev, { id: selectedProduct.id, name: selectedProduct.name, qty, unitCost: cost, total: qty * cost }]);
+    
+    const icms = Number(selectedProduct.icmsRate) || 0;
+    const fecoep = Number(selectedProduct.fecoepRate) || 0;
+    const pis = Number(selectedProduct.pisRate) || 0;
+    const cofins = Number(selectedProduct.cofinsRate) || 0;
+    const ipi = Number(selectedProduct.ipiRate) || 0;
+    const totalTaxPercent = icms + fecoep + pis + cofins + ipi;
+    
+    const baseTotal = qty * cost;
+    const taxAmount = baseTotal * (totalTaxPercent / 100);
+    const effectiveTotal = baseTotal + taxAmount;
+    const effectiveUnitCost = cost * (1 + totalTaxPercent / 100);
+
+    setOrderItems(prev => [...prev, {
+      id: selectedProduct.id,
+      name: selectedProduct.name,
+      qty,
+      unitCost: cost,
+      icmsRate: icms,
+      fecoepRate: fecoep,
+      pisRate: pis,
+      cofinsRate: cofins,
+      ipiRate: ipi,
+      totalTaxPercent,
+      effectiveUnitCost,
+      total: baseTotal,
+      taxAmount,
+      effectiveTotal
+    } as any]);
+
     setSelectedProduct(null);
     setProductSearch("");
     setItemQty("");
@@ -441,7 +521,13 @@ export default function PurchasesPage() {
 
             {/* 4. Inserir Item */}
             <div className="bg-[#111528] p-4 rounded-2xl border border-indigo-500/10 space-y-3">
-              <h4 className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-1.5"><Tag size={12}/> 4. Inserir Item</h4>
+              <div className="flex justify-between items-center">
+                <h4 className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-1.5"><Tag size={12}/> 4. Inserir Item</h4>
+                <button type="button" onClick={() => setIsQuickProductModalOpen(true)} className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 px-2 py-1 rounded-md border border-indigo-500/20 transition-all flex items-center gap-1">
+                  + Produto Rápido
+                </button>
+              </div>
+
               <div className="space-y-1.5">
                 <label className="block text-[10px] font-semibold text-slate-500 uppercase">Buscar Produto</label>
                 <div className="relative">
@@ -454,17 +540,29 @@ export default function PurchasesPage() {
                   <div className="bg-[#0c0f1a] border border-indigo-500/15 rounded-lg max-h-32 overflow-y-auto divide-y divide-indigo-500/[0.06]">
                     {products.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()) || p.barcode?.includes(productSearch)).slice(0, 10).map(p => (
                       <div key={p.id} onClick={() => { setSelectedProduct(p); setItemCost(p.cost?.toString() ?? ""); setProductSearch(p.name); }}
-                        className="p-2 cursor-pointer hover:bg-indigo-500/10 text-xs text-white font-medium">{p.name}</div>
+                        className="p-2 cursor-pointer hover:bg-indigo-500/10 text-xs text-white font-medium flex justify-between">
+                        <span>{p.name}</span>
+                        <span className="text-slate-500 font-mono text-[10px]">ICMS: {p.icmsRate || 0}% | PIS/COF: {(Number(p.pisRate)||0)+(Number(p.cofinsRate)||0)}%</span>
+                      </div>
                     ))}
                   </div>
                 )}
               </div>
 
               {selectedProduct && (
-                <div className="p-2.5 bg-indigo-500/5 border border-indigo-500/10 rounded-xl">
-                  <p className="text-[10px] text-slate-500 font-bold uppercase">Último Preço de Compra</p>
-                  <p className="text-sm text-indigo-300 font-black font-mono">R$ {selectedProduct.cost ? selectedProduct.cost.toFixed(2) : "0,00"}</p>
-                  <p className="text-[9px] text-slate-600">Custo preenchido automaticamente abaixo.</p>
+                <div className="p-2.5 bg-indigo-500/5 border border-indigo-500/10 rounded-xl space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-slate-400 font-bold uppercase">Impostos no Cadastro</span>
+                    <span className="text-[10px] text-amber-400 font-bold font-mono">
+                      +{(Number(selectedProduct.icmsRate)||0) + (Number(selectedProduct.fecoepRate)||0) + (Number(selectedProduct.pisRate)||0) + (Number(selectedProduct.cofinsRate)||0) + (Number(selectedProduct.ipiRate)||0)}% Impostos
+                    </span>
+                  </div>
+                  <div className="text-[9px] text-slate-400 grid grid-cols-2 gap-1">
+                    <span>ICMS: {selectedProduct.icmsRate || 0}%</span>
+                    <span>FECOEP: {selectedProduct.fecoepRate || 0}%</span>
+                    <span>PIS: {selectedProduct.pisRate || 0}%</span>
+                    <span>COFINS: {selectedProduct.cofinsRate || 0}%</span>
+                  </div>
                 </div>
               )}
 
@@ -481,7 +579,7 @@ export default function PurchasesPage() {
                 </div>
               </div>
               <button type="button" onClick={handleAddOrderItem}
-                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-2 rounded-lg text-xs font-bold transition-all">+ Adicionar Item</button>
+                className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-2 rounded-lg text-xs font-bold transition-all">+ Adicionar Item ao Pedido</button>
             </div>
           </div>
 
@@ -493,27 +591,38 @@ export default function PurchasesPage() {
                   <thead className="bg-[#0c0f1a]/60 text-slate-500 border-b border-indigo-500/[0.08] sticky top-0">
                     <tr>
                       <th className="px-4 py-3 text-left font-semibold">Produto</th>
-                      <th className="px-4 py-3 text-right font-semibold w-20">Qtd</th>
-                      <th className="px-4 py-3 text-right font-semibold w-28">Custo Unit.</th>
-                      <th className="px-4 py-3 text-right font-semibold w-32">Total</th>
-                      <th className="px-4 py-3 w-10"></th>
+                      <th className="px-4 py-3 text-right font-semibold w-16">Qtd</th>
+                      <th className="px-4 py-3 text-right font-semibold w-24">Custo Unit.</th>
+                      <th className="px-4 py-3 text-right font-semibold w-24">Impostos</th>
+                      <th className="px-4 py-3 text-right font-semibold w-28">Custo Efetivo</th>
+                      <th className="px-4 py-3 text-right font-semibold w-28">Total Custo</th>
+                      <th className="px-4 py-3 w-8"></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-indigo-500/[0.06]">
-                    {orderItems.map((item, i) => (
+                    {orderItems.map((item: any, i) => (
                       <tr key={i} className="hover:bg-indigo-500/[0.04]">
                         <td className="px-4 py-2.5 text-white font-medium">{item.name}</td>
                         <td className="px-4 py-2.5 text-right text-slate-400">{item.qty}</td>
                         <td className="px-4 py-2.5 text-right text-slate-400 font-mono">R$ {fmt(item.unitCost)}</td>
-                        <td className="px-4 py-2.5 text-right text-white font-bold font-mono">R$ {fmt(item.total)}</td>
+                        <td className="px-4 py-2.5 text-right text-amber-400 font-mono font-bold">
+                          +{item.totalTaxPercent || 0}%
+                        </td>
+                        <td className="px-4 py-2.5 text-right text-slate-300 font-mono">R$ {fmt(item.effectiveUnitCost || item.unitCost)}</td>
+                        <td className="px-4 py-2.5 text-right text-emerald-400 font-bold font-mono">R$ {fmt(item.effectiveTotal || item.total)}</td>
                         <td className="px-4 py-2.5"><button type="button" onClick={() => setOrderItems(p => p.filter((_, idx) => idx !== i))} className="text-slate-600 hover:text-red-400"><X size={12}/></button></td>
                       </tr>
                     ))}
-                    {!orderItems.length && <tr><td colSpan={5} className="text-center p-8 text-slate-500 italic">Adicione produtos usando o formulário ao lado.</td></tr>}
+                    {!orderItems.length && <tr><td colSpan={7} className="text-center p-8 text-slate-500 italic">Adicione produtos usando o formulário ao lado.</td></tr>}
                   </tbody>
                   {orderItems.length > 0 && (
                     <tfoot className="border-t border-indigo-500/[0.08] bg-[#0c0f1a]/40">
-                      <tr><td colSpan={3} className="px-4 py-3 text-right text-slate-500 font-semibold text-xs uppercase">Total:</td><td className="px-4 py-3 text-right text-indigo-400 font-bold font-mono">R$ {fmt(orderItems.reduce((a, i) => a + i.total, 0))}</td><td /></tr>
+                      <tr>
+                        <td colSpan={4} className="px-4 py-2 text-right text-slate-500 font-semibold text-[10px] uppercase">Bruto: R$ {fmt(orderItems.reduce((a, i: any) => a + i.total, 0))} | Impostos: R$ {fmt(orderItems.reduce((a, i: any) => a + (i.taxAmount || 0), 0))}</td>
+                        <td className="px-4 py-2 text-right text-slate-400 font-bold text-xs uppercase">Total Custo:</td>
+                        <td className="px-4 py-2 text-right text-emerald-400 font-black text-sm font-mono">R$ {fmt(orderItems.reduce((a, i: any) => a + (i.effectiveTotal || i.total), 0))}</td>
+                        <td />
+                      </tr>
                     </tfoot>
                   )}
                 </table>
@@ -925,6 +1034,77 @@ export default function PurchasesPage() {
               <div className="flex gap-2 pt-2">
                 <button type="button" onClick={() => setIsQuickSupplierModalOpen(false)} className="flex-1 bg-[#0c0f1a] hover:bg-[#161b33] text-slate-400 font-semibold py-2.5 rounded-xl border border-indigo-500/10 text-xs">Cancelar</button>
                 <button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-xl shadow-lg text-xs">Salvar Fornecedor</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Cadastro Rápido de Produto Modal ─────────────────── */}
+      {isQuickProductModalOpen && (
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#111528] border border-indigo-500/20 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+            <div className="p-5 border-b border-indigo-500/[0.08] flex justify-between items-center bg-[#0c0f1a]/50">
+              <h3 className="text-md font-bold text-white flex items-center gap-2">
+                <Tag className="text-indigo-400" size={16} /> Cadastro Rápido de Produto
+              </h3>
+              <button type="button" onClick={() => setIsQuickProductModalOpen(false)} className="p-1 hover:bg-indigo-500/10 rounded-lg text-slate-500"><X size={18}/></button>
+            </div>
+            <form onSubmit={handleQuickProductSave} className="p-5 space-y-4">
+              <div>
+                <label className="block text-[10px] font-semibold text-slate-400 mb-1 uppercase">Nome do Produto *</label>
+                <input required value={qpName} onChange={e => setQpName(e.target.value)} placeholder="Ex: Arroz Tipo 1 5kg" className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-lg outline-none text-xs" />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-400 mb-1 uppercase">Código de Barras (EAN)</label>
+                  <input value={qpBarcode} onChange={e => setQpBarcode(e.target.value)} placeholder="789..." className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-lg outline-none text-xs font-mono" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-400 mb-1 uppercase">NCM</label>
+                  <input value={qpNcm} onChange={e => setQpNcm(e.target.value)} placeholder="1006.30.21" className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-lg outline-none text-xs font-mono" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-400 mb-1 uppercase">Custo Unitário (R$)</label>
+                  <input type="number" step="0.01" value={qpCost} onChange={e => setQpCost(e.target.value)} placeholder="0.00" className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-lg outline-none text-xs font-mono" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-400 mb-1 uppercase">Preço Venda (R$)</label>
+                  <input type="number" step="0.01" value={qpPrice} onChange={e => setQpPrice(e.target.value)} placeholder="0.00" className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-lg outline-none text-xs font-mono" />
+                </div>
+              </div>
+              
+              <div className="p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-xl space-y-2">
+                <p className="text-[10px] font-bold text-indigo-400 uppercase">Impostos de Entrada (Alíquotas)</p>
+                <div className="grid grid-cols-5 gap-1.5">
+                  <div>
+                    <label className="block text-[9px] text-slate-400">ICMS %</label>
+                    <input value={qpIcmsRate} onChange={e => setQpIcmsRate(e.target.value)} className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white p-1 text-center text-xs font-mono rounded" />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] text-slate-400">FECOEP %</label>
+                    <input value={qpFecoepRate} onChange={e => setQpFecoepRate(e.target.value)} className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white p-1 text-center text-xs font-mono rounded" />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] text-slate-400">PIS %</label>
+                    <input value={qpPisRate} onChange={e => setQpPisRate(e.target.value)} className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white p-1 text-center text-xs font-mono rounded" />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] text-slate-400">COFINS %</label>
+                    <input value={qpCofinsRate} onChange={e => setQpCofinsRate(e.target.value)} className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white p-1 text-center text-xs font-mono rounded" />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] text-slate-400">IPI %</label>
+                    <input value={qpIpiRate} onChange={e => setQpIpiRate(e.target.value)} className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white p-1 text-center text-xs font-mono rounded" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button type="button" onClick={() => setIsQuickProductModalOpen(false)} className="flex-1 bg-[#0c0f1a] hover:bg-[#161b33] text-slate-400 font-semibold py-2.5 rounded-xl border border-indigo-500/10 text-xs">Cancelar</button>
+                <button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-xl shadow-lg text-xs">Cadastrar e Selecionar</button>
               </div>
             </form>
           </div>
