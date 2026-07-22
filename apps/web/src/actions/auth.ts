@@ -53,6 +53,7 @@ export async function login(formData: FormData) {
       where: {
         OR: [
           { email: username },
+          { email: `${username}@emporio.com` },
           { name: { equals: username, mode: "insensitive" } },
         ],
         active: true,

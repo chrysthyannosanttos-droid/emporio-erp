@@ -50,6 +50,14 @@ async function main() {
 
   console.log(`✅ Empresa Demo criada/atualizada: ${company.name} (ID: ${company.id})`);
 
+  // Limpar dados anteriores da empresa demo para evitar duplicatas de barcode/document
+  await prisma.invoice.deleteMany({ where: { companyId: company.id } });
+  await prisma.sale.deleteMany({ where: { companyId: company.id } });
+  await prisma.customer.deleteMany({ where: { companyId: company.id } });
+  await prisma.supplier.deleteMany({ where: { companyId: company.id } });
+  await prisma.product.deleteMany({ where: { companyId: company.id } });
+  await prisma.category.deleteMany({ where: { companyId: company.id } });
+
   // 3. Criar Usuários da Empresa Demo
   const userDemo = await prisma.user.upsert({
     where: { email: "teste@emporio.com" },
@@ -70,7 +78,7 @@ async function main() {
     },
   });
 
-  console.log(`✅ Usuário Demo criado: ${userDemo.name} (E-mail: ${userDemo.email} | Senha: 123)`);
+  console.log(`✅ Usuário Demo criado: ${userDemo.name} (E-mail: teste@emporio.com | Senha: 123)`);
 
   // 4. Configuração Fiscal da Empresa Demo
   await prisma.fiscalConfig.upsert({
@@ -173,8 +181,7 @@ async function main() {
       document: "111.222.333-44",
       email: "carlos.silva@email.com",
       phone: "(11) 98765-4321",
-      city: "São Paulo",
-      state: "SP",
+      address: "Av. Paulista, 1500 - São Paulo/SP",
       companyId: company.id,
     },
   });
@@ -185,8 +192,7 @@ async function main() {
       document: "98.765.432/0001-11",
       email: "contato@sabordivino.com.br",
       phone: "(11) 3344-5566",
-      city: "São Paulo",
-      state: "SP",
+      address: "Rua Augusta, 500 - São Paulo/SP",
       companyId: company.id,
     },
   });
