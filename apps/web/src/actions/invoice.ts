@@ -2,20 +2,17 @@
 
 import { prisma } from "@emporio/database";
 import { revalidatePath } from "next/cache";
-
-async function getOrCreateCompany() {
-  let company = await prisma.company.findFirst();
-  if (!company) {
-    company = await prisma.company.create({
-      data: { name: "Emporio Default", document: "00.000.000/0001-00" }
-    });
-  }
-  return company;
-}
+import { getSession } from "@/lib/session";
 
 export async function getInvoices() {
   try {
+    const session = await getSession();
+    if (!session?.companyId) {
+      return { error: "Não autorizado", invoices: [] };
+    }
+
     const invoices = await prisma.invoice.findMany({
+      where: { companyId: session.companyId },
       include: {
         order: {
           include: { customer: true }
@@ -33,7 +30,7 @@ export async function getInvoices() {
         total = Number(invoice.order.total);
       } else {
         const sale = await prisma.sale.findFirst({
-          where: { invoiceId: invoice.id },
+          where: { invoiceId: invoice.id, companyId: session.companyId },
           include: { customer: true }
         });
         if (sale) {
@@ -55,14 +52,24 @@ export async function getInvoices() {
   }
 }
 
-
 export async function simulateInvoiceEmission(saleId: string) {
   try {
-    const company = await getOrCreateCompany();
+    const session = await getSession();
+    if (!session?.companyId) {
+      return { error: "Sessão inválida ou não autorizada." };
+    }
+
+    const companyId = session.companyId;
+
+    const company = await prisma.company.findUnique({
+      where: { id: companyId }
+    });
+
+    if (!company) return { error: "Empresa não encontrada" };
 
     // Fetch sale details
-    const sale = await prisma.sale.findUnique({
-      where: { id: saleId },
+    const sale = await prisma.sale.findFirst({
+      where: { id: saleId, companyId: companyId },
       include: {
         items: { include: { product: true } },
         user: true
@@ -73,7 +80,7 @@ export async function simulateInvoiceEmission(saleId: string) {
 
     // Fetch or create fiscal configuration
     let fiscalConfig = await prisma.fiscalConfig.findUnique({
-      where: { companyId: company.id }
+      where: { companyId: companyId }
     });
 
     if (!fiscalConfig) {
@@ -81,7 +88,7 @@ export async function simulateInvoiceEmission(saleId: string) {
         data: {
           cnpj: company.document,
           companyName: company.name,
-          companyId: company.id,
+          companyId: companyId,
           taxRegime: "SN",
           environment: "homologacao",
           nextNfceNumber: 1,
@@ -99,9 +106,8 @@ export async function simulateInvoiceEmission(saleId: string) {
       : fiscalConfig.nextNfeNumber;
 
     // Generate standard 44-digit mock SEFAZ Access Key
-    // Format: state(2) + yearmonth(4) + cnpj(14) + model(2) + series(3) + number(9) + type(1) + code(8) + check(1)
     const stateCode = "35"; // SP
-    const dateCode = "2606"; // June 2026
+    const dateCode = "2607"; // July 2026
     const cnpjClean = fiscalConfig.cnpj.replace(/\D/g, "").padEnd(14, "0");
     const model = isNfce ? "65" : "55";
     const series = isNfce ? fiscalConfig.nfceeSeries.padStart(3, "0") : fiscalConfig.nfeSeries.padStart(3, "0");
@@ -119,9 +125,9 @@ export async function simulateInvoiceEmission(saleId: string) {
           accessKey: key,
           status: "AUTHORIZED", // Mock authorized
           environment: fiscalConfig!.environment,
-          xmlUrl: `/api/fiscal/xml/${key}`, // mock url
-          pdfUrl: `/api/fiscal/pdf/${key}`, // mock url
-          companyId: company.id,
+          xmlUrl: `/api/fiscal/xml/${key}`,
+          pdfUrl: `/api/fiscal/pdf/${key}`,
+          companyId: companyId,
           orderId: sale.orderId
         }
       });
@@ -152,7 +158,14 @@ export async function simulateInvoiceEmission(saleId: string) {
 
 export async function cancelInvoice(invoiceId: string) {
   try {
-    const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+    const session = await getSession();
+    if (!session?.companyId) {
+      return { error: "Não autorizado" };
+    }
+
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: invoiceId, companyId: session.companyId }
+    });
     if (!invoice) return { error: "Nota fiscal não encontrada" };
 
     if (invoice.status === "CANCELED") return { error: "Nota já se encontra cancelada" };
