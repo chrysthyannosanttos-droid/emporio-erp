@@ -52,7 +52,6 @@ async function main() {
 
   // Limpar dados anteriores da empresa demo para evitar duplicatas
   await prisma.invoice.deleteMany({ where: { companyId: company.id } });
-  await prisma.saleItem.deleteMany({ where: { companyId: company.id } });
   await prisma.sale.deleteMany({ where: { companyId: company.id } });
   await prisma.customer.deleteMany({ where: { companyId: company.id } });
   await prisma.supplier.deleteMany({ where: { companyId: company.id } });
@@ -229,8 +228,8 @@ async function main() {
       createdAt: twoDaysAgo,
       items: {
         create: [
-          { productId: createdProducts[2].id, quantity: 2, unitPrice: 89.90, total: 179.80, companyId: company.id },
-          { productId: createdProducts[3].id, quantity: 2, unitPrice: 18.50, total: 37.00, companyId: company.id },
+          { productId: createdProducts[2].id, quantity: 2, unitPrice: 89.90, total: 179.80 },
+          { productId: createdProducts[3].id, quantity: 2, unitPrice: 18.50, total: 37.00 },
         ],
       },
     },
@@ -265,9 +264,9 @@ async function main() {
       createdAt: yesterday,
       items: {
         create: [
-          { productId: createdProducts[0].id, quantity: 2, unitPrice: 24.90, total: 49.80, companyId: company.id },
-          { productId: createdProducts[1].id, quantity: 1, unitPrice: 39.90, total: 39.90, companyId: company.id },
-          { productId: createdProducts[6].id, quantity: 1, unitPrice: 16.90, total: 16.90, companyId: company.id },
+          { productId: createdProducts[0].id, quantity: 2, unitPrice: 24.90, total: 49.80 },
+          { productId: createdProducts[1].id, quantity: 1, unitPrice: 39.90, total: 39.90 },
+          { productId: createdProducts[6].id, quantity: 1, unitPrice: 16.90, total: 16.90 },
         ],
       },
     },
@@ -301,8 +300,8 @@ async function main() {
       createdAt: now,
       items: {
         create: [
-          { productId: createdProducts[4].id, quantity: 1, unitPrice: 79.90, total: 79.90, companyId: company.id },
-          { productId: createdProducts[5].id, quantity: 1, unitPrice: 64.90, total: 64.90, companyId: company.id },
+          { productId: createdProducts[4].id, quantity: 1, unitPrice: 79.90, total: 79.90 },
+          { productId: createdProducts[5].id, quantity: 1, unitPrice: 64.90, total: 64.90 },
         ],
       },
     },
