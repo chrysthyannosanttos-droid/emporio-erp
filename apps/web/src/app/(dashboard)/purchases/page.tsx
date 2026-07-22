@@ -445,9 +445,10 @@ export default function PurchasesPage() {
     return diff >= 0 && diff <= 5;
   });
 
-  // ─── New Order Form ──────────────────────────────────────
-  if (isModalOpen) {
-    return (
+  // ─── Render ──────────────────────────────────────────────
+  return (
+    <>
+      {isModalOpen ? (
       <div className="h-full flex flex-col gap-4">
         <div className="flex justify-between items-center shrink-0">
           <div>
@@ -638,11 +639,7 @@ export default function PurchasesPage() {
           </div>
         </form>
       </div>
-    );
-  }
-
-  // ─── Main Page ───────────────────────────────────────────
-  return (
+    ) : (
     <div className="h-full flex flex-col gap-4">
       <div className="flex items-center justify-between shrink-0">
         <div>
@@ -998,6 +995,8 @@ export default function PurchasesPage() {
           )}
         </div>
       )}
+      </div>
+      )}
 
       {/* ── Receive NF Modal ─────────────────────────────────── */}
       {receiveModal && (
@@ -1110,6 +1109,6 @@ export default function PurchasesPage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

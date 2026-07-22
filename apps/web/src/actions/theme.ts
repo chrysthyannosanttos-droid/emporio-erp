@@ -1,12 +1,12 @@
 "use server";
 
+import { getSession } from "@/lib/session";
 import { prisma } from "@emporio/database";
-import { cookies } from "next/headers";
 
 export async function getTenantTheme(customCompanyId?: string) {
   try {
-    const cookieStore = await cookies();
-    const sessionCompanyId = cookieStore.get("session_company")?.value;
+    const session = await getSession();
+    const sessionCompanyId = session?.companyId;
     const companyId = customCompanyId || sessionCompanyId;
 
     if (!companyId) {
@@ -27,8 +27,8 @@ export async function getTenantTheme(customCompanyId?: string) {
 
 export async function updateTenantTheme(data: any, customCompanyId?: string) {
   try {
-    const cookieStore = await cookies();
-    const sessionCompanyId = cookieStore.get("session_company")?.value;
+    const session = await getSession();
+    const sessionCompanyId = session?.companyId;
     const companyId = customCompanyId || sessionCompanyId;
 
     if (!companyId) {

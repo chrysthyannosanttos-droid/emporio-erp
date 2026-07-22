@@ -1,14 +1,13 @@
 "use server";
 
 import { prisma } from "@emporio/database";
-import { cookies } from "next/headers";
+import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 
 // ─── Criar empresa + usuário admin ───────────────────────────────────────────
 export async function createCompany(formData: FormData) {
-  const cookieStore = await cookies();
-  const role = cookieStore.get("session_role")?.value;
-  if (role !== "SUPER_ADMIN") redirect("/login");
+  const session = await getSession();
+  if (!session?.isSuperAdmin) redirect("/login");
 
   const name = formData.get("name") as string;
   const document = formData.get("document") as string;
@@ -51,9 +50,8 @@ export async function createCompany(formData: FormData) {
 
 // ─── Listar todas as empresas ─────────────────────────────────────────────────
 export async function listCompanies() {
-  const cookieStore = await cookies();
-  const role = cookieStore.get("session_role")?.value;
-  if (role !== "SUPER_ADMIN") return { companies: [] };
+  const session = await getSession();
+  if (!session?.isSuperAdmin) return { companies: [] };
 
   const companies = await prisma.company.findMany({
     include: {
@@ -74,9 +72,8 @@ export async function listCompanies() {
 
 // ─── Atualizar licença da empresa ─────────────────────────────────────────────
 export async function updateCompanyLicense(companyId: string, status: string, expiresAtStr: string) {
-  const cookieStore = await cookies();
-  const role = cookieStore.get("session_role")?.value;
-  if (role !== "SUPER_ADMIN") redirect("/login");
+  const session = await getSession();
+  if (!session?.isSuperAdmin) redirect("/login");
 
   if (!companyId || !status || !expiresAtStr) {
     return { error: "Parâmetros inválidos." };

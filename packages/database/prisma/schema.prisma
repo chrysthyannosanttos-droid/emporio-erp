@@ -13,8 +13,10 @@ model Company {
   id        String   @id @default(uuid())
   name      String
   document  String   @unique // CNPJ or CPF
-  licenseStatus String   @default("ACTIVE") // ACTIVE, SUSPENDED, TRIAL, EXPIRED
+  licenseStatus String   @default("ACTIVE") // ACTIVE, SUSPENDED, TRIAL, EXPIRED, READ_ONLY
   licenseExpiresAt DateTime @default(now())
+  
+  planId        String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -42,8 +44,46 @@ model Company {
   theme          TenantTheme?
   returns        Return[]
   losses         Loss[]
+  
+  plan           Plan?    @relation(fields: [planId], references: [id])
 
   @@map("companies")
+}
+
+// ─────────────────────────────────────────────
+// SAAS SYSTEM ADMIN
+// ─────────────────────────────────────────────
+
+model SystemUser {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      String   @default("SUPER_ADMIN")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("system_users")
+}
+
+model Plan {
+  id               String   @id @default(uuid())
+  name             String   // Starter, Pro, Premium, Enterprise
+  description      String?
+  price            Decimal
+  maxUsers         Int      @default(0) // 0 = unlimited
+  maxProducts      Int      @default(0)
+  maxCustomers     Int      @default(0)
+  maxInvoices      Int      @default(0)
+  features         String?  // JSON string format
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  companies        Company[]
+
+  @@map("plans")
 }
 
 model User {

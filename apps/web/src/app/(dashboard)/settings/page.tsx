@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { getFiscalConfig, saveFiscalConfig } from "@/actions/fiscalConfig";
+import { TenantUsersManager } from "./TenantUsersManager";
 import {
   Settings as SettingsIcon,
   Shield,
@@ -291,15 +292,7 @@ function PagamentosTab() {
 }
 
 function UsuariosTab() {
-  return (
-    <div className="space-y-5">
-      <h2 className="text-lg font-bold text-white">Usuários e Perfis</h2>
-      <div className="p-5 bg-[#161b33] rounded-2xl border border-indigo-500/15 text-slate-400 text-sm text-center py-12">
-        <User size={36} className="mx-auto mb-3 text-slate-600" />
-        Em breve — gerenciamento de usuários e permissões por perfil.
-      </div>
-    </div>
-  );
+  return <TenantUsersManager />;
 }
 
 function SegurancaTab() {

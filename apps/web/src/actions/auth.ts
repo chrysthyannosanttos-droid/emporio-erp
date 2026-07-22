@@ -1,8 +1,9 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { prisma } from "@emporio/database";
+import { createSession, deleteSession } from "@/lib/session";
+import bcrypt from "bcryptjs";
 
 export async function login(formData: FormData) {
   const username = formData.get("username") as string;
@@ -12,28 +13,40 @@ export async function login(formData: FormData) {
     return { error: "Preencha todos os campos." };
   }
 
-  // ── Super Admin Cristiano ──────────────────────────────────────────────────
-  if (username.toLowerCase() === "cristiano") {
-    if (password !== "91126395") {
-      return { error: "Senha incorreta." };
+  // 1. Tentar login como Super Admin (Painel Master)
+  try {
+    const sysUser = await prisma.systemUser.findFirst({
+      where: {
+        OR: [
+          { email: username },
+          { name: { equals: username, mode: "insensitive" } },
+        ],
+        active: true,
+      },
+    });
+
+    if (sysUser) {
+      // Comparar senha com bcrypt, fallback temporário para texto puro
+      const isMatch = sysUser.password === password || await bcrypt.compare(password, sysUser.password).catch(() => false);
+      
+      if (!isMatch) {
+        return { error: "Senha incorreta para Super Admin." };
+      }
+
+      await createSession({
+        userId: sysUser.id,
+        name: sysUser.name,
+        role: sysUser.role,
+        isSuperAdmin: true,
+      });
+
+      return { success: true, redirectUrl: "/master" };
     }
-    const cookieStore = await cookies();
-    cookieStore.set("session_user", "cristiano", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-    });
-    cookieStore.set("session_role", "SUPER_ADMIN", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-    });
-    return { success: true, redirectUrl: "/master/companies" };
+  } catch (err) {
+    console.error("Erro na busca de admin", err);
   }
 
-  // ── Usuário de empresa (busca no banco) ───────────────────────────────────
+  // 2. Tentar login como Usuário de Empresa (Tenant)
   try {
     const user = await prisma.user.findFirst({
       where: {
@@ -43,41 +56,34 @@ export async function login(formData: FormData) {
         ],
         active: true,
       },
-      include: { company: { select: { id: true, name: true } } },
+      include: { 
+        company: { 
+          select: { id: true, name: true, licenseStatus: true, licenseExpiresAt: true } 
+        } 
+      },
     });
 
     if (!user) {
       return { error: "Usuário não encontrado." };
     }
 
-    if (user.password !== password) {
+    if (user.company.licenseStatus === "SUSPENDED" || user.company.licenseStatus === "EXPIRED") {
+      return { error: "A licença da sua empresa expirou ou está suspensa. Contate o administrador." };
+    }
+
+    // Senha (suporta fallback temporário texto puro ou bcrypt)
+    const isMatch = user.password === password || await bcrypt.compare(password, user.password).catch(() => false);
+    if (!isMatch) {
       return { error: "Senha incorreta." };
     }
 
-    const cookieStore = await cookies();
-    cookieStore.set("session_user", user.name, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-    });
-    cookieStore.set("session_role", user.role, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-    });
-    cookieStore.set("session_company", user.companyId, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-    });
-    cookieStore.set("session_company_name", user.company.name, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
+    await createSession({
+      userId: user.id,
+      name: user.name,
+      role: user.role,
+      companyId: user.companyId,
+      companyName: user.company.name,
+      isSuperAdmin: false,
     });
 
     return { success: true, redirectUrl: "/" };
@@ -87,10 +93,6 @@ export async function login(formData: FormData) {
 }
 
 export async function logout() {
-  const cookieStore = await cookies();
-  cookieStore.delete("session_user");
-  cookieStore.delete("session_role");
-  cookieStore.delete("session_company");
-  cookieStore.delete("session_company_name");
+  await deleteSession();
   redirect("/login");
 }

@@ -30,13 +30,26 @@ import {
 } from "lucide-react";
 import { AiChatbot } from "@/components/AiChatbot";
 import { getTenantTheme } from "@/actions/theme";
+import { getSession } from "@/lib/session";
+import { redirect } from "next/navigation";
+import { logout } from "@/actions/auth";
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const session = await getSession();
+
+  if (!session || session.isSuperAdmin) {
+    redirect("/login");
+  }
+
   const { theme } = await getTenantTheme();
+
+  const userInitials = session.name.substring(0, 2).toUpperCase();
+  const userName = session.name;
+  const userRole = session.role;
 
   return (
     <div className="flex h-screen w-screen overflow-hidden font-sans">
@@ -104,18 +117,20 @@ export default async function DashboardLayout({
         <div className="p-3 relative z-10 border-t border-indigo-500/[0.08]">
           <div className="flex items-center gap-3 bg-indigo-500/[0.06] rounded-xl p-2.5 mb-2">
             <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white text-xs shrink-0">
-              MS
+              {userInitials}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white truncate leading-none">Maria Silva</p>
-              <p className="text-[10px] text-indigo-400/50 mt-0.5">Administrador</p>
+              <p className="text-sm font-semibold text-white truncate leading-none">{userName}</p>
+              <p className="text-[10px] text-indigo-400/50 mt-0.5">{userRole}</p>
             </div>
             <ChevronRight size={13} className="text-indigo-400/30 shrink-0" />
           </div>
-          <button className="flex items-center justify-center gap-2 w-full px-3 py-2 text-xs font-medium rounded-lg bg-transparent hover:bg-red-500/10 hover:text-red-400 border border-indigo-500/[0.08] transition-all text-slate-500">
-            <LogOut size={14} />
-            <span>Sair</span>
-          </button>
+          <form action={logout}>
+            <button type="submit" className="flex items-center justify-center gap-2 w-full px-3 py-2 text-xs font-medium rounded-lg bg-transparent hover:bg-red-500/10 hover:text-red-400 border border-indigo-500/[0.08] transition-all text-slate-500">
+              <LogOut size={14} />
+              <span>Sair</span>
+            </button>
+          </form>
         </div>
       </aside>
 
@@ -143,11 +158,11 @@ export default async function DashboardLayout({
             <div className="h-5 w-px bg-indigo-500/[0.08]" />
             <div className="flex items-center gap-2.5 cursor-pointer hover:opacity-80 transition-opacity">
               <div className="text-right">
-                <div className="text-xs font-semibold text-white leading-none">Maria Silva</div>
+                <div className="text-xs font-semibold text-white leading-none">{userName}</div>
                 <div className="text-[10px] font-medium text-indigo-400/60 mt-0.5">Caixa Aberto</div>
               </div>
               <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
-                <span className="text-white font-bold text-[10px]">MS</span>
+                <span className="text-white font-bold text-[10px]">{userInitials}</span>
               </div>
             </div>
           </div>

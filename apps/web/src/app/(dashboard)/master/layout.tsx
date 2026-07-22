@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 
 export default async function MasterLayout({
@@ -6,12 +6,9 @@ export default async function MasterLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const cookieStore = await cookies();
-  const sessionRole = cookieStore.get("session_role")?.value;
-  const sessionUser = cookieStore.get("session_user")?.value;
+  const session = await getSession();
 
-  // Apenas o super admin 'cristiano' pode acessar
-  if (sessionRole !== "SUPER_ADMIN" || sessionUser?.toLowerCase() !== "cristiano") {
+  if (!session?.isSuperAdmin) {
     redirect("/login");
   }
 
