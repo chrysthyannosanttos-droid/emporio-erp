@@ -26,7 +26,8 @@ import {
   Scale,
   ShoppingBag,
   Palette,
-  ArrowLeftRight
+  ArrowLeftRight,
+  FolderTree
 } from "lucide-react";
 import { AiChatbot } from "@/components/AiChatbot";
 import { getTenantTheme } from "@/actions/theme";
@@ -91,6 +92,7 @@ export default async function DashboardLayout({
 
           <SectionLabel>2. ESTOQUE & SUPRIMENTOS</SectionLabel>
           <NavItem href="/stock" icon={<Package size={15} />} label="Estoque Principal" />
+          <NavItem href="/mercadologico" icon={<FolderTree size={15} />} label="Estrutura Mercadológica" />
           <NavItem href="/stock/new" icon={<Tag size={15} />} label="Cadastro de Produtos" />
           <NavItem href="/suppliers" icon={<Truck size={15} />} label="Cadastro de Fornecedores" />
           <NavItem href="/purchases" icon={<ShoppingCart size={15} />} label="Pedidos de Compra" />
