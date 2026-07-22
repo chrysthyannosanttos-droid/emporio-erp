@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Loader2, AlertCircle, Check } from "lucide-react";
 import Link from "next/link";
 import { createProduct, getProductInfoByAiBarcode } from "@/actions/product";
+import { getMercadologico } from "@/actions/mercadologico";
 
 const inputClass =
   "w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-3 py-2 text-sm rounded outline-none";
@@ -99,6 +100,20 @@ export default function NewProductPage() {
     return null;
   })();
 
+  // Mercadológico / Categorias
+  const [categoryId, setCategoryId] = useState("");
+  const [categoriesList, setCategoriesList] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function loadCategories() {
+      const res = await getMercadologico();
+      if (res.categories) {
+        setCategoriesList(res.categories);
+      }
+    }
+    loadCategories();
+  }, []);
+
   // Auto-lookup with debounce
   useEffect(() => {
     if (manualMode || !barcode.trim() || barcode.trim().length < 8) return;
@@ -131,6 +146,18 @@ export default function NewProductPage() {
       if (res.cbsRate !== undefined) setCbsRate(String(res.cbsRate));
       if (res.isRate !== undefined) setIsRate(String(res.isRate));
       
+      // Auto-identificar o Grupo Mercadológico correspondente
+      if (categoriesList.length > 0) {
+        const nameLower = res.name.toLowerCase();
+        const matched = categoriesList.find((c: any) => {
+          const catParts = c.name.toLowerCase().split(" > ");
+          return catParts.some((part: string) => part.length >= 4 && nameLower.includes(part));
+        });
+        if (matched) {
+          setCategoryId(matched.id);
+        }
+      }
+
       setAiSuccess("Produto identificado e campos preenchidos com sucesso!");
     } else {
       setAiError("Produto não encontrado. Preencha manualmente.");
@@ -148,6 +175,7 @@ export default function NewProductPage() {
     formData.append("barcode", barcode);
     formData.append("price", price);
     formData.append("stock", stock);
+    formData.append("categoryId", categoryId);
     formData.append("ncm", ncm);
     formData.append("cest", cest);
     formData.append("cfop", cfop);
@@ -299,6 +327,25 @@ export default function NewProductPage() {
                       <option value="LT">Litro (LT)</option>
                     </select>
                   </div>
+                </div>
+
+                <div>
+                  <label className={labelClass}>
+                    Grupo Mercadológico / Categoria
+                    {categoryId && <span className="ml-2 text-[10px] text-emerald-400 font-bold">(Sugerido via IA / Automático)</span>}
+                  </label>
+                  <select
+                    value={categoryId}
+                    onChange={(e) => setCategoryId(e.target.value)}
+                    className={`${inputClass} font-semibold text-indigo-300`}
+                  >
+                    <option value="">-- Selecione a Categoria Mercadológica --</option>
+                    {categoriesList.map((cat: any) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">

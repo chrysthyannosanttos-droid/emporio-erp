@@ -52,10 +52,15 @@ export async function createProduct(formData: FormData) {
     let internalCode = formData.get("internalCode") as string;
     const parentProductId = formData.get("parentProductId") as string || undefined;
 
+    const categoryId = (formData.get("categoryId") as string) || null;
+
     if (!name || isNaN(price)) return { error: "Nome e Preço são obrigatórios e válidos" };
 
-    const company = await getOrCreateCompany();
-    const companyId = company.id;
+    const session = await getSession();
+    if (!session?.companyId) {
+      return { error: "Sessão inválida ou empresa não identificada." };
+    }
+    const companyId = session.companyId;
 
     // Geração automática de código interno de 5 dígitos para produtos de fabricação própria
     if (isSelfProduced && !internalCode) {
@@ -110,6 +115,7 @@ export async function createProduct(formData: FormData) {
         isSelfProduced,
         internalCode: internalCode || null,
         parentProductId,
+        categoryId: categoryId || undefined,
         companyId,
       }
     });
