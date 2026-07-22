@@ -50,8 +50,9 @@ async function main() {
 
   console.log(`✅ Empresa Demo criada/atualizada: ${company.name} (ID: ${company.id})`);
 
-  // Limpar dados anteriores da empresa demo para evitar duplicatas de barcode/document
+  // Limpar dados anteriores da empresa demo para evitar duplicatas
   await prisma.invoice.deleteMany({ where: { companyId: company.id } });
+  await prisma.saleItem.deleteMany({ where: { companyId: company.id } });
   await prisma.sale.deleteMany({ where: { companyId: company.id } });
   await prisma.customer.deleteMany({ where: { companyId: company.id } });
   await prisma.supplier.deleteMany({ where: { companyId: company.id } });
@@ -218,11 +219,9 @@ async function main() {
   // Venda 1 (Com NF-e Emitida e Autorizada)
   const sale1 = await prisma.sale.create({
     data: {
-      code: "VND-2026-001",
       subtotal: 219.70,
       discount: 10.00,
       total: 209.70,
-      paymentMethod: "CREDIT_CARD",
       status: "COMPLETED",
       companyId: company.id,
       userId: userDemo.id,
@@ -256,11 +255,9 @@ async function main() {
   // Venda 2 (Com NFC-e Emitida e Autorizada no PDV)
   const sale2 = await prisma.sale.create({
     data: {
-      code: "VND-2026-002",
       subtotal: 104.70,
       discount: 0.00,
       total: 104.70,
-      paymentMethod: "PIX",
       status: "COMPLETED",
       companyId: company.id,
       userId: userDemo.id,
@@ -295,11 +292,9 @@ async function main() {
   // Venda 3 (Hoje)
   await prisma.sale.create({
     data: {
-      code: "VND-2026-003",
       subtotal: 144.80,
       discount: 5.00,
       total: 139.80,
-      paymentMethod: "MONEY",
       status: "COMPLETED",
       companyId: company.id,
       userId: userDemo.id,
