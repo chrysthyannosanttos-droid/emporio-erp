@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import {
   ShoppingCart, Plus, Search, X, Save, FileText, Truck, Calendar,
   BarChart2, CheckCircle2, Clock, AlertTriangle, Building, Mail,
-  Send, Loader2, Tag, TrendingDown, Star, ChevronRight, Bell, CreditCard, Receipt
+  Send, Loader2, Tag, TrendingDown, Star, ChevronRight, Bell, CreditCard, Receipt, ArrowLeft
 } from "lucide-react";
 import { getProducts } from "@/actions/product";
 
