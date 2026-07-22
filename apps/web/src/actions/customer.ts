@@ -2,9 +2,20 @@
 
 import { prisma } from "@emporio/database";
 import { revalidatePath } from "next/cache";
+import { getSession } from "@/lib/session";
+
+function serialize(data: any) {
+  if (!data) return null;
+  return JSON.parse(JSON.stringify(data));
+}
 
 export async function createCustomer(formData: FormData) {
   try {
+    const session = await getSession();
+    if (!session?.companyId) {
+      return { error: "Sessão não autorizada ou empresa não vinculada." };
+    }
+
     const name = formData.get("name") as string;
     const document = formData.get("document") as string;
     const email = formData.get("email") as string;
@@ -12,30 +23,18 @@ export async function createCustomer(formData: FormData) {
 
     if (!name) return { error: "Nome é obrigatório" };
 
-    // Find the first company for testing, or we should use session
-    const company = await prisma.company.findFirst();
-    let companyId = company?.id;
-
-    if (!companyId) {
-      // Create a default company if none exists
-      const newCompany = await prisma.company.create({
-        data: { name: "Emporio Default", document: "00.000.000/0001-00" }
-      });
-      companyId = newCompany.id;
-    }
-
-    await prisma.customer.create({
+    const customer = await prisma.customer.create({
       data: {
         name,
         document,
         email,
         phone,
-        companyId,
+        companyId: session.companyId,
       }
     });
 
     revalidatePath("/customers");
-    return { success: true };
+    return { success: true, customer: serialize(customer) };
   } catch (err: any) {
     return { error: err.message || "Erro ao criar cliente" };
   }
@@ -43,10 +42,16 @@ export async function createCustomer(formData: FormData) {
 
 export async function getCustomers() {
   try {
+    const session = await getSession();
+    if (!session?.companyId) {
+      return { error: "Não autorizado", customers: [] };
+    }
+
     const customers = await prisma.customer.findMany({
+      where: { companyId: session.companyId },
       orderBy: { createdAt: 'desc' }
     });
-    return { customers };
+    return { customers: serialize(customers) };
   } catch (err: any) {
     return { error: err.message || "Erro ao buscar clientes", customers: [] };
   }
@@ -54,7 +59,13 @@ export async function getCustomers() {
 
 export async function getCustomersWithStats() {
   try {
+    const session = await getSession();
+    if (!session?.companyId) {
+      return { error: "Não autorizado", customers: [] };
+    }
+
     const customers = await prisma.customer.findMany({
+      where: { companyId: session.companyId },
       include: {
         sales: {
           select: {
@@ -83,7 +94,7 @@ export async function getCustomersWithStats() {
         pointsBalance: c.pointsBalance,
         totalSpent,
         salesCount,
-        lastPurchase,
+        lastPurchase: lastPurchase ? lastPurchase.toISOString() : null,
       };
     });
 
@@ -92,4 +103,3 @@ export async function getCustomersWithStats() {
     return { error: err.message || "Erro ao buscar estatísticas dos clientes", customers: [] };
   }
 }
-

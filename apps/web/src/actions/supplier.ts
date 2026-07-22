@@ -2,21 +2,21 @@
 
 import { prisma } from "@emporio/database";
 import { revalidatePath } from "next/cache";
+import { getSession } from "@/lib/session";
 
-async function getOrCreateCompany() {
-  let company = await prisma.company.findFirst();
-  if (!company) {
-    company = await prisma.company.create({
-      data: { name: "Emporio Default", document: "00.000.000/0001-00" }
-    });
-  }
-  return company;
+function serializeSupplier(supplier: any) {
+  if (!supplier) return null;
+  return JSON.parse(JSON.stringify(supplier));
 }
 
 export async function getSuppliers(search?: string, category?: string) {
   try {
-    const company = await getOrCreateCompany();
-    const where: any = { companyId: company.id };
+    const session = await getSession();
+    if (!session?.companyId) {
+      return { error: "Não autorizado", suppliers: [] };
+    }
+
+    const where: any = { companyId: session.companyId };
 
     if (search) {
       where.OR = [
@@ -36,7 +36,7 @@ export async function getSuppliers(search?: string, category?: string) {
       orderBy: { name: "asc" },
     });
 
-    return { success: true, suppliers };
+    return { success: true, suppliers: serializeSupplier(suppliers) };
   } catch (err: any) {
     return { error: err.message || "Erro ao buscar fornecedores", suppliers: [] };
   }
@@ -78,18 +78,22 @@ export async function createSupplier(data: {
   notes?: string;
 }) {
   try {
-    const company = await getOrCreateCompany();
+    const session = await getSession();
+    if (!session?.companyId) {
+      return { error: "Sessão inválida ou empresa não identificada." };
+    }
+
     const supplier = await prisma.supplier.create({
       data: {
         ...data,
         discountPercent: data.discountPercent || 0,
         minOrderValue: data.minOrderValue || 0,
-        companyId: company.id,
+        companyId: session.companyId,
       },
     });
 
     revalidatePath("/suppliers");
-    return { success: true, supplier };
+    return { success: true, supplier: serializeSupplier(supplier) };
   } catch (err: any) {
     return { error: err.message || "Erro ao cadastrar fornecedor" };
   }
@@ -134,6 +138,11 @@ export async function updateSupplier(
   }
 ) {
   try {
+    const session = await getSession();
+    if (!session?.companyId) {
+      return { error: "Não autorizado" };
+    }
+
     const supplier = await prisma.supplier.update({
       where: { id },
       data: {
@@ -144,7 +153,7 @@ export async function updateSupplier(
     });
 
     revalidatePath("/suppliers");
-    return { success: true, supplier };
+    return { success: true, supplier: serializeSupplier(supplier) };
   } catch (err: any) {
     return { error: err.message || "Erro ao atualizar fornecedor" };
   }
@@ -152,6 +161,11 @@ export async function updateSupplier(
 
 export async function deleteSupplier(id: string) {
   try {
+    const session = await getSession();
+    if (!session?.companyId) {
+      return { error: "Não autorizado" };
+    }
+
     await prisma.supplier.update({
       where: { id },
       data: { status: "INACTIVE" },
@@ -166,8 +180,13 @@ export async function deleteSupplier(id: string) {
 
 export async function getSupplierById(id: string) {
   try {
-    const supplier = await prisma.supplier.findUnique({
-      where: { id },
+    const session = await getSession();
+    if (!session?.companyId) {
+      return { error: "Não autorizado", supplier: null };
+    }
+
+    const supplier = await prisma.supplier.findFirst({
+      where: { id, companyId: session.companyId },
       include: {
         purchaseOrders: {
           orderBy: { createdAt: "desc" },
@@ -175,7 +194,7 @@ export async function getSupplierById(id: string) {
         },
       },
     });
-    return { success: true, supplier };
+    return { success: true, supplier: serializeSupplier(supplier) };
   } catch (err: any) {
     return { error: err.message || "Erro ao obter fornecedor" };
   }
