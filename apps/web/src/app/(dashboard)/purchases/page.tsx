@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import {
   ShoppingCart, Plus, Search, X, Save, FileText, Truck, Calendar,
   BarChart2, CheckCircle2, Clock, AlertTriangle, Building, Mail,
-  Send, Loader2, Tag, TrendingDown, Star, ChevronRight, Bell, CreditCard, Receipt, ArrowLeft
+  Send, Loader2, Tag, TrendingDown, Star, ChevronRight, Bell, CreditCard, Receipt, ArrowLeft, Copy, ExternalLink, Zap, Edit3
 } from "lucide-react";
 import { getProducts } from "@/actions/product";
 
@@ -62,6 +62,133 @@ function ReceiveModal({ order, onClose, onConfirm }: {
               <CheckCircle2 size={14}/> Confirmar Recebimento
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── SupplierResponseModal ──────────────────────────────────────────────────
+function SupplierResponseModal({ quote, suppliers, onClose, onSave }: {
+  quote: ActiveQuote;
+  suppliers: typeof SUPPLIERS;
+  onClose: () => void;
+  onSave: (quoteId: string, response: QuoteResponse) => void;
+}) {
+  const [supplierId, setSupplierId] = useState(quote.supplierIds[0] || "");
+  const [paymentProposal, setPaymentProposal] = useState("30 dias");
+  const [prices, setPrices] = useState<Record<string, number>>(() => {
+    const existing = quote.responses.find(r => r.supplierId === (quote.supplierIds[0] || ""));
+    if (existing) return { ...existing.prices };
+    const init: Record<string, number> = {};
+    quote.products.forEach(p => { init[p.id] = 0; });
+    return init;
+  });
+
+  const handleSupplierChange = (newId: string) => {
+    setSupplierId(newId);
+    const existing = quote.responses.find(r => r.supplierId === newId);
+    if (existing) {
+      setPaymentProposal(existing.paymentProposal);
+      setPrices({ ...existing.prices });
+    } else {
+      const init: Record<string, number> = {};
+      quote.products.forEach(p => { init[p.id] = 0; });
+      setPrices(init);
+    }
+  };
+
+  const handlePriceChange = (prodId: string, val: string) => {
+    const num = parseFloat(val) || 0;
+    setPrices(prev => ({ ...prev, [prodId]: num }));
+  };
+
+  const handleSave = () => {
+    const supp = suppliers.find(s => s.id === supplierId);
+    const suppName = supp ? supp.name : "Fornecedor " + supplierId;
+    onSave(quote.id, {
+      supplierId,
+      supplierName: suppName,
+      paymentProposal,
+      prices
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-[#111528] border border-indigo-500/20 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="p-5 border-b border-indigo-500/[0.08] flex justify-between items-center bg-[#0c0f1a]/50">
+          <div>
+            <h3 className="text-md font-bold text-white flex items-center gap-2">
+              <Mail className="text-indigo-400" size={18}/> Simular / Preencher Resposta de Fornecedor
+            </h3>
+            <p className="text-[10px] text-slate-400 mt-0.5">Cotação <strong className="text-indigo-300">{quote.id}</strong></p>
+          </div>
+          <button type="button" onClick={onClose} className="p-1 hover:bg-indigo-500/10 rounded-lg text-slate-500"><X size={18}/></button>
+        </div>
+
+        <div className="p-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
+          <div>
+            <label className="block text-[10px] font-bold text-slate-400 mb-1.5 uppercase">Fornecedor Respondente *</label>
+            <select
+              value={supplierId}
+              onChange={e => handleSupplierChange(e.target.value)}
+              className="w-full bg-[#070914] border border-indigo-500/20 text-white px-3 py-2.5 rounded-xl outline-none text-xs font-semibold focus:border-indigo-500"
+            >
+              {quote.supplierIds.map(id => {
+                const s = suppliers.find(x => x.id === id);
+                const hasResponded = quote.responses.some(r => r.supplierId === id);
+                return (
+                  <option key={id} value={id}>
+                    {s ? s.name : `Fornecedor ID ${id}`} {hasResponded ? "✅ (Já Respondeu)" : "⏳ (Pendente)"}
+                  </option>
+                );
+              })}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-[10px] font-bold text-slate-400 mb-1.5 uppercase">Condição de Pagamento Proposta</label>
+            <input
+              type="text"
+              value={paymentProposal}
+              onChange={e => setPaymentProposal(e.target.value)}
+              placeholder="Ex: 30 dias, À Vista, 28/56 dias"
+              className="w-full bg-[#070914] border border-indigo-500/20 text-white px-3 py-2.5 rounded-xl outline-none text-xs font-medium focus:border-indigo-500"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Preços Unitários por Produto (R$)</label>
+            <div className="bg-[#070914] border border-indigo-500/15 rounded-xl divide-y divide-indigo-500/10">
+              {quote.products.map(p => (
+                <div key={p.id} className="p-3 flex items-center justify-between gap-3 text-xs">
+                  <div className="flex-1">
+                    <p className="text-white font-bold">{p.name}</p>
+                    <p className="text-[10px] text-slate-500">Qtd Solicitada: <strong className="text-indigo-400">{p.qty} {p.unit}</strong></p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-slate-400 font-mono text-xs">R$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={prices[p.id] !== undefined ? prices[p.id] : ""}
+                      onChange={e => handlePriceChange(p.id, e.target.value)}
+                      placeholder="0.00"
+                      className="w-28 bg-[#111528] border border-indigo-500/20 text-emerald-400 font-mono font-bold px-3 py-2 rounded-lg outline-none text-right text-xs focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="p-4 border-t border-indigo-500/[0.08] bg-[#0c0f1a]/50 flex justify-end gap-2 shrink-0">
+          <button type="button" onClick={onClose} className="px-4 py-2 bg-[#070914] hover:bg-[#161b33] text-slate-400 rounded-xl text-xs font-semibold border border-indigo-500/10">Cancelar</button>
+          <button type="button" onClick={handleSave} className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-600/20 flex items-center gap-1.5 active:scale-95 transition-all">
+            <CheckCircle2 size={14} /> Registrar Proposta do Fornecedor
+          </button>
         </div>
       </div>
     </div>
@@ -170,6 +297,8 @@ export default function PurchasesPage() {
   const [receiveModal, setReceiveModal] = useState<Order | null>(null);
   const [activeQuotes, setActiveQuotes] = useState<ActiveQuote[]>([DEMO_QUOTE]);
   const [selectedAnalysisQuote, setSelectedAnalysisQuote] = useState<ActiveQuote>(DEMO_QUOTE);
+  const [responseModalQuote, setResponseModalQuote] = useState<ActiveQuote | null>(null);
+  const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
   // Fornecedores locais para cadastro rápido
   const [localSuppliers, setLocalSuppliers] = useState(SUPPLIERS);
@@ -192,7 +321,7 @@ export default function PurchasesPage() {
   const [itemCost, setItemCost] = useState("");
 
   // Quotation creation states
-  const [quoteProducts, setQuoteProducts] = useState<any[]>([]);
+  const [quoteProducts, setQuoteProducts] = useState<{ id: string; name: string; cost?: number; qty: number; unit: string }[]>([]);
   const [quoteSearch, setQuoteSearch] = useState("");
   const [selectedQuoteSuppliers, setSelectedQuoteSuppliers] = useState<string[]>([]);
   const [quoteDeadline, setQuoteDeadline] = useState(addDays(5));
@@ -224,6 +353,30 @@ export default function PurchasesPage() {
     alert(`Cotação ${quoteId} reenviada com sucesso para todos os fornecedores pendentes!`);
   };
 
+  const handleSaveSupplierResponse = (quoteId: string, response: QuoteResponse) => {
+    setActiveQuotes(prev => prev.map(q => {
+      if (q.id !== quoteId) return q;
+      const existingIndex = q.responses.findIndex(r => r.supplierId === response.supplierId);
+      let updatedResponses = [...q.responses];
+      if (existingIndex >= 0) {
+        updatedResponses[existingIndex] = response;
+      } else {
+        updatedResponses.push(response);
+      }
+      const isComplete = updatedResponses.length >= q.supplierIds.length;
+      const updatedQuote: ActiveQuote = {
+        ...q,
+        responses: updatedResponses,
+        status: isComplete ? "COMPLETE" : updatedResponses.length > 0 ? "PARTIAL" : "AWAITING"
+      };
+      if (selectedAnalysisQuote?.id === quoteId) {
+        setSelectedAnalysisQuote(updatedQuote);
+      }
+      return updatedQuote;
+    }));
+    setResponseModalQuote(null);
+  };
+
   // ─── Calculate quote totals for each supplier ────────────
   function calcSupplierTotal(quote: ActiveQuote, resp: QuoteResponse) {
     return quote.products.reduce((acc, p) => acc + ((resp.prices[p.id] || 0) * p.qty), 0);
@@ -251,6 +404,11 @@ export default function PurchasesPage() {
       if (t < bestTotal) { bestTotal = t; best = r; }
     });
     return best;
+  }
+
+  function calcSmartSplitTotal(quote: ActiveQuote): number {
+    const bestPrices = getBestPricePerProduct(quote);
+    return quote.products.reduce((acc, p) => acc + ((bestPrices[p.id]?.price || 0) * p.qty), 0);
   }
 
   // Quick Product Modal States
@@ -394,7 +552,12 @@ export default function PurchasesPage() {
       token: `COTA-${Date.now().toString().slice(-6)}`,
       deadline: quoteDeadline,
       status: "AWAITING",
-      products: quoteProducts.map(p => ({ id: p.id, name: p.name, qty: 1, unit: "UN" })),
+      products: quoteProducts.map(p => ({
+        id: p.id,
+        name: p.name,
+        qty: Number(p.qty) || 1,
+        unit: p.unit || "UN"
+      })),
       supplierIds: selectedQuoteSuppliers,
       responses: [],
     };
@@ -412,7 +575,6 @@ export default function PurchasesPage() {
   const handleCreateOrderFromBestQuote = (quote: ActiveQuote) => {
     const best = getBestSupplier(quote);
     if (!best) return;
-    const supplier = SUPPLIERS.find(s => s.id === best.supplierId);
     const newOrder: Order = {
       id: `PC-${Date.now().toString().slice(-4)}-1`,
       storeName: "Loja 1 - Matriz Centro",
@@ -424,6 +586,45 @@ export default function PurchasesPage() {
       paymentCondition: best.paymentProposal,
     };
     setOrders(prev => [newOrder, ...prev]);
+    alert(`Pedido único criado com ${best.supplierName} no valor de R$ ${fmt(newOrder.total)}!`);
+    setTab("orders");
+  };
+
+  const handleCreateSmartSplitOrders = (quote: ActiveQuote) => {
+    if (!quote.responses.length) return;
+    const bestPrices = getBestPricePerProduct(quote);
+    
+    const grouped: Record<string, { product: typeof quote.products[0]; unitPrice: number }[]> = {};
+    
+    quote.products.forEach(p => {
+      const winner = bestPrices[p.id];
+      if (winner && winner.supplierId) {
+        if (!grouped[winner.supplierId]) grouped[winner.supplierId] = [];
+        grouped[winner.supplierId].push({ product: p, unitPrice: winner.price });
+      }
+    });
+
+    const createdOrders: Order[] = [];
+    
+    Object.entries(grouped).forEach(([suppId, items], idx) => {
+      const suppResp = quote.responses.find(r => r.supplierId === suppId);
+      const suppName = suppResp?.supplierName ?? `Fornecedor ${suppId}`;
+      const groupTotal = items.reduce((acc, i) => acc + (i.unitPrice * i.product.qty), 0);
+      
+      createdOrders.push({
+        id: `PC-INTEL-${Date.now().toString().slice(-4)}-${idx + 1}`,
+        storeName: "Loja 1 - Matriz Centro",
+        supplier: suppName,
+        date: new Date().toLocaleDateString("pt-BR"),
+        items: items.length,
+        total: groupTotal,
+        status: "PENDING",
+        paymentCondition: suppResp?.paymentProposal ?? "30 dias"
+      });
+    });
+
+    setOrders(prev => [...createdOrders, ...prev]);
+    alert(`⚡ Compra Inteligente realizada! Criados ${createdOrders.length} pedido(s) fracionados otimizando pelo menor preço por item.`);
     setTab("orders");
   };
 
@@ -835,16 +1036,24 @@ export default function PurchasesPage() {
           </form>
         </div>
       ) : (
-    <div className="h-full flex flex-col gap-4">
+        <div className="h-full flex flex-col gap-4">
       <div className="flex items-center justify-between shrink-0">
         <div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Compras, Pedidos & Cotações</h1>
           <p className="text-slate-500 text-sm mt-0.5">Gerencie pedidos, dispare cotações e compare propostas de fornecedores.</p>
         </div>
-        <button onClick={() => setIsModalOpen(true)}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-indigo-600/20 text-sm active:scale-95">
-          <Plus size={16}/> Novo Pedido
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => { setTab("quotes"); setQuoteProducts([]); setSelectedQuoteSuppliers([]); }}
+            className="bg-[#111528] hover:bg-[#181e38] text-indigo-400 border border-indigo-500/20 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-md text-sm active:scale-95"
+          >
+            <Mail size={16}/> + Nova Cotação
+          </button>
+          <button onClick={() => setIsModalOpen(true)}
+            className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-indigo-600/20 text-sm active:scale-95">
+            <Plus size={16}/> Novo Pedido
+          </button>
+        </div>
       </div>
 
       {/* Payment alert banner */}
@@ -968,7 +1177,7 @@ export default function PurchasesPage() {
               <div className="bg-[#111528] p-4 rounded-2xl border border-indigo-500/10 space-y-2">
                 <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-1.5"><Mail size={12}/> Cotações Ativas</h3>
                 {activeQuotes.map(q => (
-                  <div key={q.id} className="p-2.5 bg-[#0c0f1a] rounded-xl border border-indigo-500/[0.08] space-y-1">
+                  <div key={q.id} className="p-3 bg-[#0c0f1a] rounded-xl border border-indigo-500/[0.08] space-y-2">
                     <div className="flex justify-between items-start">
                       <p className="text-xs text-white font-mono font-bold">{q.id}</p>
                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border ${
@@ -981,17 +1190,39 @@ export default function PurchasesPage() {
                     </div>
                     <p className="text-[10px] text-slate-500">{q.products.length} produtos · {q.responses.length}/{q.supplierIds.length} respostas</p>
                     <p className="text-[10px] text-slate-600">Prazo: {new Date(q.deadline).toLocaleDateString("pt-BR")}</p>
-                    <div className="flex gap-2 mt-1">
-                      {q.status === "COMPLETE" && (
-                        <button onClick={() => { setSelectedAnalysisQuote(q); setTab("analysis"); }}
-                          className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-0.5">
-                          Ver Análise <ChevronRight size={10}/>
+                    
+                    <div className="flex flex-col gap-1.5 pt-1 border-t border-indigo-500/10">
+                      <div className="flex justify-between items-center">
+                        <button
+                          onClick={() => setResponseModalQuote(q)}
+                          className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 px-2 py-1 rounded-md border border-indigo-500/20 transition-all flex items-center gap-1"
+                        >
+                          <Edit3 size={10} /> Preencher Resposta
                         </button>
-                      )}
-                      <button onClick={() => handleResendQuote(q.id)}
-                        className="text-[10px] font-bold text-amber-400 hover:text-amber-300 flex items-center gap-0.5">
-                        Reenviar Cotação 🔄
-                      </button>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(`https://emporio-iota.vercel.app/cotacao/${q.token}`);
+                            setCopiedToken(q.id);
+                            setTimeout(() => setCopiedToken(null), 2500);
+                          }}
+                          className="text-[10px] font-semibold text-slate-400 hover:text-white flex items-center gap-1"
+                        >
+                          <Copy size={10} /> {copiedToken === q.id ? "Link Copiado! ✅" : "Copiar Link"}
+                        </button>
+                      </div>
+
+                      <div className="flex gap-2">
+                        {q.status === "COMPLETE" && (
+                          <button onClick={() => { setSelectedAnalysisQuote(q); setTab("analysis"); }}
+                            className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-0.5">
+                            Ver Análise <ChevronRight size={10}/>
+                          </button>
+                        )}
+                        <button onClick={() => handleResendQuote(q.id)}
+                          className="text-[10px] font-bold text-amber-400 hover:text-amber-300 flex items-center gap-0.5 ml-auto">
+                          Reenviar 🔄
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -1002,7 +1233,7 @@ export default function PurchasesPage() {
             <div className="bg-[#111528] p-4 rounded-2xl border border-indigo-500/10 space-y-3">
               <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-1.5"><Truck size={12}/> 1. Fornecedores</h3>
               <div className="space-y-2">
-                {SUPPLIERS.map(s => (
+                {localSuppliers.map(s => (
                   <label key={s.id} className="flex items-start gap-2.5 text-xs text-white cursor-pointer">
                     <input type="checkbox" checked={selectedQuoteSuppliers.includes(s.id)}
                       onChange={() => setSelectedQuoteSuppliers(prev => prev.includes(s.id) ? prev.filter(id => id !== s.id) : [...prev, s.id])}
@@ -1026,7 +1257,7 @@ export default function PurchasesPage() {
             <div className="flex justify-between items-center shrink-0 border-b border-indigo-500/[0.08] pb-4 mb-4">
               <div>
                 <h3 className="text-sm font-bold text-white flex items-center gap-2"><Mail size={15}/> Produtos na Cotação</h3>
-                <p className="text-[10px] text-slate-500 mt-0.5">Busque e adicione os itens que deseja cotar.</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Busque produtos e defina quantidades/unidades de medida.</p>
               </div>
               <button onClick={handleSendQuotation} disabled={!quoteProducts.length || !selectedQuoteSuppliers.length || sendingQuote}
                 className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-indigo-600/20 active:scale-95 transition-all">
@@ -1041,7 +1272,12 @@ export default function PurchasesPage() {
               {quoteSearch.trim().length >= 1 && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-[#0c0f1a] border border-indigo-500/15 rounded-lg z-10 max-h-36 overflow-y-auto divide-y divide-indigo-500/[0.06] shadow-xl">
                   {products.filter(p => p.name.toLowerCase().includes(quoteSearch.toLowerCase())).slice(0, 10).map(p => (
-                    <div key={p.id} onClick={() => { if (!quoteProducts.some(x => x.id === p.id)) setQuoteProducts(prev => [...prev, p]); setQuoteSearch(""); }}
+                    <div key={p.id} onClick={() => {
+                      if (!quoteProducts.some(x => x.id === p.id)) {
+                        setQuoteProducts(prev => [...prev, { id: p.id, name: p.name, cost: p.cost, qty: 1, unit: "UN" }]);
+                      }
+                      setQuoteSearch("");
+                    }}
                       className="p-2 cursor-pointer hover:bg-indigo-500/10 text-xs text-white font-medium flex justify-between items-center">
                       <span>{p.name}</span><span className="text-[9px] text-indigo-400 font-bold">+ Incluir</span>
                     </div>
@@ -1059,17 +1295,53 @@ export default function PurchasesPage() {
             <div className="flex-1 overflow-auto min-h-0">
               <table className="w-full text-xs">
                 <thead className="bg-[#0c0f1a]/60 text-slate-500 border-b border-indigo-500/[0.08] sticky top-0">
-                  <tr><th className="px-4 py-2 text-left">Produto</th><th className="px-4 py-2 text-right w-24">Último Custo</th><th className="px-4 py-2 w-10"></th></tr>
+                  <tr>
+                    <th className="px-4 py-2 text-left">Produto</th>
+                    <th className="px-4 py-2 text-center w-28">Quantidade</th>
+                    <th className="px-4 py-2 text-center w-24">Unidade</th>
+                    <th className="px-4 py-2 text-right w-24">Último Custo</th>
+                    <th className="px-4 py-2 w-10"></th>
+                  </tr>
                 </thead>
                 <tbody className="divide-y divide-indigo-500/[0.06]">
                   {quoteProducts.map((p, i) => (
                     <tr key={i} className="hover:bg-indigo-500/[0.04]">
                       <td className="px-4 py-2.5 text-white font-semibold">{p.name}</td>
+                      <td className="px-4 py-2.5 text-center">
+                        <input
+                          type="number"
+                          min="1"
+                          value={p.qty}
+                          onChange={e => {
+                            const val = parseFloat(e.target.value) || 1;
+                            setQuoteProducts(prev => prev.map((item, idx) => idx === i ? { ...item, qty: val } : item));
+                          }}
+                          className="w-16 bg-[#0c0f1a] border border-indigo-500/15 text-white text-center font-mono font-bold px-2 py-1 rounded-lg outline-none text-xs"
+                        />
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        <select
+                          value={p.unit}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setQuoteProducts(prev => prev.map((item, idx) => idx === i ? { ...item, unit: val } : item));
+                          }}
+                          className="bg-[#0c0f1a] border border-indigo-500/15 text-white text-center font-semibold px-2 py-1 rounded-lg outline-none text-xs"
+                        >
+                          {["UN", "CX", "KG", "FD", "L", "PCT", "M2"].map(u => (
+                            <option key={u} value={u}>{u}</option>
+                          ))}
+                        </select>
+                      </td>
                       <td className="px-4 py-2.5 text-right font-mono text-slate-400">R$ {p.cost?.toFixed(2) ?? "0,00"}</td>
-                      <td className="px-4 py-2.5 text-center"><button onClick={() => setQuoteProducts(prev => prev.filter((_, idx) => idx !== i))} className="text-slate-600 hover:text-red-400"><X size={12}/></button></td>
+                      <td className="px-4 py-2.5 text-center">
+                        <button onClick={() => setQuoteProducts(prev => prev.filter((_, idx) => idx !== i))} className="text-slate-600 hover:text-red-400">
+                          <X size={14}/>
+                        </button>
+                      </td>
                     </tr>
                   ))}
-                  {!quoteProducts.length && <tr><td colSpan={3} className="text-center p-10 text-slate-500 italic">Busque produtos acima para adicionar à cotação.</td></tr>}
+                  {!quoteProducts.length && <tr><td colSpan={5} className="text-center p-10 text-slate-500 italic">Busque produtos acima para adicionar à cotação.</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -1093,25 +1365,56 @@ export default function PurchasesPage() {
           {selectedAnalysisQuote && selectedAnalysisQuote.responses.length > 0 && (() => {
             const bestPrices = getBestPricePerProduct(selectedAnalysisQuote);
             const bestSupplier = getBestSupplier(selectedAnalysisQuote);
+            const singleBestTotal = bestSupplier ? calcSupplierTotal(selectedAnalysisQuote, bestSupplier) : 0;
+            const smartSplitTotal = calcSmartSplitTotal(selectedAnalysisQuote);
+            const totalSavings = singleBestTotal > smartSplitTotal ? singleBestTotal - smartSplitTotal : 0;
+
             return (
               <div className="flex-1 flex flex-col min-h-0 gap-4 overflow-hidden">
-                {/* Best supplier card */}
-                {bestSupplier && (
-                  <div className="shrink-0 flex items-center gap-4 p-4 bg-emerald-500/8 border border-emerald-500/20 rounded-2xl">
-                    <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center shrink-0">
-                      <Star size={18} className="text-emerald-400" />
+                {/* Proposal Recommendations Cards (Single vs Smart Split) */}
+                <div className="grid grid-cols-2 gap-4 shrink-0">
+                  {/* Card 1: Fornecedor Único Recomendado */}
+                  {bestSupplier && (
+                    <div className="flex items-center gap-4 p-4 bg-emerald-500/8 border border-emerald-500/20 rounded-2xl">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center shrink-0">
+                        <Star size={18} className="text-emerald-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">🏆 Fornecedor Único Ideal</p>
+                        <p className="text-white font-black text-sm truncate">{bestSupplier.supplierName}</p>
+                        <p className="text-xs text-emerald-300">Total: <strong className="font-mono">R$ {fmt(singleBestTotal)}</strong></p>
+                      </div>
+                      <button onClick={() => handleCreateOrderFromBestQuote(selectedAnalysisQuote)}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-2 rounded-xl text-xs shadow-lg shrink-0 flex items-center gap-1 transition-all active:scale-95">
+                        <ShoppingCart size={12}/> Criar Pedido Único
+                      </button>
                     </div>
-                    <div className="flex-1">
-                      <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">🏆 Proposta Recomendada — Melhor Preço Total</p>
-                      <p className="text-white font-black text-base">{bestSupplier.supplierName}</p>
-                      <p className="text-xs text-emerald-300">Total: <strong className="font-mono">R$ {fmt(calcSupplierTotal(selectedAnalysisQuote, bestSupplier))}</strong> · Pagamento: {bestSupplier.paymentProposal}</p>
+                  )}
+
+                  {/* Card 2: Compra Inteligente (Menor Preço por Item) */}
+                  <div className="flex items-center gap-4 p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
+                      <Zap size={18} className="text-indigo-400" />
                     </div>
-                    <button onClick={() => handleCreateOrderFromBestQuote(selectedAnalysisQuote)}
-                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-lg shadow-emerald-600/30 flex items-center gap-1.5 active:scale-95 transition-all">
-                      <ShoppingCart size={12}/> Criar Pedido com Este Fornecedor
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-1">
+                        ⚡ Compra Inteligente (Divisão por Item)
+                      </p>
+                      <p className="text-white font-black text-sm font-mono">R$ {fmt(smartSplitTotal)}</p>
+                      {totalSavings > 0 ? (
+                        <p className="text-xs text-emerald-400 font-bold">
+                          Economia Adicional: <span className="font-mono font-black">R$ {fmt(totalSavings)}</span>
+                        </p>
+                      ) : (
+                        <p className="text-[10px] text-slate-400">Gera pedidos fracionados otimizados</p>
+                      )}
+                    </div>
+                    <button onClick={() => handleCreateSmartSplitOrders(selectedAnalysisQuote)}
+                      className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold px-3 py-2 rounded-xl text-xs shadow-lg shrink-0 flex items-center gap-1 transition-all active:scale-95">
+                      <Zap size={12}/> Gerar Compra Inteligente
                     </button>
                   </div>
-                )}
+                </div>
 
                 {/* Comparison table */}
                 <div className="flex-1 bg-[#111528] rounded-2xl border border-indigo-500/10 overflow-hidden flex flex-col min-h-0">
@@ -1125,7 +1428,7 @@ export default function PurchasesPage() {
                             <th key={r.supplierId} className="px-5 py-3 text-center font-bold uppercase tracking-wider min-w-36">
                               <div className="flex flex-col items-center gap-0.5">
                                 <span className={bestSupplier?.supplierId === r.supplierId ? "text-emerald-400" : ""}>{r.supplierName.split(" ")[0]}</span>
-                                {bestSupplier?.supplierId === r.supplierId && <span className="text-[8px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded-md font-bold">MENOR PREÇO</span>}
+                                {bestSupplier?.supplierId === r.supplierId && <span className="text-[8px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded-md font-bold">MENOR TOTAL</span>}
                               </div>
                             </th>
                           ))}
@@ -1134,7 +1437,10 @@ export default function PurchasesPage() {
                       <tbody className="divide-y divide-indigo-500/[0.06]">
                         {selectedAnalysisQuote.products.map(p => (
                           <tr key={p.id} className="hover:bg-indigo-500/[0.04] transition-colors">
-                            <td className="px-5 py-3 text-white font-semibold">{p.name}</td>
+                            <td className="px-5 py-3 text-white font-semibold">
+                              {p.name}
+                              <span className="text-[10px] text-slate-500 ml-1">({p.qty} {p.unit})</span>
+                            </td>
                             <td className="px-5 py-3 text-right text-slate-500 font-mono">{p.qty}</td>
                             {selectedAnalysisQuote.responses.map(r => {
                               const price = r.prices[p.id] ?? 0;
@@ -1184,7 +1490,7 @@ export default function PurchasesPage() {
               <div className="text-center space-y-2">
                 <Clock size={40} className="mx-auto text-slate-600" />
                 <p className="text-slate-400 font-semibold">Aguardando respostas dos fornecedores...</p>
-                <p className="text-slate-600 text-xs">Os fornecedores foram notificados. A análise aparecerá aqui quando responderem.</p>
+                <p className="text-slate-600 text-xs">Use o botão "Preencher Resposta" na aba de cotações para simular uma proposta.</p>
               </div>
             </div>
           )}
