@@ -1674,7 +1674,7 @@ export default function RestaurantPdvPage() {
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white text-black rounded-3xl w-full max-w-sm shadow-2xl p-6 space-y-4 font-mono text-xs">
             <div className="text-center border-b border-dashed border-gray-400 pb-3">
-              <h2 className="text-base font-black uppercase tracking-wider">EMPORIO RESTAURANTE</h2>
+              <h2 className="text-base font-black uppercase tracking-wider">CYBERTECH RESTAURANTE</h2>
               <p className="text-[10px]">CNPJ: 12.345.678/0001-90</p>
               <p className="text-[10px]">Av. Paulista, 1000 - São Paulo, SP</p>
               <p className="text-[10px] mt-1">CUPOM NÃO FISCAL / CONFERÊNCIA DE MESA</p>

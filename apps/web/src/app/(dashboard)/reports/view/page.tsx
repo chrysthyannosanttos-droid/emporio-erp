@@ -100,7 +100,7 @@ function ReportViewContent() {
           </div>
 
           <div className="p-4 bg-indigo-500/5 rounded-xl border border-indigo-500/10 text-xs text-slate-400 leading-relaxed">
-            <strong>Observação técnica:</strong> Este relatório é gerado a partir do banco de dados consolidado do Emporio ERP. Todas as transações estão auditadas e registradas em conformidade com as regras fiscais vigentes.
+            <strong>Observação técnica:</strong> Este relatório é gerado a partir do banco de dados consolidado do Cybertech RP. Todas as transações estão auditadas e registradas em conformidade com as regras fiscais vigentes.
           </div>
         </div>
       </div>

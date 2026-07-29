@@ -178,7 +178,7 @@ export default async function PublicStorePage({ params }: { params: Promise<{ co
       }}>
         <p style={{ color: "#334155", fontSize: 12, margin: 0 }}>
           Vitrine gerada pelo{" "}
-          <span style={{ color: primaryColor, fontWeight: 600 }}>Empório ERP</span>
+          <span style={{ color: primaryColor, fontWeight: 600 }}>Cybertech RP</span>
           {" "}· {company.name}
         </p>
       </footer>

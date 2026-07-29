@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Emporio ERP — Sistema de Gestão",
+  title: "Cybertech RP — Sistema de Gestão",
   description: "ERP completo para supermercados e atacados com PDV, estoque, financeiro, fiscal e CRM.",
 };
 

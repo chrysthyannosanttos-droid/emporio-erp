@@ -130,10 +130,10 @@ export default function LoginPage() {
               fontSize: 28, fontWeight: 900, color: "#fff",
               boxShadow: "0 8px 32px rgba(99,102,241,0.45), 0 0 0 1px rgba(255,255,255,0.1) inset",
             }}>
-              E
+              C
             </div>
             <h1 style={{ color: "#fff", fontSize: 22, fontWeight: 700, margin: 0, letterSpacing: "-0.5px" }}>
-              Empório ERP
+              Cybertech RP
             </h1>
             <p style={{ color: "#64748b", fontSize: 13, marginTop: 6 }}>
               Entre com suas credenciais para acessar
@@ -251,7 +251,7 @@ export default function LoginPage() {
 
           {/* Footer */}
           <p style={{ textAlign: "center", color: "#334155", fontSize: 11, marginTop: 24, marginBottom: 0 }}>
-            Empório ERP © {new Date().getFullYear()} — Todos os direitos reservados
+            Cybertech RP © {new Date().getFullYear()} — Todos os direitos reservados
           </p>
         </div>
       </div>

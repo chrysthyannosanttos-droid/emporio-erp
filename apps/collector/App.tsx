@@ -18,7 +18,7 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Emporio Coletor</Text>
+      <Text style={styles.title}>Cybertech Coletor</Text>
       <Text style={styles.subtitle}>Status: {isOffline ? '🔴 Offline' : '🟢 Online'}</Text>
       <Text style={styles.subtitle}>Sync Fila: {pendingSync.length}</Text>
       

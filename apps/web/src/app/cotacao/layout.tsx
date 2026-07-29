@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Portal de Cotação | Empório ERP",
+  title: "Portal de Cotação | Cybertech RP",
   description: "Portal exclusivo para fornecedores responderem cotações de compras.",
 };
 

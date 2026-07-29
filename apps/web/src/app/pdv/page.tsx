@@ -637,7 +637,7 @@ function PDVContainer() {
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Cupom</title>
 <style>@page{size:80mm auto;margin:0}*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Courier New',monospace;font-size:12px;width:80mm;padding:4mm;color:#000;background:#fff}.center{text-align:center}.bold{font-weight:bold}.sep{border-top:1px dashed #000;margin:6px 0}.store{font-size:16px;font-weight:900;letter-spacing:2px}table{width:100%;border-collapse:collapse}th,td{padding:2px 0;font-size:11px}th{border-bottom:1px solid #000}.total-row td{font-size:14px;font-weight:900;padding-top:4px}.footer{font-size:9px;margin-top:10px}</style>
 </head><body>
-<div class="center"><div class="store">EMPORIO</div><div>CNPJ: 00.000.000/0001-00</div><div>Rua Principal, 100 - Centro</div></div>
+<div class="center"><div class="store">CYBERTECH RP</div><div>CNPJ: 00.000.000/0001-00</div><div>Rua Principal, 100 - Centro</div></div>
 <div class="sep"></div>
 <div class="center bold">CUPOM NÃO FISCAL</div>
 <div>Data: ${dateStr} ${timeStr}</div>
@@ -661,7 +661,7 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
   <div class="center" style="font-size:16px;font-weight:900;margin:6px 0;border:1px solid #000;padding:4px;">${c.code}</div>
 `).join('') : ''}
 <div class="sep"></div>
-<div class="center footer"><div>Obrigado pela preferência!</div><div>Volte sempre!</div><div style="margin-top:6px">Emporio PDV v2.0</div></div>
+<div class="center footer"><div>Obrigado pela preferência!</div><div>Volte sempre!</div><div style="margin-top:6px">Cybertech RP PDV v2.0</div></div>
 <div style="height:20mm"></div>
 </body></html>`;
 

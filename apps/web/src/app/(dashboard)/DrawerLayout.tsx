@@ -59,10 +59,10 @@ export function DrawerLayout({ children, userName, userRole, userInitials, logoU
             ) : (
               <>
                 <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-black text-base shadow-lg shadow-indigo-600/30">
-                  E
+                  C
                 </div>
                 <div>
-                  <span className="text-base font-bold text-white tracking-tight block leading-none">Emporio</span>
+                  <span className="text-base font-bold text-white tracking-tight block leading-none">Cybertech RP</span>
                   <span className="text-[10px] text-indigo-400/60 font-medium uppercase tracking-widest">Sistema de Gestão</span>
                 </div>
               </>
@@ -159,9 +159,9 @@ export function DrawerLayout({ children, userName, userRole, userInitials, logoU
               ) : (
                 <div className="flex items-center gap-2">
                   <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-black text-xs">
-                    E
+                    C
                   </div>
-                  <span className="text-sm font-bold text-white tracking-tight hidden sm:block">Emporio ERP</span>
+                  <span className="text-sm font-bold text-white tracking-tight hidden sm:block">Cybertech RP</span>
                 </div>
               )}
             </div>
