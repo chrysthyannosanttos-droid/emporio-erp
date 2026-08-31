@@ -45,3 +45,7 @@ Thumbs.db
 coverage/
 
 .vercel
+
+# ─── Local Database Data ───────────────────────────────────────────────────────
+pg_data/
+packages/database/test_*.js

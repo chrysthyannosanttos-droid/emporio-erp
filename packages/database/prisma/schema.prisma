@@ -44,6 +44,11 @@ model Company {
   theme          TenantTheme?
   returns        Return[]
   losses         Loss[]
+  stores         Store[]
+  roles          Role[]
+  approvalRules  ApprovalRule[]
+  approvalRequests ApprovalRequest[]
+  auditLogs      AuditLog[]
   
   plan           Plan?    @relation(fields: [planId], references: [id])
 
@@ -91,13 +96,24 @@ model User {
   email     String   @unique
   name      String
   password  String
-  role      String   @default("OPERATOR")
+  pin       String?  // PIN de 4 a 6 dígitos para liberação rápida no PDV
+  role      String   @default("OPERATOR") // ADMIN, MANAGER, SUPERVISOR, OPERATOR, VIEWER
+  roleId    String?  // ID do Role customizado ou padrão
   active    Boolean  @default(true)
+  lastLogin DateTime?
   companyId String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company             Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  roleRelation        Role?             @relation(fields: [roleId], references: [id])
+  userStores          UserStore[]
+  userPermissions     UserPermission[]
+  requestedApprovals  ApprovalRequest[] @relation("RequestedApprovals")
+  authorizedApprovals ApprovalRequest[] @relation("AuthorizedApprovals")
+  auditLogs           AuditLog[]        @relation("UserAuditLogs")
+  authorizedAuditLogs AuditLog[]        @relation("AuthorizerAuditLogs")
+
   sales         Sale[]
   cashRegisters CashRegister[] @relation("CashierOperator")
   cashMovements CashMovement[] @relation("MovementUser")
@@ -932,3 +948,194 @@ model Loss {
 
   @@map("losses")
 }
+
+// ─────────────────────────────────────────────
+// MULTI-STORE (MULTILOJA)
+// ─────────────────────────────────────────────
+
+model Store {
+  id          String   @id @default(uuid())
+  code        String   // Ex: LJ01, MATRIZ, FILIAL-ZS
+  name        String   // Ex: Loja 1 - Matriz Centro
+  tradeName   String?
+  document    String?  // CNPJ da filial ou CPF
+  ie          String?  // Inscrição Estadual
+  phone       String?
+  email       String?
+  street      String?
+  number      String?
+  district    String?
+  city        String?
+  state       String?
+  zipCode     String?
+  active      Boolean  @default(true)
+  companyId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userStores       UserStore[]
+  approvalRequests ApprovalRequest[]
+  auditLogs        AuditLog[]
+
+  @@unique([companyId, code])
+  @@map("stores")
+}
+
+model UserStore {
+  id        String   @id @default(uuid())
+  userId    String
+  storeId   String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, storeId])
+  @@map("user_stores")
+}
+
+// ─────────────────────────────────────────────
+// PERMISSIONS & ROLES (PERFIS E PERMISSÕES)
+// ─────────────────────────────────────────────
+
+model Role {
+  id          String   @id @default(uuid())
+  key         String   // ADMIN, MANAGER, SUPERVISOR, OPERATOR, VIEWER, ou custom
+  name        String   // Administrador, Gerente, Supervisor, etc.
+  description String?
+  isSystem    Boolean  @default(false)
+  companyId   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     Company?         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  users       User[]
+  permissions RolePermission[]
+
+  @@unique([companyId, key])
+  @@map("roles")
+}
+
+model Permission {
+  id          String   @id @default(uuid())
+  code        String   @unique // ex: pdv.cancel_sale, stock.inventory
+  name        String   // Cancelar venda, Inventário, etc.
+  module      String   // PDV, ESTOQUE, COMPRAS, FINANCEIRO, RELATORIOS, CONFIGURACOES
+  description String?
+  createdAt   DateTime @default(now())
+
+  rolePermissions RolePermission[]
+  userPermissions UserPermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  id           String   @id @default(uuid())
+  roleId       String
+  permissionId String
+  createdAt    DateTime @default(now())
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserPermission {
+  id           String   @id @default(uuid())
+  userId       String
+  permissionId String
+  storeId      String?  // Se nulo, aplica para todas as lojas do usuário
+  granted      Boolean  @default(true) // true = Concessão explícita, false = Revogação explícita
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permissionId, storeId])
+  @@map("user_permissions")
+}
+
+// ─────────────────────────────────────────────
+// REGRAS E CENTRAL DE LIBERAÇÕES (APPROVALS)
+// ─────────────────────────────────────────────
+
+model ApprovalRule {
+  id          String   @id @default(uuid())
+  companyId   String
+  operation   String   // pdv.cancel_sale, pdv.cancel_item, pdv.apply_discount, pdv.change_price, pdv.bleed, pdv.refund_sale, stock.loss, stock.adjust, finance.cancel_entry
+  name        String   // Cancelamento de Venda, Desconto no PDV, etc.
+  minValue    Decimal  @default(0)
+  maxValue    Decimal?
+  minRole     String   @default("SUPERVISOR") // OPERATOR, SUPERVISOR, MANAGER, ADMIN
+  requiresPin Boolean  @default(true)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@map("approval_rules")
+}
+
+model ApprovalRequest {
+  id              String    @id @default(uuid())
+  companyId       String
+  storeId         String?
+  requesterId     String
+  approverId      String?
+  operation       String    // Código da operação solicitada
+  value           Decimal?  // Valor ou percentual envolvido
+  reason          String    // Motivo informado pelo solicitante
+  terminal        String?   // Nome/ID do terminal/caixa/dispositivo
+  status          String    @default("PENDING") // PENDING, APPROVED, REJECTED, EXPIRED
+  rejectionReason String?   // Motivo obrigatório em caso de negação
+  authorizedAt    DateTime?
+  expiresAt       DateTime?
+  details         String?   // JSON com dados adicionais (ex: itens, venda, etc.)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  store     Store?  @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  requester User    @relation("RequestedApprovals", fields: [requesterId], references: [id], onDelete: Cascade)
+  approver  User?   @relation("AuthorizedApprovals", fields: [approverId], references: [id], onDelete: SetNull)
+
+  @@map("approval_requests")
+}
+
+// ─────────────────────────────────────────────
+// AUDITORIA IMUTÁVEL (AUDIT LOGS)
+// ─────────────────────────────────────────────
+
+model AuditLog {
+  id           String   @id @default(uuid())
+  companyId    String
+  storeId      String?
+  userId       String
+  authorizerId String?
+  operation    String   // Código da operação (ex: pdv.cancel_sale, user.update_permissions)
+  action       String   // CREATE, UPDATE, DELETE, CANCEL, APPROVE, REJECT, OVERRIDE
+  entity       String?  // Tabela/Entidade afetada (ex: Sale, User, Product)
+  entityId     String?  // ID do registro afetado
+  oldValue     String?  // JSON ou texto do estado anterior
+  newValue     String?  // JSON ou texto do novo estado
+  reason       String?  // Motivo ou justificativa
+  ipAddress    String?
+  terminal     String?  // Terminal/dispositivo de origem
+  result       String   @default("SUCCESS") // SUCCESS, DENIED, FAILED
+  createdAt    DateTime @default(now())
+
+  company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  store      Store?  @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  user       User    @relation("UserAuditLogs", fields: [userId], references: [id], onDelete: Cascade)
+  authorizer User?   @relation("AuthorizerAuditLogs", fields: [authorizerId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
+}
+

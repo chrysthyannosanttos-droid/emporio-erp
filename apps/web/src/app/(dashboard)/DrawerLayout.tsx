@@ -7,7 +7,8 @@ import {
   LogOut, Bell, Hammer, Percent, Tag, Truck, ClipboardList, BarChart2,
   ChevronRight, Store, Landmark, HeartHandshake, AlertTriangle,
   Scale, ShoppingBag, Palette, ArrowLeftRight, FolderTree,
-  Utensils, ChefHat, BookOpen, Menu, X
+  Utensils, ChefHat, BookOpen, Menu, X, ShieldAlert, ShieldCheck,
+  Sliders, Settings
 } from "lucide-react";
 import { logout } from "@/actions/auth";
 
@@ -112,6 +113,14 @@ export function DrawerLayout({ children, userName, userRole, userInitials, logoU
           <NavItem href="/restaurant/pdv" icon={<Utensils size={15} />} label="PDV Touch & Mesas" badge="Food" newTab onNavigate={() => setIsOpen(false)} />
           <NavItem href="/restaurant/kds" icon={<ChefHat size={15} />} label="Tela da Cozinha (KDS)" onNavigate={() => setIsOpen(false)} />
           <NavItem href="/restaurant/recipes" icon={<BookOpen size={15} />} label="Ficha Técnica & Insumos" onNavigate={() => setIsOpen(false)} />
+
+          <SectionLabel>6. CONTROLE DE ACESSO & GESTÃO</SectionLabel>
+          <NavItem href="/settings/users" icon={<Users size={15} />} label="Usuários & Equipe" onNavigate={() => setIsOpen(false)} />
+          <NavItem href="/settings/roles" icon={<Sliders size={15} />} label="Perfis & Permissões" onNavigate={() => setIsOpen(false)} />
+          <NavItem href="/settings/approval-rules" icon={<ShieldAlert size={15} />} label="Regras de Liberação" onNavigate={() => setIsOpen(false)} />
+          <NavItem href="/settings/approvals" icon={<ShieldCheck size={15} />} label="Central de Liberações" badge="Alçadas" onNavigate={() => setIsOpen(false)} />
+          <NavItem href="/audit" icon={<FileText size={15} />} label="Log de Auditoria" onNavigate={() => setIsOpen(false)} />
+          <NavItem href="/settings" icon={<Settings size={15} />} label="Configurações Gerais" onNavigate={() => setIsOpen(false)} />
         </nav>
 
         {/* Footer do Drawer: usuário + logout */}

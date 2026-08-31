@@ -89,8 +89,8 @@ export async function login(formData: FormData) {
     });
 
     return { success: true, redirectUrl: "/" };
-  } catch {
-    return { error: "Erro ao autenticar. Tente novamente." };
+  } catch (err) {
+    return { error: `Erro ao autenticar. Detalhes: ${String(err)}` };
   }
 }
 
