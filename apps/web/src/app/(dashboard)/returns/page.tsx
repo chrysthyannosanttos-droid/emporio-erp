@@ -94,8 +94,8 @@ export default function ReturnsPage() {
     } else {
       setSuccess({
         message: `Devolução processada! Crédito de R$ ${totalAmount.toFixed(2)} gerado para ${sale.customer.name}.`,
-        invoiceId: res.invoice?.id,
-        returnId: res.returnId
+        invoiceId: (res as any)?.invoice?.id,
+        returnId: (res as any)?.returnId
       });
       setSale(null);
     }

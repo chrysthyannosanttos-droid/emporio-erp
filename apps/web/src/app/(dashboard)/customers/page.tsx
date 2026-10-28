@@ -43,7 +43,7 @@ export default async function CustomersPage() {
                 {customers?.length === 0 ? (
                   <tr><td colSpan={4} className="px-5 py-10 text-center text-slate-600">Nenhum cliente cadastrado.</td></tr>
                 ) : (
-                  customers?.map(c => (
+                  customers?.map((c: any) => (
                     <tr key={c.id} className="hover:bg-indigo-500/[0.04] transition-colors">
                       <td className="px-5 py-3 font-semibold text-white flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-400 flex items-center justify-center font-bold text-xs border border-indigo-500/15 shrink-0">

@@ -45,7 +45,7 @@ export default function CentralApprovalsPage() {
 
       if (reqRes.requests) {
         setRequests(reqRes.requests);
-        setCounts(reqRes.counts);
+        if (reqRes.counts) setCounts(reqRes.counts);
       }
       if (storeRes.stores) {
         setStores(storeRes.stores);

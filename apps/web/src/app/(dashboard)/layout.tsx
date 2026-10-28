@@ -1,5 +1,6 @@
 import { AiChatbot } from "@/components/AiChatbot";
 import { getTenantTheme } from "@/actions/theme";
+import { getCompanyModulesConfig } from "@/actions/modules";
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 import { DrawerLayout } from "./DrawerLayout";
@@ -15,7 +16,10 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  const { theme } = await getTenantTheme();
+  const [{ theme }, { activeModules, operationTypes }] = await Promise.all([
+    getTenantTheme(),
+    getCompanyModulesConfig(),
+  ]);
 
   const userInitials = session.name.substring(0, 2).toUpperCase();
   const userName = session.name;
@@ -27,6 +31,8 @@ export default async function DashboardLayout({
       userRole={userRole}
       userInitials={userInitials}
       logoUrl={theme?.logoPrincipal ?? null}
+      activeModules={activeModules}
+      operationTypes={operationTypes}
     >
       {children}
       <AiChatbot />

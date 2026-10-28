@@ -36,7 +36,7 @@ export async function listApprovalRules() {
       orderBy: [{ operation: "asc" }, { minValue: "asc" }],
     });
 
-    return { rules: rules.map(serializeRule) };
+    return { rules: rules.map(toPlain) };
   } catch (err: any) {
     return { rules: [], error: err.message };
   }
@@ -251,7 +251,7 @@ export async function listApprovalRequests(filters?: {
     ]);
 
     return {
-      requests: requests.map(serializeRequest),
+      requests: requests.map(toPlain),
       counts: {
         pending: pendingCount,
         approved: approvedCount,

@@ -71,7 +71,198 @@ export async function updateTenantCompanyInfo(formData: FormData) {
   }
 }
 
+// ─── Obter Configurações de Custo Operacional ─────────────────────────────
+export async function getOperationalCostConfig() {
+  try {
+    const session = await getSession();
+    if (!session?.companyId) {
+      return { error: "Não autorizado", config: null };
+    }
+
+    const rows: any[] = await prisma.$queryRawUnsafe(
+      `SELECT "defaultOperationalRate", "defaultProfitMargin", "defaultFreightOther", "operationalCostDetails" 
+       FROM companies WHERE id = $1 LIMIT 1`,
+      session.companyId
+    );
+
+    if (!rows || rows.length === 0) {
+      return { 
+        config: {
+          defaultOperationalRate: 15,
+          defaultProfitMargin: 25,
+          defaultFreightOther: 0,
+          operationalCostDetails: {}
+        } 
+      };
+    }
+
+    const row = rows[0];
+    let details: Record<string, number> = {};
+    try {
+      details = typeof row.operationalCostDetails === "string" 
+        ? JSON.parse(row.operationalCostDetails || "{}") 
+        : (row.operationalCostDetails || {});
+    } catch {
+      details = {};
+    }
+
+    return {
+      config: {
+        defaultOperationalRate: row.defaultOperationalRate !== null && row.defaultOperationalRate !== undefined ? Number(row.defaultOperationalRate) : 15,
+        defaultProfitMargin: row.defaultProfitMargin !== null && row.defaultProfitMargin !== undefined ? Number(row.defaultProfitMargin) : 25,
+        defaultFreightOther: row.defaultFreightOther !== null && row.defaultFreightOther !== undefined ? Number(row.defaultFreightOther) : 0,
+        operationalCostDetails: details,
+      }
+    };
+  } catch (err: any) {
+    return { error: err.message, config: null };
+  }
+}
+
+// ─── Atualizar Configurações de Custo Operacional ──────────────────────────
+export async function updateOperationalCostConfig(data: {
+  defaultOperationalRate: number;
+  defaultProfitMargin: number;
+  defaultFreightOther: number;
+  operationalCostDetails?: Record<string, number>;
+}) {
+  try {
+    const session = await getSession();
+    if (!session?.companyId) {
+      return { error: "Sessão não autorizada ou empresa não identificada." };
+    }
+
+    const rate = Math.max(0, Math.min(100, Number(data.defaultOperationalRate) || 0));
+    const margin = Math.max(0, Math.min(100, Number(data.defaultProfitMargin) || 0));
+    const freight = Math.max(0, Math.min(100, Number(data.defaultFreightOther) || 0));
+    const detailsStr = JSON.stringify(data.operationalCostDetails || {});
+
+    await prisma.$executeRawUnsafe(
+      `UPDATE companies 
+       SET "defaultOperationalRate" = $1, 
+           "defaultProfitMargin" = $2, 
+           "defaultFreightOther" = $3, 
+           "operationalCostDetails" = $4,
+           "updatedAt" = NOW()
+       WHERE id = $5`,
+      rate,
+      margin,
+      freight,
+      detailsStr,
+      session.companyId
+    );
+
+    revalidatePath("/settings");
+    revalidatePath("/stock/new");
+    revalidatePath("/pricing");
+
+    return { success: true };
+  } catch (err: any) {
+    return { error: err.message || "Erro ao salvar configurações de custo operacional." };
+  }
+}
+
+// ─── Atualizar Perfil Completo & Módulos da Empresa ──────────────────────────
+export async function updateCompanyFullProfile(data: {
+  name: string;
+  document: string;
+  tradeName?: string;
+  segment?: string;
+  ie?: string;
+  im?: string;
+  taxRegime?: string;
+  environment?: string;
+  street?: string;
+  number?: string;
+  district?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  operationTypes: string[];
+  activeModules: string[];
+}) {
+  try {
+    const session = await getSession();
+    if (!session?.companyId) {
+      return { error: "Sessão não autorizada ou empresa não identificada." };
+    }
+
+    const company = await prisma.company.update({
+      where: { id: session.companyId },
+      data: {
+        name: data.name,
+        document: data.document,
+        segment: data.segment || "SUPERMARKET",
+        operationTypes: JSON.stringify(data.operationTypes),
+        activeModules: JSON.stringify(data.activeModules),
+      },
+    });
+
+    // Atualizar ou criar FiscalConfig
+    await prisma.fiscalConfig.upsert({
+      where: { companyId: session.companyId },
+      update: {
+        companyName: data.name,
+        tradeName: data.tradeName || data.name,
+        cnpj: data.document,
+        ie: data.ie,
+        im: data.im,
+        taxRegime: data.taxRegime || "SN",
+        environment: data.environment || "homologacao",
+        street: data.street,
+        number: data.number,
+        district: data.district,
+        city: data.city,
+        state: data.state,
+        zipCode: data.zipCode,
+      },
+      create: {
+        companyId: session.companyId,
+        companyName: data.name,
+        tradeName: data.tradeName || data.name,
+        cnpj: data.document,
+        ie: data.ie,
+        im: data.im,
+        taxRegime: data.taxRegime || "SN",
+        environment: data.environment || "homologacao",
+        street: data.street,
+        number: data.number,
+        district: data.district,
+        city: data.city,
+        state: data.state,
+        zipCode: data.zipCode,
+      },
+    });
+
+    // Atualizar companyModules
+    for (const moduleKey of data.activeModules) {
+      await prisma.companyModule.upsert({
+        where: {
+          companyId_moduleKey: {
+            companyId: session.companyId,
+            moduleKey,
+          },
+        },
+        update: { active: true },
+        create: {
+          companyId: session.companyId,
+          moduleKey,
+          active: true,
+        },
+      });
+    }
+
+    revalidatePath("/", "layout");
+    revalidatePath("/settings/modules");
+    return { success: true, company };
+  } catch (err: any) {
+    return { error: err.message || "Erro ao atualizar perfil completo da empresa." };
+  }
+}
+
 // ─── Criar empresa + usuário admin ───────────────────────────────────────────
+import { SEGMENT_PRESETS } from "@/lib/modules-catalog";
+
 export async function createCompany(formData: FormData) {
   const session = await getSession();
   if (!session?.isSuperAdmin) redirect("/login");
@@ -82,6 +273,7 @@ export async function createCompany(formData: FormData) {
   const adminEmail = formData.get("adminEmail") as string;
   const adminPassword = formData.get("adminPassword") as string;
   const days = Number(formData.get("licenseDays") || "30");
+  const segment = (formData.get("segment") as string) || "SUPERMARKET";
 
   if (!name || !document || !adminName || !adminEmail || !adminPassword) {
     return { error: "Todos os campos são obrigatórios." };
@@ -93,12 +285,19 @@ export async function createCompany(formData: FormData) {
 
   const expiresAt = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 
+  const preset = SEGMENT_PRESETS[segment] || SEGMENT_PRESETS.SUPERMARKET;
+  const operationTypesJson = JSON.stringify(preset.operationTypes);
+  const activeModulesJson = JSON.stringify(preset.modules);
+
   const company = await prisma.company.create({
     data: {
       name,
       document,
       licenseStatus: "ACTIVE",
       licenseExpiresAt: expiresAt,
+      segment,
+      operationTypes: operationTypesJson,
+      activeModules: activeModulesJson,
       users: {
         create: {
           name: adminName,

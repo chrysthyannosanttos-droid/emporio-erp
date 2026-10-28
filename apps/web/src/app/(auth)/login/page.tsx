@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { login } from "@/actions/auth";
-import { Lock, User, Loader2 } from "lucide-react";
+import { Lock, User, Eye, EyeOff, Loader2, ArrowRight } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -28,231 +29,373 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center relative overflow-hidden" style={{ background: "#060818" }}>
-      
-      {/* Animated background blobs */}
-      <div style={{
-        position: "absolute", inset: 0, overflow: "hidden", zIndex: 0,
-      }}>
-        <div style={{
-          position: "absolute", width: 600, height: 600,
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(99,102,241,0.18) 0%, transparent 70%)",
-          top: "-10%", left: "-10%",
-          animation: "blob1 8s ease-in-out infinite",
-        }} />
-        <div style={{
-          position: "absolute", width: 500, height: 500,
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%)",
-          bottom: "-5%", right: "-5%",
-          animation: "blob2 10s ease-in-out infinite",
-        }} />
-        <div style={{
-          position: "absolute", width: 400, height: 400,
-          borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 70%)",
-          top: "50%", left: "50%", transform: "translate(-50%, -50%)",
-          animation: "blob3 12s ease-in-out infinite",
-        }} />
-        {/* Grid pattern overlay */}
-        <div style={{
-          position: "absolute", inset: 0,
-          backgroundImage: "linear-gradient(rgba(99,102,241,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.03) 1px, transparent 1px)",
-          backgroundSize: "40px 40px",
-        }} />
-      </div>
-
+    <div
+      style={{
+        minHeight: "100vh",
+        width: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "flex-end",
+        backgroundImage: "url('/bg-login.png')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+        position: "relative",
+        boxSizing: "border-box",
+        padding: "30px 8% 30px 5%",
+        fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+      }}
+      className="login-root-container"
+    >
       <style>{`
-        @keyframes blob1 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33% { transform: translate(40px, -30px) scale(1.05); }
-          66% { transform: translate(-20px, 20px) scale(0.95); }
+        @keyframes fadeInCard {
+          from {
+            opacity: 0;
+            transform: translateX(30px) scale(0.98);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0) scale(1);
+          }
         }
-        @keyframes blob2 {
-          0%, 100% { transform: translate(0, 0) scale(1); }
-          33% { transform: translate(-30px, 20px) scale(1.08); }
-          66% { transform: translate(20px, -20px) scale(0.92); }
+        .login-card-anim {
+          animation: fadeInCard 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
         }
-        @keyframes blob3 {
-          0%, 100% { transform: translate(-50%, -50%) scale(1); }
-          50% { transform: translate(-50%, -50%) scale(1.1); }
-        }
-        @keyframes fadeUp {
-          from { opacity: 0; transform: translateY(24px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes shimmer {
-          0% { background-position: -200% center; }
-          100% { background-position: 200% center; }
-        }
-        .login-card { animation: fadeUp 0.6s ease both; }
-        .login-field { transition: all 0.2s ease; }
-        .login-field:focus-within { transform: translateY(-1px); }
-        .input-glow:focus {
+        .login-input {
+          width: 100%;
+          height: 52px;
+          box-sizing: border-box;
+          background: rgba(4, 15, 34, 0.72);
+          border: 1px solid rgba(0, 130, 240, 0.38);
+          border-radius: 12px;
+          padding: 0 46px 0 46px;
+          font-size: 14px;
+          color: #f1f5f9;
           outline: none;
-          border-color: #6366f1 !important;
-          box-shadow: 0 0 0 3px rgba(99,102,241,0.2), 0 0 20px rgba(99,102,241,0.15);
+          transition: all 0.2s ease;
         }
-        .btn-shine {
-          background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #6366f1 100%);
-          background-size: 200% auto;
-          transition: all 0.3s ease;
+        .login-input::placeholder {
+          color: #557293;
+          font-weight: 400;
         }
-        .btn-shine:hover:not(:disabled) {
-          background-position: right center;
+        .login-input:hover {
+          border-color: rgba(0, 160, 255, 0.55);
+          background: rgba(6, 18, 40, 0.82);
+        }
+        .login-input:focus {
+          border-color: #0099ff;
+          box-shadow: 0 0 0 3px rgba(0, 140, 255, 0.2), 0 0 16px rgba(0, 140, 255, 0.25);
+          background: rgba(6, 20, 46, 0.92);
+        }
+        .btn-cyber-submit {
+          width: 100%;
+          height: 50px;
+          border-radius: 12px;
+          border: none;
+          background: linear-gradient(90deg, #0062f5 0%, #0084ff 100%);
+          color: #ffffff;
+          font-size: 15px;
+          font-weight: 600;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justifyContent: center;
+          gap: 10px;
+          transition: all 0.25s ease;
+          box-shadow: 0 6px 20px rgba(0, 100, 245, 0.42);
+        }
+        .btn-cyber-submit:hover:not(:disabled) {
+          background: linear-gradient(90deg, #0070ff 0%, #0095ff 100%);
+          box-shadow: 0 8px 28px rgba(0, 120, 255, 0.6);
           transform: translateY(-1px);
-          box-shadow: 0 8px 30px rgba(99,102,241,0.5);
         }
-        .btn-shine:active:not(:disabled) { transform: translateY(0); }
+        .btn-cyber-submit:active:not(:disabled) {
+          transform: translateY(0);
+          box-shadow: 0 3px 12px rgba(0, 100, 245, 0.4);
+        }
+        .btn-cyber-submit:disabled {
+          opacity: 0.7;
+          cursor: not-allowed;
+        }
+        .cyber-eye-btn {
+          position: absolute;
+          right: 14px;
+          top: 50%;
+          transform: translateY(-50%);
+          background: none;
+          border: none;
+          color: #557293;
+          cursor: pointer;
+          padding: 6px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: color 0.2s ease;
+        }
+        .cyber-eye-btn:hover {
+          color: #00b4ff;
+        }
+        @media (max-width: 1080px) {
+          .login-root-container {
+            justify-content: center !important;
+            padding: 24px !important;
+          }
+        }
       `}</style>
 
-      <div className="login-card w-full max-w-md relative z-10 px-5">
-        
-        {/* Glass card */}
-        <div style={{
-          background: "rgba(15, 17, 35, 0.85)",
-          backdropFilter: "blur(20px)",
-          border: "1px solid rgba(99,102,241,0.15)",
-          borderRadius: 24,
-          padding: "40px 36px",
-          boxShadow: "0 25px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.03) inset",
-        }}>
-          
-          {/* Logo & Header */}
-          <div style={{ textAlign: "center", marginBottom: 36 }}>
-            <div style={{
-              width: 68, height: 68,
-              borderRadius: 18,
-              background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              margin: "0 auto 16px",
-              fontSize: 28, fontWeight: 900, color: "#fff",
-              boxShadow: "0 8px 32px rgba(99,102,241,0.45), 0 0 0 1px rgba(255,255,255,0.1) inset",
-            }}>
-              C
-            </div>
-            <h1 style={{ color: "#fff", fontSize: 22, fontWeight: 700, margin: 0, letterSpacing: "-0.5px" }}>
-              Cybertech RP
-            </h1>
-            <p style={{ color: "#64748b", fontSize: 13, marginTop: 6 }}>
-              Entre com suas credenciais para acessar
-            </p>
+      {/* Card de Login alinhado exatamente ao design da referência */}
+      <div
+        className="login-card-anim"
+        style={{
+          width: "100%",
+          maxWidth: 460,
+          background: "rgba(5, 14, 32, 0.72)",
+          backdropFilter: "blur(18px)",
+          WebkitBackdropFilter: "blur(18px)",
+          border: "1.2px solid rgba(0, 145, 255, 0.32)",
+          borderRadius: 22,
+          padding: "42px 38px",
+          boxShadow: "0 24px 64px rgba(0, 0, 0, 0.65), 0 0 32px rgba(0, 110, 255, 0.12), inset 0 0 0 1px rgba(255, 255, 255, 0.04)",
+          boxSizing: "border-box",
+        }}
+      >
+        {/* Cabeçalho do Card */}
+        <div style={{ textAlign: "center", marginBottom: 28 }}>
+          <p
+            style={{
+              color: "#94a8be",
+              fontSize: 15,
+              fontWeight: 400,
+              margin: "0 0 6px 0",
+              letterSpacing: "0.2px",
+            }}
+          >
+            Bem-vindo(a) ao
+          </p>
+
+          {/* Logo CYBERTECH */}
+          <div style={{ margin: "4px 0 10px 0" }}>
+            <span
+              style={{
+                fontSize: 34,
+                fontWeight: 900,
+                letterSpacing: "1.5px",
+                fontStyle: "italic",
+                display: "inline-block",
+                textShadow: "0 0 24px rgba(0, 140, 255, 0.35)",
+              }}
+            >
+              <span
+                style={{
+                  background: "linear-gradient(135deg, #0088ff 0%, #00c8ff 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                }}
+              >
+                CYBER
+              </span>
+              <span
+                style={{
+                  background: "linear-gradient(135deg, #d2dde8 0%, #ffffff 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                }}
+              >
+                TECH
+              </span>
+            </span>
           </div>
 
-          {/* Error message */}
-          {error && (
-            <div style={{
-              background: "rgba(239,68,68,0.1)",
-              border: "1px solid rgba(239,68,68,0.25)",
+          {/* Subtítulo com linhas laterais */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 10,
+              marginBottom: 16,
+            }}
+          >
+            <div
+              style={{
+                width: 28,
+                height: 1.5,
+                background: "linear-gradient(90deg, transparent, #0088ff)",
+                borderRadius: 2,
+              }}
+            />
+            <span
+              style={{
+                color: "#7e97b2",
+                fontSize: 10,
+                fontWeight: 600,
+                letterSpacing: "2.8px",
+                textTransform: "uppercase",
+              }}
+            >
+              System and App Develop
+            </span>
+            <div
+              style={{
+                width: 28,
+                height: 1.5,
+                background: "linear-gradient(90deg, #0088ff, transparent)",
+                borderRadius: 2,
+              }}
+            />
+          </div>
+
+          <p
+            style={{
+              color: "#6b829c",
+              fontSize: 13,
+              fontWeight: 400,
+              margin: 0,
+            }}
+          >
+            Faça login para continuar
+          </p>
+        </div>
+
+        {/* Mensagem de Erro se houver */}
+        {error && (
+          <div
+            style={{
+              background: "rgba(239, 68, 68, 0.12)",
+              border: "1px solid rgba(239, 68, 68, 0.35)",
               borderRadius: 10,
               padding: "10px 14px",
               marginBottom: 20,
-              color: "#f87171",
+              color: "#fca5a5",
               fontSize: 13,
               textAlign: "center",
-            }}>
-              {error}
-            </div>
-          )}
+            }}
+          >
+            {error}
+          </div>
+        )}
 
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-            
-            {/* Username field */}
-            <div className="login-field">
-              <label style={{ display: "block", color: "#94a3b8", fontSize: 11, fontWeight: 600, marginBottom: 7, textTransform: "uppercase", letterSpacing: "0.8px" }}>
-                Usuário / Email
-              </label>
-              <div style={{ position: "relative" }}>
-                <div style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "#475569" }}>
-                  <User size={16} />
-                </div>
-                <input
-                  type="text"
-                  name="username"
-                  required
-                  autoComplete="username"
-                  placeholder="cristiano ou email@empresa.com"
-                  className="input-glow"
-                  style={{
-                    width: "100%", boxSizing: "border-box",
-                    background: "rgba(10,13,28,0.8)",
-                    border: "1px solid rgba(99,102,241,0.2)",
-                    borderRadius: 12,
-                    paddingLeft: 42, paddingRight: 16, paddingTop: 12, paddingBottom: 12,
-                    fontSize: 14, color: "#e2e8f0",
-                    transition: "all 0.2s",
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Password field */}
-            <div className="login-field">
-              <label style={{ display: "block", color: "#94a3b8", fontSize: 11, fontWeight: 600, marginBottom: 7, textTransform: "uppercase", letterSpacing: "0.8px" }}>
-                Senha
-              </label>
-              <div style={{ position: "relative" }}>
-                <div style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "#475569" }}>
-                  <Lock size={16} />
-                </div>
-                <input
-                  type="password"
-                  name="password"
-                  required
-                  autoComplete="current-password"
-                  placeholder="••••••••"
-                  className="input-glow"
-                  style={{
-                    width: "100%", boxSizing: "border-box",
-                    background: "rgba(10,13,28,0.8)",
-                    border: "1px solid rgba(99,102,241,0.2)",
-                    borderRadius: 12,
-                    paddingLeft: 42, paddingRight: 16, paddingTop: 12, paddingBottom: 12,
-                    fontSize: 14, color: "#e2e8f0",
-                    transition: "all 0.2s",
-                  }}
-                />
-              </div>
-            </div>
-
-            {/* Submit button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-shine"
+        {/* Formulário */}
+        <form
+          onSubmit={handleSubmit}
+          style={{ display: "flex", flexDirection: "column", gap: 18 }}
+        >
+          {/* Campo Usuário */}
+          <div style={{ position: "relative" }}>
+            <div
               style={{
-                width: "100%",
-                padding: "13px 0",
-                borderRadius: 12,
-                border: "none",
-                color: "#fff",
-                fontSize: 14,
-                fontWeight: 700,
-                cursor: loading ? "not-allowed" : "pointer",
-                opacity: loading ? 0.7 : 1,
+                position: "absolute",
+                left: 15,
+                top: "50%",
+                transform: "translateY(-50%)",
+                color: "#557293",
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                marginTop: 4,
+                pointerEvents: "none",
               }}
             >
-              {loading ? (
-                <>
-                  <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} />
-                  Entrando...
-                </>
-              ) : (
-                "Entrar no Sistema"
-              )}
-            </button>
-          </form>
+              <User size={19} />
+            </div>
+            <input
+              name="username"
+              type="text"
+              required
+              autoComplete="username"
+              placeholder="Usuário"
+              className="login-input"
+            />
+          </div>
 
-          {/* Footer */}
-          <p style={{ textAlign: "center", color: "#334155", fontSize: 11, marginTop: 24, marginBottom: 0 }}>
-            Cybertech RP © {new Date().getFullYear()} — Todos os direitos reservados
-          </p>
+          {/* Campo Senha */}
+          <div style={{ position: "relative" }}>
+            <div
+              style={{
+                position: "absolute",
+                left: 15,
+                top: "50%",
+                transform: "translateY(-50%)",
+                color: "#557293",
+                display: "flex",
+                alignItems: "center",
+                pointerEvents: "none",
+              }}
+            >
+              <Lock size={19} />
+            </div>
+            <input
+              name="password"
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              required
+              placeholder="Senha"
+              className="login-input"
+            />
+            <button
+              type="button"
+              className="cyber-eye-btn"
+              onClick={() => setShowPassword(!showPassword)}
+              tabIndex={-1}
+              aria-label="Alternar visibilidade da senha"
+            >
+              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
+
+          {/* Botão Entrar */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn-cyber-submit"
+            style={{ marginTop: 6 }}
+          >
+            {loading ? (
+              <>
+                <Loader2 size={18} className="animate-spin" />
+                <span>Entrando...</span>
+              </>
+            ) : (
+              <>
+                <ArrowRight size={18} />
+                <span>Entrar</span>
+              </>
+            )}
+          </button>
+        </form>
+
+        {/* Rodapé com linha decorativa */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 12,
+            marginTop: 34,
+          }}
+        >
+          <div
+            style={{
+              width: 32,
+              height: 1,
+              background: "linear-gradient(90deg, transparent, #284462)",
+            }}
+          />
+          <span
+            style={{
+              color: "#4e6a88",
+              fontSize: 11.5,
+              fontWeight: 400,
+              letterSpacing: "0.2px",
+            }}
+          >
+            Tecnologia que impulsiona o seu negócio
+          </span>
+          <div
+            style={{
+              width: 32,
+              height: 1,
+              background: "linear-gradient(90deg, #284462, transparent)",
+            }}
+          />
         </div>
       </div>
     </div>

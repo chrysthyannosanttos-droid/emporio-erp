@@ -1,11 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Loader2, AlertCircle, Check } from "lucide-react";
+import { ArrowLeft, Save, Loader2, AlertCircle, Check, Search, Calculator } from "lucide-react";
 import Link from "next/link";
 import { createProduct, getProductInfoByAiBarcode } from "@/actions/product";
 import { getMercadologico } from "@/actions/mercadologico";
+import { getOperationalCostConfig } from "@/actions/company";
+import { calculateProductPricing, formatBRL, formatPct } from "@/lib/product-pricing";
 
 const inputClass =
   "w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-3 py-2 text-sm rounded outline-none";
@@ -41,6 +43,8 @@ export default function NewProductPage() {
   const [price, setPrice] = useState("");
   const [cost, setCost] = useState("");
   const [stock, setStock] = useState("");
+  const [imageUrl, setImageUrl] = useState("");
+  const [sourceFound, setSourceFound] = useState("");
   const [isSelfProduced, setIsSelfProduced] = useState(false);
   const [internalCode, setInternalCode] = useState("");
   const [manualMode, setManualMode] = useState(false);
@@ -87,18 +91,80 @@ export default function NewProductPage() {
   const [cbsRate, setCbsRate] = useState("");
   const [isRate, setIsRate] = useState("");
 
-  const [activeTab, setActiveTab] = useState<"general" | "fiscal" | "rates">("general");
+  // Dados Multissetoriais (Logística, Distribuição & Indústria)
+  const [sku, setSku] = useState("");
+  const [brand, setBrand] = useState("");
+  const [manufacturer, setManufacturer] = useState("");
+  const [unitPurchase, setUnitPurchase] = useState("UN");
+  const [unitSale, setUnitSale] = useState("UN");
+  const [unitConvFactor, setUnitConvFactor] = useState("1");
+  const [packagingType, setPackagingType] = useState("UNIT");
+  const [unitsPerPack, setUnitsPerPack] = useState("1");
+  const [minOrderQty, setMinOrderQty] = useState("1");
+  const [grossWeight, setGrossWeight] = useState("");
+  const [netWeight, setNetWeight] = useState("");
+  const [width, setWidth] = useState("");
+  const [height, setHeight] = useState("");
+  const [depth, setDepth] = useState("");
+  const [isRawMaterial, setIsRawMaterial] = useState(false);
+  const [isFinishedGood, setIsFinishedGood] = useState(false);
+  const [isPackaging, setIsPackaging] = useState(false);
+  const [minStock, setMinStock] = useState("");
+  const [maxStock, setMaxStock] = useState("");
+  const [leadTimeDays, setLeadTimeDays] = useState("");
+  const [freightOther, setFreightOther] = useState("");
+  const [operationalRate, setOperationalRate] = useState("15");
+  const [desiredMargin, setDesiredMargin] = useState("25");
+  const [priceManual, setPriceManual] = useState(false);
+
+  const [activeTab, setActiveTab] = useState<"general" | "logistics" | "fiscal" | "rates">("general");
   const [fiscalSubTab, setFiscalSubTab] = useState<"saida" | "entrada">("saida");
 
-  // Margem dinâmica calculada em tempo real
+  const pricing = useMemo(
+    () =>
+      calculateProductPricing({
+        purchaseCost: parseFloat(cost) || 0,
+        freightOther: parseFloat(freightOther) || 0,
+        operationalRate: parseFloat(operationalRate) || 0,
+        desiredMargin: parseFloat(desiredMargin) || 0,
+        icmsRate: parseFloat(icmsRate) || 0,
+        icmsRedBaseRate: parseFloat(icmsRedBaseRate) || 0,
+        fecoepRate: parseFloat(fecoepRate) || 0,
+        pisRate: parseFloat(pisRate) || 0,
+        cofinsRate: parseFloat(cofinsRate) || 0,
+        ipiRate: parseFloat(ipiRate) || 0,
+        ibsRate: parseFloat(ibsRate) || 0,
+        cbsRate: parseFloat(cbsRate) || 0,
+        isRate: parseFloat(isRate) || 0,
+        icmsRateIn: parseFloat(icmsRateIn) || 0,
+        icmsRedBaseRateIn: parseFloat(icmsRedBaseRateIn) || 0,
+        fecoepRateIn: parseFloat(fecoepRateIn) || 0,
+        pisRateIn: parseFloat(pisRateIn) || 0,
+        cofinsRateIn: parseFloat(cofinsRateIn) || 0,
+        ipiRateIn: parseFloat(ipiRateIn) || 0,
+      }),
+    [
+      cost, freightOther, operationalRate, desiredMargin,
+      icmsRate, icmsRedBaseRate, fecoepRate, pisRate, cofinsRate, ipiRate,
+      ibsRate, cbsRate, isRate,
+      icmsRateIn, icmsRedBaseRateIn, fecoepRateIn, pisRateIn, cofinsRateIn, ipiRateIn,
+    ]
+  );
+
   const computedMargin = (() => {
     const pVal = parseFloat(price);
-    const cVal = parseFloat(cost);
-    if (!isNaN(pVal) && !isNaN(cVal) && cVal > 0) {
+    const cVal = pricing.totalCost || parseFloat(cost);
+    if (!isNaN(pVal) && cVal > 0) {
       return (((pVal - cVal) / cVal) * 100).toFixed(2);
     }
     return null;
   })();
+
+  function applySuggestedPrice() {
+    if (pricing.suggestedPrice <= 0 || pricing.error) return;
+    setPrice(pricing.suggestedPrice.toFixed(2));
+    setPriceManual(false);
+  }
 
   // Mercadológico / Categorias
   const [categoryId, setCategoryId] = useState("");
@@ -111,7 +177,22 @@ export default function NewProductPage() {
         setCategoriesList(res.categories);
       }
     }
+    async function loadCompanyPricingConfig() {
+      const res = await getOperationalCostConfig();
+      if (res?.config) {
+        if (res.config.defaultOperationalRate !== undefined && res.config.defaultOperationalRate !== null) {
+          setOperationalRate(String(res.config.defaultOperationalRate));
+        }
+        if (res.config.defaultProfitMargin !== undefined && res.config.defaultProfitMargin !== null) {
+          setDesiredMargin(String(res.config.defaultProfitMargin));
+        }
+        if (res.config.defaultFreightOther !== undefined && res.config.defaultFreightOther !== null && res.config.defaultFreightOther > 0) {
+          setFreightOther(String(res.config.defaultFreightOther));
+        }
+      }
+    }
     loadCategories();
+    loadCompanyPricingConfig();
   }, []);
 
   // Auto-lookup with debounce
@@ -125,6 +206,11 @@ export default function NewProductPage() {
     return () => clearTimeout(handler);
   }, [barcode, manualMode]);
 
+  useEffect(() => {
+    if (priceManual || pricing.suggestedPrice <= 0 || pricing.error) return;
+    setPrice(pricing.suggestedPrice.toFixed(2));
+  }, [pricing.suggestedPrice, pricing.error, priceManual]);
+
   async function handleAutoLookup(code: string) {
     setAiLoading(true);
     setAiError("");
@@ -133,12 +219,22 @@ export default function NewProductPage() {
     const res = await getProductInfoByAiBarcode(code);
     if (res.success && res.name) {
       setName(res.name);
-      if (res.price) setPrice(String(res.price));
-      if (res.cost) setCost(String(res.cost));
+      if (res.price && res.price > 0) {
+        setPrice(String(res.price));
+        setPriceManual(true);
+      }
+      if (res.cost && res.cost > 0) setCost(String(res.cost));
       if (res.ncm) setNcm(res.ncm);
       if (res.cest) setCest(res.cest);
       if (res.cfop) setCfop(res.cfop);
       if (res.cst) setCst(res.cst);
+      if (res.brand) setBrand(res.brand);
+      if (res.imageUrl) setImageUrl(res.imageUrl);
+      if (res.source) setSourceFound(res.source);
+      if (res.unit) {
+        setUnitSale(res.unit);
+        setUnitPurchase(res.unit);
+      }
       if (res.icmsRate !== undefined) setIcmsRate(String(res.icmsRate));
       if (res.pisRate !== undefined) setPisRate(String(res.pisRate));
       if (res.cofinsRate !== undefined) setCofinsRate(String(res.cofinsRate));
@@ -149,8 +245,11 @@ export default function NewProductPage() {
       // Auto-identificar o Grupo Mercadológico correspondente
       if (categoriesList.length > 0) {
         const nameLower = res.name.toLowerCase();
+        const catSuggested = (res.categorySuggested || "").toLowerCase();
         const matched = categoriesList.find((c: any) => {
-          const catParts = c.name.toLowerCase().split(" > ");
+          const catName = c.name.toLowerCase();
+          if (catSuggested && catName.includes(catSuggested)) return true;
+          const catParts = catName.split(" > ");
           return catParts.some((part: string) => part.length >= 4 && nameLower.includes(part));
         });
         if (matched) {
@@ -158,9 +257,9 @@ export default function NewProductPage() {
         }
       }
 
-      setAiSuccess("Produto identificado e campos preenchidos com sucesso!");
+      setAiSuccess(`Produto identificado via ${res.source || "Base Pública"}!`);
     } else {
-      setAiError("Produto não encontrado. Preencha manualmente.");
+      setAiError("Produto não encontrado nas bases públicas. Preencha manualmente.");
     }
     setAiLoading(false);
   }
@@ -174,6 +273,7 @@ export default function NewProductPage() {
     formData.append("name", name);
     formData.append("barcode", barcode);
     formData.append("price", price);
+    formData.append("cost", cost);
     formData.append("stock", stock);
     formData.append("categoryId", categoryId);
     formData.append("ncm", ncm);
@@ -208,6 +308,28 @@ export default function NewProductPage() {
     formData.append("isSelfProduced", String(isSelfProduced));
     formData.append("internalCode", internalCode);
 
+    // Campos Multissetoriais (Distribuição / Indústria / Logística)
+    formData.append("sku", sku);
+    formData.append("brand", brand);
+    formData.append("manufacturer", manufacturer);
+    formData.append("unitPurchase", unitPurchase);
+    formData.append("unitSale", unitSale);
+    formData.append("unitConvFactor", unitConvFactor);
+    formData.append("packagingType", packagingType);
+    formData.append("unitsPerPack", unitsPerPack);
+    formData.append("minOrderQty", minOrderQty);
+    formData.append("grossWeight", grossWeight);
+    formData.append("netWeight", netWeight);
+    formData.append("width", width);
+    formData.append("height", height);
+    formData.append("depth", depth);
+    formData.append("isRawMaterial", String(isRawMaterial));
+    formData.append("isFinishedGood", String(isFinishedGood));
+    formData.append("isPackaging", String(isPackaging));
+    formData.append("minStock", minStock);
+    formData.append("maxStock", maxStock);
+    formData.append("leadTimeDays", leadTimeDays);
+
     const result = await createProduct(formData);
 
     if (result.error) {
@@ -234,6 +356,7 @@ export default function NewProductPage() {
         <div className="flex border-b border-indigo-500/10 bg-[#0c0f1a]/20">
           {[
             { key: "general", label: "Produto ou Serviço" },
+            { key: "logistics", label: "Logística & Indústria" },
             { key: "fiscal",  label: "Dados Fiscais" },
             { key: "rates",   label: "Reforma Tributária" },
           ].map((tab) => (
@@ -279,31 +402,68 @@ export default function NewProductPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="md:col-span-2">
-                    <label className={labelClass}>Código de Barras (EAN)</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className={labelClass}>Código de Barras (EAN)</label>
+                      {sourceFound && (
+                        <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                          Identificado via {sourceFound}
+                        </span>
+                      )}
+                    </div>
                     <div className="flex gap-2">
                       <input
                         type="text"
                         value={barcode}
                         onChange={(e) => setBarcode(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            if (barcode.trim()) handleAutoLookup(barcode.trim());
+                          }
+                        }}
                         className={`flex-1 ${inputMonoClass}`}
-                        placeholder="Ex: 7891234567890"
+                        placeholder="Ex: 7891234567890 (digite ou bipe com leitor)"
                       />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (barcode.trim()) handleAutoLookup(barcode.trim());
+                        }}
+                        disabled={aiLoading || !barcode.trim()}
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-bold rounded flex items-center gap-1.5 transition-colors shadow-md shadow-indigo-600/20 shrink-0"
+                      >
+                        {aiLoading ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />}
+                        <span>Buscar EAN</span>
+                      </button>
                     </div>
-                    {aiLoading && (
-                      <div className="flex items-center gap-1.5 text-xs text-indigo-400 mt-1.5">
-                        <Loader2 size={12} className="animate-spin" /> Buscando dados do produto...
+
+                    {imageUrl && (
+                      <div className="mt-2.5 p-2 bg-[#0c0f1a] rounded border border-indigo-500/15 flex items-center gap-3">
+                        <img src={imageUrl} alt="Foto do produto" className="w-12 h-12 object-contain bg-white/5 rounded p-1 shrink-0" />
+                        <div className="text-xs">
+                          <p className="text-white font-bold truncate">{name}</p>
+                          <p className="text-slate-500 text-[10px]">Imagem e metadados obtidos da base pública</p>
+                        </div>
                       </div>
                     )}
-                    <label className="flex items-center gap-2 mt-2 cursor-pointer w-fit">
-                      <input type="checkbox" checked={manualMode} onChange={(e) => setManualMode(e.target.checked)}
-                        className="rounded bg-[#0c0f1a] border-indigo-500/20 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-0" />
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Digitar Manualmente</span>
-                    </label>
-                    <label className="flex items-center gap-2 mt-2 cursor-pointer w-fit">
-                      <input type="checkbox" checked={isSelfProduced} onChange={(e) => setIsSelfProduced(e.target.checked)}
-                        className="rounded bg-[#0c0f1a] border-indigo-500/20 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-0" />
-                      <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Produção Própria (Balança Prix)</span>
-                    </label>
+
+                    {aiLoading && (
+                      <div className="flex items-center gap-1.5 text-xs text-indigo-400 mt-1.5">
+                        <Loader2 size={12} className="animate-spin" /> Buscando dados do produto nas bases públicas...
+                      </div>
+                    )}
+                    <div className="flex items-center gap-4 mt-2">
+                      <label className="flex items-center gap-2 cursor-pointer w-fit">
+                        <input type="checkbox" checked={manualMode} onChange={(e) => setManualMode(e.target.checked)}
+                          className="rounded bg-[#0c0f1a] border-indigo-500/20 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-0" />
+                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Digitar Manualmente</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer w-fit">
+                        <input type="checkbox" checked={isSelfProduced} onChange={(e) => setIsSelfProduced(e.target.checked)}
+                          className="rounded bg-[#0c0f1a] border-indigo-500/20 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-0" />
+                        <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Produção Própria (Balança Prix)</span>
+                      </label>
+                    </div>
                   </div>
                   <div>
                     <label className={labelClass}>Cód. Interno / Toledo</label>
@@ -350,15 +510,26 @@ export default function NewProductPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                   <div>
-                    <label className={labelClass}>Preço de Venda (R$) *</label>
-                    <input type="number" step="0.01" required value={price} onChange={(e) => setPrice(e.target.value)} className={inputMonoClass} placeholder="0.00" />
-                  </div>
-                  <div>
-                    <label className={labelClass}>Preço de Custo (R$)</label>
+                    <label className={labelClass}>Custo de Compra (R$)</label>
                     <input type="number" step="0.01" value={cost} onChange={(e) => setCost(e.target.value)} className={inputMonoClass} placeholder="0.00" />
                   </div>
+                  <div>
+                    <label className={labelClass}>Preço de Venda (R$) *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      required
+                      value={price}
+                      onChange={(e) => {
+                        setPrice(e.target.value);
+                        setPriceManual(true);
+                      }}
+                      className={inputMonoClass}
+                      placeholder="0.00"
+                    />
+                  </div>
                   <div className="bg-[#0c0f1a] border border-indigo-500/10 rounded px-3 py-2 flex flex-col justify-center h-[38px]">
-                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block leading-none">Margem de Lucro</span>
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block leading-none">Markup sobre custo real</span>
                     <span className="text-sm font-black font-mono text-emerald-400 mt-1">
                       {computedMargin ? `${computedMargin}%` : "---"}
                     </span>
@@ -366,6 +537,201 @@ export default function NewProductPage() {
                   <div>
                     <label className={labelClass}>Estoque Inicial</label>
                     <input type="number" value={stock} onChange={(e) => setStock(e.target.value)} className={inputMonoClass} placeholder="0" />
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-indigo-500/15 bg-indigo-500/[0.04] p-4 space-y-4">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div className="flex items-center gap-2">
+                      <Calculator size={16} className="text-indigo-400" />
+                      <p className="text-xs font-black uppercase tracking-widest text-indigo-300">Custo real e preço sugerido</p>
+                    </div>
+                    <p className="text-[10px] text-slate-500">
+                      Usa impostos de entrada, saída, reforma, frete, operacional e margem.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className={labelClass}>Frete / outros (R$)</label>
+                      <input type="number" step="0.01" value={freightOther} onChange={(e) => setFreightOther(e.target.value)} className={inputMonoClass} placeholder="0.00" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Custo operacional (%)</label>
+                      <input type="number" step="0.01" min="0" max="99" value={operationalRate} onChange={(e) => setOperationalRate(e.target.value)} className={inputMonoClass} placeholder="15.00" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Margem desejada (%)</label>
+                      <input type="number" step="0.01" min="0" max="99" value={desiredMargin} onChange={(e) => setDesiredMargin(e.target.value)} className={inputMonoClass} placeholder="25.00" />
+                    </div>
+                  </div>
+
+                  {pricing.error ? (
+                    <p className="text-xs text-red-400 font-semibold">{pricing.error}</p>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="bg-[#0c0f1a] border border-indigo-500/10 rounded-lg px-3 py-2.5">
+                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Impostos de entrada</span>
+                        <span className="text-sm font-mono font-bold text-amber-300">{formatBRL(pricing.inboundTaxAmount)}</span>
+                        <span className="text-[10px] text-slate-500 block">{formatPct(pricing.inboundTaxRate)}</span>
+                      </div>
+                      <div className="bg-[#0c0f1a] border border-indigo-500/10 rounded-lg px-3 py-2.5">
+                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Custo real</span>
+                        <span className="text-sm font-mono font-bold text-white">{formatBRL(pricing.totalCost)}</span>
+                        <span className="text-[10px] text-slate-500 block">compra + tributos + frete</span>
+                      </div>
+                      <div className="bg-[#0c0f1a] border border-indigo-500/10 rounded-lg px-3 py-2.5">
+                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Carga de saída</span>
+                        <span className="text-sm font-mono font-bold text-rose-300">{formatPct(pricing.outboundTaxRate)}</span>
+                        <span className="text-[10px] text-slate-500 block">ICMS, PIS, COFINS, IPI, IBS, CBS, IS</span>
+                      </div>
+                      <div className="bg-[#0c0f1a] border border-emerald-500/20 rounded-lg px-3 py-2.5">
+                        <span className="text-[10px] text-emerald-500/80 font-bold uppercase tracking-wider block">Preço sugerido</span>
+                        <span className="text-lg font-mono font-black text-emerald-400 leading-tight">{formatBRL(pricing.suggestedPrice)}</span>
+                        <span className="text-[10px] text-slate-500 block">lucro est. {formatBRL(pricing.estimatedProfit)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <p className="text-[10px] text-slate-500">
+                      Fórmula: preço = custo real ÷ (1 − impostos de saída − operacional − margem).
+                      {priceManual ? " Preço editado manualmente." : " Preço preenchido automaticamente."}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={applySuggestedPrice}
+                      disabled={pricing.suggestedPrice <= 0 || !!pricing.error}
+                      className="px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-600/30 disabled:opacity-40"
+                    >
+                      Usar preço sugerido
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === "logistics" && (
+              <div className="space-y-6">
+                <div>
+                  <p className={sectionTitleClass}>Identificação Industrial & Comercial</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className={labelClass}>SKU (Código Único)</label>
+                      <input type="text" value={sku} onChange={(e) => setSku(e.target.value)} className={inputClass} placeholder="Ex: PROD-1002" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Marca</label>
+                      <input type="text" value={brand} onChange={(e) => setBrand(e.target.value)} className={inputClass} placeholder="Ex: Nestlé, Ambev, Marca Própria" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Fabricante / Indústria</label>
+                      <input type="text" value={manufacturer} onChange={(e) => setManufacturer(e.target.value)} className={inputClass} placeholder="Ex: Indústrias Reunidas S/A" />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <p className={sectionTitleClass}>Unidades Múltiplas & Fator de Conversão</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className={labelClass}>Unidade de Compra</label>
+                      <input type="text" value={unitPurchase} onChange={(e) => setUnitPurchase(e.target.value)} className={inputClass} placeholder="Ex: CX, FD, KG, TON, BARRA" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Unidade de Venda</label>
+                      <input type="text" value={unitSale} onChange={(e) => setUnitSale(e.target.value)} className={inputClass} placeholder="Ex: UN, KG, MT, TON" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Fator de Conversão (Qtd na Venda por Compra)</label>
+                      <input type="number" step="0.001" value={unitConvFactor} onChange={(e) => setUnitConvFactor(e.target.value)} className={inputMonoClass} placeholder="Ex: 12 (1 CX = 12 UN)" />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <p className={sectionTitleClass}>Embalagem Comercial & Pedido Mínimo (MOQ)</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className={labelClass}>Tipo de Embalagem</label>
+                      <select value={packagingType} onChange={(e) => setPackagingType(e.target.value)} className={inputClass}>
+                        <option value="UNIT">Unidade (UN)</option>
+                        <option value="BOX">Caixa (CX)</option>
+                        <option value="PALLET">Palete (PL)</option>
+                        <option value="BAG">Fardo / Saco (FD)</option>
+                        <option value="BUNDLE">Pacote (PCT)</option>
+                        <option value="BARRA">Barra (BR)</option>
+                        <option value="BOBINA">Bobina (BOB)</option>
+                        <option value="CHAPA">Chapa (CHP)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelClass}>Unidades por Embalagem</label>
+                      <input type="number" value={unitsPerPack} onChange={(e) => setUnitsPerPack(e.target.value)} className={inputMonoClass} placeholder="1" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Qtd Mínima de Pedido (MOQ)</label>
+                      <input type="number" value={minOrderQty} onChange={(e) => setMinOrderQty(e.target.value)} className={inputMonoClass} placeholder="1" />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <p className={sectionTitleClass}>Pesos & Dimensões Logísticas</p>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                    <div>
+                      <label className={labelClass}>Peso Bruto (KG)</label>
+                      <input type="number" step="0.001" value={grossWeight} onChange={(e) => setGrossWeight(e.target.value)} className={inputMonoClass} placeholder="0.000" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Peso Líquido (KG)</label>
+                      <input type="number" step="0.001" value={netWeight} onChange={(e) => setNetWeight(e.target.value)} className={inputMonoClass} placeholder="0.000" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Largura (cm)</label>
+                      <input type="number" value={width} onChange={(e) => setWidth(e.target.value)} className={inputMonoClass} placeholder="0" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Altura (cm)</label>
+                      <input type="number" value={height} onChange={(e) => setHeight(e.target.value)} className={inputMonoClass} placeholder="0" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Profundidade / Comp. (cm)</label>
+                      <input type="number" value={depth} onChange={(e) => setDepth(e.target.value)} className={inputMonoClass} placeholder="0" />
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <p className={sectionTitleClass}>Classificação Industrial & Parâmetros de Estoque</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <label className="flex items-center gap-2 cursor-pointer bg-[#0c0f1a] p-3 rounded border border-indigo-500/10">
+                      <input type="checkbox" checked={isRawMaterial} onChange={(e) => setIsRawMaterial(e.target.checked)} className="rounded text-indigo-500" />
+                      <span className="text-xs font-bold text-slate-300">Matéria-Prima / Insumo</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer bg-[#0c0f1a] p-3 rounded border border-indigo-500/10">
+                      <input type="checkbox" checked={isFinishedGood} onChange={(e) => setIsFinishedGood(e.target.checked)} className="rounded text-indigo-500" />
+                      <span className="text-xs font-bold text-slate-300">Produto Acabado (Fabricação)</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer bg-[#0c0f1a] p-3 rounded border border-indigo-500/10">
+                      <input type="checkbox" checked={isPackaging} onChange={(e) => setIsPackaging(e.target.checked)} className="rounded text-indigo-500" />
+                      <span className="text-xs font-bold text-slate-300">Embalagem / Consumível</span>
+                    </label>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className={labelClass}>Estoque Mínimo</label>
+                      <input type="number" value={minStock} onChange={(e) => setMinStock(e.target.value)} className={inputMonoClass} placeholder="0" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Estoque Máximo</label>
+                      <input type="number" value={maxStock} onChange={(e) => setMaxStock(e.target.value)} className={inputMonoClass} placeholder="Sem limite" />
+                    </div>
+                    <div>
+                      <label className={labelClass}>Prazo de Reposição (Lead Time - Dias)</label>
+                      <input type="number" value={leadTimeDays} onChange={(e) => setLeadTimeDays(e.target.value)} className={inputMonoClass} placeholder="0" />
+                    </div>
                   </div>
                 </div>
               </div>

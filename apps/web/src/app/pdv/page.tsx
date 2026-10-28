@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import {
   Search, ShoppingCart, Trash2, CreditCard, Banknote, QrCode,
   Keyboard, Plus, Minus, X, FileText, Check, AlertCircle,
-  TrendingDown, Package, Clock, User, ChevronRight, Monitor,
+  TrendingDown, Package, Clock, User, Users, ChevronRight, Monitor,
   DollarSign, BarChart2, LogOut, RefreshCw, Zap, Download, Settings
 } from "lucide-react";
 import { getProductByBarcode, searchProducts, lookupBarcodeOnline } from "@/actions/product";

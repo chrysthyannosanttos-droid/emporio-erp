@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import {
   ShieldCheck, Search, Store, User, Terminal, Clock,
   AlertCircle, CheckCircle, Eye, Loader2, ArrowRight,
-  Filter, FileText, Lock
+  Filter, FileText, Lock, X
 } from "lucide-react";
 import { listAuditLogs } from "@/actions/audit";
 import { listStores } from "@/actions/stores";

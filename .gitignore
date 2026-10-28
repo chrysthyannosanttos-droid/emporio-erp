@@ -49,3 +49,15 @@ coverage/
 # ─── Local Database Data ───────────────────────────────────────────────────────
 pg_data/
 packages/database/test_*.js
+
+# ─── Binários e releases do PDV (arquivos grandes) ─────────────────────────────
+apps/pdv/release/
+apps/web/public/downloads/
+*.exe
+*.exe.blockmap
+apps/web/public/login-bg-ref.png
+apps/web/public/login-neon-ref.png
+
+# ─── Arquivos temporários de deploy ───────────────────────────────────────────
+.env.vercel.prod.tmp
+.env.vercel.tmp

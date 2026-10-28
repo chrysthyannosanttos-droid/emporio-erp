@@ -27,7 +27,7 @@ export function TenantUsersManager() {
     setCreating(true);
     setError("");
     const formData = new FormData(e.currentTarget);
-    const res = await createTenantUser(formData);
+    const res = await createTenantUser(formData as any);
     setCreating(false);
 
     if (res?.error) {

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { getFiscalConfig, saveFiscalConfig } from "@/actions/fiscalConfig";
 import { getTenantCompanyInfo, updateTenantCompanyInfo } from "@/actions/company";
 import { TenantUsersManager } from "./TenantUsersManager";
+import { CustoOperacionalTab } from "./CustoOperacionalTab";
 import {
   Settings as SettingsIcon,
   Shield,
@@ -16,11 +17,13 @@ import {
   AlertTriangle,
   Info,
   Building2,
-  Loader2
+  Loader2,
+  Calculator,
 } from "lucide-react";
 
 const TABS = [
   { id: "geral", label: "Geral", icon: <SettingsIcon size={18} /> },
+  { id: "custo-operacional", label: "Custo Operacional", icon: <Calculator size={18} /> },
   { id: "usuarios", label: "Usuários e Perfis", icon: <User size={18} /> },
   { id: "fiscal", label: "Fiscal & NF-e", icon: <FileText size={18} /> },
   { id: "pagamentos", label: "Pagamentos e PIX", icon: <CreditCard size={18} /> },
@@ -148,6 +151,7 @@ export default function SettingsPage() {
                   onSubmit={handleGeralSave}
                 />
               )}
+              {activeTab === "custo-operacional" && <CustoOperacionalTab />}
               {activeTab === "fiscal" && (
                 <FiscalTab
                   fiscal={fiscalData}

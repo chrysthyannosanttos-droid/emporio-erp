@@ -57,6 +57,8 @@ export default function SuppliersPage() {
     minOrderValue: 0,
     deliveryNotes: "",
     category: "Outros",
+    segment: "Geral",
+    systemType: "Outros",
     notes: ""
   });
 
@@ -250,6 +252,8 @@ export default function SuppliersPage() {
       minOrderValue: Number(s.minOrderValue || 0),
       deliveryNotes: s.deliveryNotes || "",
       category: s.category || "Outros",
+      segment: s.segment || "Geral",
+      systemType: s.systemType || "Outros",
       notes: s.notes || ""
     });
     setFormTab("geral");
@@ -300,6 +304,8 @@ export default function SuppliersPage() {
       minOrderValue: 0,
       deliveryNotes: "",
       category: "Outros",
+      segment: "Geral",
+      systemType: "Outros",
       notes: ""
     });
   }
@@ -650,6 +656,37 @@ export default function SuppliersPage() {
                         className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-4 py-2.5 rounded-xl outline-none text-sm"
                       >
                         {["Alimentos","Bebidas","Frios","Limpeza","Higiene","Outros"].map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Segmento Atendido</label>
+                      <select 
+                        value={formData.segment}
+                        onChange={e => setFormData(prev => ({ ...prev, segment: e.target.value }))}
+                        className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-4 py-2.5 rounded-xl outline-none text-sm font-semibold text-indigo-300"
+                      >
+                        <option value="Geral">Geral / Multissetorial</option>
+                        <option value="Supermercado">Supermercado / Varejo</option>
+                        <option value="Padaria">Padaria & Confeitaria</option>
+                        <option value="Restaurante">Restaurante / Gastronomia</option>
+                        <option value="Distribuidora">Distribuidora & Atacado</option>
+                        <option value="Fabrica">Indústria & Fábrica</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 mb-1 uppercase tracking-wider">Versão do Sistema RP Utilizada</label>
+                      <select 
+                        value={formData.systemType}
+                        onChange={e => setFormData(prev => ({ ...prev, systemType: e.target.value }))}
+                        className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-4 py-2.5 rounded-xl outline-none text-sm font-semibold text-emerald-400"
+                      >
+                        <option value="Outros">Outros Sistemas / N/A</option>
+                        <option value="RP Supermercado">RP Supermercado</option>
+                        <option value="RP Padaria">RP Padaria</option>
+                        <option value="RP Restaurante">RP Restaurante</option>
+                        <option value="RP Distribuidora">RP Distribuidora</option>
+                        <option value="RP Fabrica">RP Fábrica / Indústria</option>
+                        <option value="RP Enterprise">RP Enterprise Multissetorial</option>
                       </select>
                     </div>
                     <div>

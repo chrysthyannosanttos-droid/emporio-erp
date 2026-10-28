@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import './index.css';
+import { TerminalActivation } from './components/TerminalActivation';
+import type { PdvTerminalConfig } from './types/terminal';
 
 // ─── Impressão Térmica ───────────────────────────
 function buildReceiptHTML(data: {
@@ -240,10 +242,29 @@ const PAYMENT_LABELS: Record<string, string> = {
 
 // ─── Componente Principal ───────────────────────────
 function App() {
+  const [terminalConfig, setTerminalConfig] = useState<PdvTerminalConfig | null>(() => {
+    try {
+      const saved = localStorage.getItem("emporio_pdv_terminal");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+
   const [session, setSession] = useState<CashierSession | null>(null);
   const [pin, setPin] = useState("");
-  const [selectedCashier, setSelectedCashier] = useState<number | null>(null);
+  const [selectedCashier, setSelectedCashier] = useState<number | null>(() => {
+    return terminalConfig?.cashierNumber || null;
+  });
   const [loginError, setLoginError] = useState("");
+
+  const handleUnpairTerminal = () => {
+    if (confirm("Deseja realmente desvincular este PDV da loja? O terminal voltará à tela de ativação para gerar um novo código.")) {
+      localStorage.removeItem("emporio_pdv_terminal");
+      setTerminalConfig(null);
+      setSession(null);
+    }
+  };
 
   const [cart, setCart] = useState<CartItem[]>([]);
   const [barcodeInput, setBarcodeInput] = useState('');
@@ -283,11 +304,11 @@ function App() {
   // Função de impressão automática do cupom
   const printReceipt = useCallback((saleId: string, cartItems: CartItem[], saleTotal: number, saleSub: number, saleDiscount: number, salePay: string, saleGiven: number, saleChange: number) => {
     const html = buildReceiptHTML({
-      storeName: 'EMPORIO',
-      cnpj: '00.000.000/0001-00',
-      address: 'Rua Principal, 100 - Centro',
+      storeName: terminalConfig?.store?.tradeName || terminalConfig?.store?.name || 'EMPORIO',
+      cnpj: terminalConfig?.company?.document || '00.000.000/0001-00',
+      address: `${terminalConfig?.store?.city || 'Centro'} - ${terminalConfig?.store?.state || 'UF'}`,
       operator: session?.operator || 'Operador',
-      cashier: session?.number || 1,
+      cashier: session?.number || terminalConfig?.cashierNumber || 1,
       saleId,
       items: cartItems.map(i => ({ name: i.name, qty: i.quantity, price: i.price })),
       subtotal: saleSub,
@@ -313,7 +334,7 @@ function App() {
         }, 300);
       }
     }
-  }, [session, cpfInput]);
+  }, [session, cpfInput, terminalConfig]);
 
   // Mock de operadores
   const cashiersMock = [
@@ -494,13 +515,39 @@ function App() {
     }
   };
 
+  if (!terminalConfig || !terminalConfig.paired) {
+    return (
+      <TerminalActivation
+        onActivated={(cfg) => {
+          setTerminalConfig(cfg);
+          if (cfg.cashierNumber) {
+            setSelectedCashier(cfg.cashierNumber);
+          }
+        }}
+      />
+    );
+  }
+
   if (!session) {
     return (
       <div className="h-screen flex flex-col bg-black text-white font-mono justify-center items-center p-8 select-none" style={{ fontFamily: "'Courier New', monospace" }}>
         <div className="w-full max-w-4xl">
-          <div className="text-center mb-10">
-            <h1 className="text-[#00ff41] text-4xl font-black tracking-widest mb-2">EMPORIO PDV</h1>
-            <p className="text-[#00ff41]/60 text-sm">SISTEMA PDV DESKTOP v2.0</p>
+          <div className="text-center mb-8">
+            <div className="text-xs uppercase text-[#00ff41]/80 font-bold tracking-widest mb-1">
+              🏢 {terminalConfig.company?.name || "EMPRESA"} — 🏬 {terminalConfig.store?.name || "LOJA MATRIZ"} ({terminalConfig.store?.code || "LJ01"})
+            </div>
+            <h1 className="text-[#00ff41] text-4xl font-black tracking-widest mb-1">
+              {terminalConfig.terminalName || `CAIXA ${String(terminalConfig.cashierNumber || 1).padStart(2, "0")}`}
+            </h1>
+            <p className="text-[#00ff41]/60 text-xs">
+              TERMINAL ID: <strong className="text-white font-mono">{terminalConfig.code}</strong> • SISTEMA PDV v2.0
+            </p>
+            <button
+              onClick={handleUnpairTerminal}
+              className="mt-2 text-[11px] text-red-400/70 hover:text-red-400 underline cursor-pointer"
+            >
+              [Desvincular / Trocar Loja]
+            </button>
           </div>
 
           <div className="grid grid-cols-3 gap-6 mb-8">
@@ -561,13 +608,24 @@ function App() {
     <div className="h-screen flex flex-col bg-black text-white font-mono overflow-hidden select-none" style={{ fontFamily: "'Courier New', monospace" }}>
       {/* ── HEADER ── */}
       <div className="bg-[#001a00] border-b-2 border-[#00ff41] px-6 py-3 flex justify-between items-center shrink-0">
-        <div className="flex items-center gap-6">
-          <span className="text-[#00ff41] font-black text-2xl tracking-widest">EMPORIO PDV</span>
+        <div className="flex items-center gap-4">
+          <span className="text-[#00ff41] font-black text-xl tracking-widest">
+            {terminalConfig.store?.tradeName || terminalConfig.store?.name || "EMPORIO"}
+          </span>
           <div className="flex items-center gap-2 bg-[#00ff41]/10 border border-[#00ff41]/30 px-3 py-1 rounded">
             <span className="w-2.5 h-2.5 rounded-full bg-[#00ff41] shadow-[0_0_8px_#00ff41] animate-pulse" />
-            <span className="text-[#00ff41] text-sm font-bold">CAIXA {String(session.number).padStart(2, "0")}</span>
+            <span className="text-[#00ff41] text-xs font-bold">CAIXA {String(session.number || terminalConfig.cashierNumber || 1).padStart(2, "0")}</span>
           </div>
-          <span className="text-[#00ff41]/70 text-xs">Operador: {session.operator}</span>
+          <span className="text-[#00ff41]/70 text-xs">
+            Filial: {terminalConfig.store?.code || "MATRIZ"} | Op: {session.operator}
+          </span>
+          <button
+            onClick={handleUnpairTerminal}
+            title="Desvincular Caixa deste terminal"
+            className="text-[10px] text-red-400/60 hover:text-red-400 border border-red-500/20 hover:border-red-500/50 px-2 py-0.5 rounded transition-colors"
+          >
+            Desvincular
+          </button>
         </div>
         <div className="flex items-center gap-6">
           <div className="flex gap-2 text-xs">
@@ -845,6 +903,13 @@ function App() {
                   placeholder="Valor contato em dinheiro"
                   className="w-full bg-black border-2 border-[#00ff41]/30 focus:border-[#00ff41] text-[#00ff41] font-mono text-lg text-right px-3 py-2 rounded outline-none"
                   step="0.01"
+                />
+                <input
+                  type="text"
+                  value={closingNote}
+                  onChange={e => setClosingNote(e.target.value)}
+                  placeholder="Observações do fechamento (opcional)"
+                  className="w-full mt-2 bg-black border border-[#00ff41]/30 focus:border-[#00ff41] text-[#00ff41] font-mono text-xs px-3 py-2 rounded outline-none"
                 />
               </div>
 

@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -40,19 +41,19 @@ export async function createSession(payload: SessionPayload) {
   const cookieStore = await cookies();
   cookieStore.set("session", session, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.NODE_ENV === "production" && process.env.VERCEL === "1",
     expires: expiresAt,
     sameSite: "lax",
     path: "/",
   });
 }
 
-export async function getSession() {
+export const getSession = cache(async () => {
   const cookieStore = await cookies();
   const session = cookieStore.get("session")?.value;
   if (!session) return null;
   return await decrypt(session);
-}
+});
 
 export async function updateSession() {
   const session = (await cookies()).get("session")?.value;

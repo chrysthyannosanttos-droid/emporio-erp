@@ -2,15 +2,19 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, ShoppingCart, Users, Package, Wallet, FileText,
   LogOut, Bell, Hammer, Percent, Tag, Truck, ClipboardList, BarChart2,
   ChevronRight, Store, Landmark, HeartHandshake, AlertTriangle,
   Scale, ShoppingBag, Palette, ArrowLeftRight, FolderTree,
   Utensils, ChefHat, BookOpen, Menu, X, ShieldAlert, ShieldCheck,
-  Sliders, Settings
+  Sliders, Settings, Search, Calendar, HelpCircle, Hexagon,
+  CreditCard, TrendingDown, TrendingUp, Building2, Monitor,
+  Plus, Pin, PinOff, Sparkles
 } from "lucide-react";
 import { logout } from "@/actions/auth";
+import { WhatsNewModal } from "@/components/WhatsNewModal";
 
 interface DrawerLayoutProps {
   children: React.ReactNode;
@@ -18,251 +22,527 @@ interface DrawerLayoutProps {
   userRole: string;
   userInitials: string;
   logoUrl?: string | null;
+  activeModules?: string[];
+  operationTypes?: string[];
 }
 
-export function DrawerLayout({ children, userName, userRole, userInitials, logoUrl }: DrawerLayoutProps) {
-  const [isOpen, setIsOpen] = useState(false);
+interface WorkspaceTab {
+  id: string;
+  href: string;
+  title: string;
+  iconName: string;
+}
 
-  // Fechar gaveta ao pressionar Escape
+const ROUTE_DEFINITIONS: Record<string, { title: string; iconName: string }> = {
+  "/": { title: "Dashboard", iconName: "LayoutDashboard" },
+  "/pdv": { title: "PDV Caixa", iconName: "Store" },
+  "/distribution/orders": { title: "Pedidos", iconName: "ClipboardList" },
+  "/customers": { title: "Clientes", iconName: "Users" },
+  "/stock": { title: "Estoque", iconName: "Landmark" },
+  "/stock/new": { title: "Cadastrar Produto", iconName: "Package" },
+  "/suppliers": { title: "Fornecedores", iconName: "Truck" },
+  "/mercadologico": { title: "Categorias", iconName: "Tag" },
+  "/restaurant/pdv": { title: "PDV Mesas", iconName: "Utensils" },
+  "/restaurant/kds": { title: "Cozinha (KDS)", iconName: "ChefHat" },
+  "/restaurant/recipes": { title: "Fichas Técnicas", iconName: "BookOpen" },
+  "/finance": { title: "Financeiro", iconName: "Wallet" },
+  "/reports": { title: "Relatórios & BI", iconName: "FileText" },
+  "/settings/terminals": { title: "Terminais PDV", iconName: "Monitor" },
+  "/settings/modules": { title: "Lojas & Módulos", iconName: "Building2" },
+  "/settings/users": { title: "Usuários", iconName: "Users" },
+  "/settings": { title: "Configurações", iconName: "Settings" },
+  "/pricing": { title: "Tabela de Preços", iconName: "Percent" },
+  "/promotions": { title: "Promoções", iconName: "Tag" },
+  "/audit": { title: "Log Auditoria", iconName: "ShieldAlert" },
+  "/returns": { title: "Devoluções", iconName: "ArrowLeftRight" },
+  "/factory": { title: "Produção Industrial", iconName: "Hammer" },
+};
+
+function getRouteMeta(path: string): { title: string; iconName: string } {
+  if (ROUTE_DEFINITIONS[path]) return ROUTE_DEFINITIONS[path];
+
+  // Tratar subrotas
+  for (const [key, val] of Object.entries(ROUTE_DEFINITIONS)) {
+    if (key !== "/" && path.startsWith(key)) {
+      return val;
+    }
+  }
+
+  // Título amigável padrão baseado no path
+  const segments = path.split("/").filter(Boolean);
+  const rawTitle = segments[segments.length - 1] || "Página";
+  const formattedTitle = rawTitle.charAt(0).toUpperCase() + rawTitle.slice(1).replace(/-/g, " ");
+  return { title: formattedTitle, iconName: "FileText" };
+}
+
+function renderTabIcon(iconName: string, size = 14) {
+  switch (iconName) {
+    case "LayoutDashboard": return <LayoutDashboard size={size} />;
+    case "Store": return <Store size={size} />;
+    case "ClipboardList": return <ClipboardList size={size} />;
+    case "Users": return <Users size={size} />;
+    case "Landmark": return <Landmark size={size} />;
+    case "Package": return <Package size={size} />;
+    case "Truck": return <Truck size={size} />;
+    case "Tag": return <Tag size={size} />;
+    case "Utensils": return <Utensils size={size} />;
+    case "ChefHat": return <ChefHat size={size} />;
+    case "BookOpen": return <BookOpen size={size} />;
+    case "Wallet": return <Wallet size={size} />;
+    case "FileText": return <FileText size={size} />;
+    case "Monitor": return <Monitor size={size} />;
+    case "Building2": return <Building2 size={size} />;
+    case "Settings": return <Settings size={size} />;
+    case "Percent": return <Percent size={size} />;
+    case "ShieldAlert": return <ShieldAlert size={size} />;
+    case "ArrowLeftRight": return <ArrowLeftRight size={size} />;
+    case "Hammer": return <Hammer size={size} />;
+    default: return <FileText size={size} />;
+  }
+}
+
+export function DrawerLayout({
+  children,
+  userName,
+  userRole,
+  userInitials,
+  logoUrl,
+  activeModules = [],
+  operationTypes = ["RETAIL"],
+}: DrawerLayoutProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const pathname = usePathname();
+  const router = useRouter();
+
+  // Gerenciamento das abas
+  const [tabs, setTabs] = useState<WorkspaceTab[]>([
+    { id: "/", href: "/", title: "Dashboard", iconName: "LayoutDashboard" }
+  ]);
+
+  const hasModule = (key: string) => activeModules.length === 0 || activeModules.includes(key);
+
+  const currentDateFormatted = new Intl.DateTimeFormat('pt-BR', { 
+    day: '2-digit', month: 'long', year: 'numeric' 
+  }).format(new Date());
+
+  // Carregar preferências e abas salvas
+  useEffect(() => {
+    try {
+      const savedPin = localStorage.getItem("erp_drawer_pinned");
+      if (savedPin === "true") setIsPinned(true);
+
+      const savedTabs = localStorage.getItem("erp_workspace_tabs");
+      if (savedTabs) {
+        const parsed = JSON.parse(savedTabs);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setTabs(parsed);
+        }
+      }
+    } catch {}
+  }, []);
+
+  // Adicionar aba ativa se ela ainda não existir
+  useEffect(() => {
+    if (!pathname) return;
+
+    setTabs((prev) => {
+      const exists = prev.some((t) => t.href === pathname);
+      if (exists) return prev;
+
+      const meta = getRouteMeta(pathname);
+      const newTabs = [...prev, { id: pathname, href: pathname, title: meta.title, iconName: meta.iconName }];
+      try {
+        localStorage.setItem("erp_workspace_tabs", JSON.stringify(newTabs));
+      } catch {}
+      return newTabs;
+    });
+  }, [pathname]);
+
+  // Tecla Escape para fechar gaveta
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setIsOpen(false);
+      if (e.key === "Escape" && isOpen && !isPinned) {
+        setIsOpen(false);
+      }
     };
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, []);
+  }, [isOpen, isPinned]);
+
+  const handleCloseTab = (hrefToClose: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (tabs.length <= 1) return;
+
+    const newTabs = tabs.filter((t) => t.href !== hrefToClose);
+    setTabs(newTabs);
+    try {
+      localStorage.setItem("erp_workspace_tabs", JSON.stringify(newTabs));
+    } catch {}
+
+    if (pathname === hrefToClose) {
+      const lastTab = newTabs[newTabs.length - 1];
+      router.push(lastTab.href);
+    }
+  };
+
+  const handleCloseOthers = () => {
+    const currentMeta = getRouteMeta(pathname);
+    const kept = [{ id: pathname, href: pathname, title: currentMeta.title, iconName: currentMeta.iconName }];
+    setTabs(kept);
+    try {
+      localStorage.setItem("erp_workspace_tabs", JSON.stringify(kept));
+    } catch {}
+  };
+
+  const togglePin = () => {
+    const next = !isPinned;
+    setIsPinned(next);
+    if (!next) setIsOpen(false);
+    try {
+      localStorage.setItem("erp_drawer_pinned", String(next));
+    } catch {}
+  };
+
+  const handleNavigate = () => {
+    if (!isPinned) {
+      setIsOpen(false);
+    }
+  };
+
+  const sidebarContent = (
+    <div className="flex flex-col h-full bg-[#0a0d18] border-r border-indigo-500/10 text-slate-300 w-[270px] select-none">
+      {/* Brand Header & Fechar Gaveta */}
+      <div className="p-4 flex items-center justify-between border-b border-indigo-500/10 shrink-0">
+        <Link href="/" onClick={handleNavigate} className="flex items-center gap-2.5 group">
+          <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30 group-hover:scale-105 transition-transform">
+            <Hexagon className="w-5 h-5 fill-indigo-400/20 text-indigo-200" />
+          </div>
+          <div>
+            <span className="text-sm font-bold text-white tracking-tight block leading-tight">Cybertech RP</span>
+            <span className="text-[10px] text-indigo-400/70 font-medium">Menu Principal</span>
+          </div>
+        </Link>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={togglePin}
+            title={isPinned ? "Desafixar menu (usar como gaveta)" : "Fixar menu lateral"}
+            className={`hidden md:flex p-1.5 rounded-lg transition-colors text-xs ${
+              isPinned ? "text-indigo-400 bg-indigo-500/15" : "text-slate-400 hover:text-white hover:bg-indigo-500/10"
+            }`}
+          >
+            {isPinned ? <PinOff size={15} /> : <Pin size={15} />}
+          </button>
+          <button
+            onClick={() => setIsOpen(false)}
+            title="Fechar menu gaveta (Esc)"
+            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-indigo-500/10 transition-colors"
+          >
+            <X size={17} />
+          </button>
+        </div>
+      </div>
+
+      {/* Navigation List */}
+      <nav className="flex-1 px-3 py-3 space-y-5 overflow-y-auto custom-scrollbar">
+        {/* Main Dashboard item */}
+        <div>
+          <NavItem 
+            href="/" 
+            icon={<LayoutDashboard size={16} />} 
+            label="Dashboard" 
+            active={pathname === "/"} 
+            onNavigate={handleNavigate} 
+          />
+        </div>
+
+        {/* VENDAS */}
+        <div className="space-y-0.5">
+          <SectionLabel>VENDAS</SectionLabel>
+          {hasModule("PDV") && <NavItem href="/pdv" icon={<Store size={16} />} label="PDV Caixa" active={pathname === "/pdv"} onNavigate={handleNavigate} />}
+          <NavItem href="/distribution/orders" icon={<ClipboardList size={16} />} label="Pedidos" active={pathname?.startsWith("/distribution/orders")} onNavigate={handleNavigate} />
+          <NavItem href="/customers" icon={<Users size={16} />} label="Clientes" active={pathname === "/customers"} onNavigate={handleNavigate} />
+        </div>
+
+        {/* PRODUTOS */}
+        <div className="space-y-0.5">
+          <SectionLabel>PRODUTOS</SectionLabel>
+          {hasModule("STOCK") && <NavItem href="/stock" icon={<Landmark size={16} />} label="Estoque & Produtos" active={pathname === "/stock"} onNavigate={handleNavigate} />}
+          <NavItem href="/stock/new" icon={<Package size={16} />} label="Cadastrar Produto" active={pathname === "/stock/new"} onNavigate={handleNavigate} />
+          <NavItem href="/suppliers" icon={<Truck size={16} />} label="Fornecedores" active={pathname === "/suppliers"} onNavigate={handleNavigate} />
+          {hasModule("MERCADOLOGICO") && <NavItem href="/mercadologico" icon={<Tag size={16} />} label="Categorias" active={pathname === "/mercadologico"} onNavigate={handleNavigate} />}
+        </div>
+
+        {/* GASTRONOMIA (se habilitado) */}
+        {(hasModule("RESTAURANT") || hasModule("RECIPES")) && (
+          <div className="space-y-0.5">
+            <SectionLabel>RESTAURANTE</SectionLabel>
+            {hasModule("RESTAURANT") && <NavItem href="/restaurant/pdv" icon={<Utensils size={16} />} label="PDV Touch & Mesas" active={pathname?.startsWith("/restaurant/pdv")} onNavigate={handleNavigate} />}
+            {hasModule("RESTAURANT") && <NavItem href="/restaurant/kds" icon={<ChefHat size={16} />} label="Cozinha (KDS)" active={pathname?.startsWith("/restaurant/kds")} onNavigate={handleNavigate} />}
+            {hasModule("RECIPES") && <NavItem href="/restaurant/recipes" icon={<BookOpen size={16} />} label="Fichas Técnicas" active={pathname?.startsWith("/restaurant/recipes")} onNavigate={handleNavigate} />}
+          </div>
+        )}
+
+        {/* FINANCEIRO */}
+        <div className="space-y-0.5">
+          <SectionLabel>FINANCEIRO</SectionLabel>
+          {hasModule("FINANCE") && <NavItem href="/finance" icon={<Wallet size={16} />} label="Financeiro Completo" active={pathname === "/finance"} onNavigate={handleNavigate} />}
+          {hasModule("REPORTS") && <NavItem href="/reports" icon={<FileText size={16} />} label="Relatórios & BI" active={pathname === "/reports"} onNavigate={handleNavigate} />}
+        </div>
+
+        {/* CONFIGURAÇÕES */}
+        <div className="space-y-0.5">
+          <SectionLabel>CONFIGURAÇÕES</SectionLabel>
+          <NavItem href="/settings/terminals" icon={<Monitor size={16} />} label="Terminais PDV" active={pathname === "/settings/terminals"} onNavigate={handleNavigate} />
+          <NavItem href="/settings/modules" icon={<Building2 size={16} />} label="Lojas & Módulos" active={pathname === "/settings/modules"} onNavigate={handleNavigate} />
+          <NavItem href="/settings/users" icon={<Users size={16} />} label="Usuários" active={pathname === "/settings/users"} onNavigate={handleNavigate} />
+          <NavItem href="/settings" icon={<Settings size={16} />} label="Configurações Gerais" active={pathname === "/settings"} onNavigate={handleNavigate} />
+        </div>
+      </nav>
+
+      {/* Support Card & Logout at bottom */}
+      <div className="p-3 border-t border-indigo-500/10 shrink-0 space-y-2">
+        <button
+          onClick={() => {
+            setIsOpen(false);
+            setShowWhatsNew(true);
+          }}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-semibold text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 rounded-xl transition-all"
+        >
+          <Sparkles size={14} className="text-amber-400" />
+          <span>O que mudou? (Novidades)</span>
+        </button>
+
+        <form action={logout}>
+          <button
+            type="submit"
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-bold text-slate-400 hover:text-rose-400 bg-[#111628] hover:bg-rose-500/10 border border-indigo-500/10 hover:border-rose-500/20 rounded-xl transition-all"
+          >
+            <LogOut size={14} />
+            <span>Sair / Trocar Usuário</span>
+          </button>
+        </form>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden font-sans">
-
-      {/* ── Overlay Escurecedor ─────────────────────────────────── */}
-      {isOpen && (
+    <div className="flex h-screen w-screen overflow-hidden bg-[#080b14] text-slate-100 font-sans">
+      {/* Backdrop da Gaveta (quando aberta e não fixada) */}
+      {isOpen && !isPinned && (
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 transition-opacity duration-300"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity"
           onClick={() => setIsOpen(false)}
         />
       )}
 
-      {/* ── Drawer Gaveta ───────────────────────────────────────── */}
+      {/* Menu Gaveta (Deslizante da esquerda) */}
       <aside
-        className={`fixed top-0 left-0 h-full w-[280px] bg-[#0a0e1a] flex flex-col border-r border-indigo-500/[0.10] z-40 transition-transform duration-300 ease-in-out shadow-2xl shadow-black/50 ${
-          isOpen ? "translate-x-0" : "-translate-x-full"
+        className={`fixed top-0 left-0 h-full z-50 transition-transform duration-300 ease-in-out shadow-2xl ${
+          isOpen || isPinned ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        {/* Ambient glow */}
-        <div className="absolute top-0 left-0 w-full h-40 bg-indigo-500/[0.05] blur-[60px] pointer-events-none" />
-
-        {/* Header do Drawer: Logo + Botão Fechar */}
-        <div className="px-5 py-4 flex items-center justify-between relative z-10 border-b border-indigo-500/[0.08] shrink-0">
-          <div className="flex items-center gap-3">
-            {logoUrl ? (
-              <img src={logoUrl} alt="Logo" className="max-h-9 object-contain" />
-            ) : (
-              <>
-                <div className="w-9 h-9 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-black text-base shadow-lg shadow-indigo-600/30">
-                  C
-                </div>
-                <div>
-                  <span className="text-base font-bold text-white tracking-tight block leading-none">Cybertech RP</span>
-                  <span className="text-[10px] text-indigo-400/60 font-medium uppercase tracking-widest">Sistema de Gestão</span>
-                </div>
-              </>
-            )}
-          </div>
-          <button
-            onClick={() => setIsOpen(false)}
-            className="p-1.5 text-slate-500 hover:text-white hover:bg-indigo-500/10 rounded-lg transition-all"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Nav Links */}
-        <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto relative z-10 custom-scrollbar">
-          <SectionLabel>1. FRENTE DE LOJA & VENDAS</SectionLabel>
-          <NavItem href="/" icon={<LayoutDashboard size={15} />} label="Painel (Dashboard)" onNavigate={() => setIsOpen(false)} />
-          <NavItem href="/pdv" icon={<Store size={15} />} label="Vendas (PDV)" badge="Caixa" onNavigate={() => setIsOpen(false)} />
-          <NavItem href="/ecommerce" icon={<ShoppingBag size={15} />} label="E-commerce & Delivery" onNavigate={() => setIsOpen(false)} />
-          <NavItem href="/crm" icon={<HeartHandshake size={15} />} label="CRM & Fidelidade" onNavigate={() => setIsOpen(false)} />
-          <NavItem href="/returns" icon={<ArrowLeftRight size={15} />} label="Trocas & Devoluções" onNavigate={() => setIsOpen(false)} />
-
-          <SectionLabel>2. ESTOQUE & SUPRIMENTOS</SectionLabel>
-          <NavItem href="/stock" icon={<Package size={15} />} label="Estoque Principal" onNavigate={() => setIsOpen(false)} />
-          <NavItem href="/mercadologico" icon={<FolderTree size={15} />} label="Estrutura Mercadológica" onNavigate={() => setIsOpen(false)} />
-          <NavItem href="/stock/new" icon={<Tag size={15} />} label="Cadastro de Produtos" onNavigate={() => setIsOpen(false)} />
-          <NavItem href="/suppliers" icon={<Truck size={15} />} label="Cadastro de Fornecedores" onNavigate={() => setIsOpen(false)} />
-          <NavItem href="/purchases" icon={<ShoppingCart size={15} />} label="Pedidos de Compra" onNavigate={() => setIsOpen(false)} />
-          <NavItem href="/fiscal/radar" icon={<FileText size={15} />} label="Radar XML (Entrada NF)" onNavigate={() => setIsOpen(false)} />
-          <NavItem href="/logistics/collector" icon={<ClipboardList size={15} />} label="Coletor de Dados" onNavigate={() => setIsOpen(false)} />
-          <NavItem href="/losses" icon={<AlertTriangle size={15} />} label="Perdas & Validades" onNavigate={() => setIsOpen(false)} />
-
-          <SectionLabel>3. CONTROLADORIA & FINANCEIRO</SectionLabel>
-          <NavItem href="/finance" icon={<Wallet size={15} />} label="Financeiro & Caixa" onNavigate={() => setIsOpen(false)} />
-          <NavItem href="/pricing" icon={<Percent size={15} />} label="Margens & Precificação" onNavigate={() => setIsOpen(false)} />
-          <NavItem href="/fiscal/tax-grid" icon={<FileText size={15} />} label="Grade Tributária" onNavigate={() => setIsOpen(false)} />
-          <NavItem href="/fiscal" icon={<Landmark size={15} />} label="Fechamento Fiscal" onNavigate={() => setIsOpen(false)} />
-
-          <SectionLabel>4. OPERAÇÕES & GESTÃO</SectionLabel>
-          <NavItem href="/production" icon={<Hammer size={15} />} label="Ordem de Produção" onNavigate={() => setIsOpen(false)} />
-          <NavItem href="/scales" icon={<Scale size={15} />} label="Balanças (Integração)" onNavigate={() => setIsOpen(false)} />
-          <NavItem href="/hr" icon={<Users size={15} />} label="Recursos Humanos (RH)" onNavigate={() => setIsOpen(false)} />
-          <NavItem href="/reports" icon={<BarChart2 size={15} />} label="Relatórios & BI" onNavigate={() => setIsOpen(false)} />
-          <NavItem href="/master/theme" icon={<Palette size={15} />} label="Identidade Visual (Tema)" onNavigate={() => setIsOpen(false)} />
-
-          <SectionLabel>5. GASTRONOMIA & RESTAURANTE</SectionLabel>
-          <NavItem href="/restaurant/pdv" icon={<Utensils size={15} />} label="PDV Touch & Mesas" badge="Food" newTab onNavigate={() => setIsOpen(false)} />
-          <NavItem href="/restaurant/kds" icon={<ChefHat size={15} />} label="Tela da Cozinha (KDS)" onNavigate={() => setIsOpen(false)} />
-          <NavItem href="/restaurant/recipes" icon={<BookOpen size={15} />} label="Ficha Técnica & Insumos" onNavigate={() => setIsOpen(false)} />
-
-          <SectionLabel>6. CONTROLE DE ACESSO & GESTÃO</SectionLabel>
-          <NavItem href="/settings/users" icon={<Users size={15} />} label="Usuários & Equipe" onNavigate={() => setIsOpen(false)} />
-          <NavItem href="/settings/roles" icon={<Sliders size={15} />} label="Perfis & Permissões" onNavigate={() => setIsOpen(false)} />
-          <NavItem href="/settings/approval-rules" icon={<ShieldAlert size={15} />} label="Regras de Liberação" onNavigate={() => setIsOpen(false)} />
-          <NavItem href="/settings/approvals" icon={<ShieldCheck size={15} />} label="Central de Liberações" badge="Alçadas" onNavigate={() => setIsOpen(false)} />
-          <NavItem href="/audit" icon={<FileText size={15} />} label="Log de Auditoria" onNavigate={() => setIsOpen(false)} />
-          <NavItem href="/settings" icon={<Settings size={15} />} label="Configurações Gerais" onNavigate={() => setIsOpen(false)} />
-        </nav>
-
-        {/* Footer do Drawer: usuário + logout */}
-        <div className="p-3 relative z-10 border-t border-indigo-500/[0.08] shrink-0">
-          <div className="flex items-center gap-3 bg-indigo-500/[0.06] rounded-xl p-2.5 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white text-xs shrink-0">
-              {userInitials}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white truncate leading-none">{userName}</p>
-              <p className="text-[10px] text-indigo-400/50 mt-0.5">{userRole}</p>
-            </div>
-            <ChevronRight size={13} className="text-indigo-400/30 shrink-0" />
-          </div>
-          <form action={logout}>
-            <button
-              type="submit"
-              className="flex items-center justify-center gap-2 w-full px-3 py-2 text-xs font-medium rounded-lg bg-transparent hover:bg-red-500/10 hover:text-red-400 border border-indigo-500/[0.08] transition-all text-slate-500"
-            >
-              <LogOut size={14} />
-              <span>Sair</span>
-            </button>
-          </form>
-        </div>
+        {sidebarContent}
       </aside>
 
-      {/* ── Main Content (ocupa tela inteira) ───────────────────── */}
-      <main className="flex-1 flex flex-col min-w-0 bg-[#0c0f1a] overflow-hidden">
-        {/* Header com botão hambúrguer */}
-        <header className="h-14 border-b border-indigo-500/[0.08] px-4 flex items-center justify-between shrink-0 bg-[#0a0e1a]/80 backdrop-blur-sm z-10">
+      {/* Área Principal de Conteúdo */}
+      <div className={`flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-[#080b14] transition-all duration-300 ${isPinned ? "md:pl-[270px]" : ""}`}>
+        {/* Top Header Bar */}
+        <header className="h-14 border-b border-indigo-500/10 px-4 md:px-6 flex items-center justify-between shrink-0 bg-[#0a0d18]/90 backdrop-blur-md z-30">
           <div className="flex items-center gap-3">
-            {/* Botão Hambúrguer */}
+            {/* Botão Hambúrguer para Abrir o Menu Gaveta */}
             <button
-              onClick={() => setIsOpen(true)}
-              className="p-2 text-slate-400 hover:text-white hover:bg-indigo-500/10 rounded-xl transition-all border border-indigo-500/10"
-              aria-label="Abrir menu"
+              onClick={() => setIsOpen((prev) => !prev)}
+              className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-indigo-500/15 border border-indigo-500/20 transition-all flex items-center gap-2 group"
+              title="Abrir Menu Gaveta"
             >
-              <Menu size={20} />
+              <Menu size={18} className="group-hover:scale-110 transition-transform" />
+              <span className="text-xs font-semibold text-slate-300 hidden sm:inline">Menu</span>
             </button>
 
-            {/* Logo compacta no header */}
-            <div className="flex items-center gap-2">
-              {logoUrl ? (
-                <img src={logoUrl} alt="Logo" className="max-h-7 object-contain" />
-              ) : (
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-black text-xs">
-                    C
-                  </div>
-                  <span className="text-sm font-bold text-white tracking-tight hidden sm:block">Cybertech RP</span>
-                </div>
-              )}
-            </div>
-
-            <div className="h-4 w-px bg-indigo-500/[0.08]" />
-
-            {/* Indicador Online + Seletor de Lojas */}
-            <div className="flex items-center gap-2.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.6)]" />
-              <span className="text-xs font-medium text-slate-500 hidden sm:block">Online</span>
-            </div>
-            <div className="h-4 w-px bg-indigo-500/[0.08]" />
-            <select className="bg-transparent border-none text-sm font-bold text-white outline-none cursor-pointer hover:text-indigo-300 transition-colors">
-              <option className="bg-[#0c0f1a]">Todas as Lojas (Rede)</option>
-              <option className="bg-[#0c0f1a]">Loja 1 - Matriz Centro</option>
-              <option className="bg-[#0c0f1a]">Loja 2 - Filial Zona Sul</option>
-            </select>
+            {/* Logo compacta / Identidade */}
+            <Link href="/" className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-black text-white text-xs shadow-md shadow-indigo-600/30">
+                <Hexagon size={16} className="fill-indigo-400/30 text-indigo-200" />
+              </div>
+              <span className="text-sm font-bold text-white tracking-tight hidden lg:block">Cybertech RP</span>
+            </Link>
           </div>
 
-          <div className="flex items-center gap-3">
-            <button className="relative p-2 text-slate-500 hover:text-indigo-400 hover:bg-indigo-500/10 rounded-lg transition-colors">
-              <Bell size={18} />
-              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
-            </button>
-            <div className="h-5 w-px bg-indigo-500/[0.08]" />
+          <div className="flex items-center gap-2.5">
+            {/* Busca Rápida */}
+            <div className="hidden lg:flex items-center gap-2 bg-[#101526] border border-indigo-500/10 text-slate-400 px-3 py-1.5 rounded-xl text-xs w-60 focus-within:border-indigo-500/40 transition-all">
+              <Search size={13} className="text-slate-400 shrink-0" />
+              <input
+                type="text"
+                placeholder="Buscar no sistema..."
+                className="bg-transparent text-white outline-none w-full text-xs placeholder:text-slate-500"
+              />
+            </div>
+
+            {/* Seletor de Loja */}
+            <div className="hidden sm:flex items-center gap-1.5 bg-[#101526] border border-indigo-500/10 px-2.5 py-1.5 rounded-xl text-xs text-white">
+              <Store size={13} className="text-indigo-400" />
+              <select className="bg-transparent border-none text-white text-xs font-semibold outline-none cursor-pointer">
+                <option className="bg-[#101526]">Todas as Lojas</option>
+                <option className="bg-[#101526]">Matriz Centro</option>
+              </select>
+            </div>
+
+            {/* Data Atual */}
+            <div className="hidden xl:flex items-center gap-1.5 bg-[#101526] border border-indigo-500/10 px-2.5 py-1.5 rounded-xl text-xs text-slate-300">
+              <Calendar size={13} className="text-indigo-400" />
+              <span className="text-[11px]">{currentDateFormatted}</span>
+            </div>
+
+            {/* Botão de Novidades / O que mudou */}
             <button
-              onClick={() => setIsOpen(true)}
-              className="flex items-center gap-2.5 cursor-pointer hover:opacity-80 transition-opacity"
+              onClick={() => setShowWhatsNew(true)}
+              title="Ver novidades e o que mudou nesta versão do sistema"
+              className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500/10 via-indigo-500/15 to-purple-500/10 hover:from-amber-500/20 hover:to-indigo-500/25 text-amber-300 hover:text-white border border-amber-500/25 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm group"
             >
-              <div className="text-right hidden sm:block">
-                <div className="text-xs font-semibold text-white leading-none">{userName}</div>
-                <div className="text-[10px] font-medium text-indigo-400/60 mt-0.5">Caixa Aberto</div>
-              </div>
-              <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
-                <span className="text-white font-bold text-[10px]">{userInitials}</span>
-              </div>
+              <Sparkles size={13} className="text-amber-400 group-hover:rotate-12 transition-transform" />
+              <span className="hidden sm:inline">Novidades</span>
+              <span className="text-[10px] bg-amber-500/20 text-amber-300 px-1 rounded font-mono">v2.2</span>
             </button>
+
+            {/* Perfil & Logout */}
+            <div className="flex items-center gap-2.5 bg-[#101526] border border-indigo-500/10 px-2.5 py-1 rounded-xl">
+              <div className="text-right hidden sm:block">
+                <p className="text-xs font-bold text-white leading-none">{userName}</p>
+                <p className="text-[9px] text-emerald-400 font-medium flex items-center justify-end gap-1 mt-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Online
+                </p>
+              </div>
+              <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white text-xs">
+                {userInitials}
+              </div>
+              <form action={logout}>
+                <button
+                  type="submit"
+                  title="Sair do Sistema"
+                  className="p-1 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all"
+                >
+                  <LogOut size={14} />
+                </button>
+              </form>
+            </div>
           </div>
         </header>
 
-        {/* Page Content */}
-        <div className="flex-1 overflow-hidden p-6">
-          <div className="h-full w-full overflow-auto rounded-xl">
-            {children}
+        {/* ─── BARRA DE ABAS DE TAREFAS (MULTI-TAB WORKSPACE) ────────────── */}
+        <div className="bg-[#0b0f1d] border-b border-indigo-500/10 px-3 py-1.5 shrink-0 flex items-center justify-between gap-2 overflow-x-auto select-none custom-scrollbar">
+          {/* Lista de Abas Abertas */}
+          <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 flex-1 min-w-0">
+            {tabs.map((tab) => {
+              const isActive = pathname === tab.href;
+              return (
+                <div
+                  key={tab.href}
+                  onClick={() => router.push(tab.href)}
+                  className={`group flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all border shrink-0 cursor-pointer ${
+                    isActive
+                      ? "bg-indigo-600/25 border-indigo-500/50 text-white shadow-sm shadow-indigo-600/20"
+                      : "bg-[#11162a] border-indigo-500/10 text-slate-400 hover:text-slate-200 hover:border-indigo-500/25 hover:bg-[#151b33]"
+                  }`}
+                >
+                  <span className={isActive ? "text-indigo-400" : "text-slate-500 group-hover:text-slate-400"}>
+                    {renderTabIcon(tab.iconName, 13)}
+                  </span>
+                  <span className="truncate max-w-[150px]">{tab.title}</span>
+                  {tabs.length > 1 && (
+                    <button
+                      onClick={(e) => handleCloseTab(tab.href, e)}
+                      title="Fechar aba"
+                      className="p-0.5 rounded hover:bg-rose-500/20 hover:text-rose-400 text-slate-500 transition-colors opacity-60 group-hover:opacity-100"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Botão + para abrir o menu e iniciar nova tarefa */}
+            <button
+              onClick={() => setIsOpen(true)}
+              title="Abrir nova tarefa no Menu Gaveta"
+              className="p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/15 border border-indigo-500/15 hover:border-indigo-500/35 rounded-lg transition-all flex items-center gap-1 shrink-0"
+            >
+              <Plus size={14} />
+              <span className="text-[11px] font-medium hidden sm:inline">Nova Tarefa</span>
+            </button>
           </div>
+
+          {/* Opção Fechar Outras Abas */}
+          {tabs.length > 1 && (
+            <div className="shrink-0 flex items-center pl-2 border-l border-indigo-500/10">
+              <button
+                onClick={handleCloseOthers}
+                title="Fechar todas as abas exceto a atual"
+                className="text-[10px] font-medium text-slate-500 hover:text-slate-300 px-2 py-1 hover:bg-indigo-500/10 rounded transition-colors"
+              >
+                Fechar outras
+              </button>
+            </div>
+          )}
         </div>
-      </main>
+
+        {/* Scrollable Page Body */}
+        <main className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6 custom-scrollbar">
+          {children}
+
+          {/* Global Footer */}
+          <footer className="pt-6 pb-2 border-t border-indigo-500/10 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
+            <span>Cybertech RP — Sistema de Gestão</span>
+            <span>© 2026 Todos os direitos reservados v2.1.0</span>
+          </footer>
+        </main>
+      </div>
+
+      {/* Modal de Boas-Vindas e Atualizações do Sistema */}
+      <WhatsNewModal
+        userName={userName}
+        forceOpen={showWhatsNew}
+        onClose={() => setShowWhatsNew(false)}
+      />
     </div>
   );
 }
 
-// ─── Sub-componentes internos ─────────────────────────────────────────────
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
-    <div className="text-[9px] font-bold text-indigo-400/40 uppercase tracking-[0.15em] pt-5 pb-1.5 px-3 first:pt-1">
+    <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-3 pt-2.5 pb-1">
       {children}
     </div>
   );
 }
 
 function NavItem({
-  href, icon, label, active, badge, newTab, onNavigate,
+  href, icon, label, active, onNavigate,
 }: {
   href: string;
   icon: React.ReactNode;
   label: string;
   active?: boolean;
-  badge?: string;
-  newTab?: boolean;
   onNavigate?: () => void;
 }) {
   return (
     <Link
       href={href}
-      target={newTab ? "_blank" : undefined}
-      rel={newTab ? "noopener noreferrer" : undefined}
-      onClick={newTab ? undefined : onNavigate}
-      className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium transition-all relative group ${
+      prefetch={false}
+      onClick={onNavigate}
+      className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium transition-all ${
         active
-          ? "bg-indigo-500/15 text-indigo-300 font-semibold"
-          : "hover:bg-indigo-500/[0.06] text-slate-400 hover:text-slate-200"
+          ? "bg-indigo-600 text-white font-semibold shadow-md shadow-indigo-600/30"
+          : "text-slate-400 hover:text-white hover:bg-indigo-500/10"
       }`}
     >
-      <div className={`${active ? "text-indigo-400" : "text-slate-500 group-hover:text-indigo-400/70"} transition-colors shrink-0`}>
+      <div className={`${active ? "text-white" : "text-slate-400"} shrink-0`}>
         {icon}
       </div>
       <span className="flex-1 truncate">{label}</span>
-      {badge && (
-        <span className="text-[9px] font-bold bg-indigo-600 text-white px-1.5 py-0.5 rounded-md leading-none">
-          {badge}
-        </span>
-      )}
     </Link>
   );
 }

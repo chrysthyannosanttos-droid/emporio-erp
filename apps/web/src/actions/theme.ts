@@ -1,9 +1,8 @@
-"use server";
-
+import { cache } from "react";
 import { getSession } from "@/lib/session";
 import { prisma } from "@emporio/database";
 
-export async function getTenantTheme(customCompanyId?: string) {
+export const getTenantTheme = cache(async (customCompanyId?: string) => {
   try {
     const session = await getSession();
     const sessionCompanyId = session?.companyId;
@@ -23,7 +22,7 @@ export async function getTenantTheme(customCompanyId?: string) {
   } catch (err: any) {
     return { error: err.message };
   }
-}
+});
 
 export async function updateTenantTheme(data: any, customCompanyId?: string) {
   try {
