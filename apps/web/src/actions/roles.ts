@@ -73,19 +73,19 @@ export async function seedSupermarketRolesAndPermissions(companyId: string) {
         });
       }
 
-      // Se o perfil ainda não tem permissões vinculadas, vincula os padrões de supermercado
-      if (role.permissions.length === 0) {
-        const codesToLink = r.permissionCodes === "ALL"
-          ? SUPERMARKET_PERMISSIONS.map(p => p.code)
-          : r.permissionCodes;
+      // Se o perfil ainda não tem permissões vinculadas (ou é ADMIN com ALL), garante vínculo
+      if (role.permissions.length === 0 || r.permissionCodes === "ALL") {
+        const codesToLink: string[] = Array.isArray(r.permissionCodes)
+          ? r.permissionCodes
+          : SUPERMARKET_PERMISSIONS.map(p => p.code);
 
         const permIds = codesToLink
-          .map(code => dbPermissions[code])
-          .filter(Boolean);
+          .map((code: string) => dbPermissions[code])
+          .filter((id): id is string => Boolean(id));
 
         if (permIds.length > 0) {
           await prisma.rolePermission.createMany({
-            data: permIds.map(permissionId => ({
+            data: permIds.map((permissionId: string) => ({
               roleId: role!.id,
               permissionId,
             })),
@@ -280,11 +280,11 @@ export async function resetRoleToSupermarketDefaults(roleId: string) {
     const allPerms = await prisma.permission.findMany();
     const permMap = new Map(allPerms.map(p => [p.code, p.id]));
 
-    const targetCodes = defaultRole.permissionCodes === "ALL"
-      ? SUPERMARKET_PERMISSIONS.map(p => p.code)
-      : defaultRole.permissionCodes;
+    const targetCodes: string[] = Array.isArray(defaultRole.permissionCodes)
+      ? defaultRole.permissionCodes
+      : SUPERMARKET_PERMISSIONS.map(p => p.code);
 
-    const targetIds = targetCodes.map(c => permMap.get(c)).filter(Boolean) as string[];
+    const targetIds = targetCodes.map((c: string) => permMap.get(c)).filter((id): id is string => Boolean(id));
 
     await prisma.$transaction(async (tx) => {
       await tx.rolePermission.deleteMany({ where: { roleId } });

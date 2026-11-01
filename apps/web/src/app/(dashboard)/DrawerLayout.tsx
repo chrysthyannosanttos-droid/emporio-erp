@@ -11,7 +11,7 @@ import {
   Utensils, ChefHat, BookOpen, Menu, X, ShieldAlert, ShieldCheck, Shield,
   Sliders, Settings, Search, Calendar, HelpCircle, Hexagon,
   CreditCard, TrendingDown, TrendingUp, Building2, Monitor,
-  Plus, Pin, PinOff, Sparkles, Receipt, RefreshCw, Globe
+  Plus, Pin, PinOff, Sparkles, Receipt, RefreshCw, Globe, Smartphone
 } from "lucide-react";
 import { logout } from "@/actions/auth";
 import { WhatsNewModal } from "@/components/WhatsNewModal";
@@ -26,6 +26,7 @@ interface DrawerLayoutProps {
   logoUrl?: string | null;
   activeModules?: string[];
   operationTypes?: string[];
+  canMobilePdv?: boolean;
 }
 
 interface WorkspaceTab {
@@ -38,6 +39,7 @@ interface WorkspaceTab {
 const ROUTE_DEFINITIONS: Record<string, { title: string; iconName: string }> = {
   "/": { title: "Dashboard", iconName: "LayoutDashboard" },
   "/pdv": { title: "PDV Caixa", iconName: "Store" },
+  "/pdv/mobile": { title: "PDV Mobile", iconName: "Smartphone" },
   "/contracts": { title: "Contratos de Venda", iconName: "FileText" },
   "/distribution/orders": { title: "Pedidos", iconName: "ClipboardList" },
   "/customers": { title: "Clientes", iconName: "Users" },
@@ -111,6 +113,7 @@ function renderTabIcon(iconName: string, size = 14) {
     case "Scale": return <Scale size={size} />;
     case "RefreshCw": return <RefreshCw size={size} />;
     case "Globe": return <Globe size={size} />;
+    case "Smartphone": return <Smartphone size={size} />;
     default: return <FileText size={size} />;
   }
 }
@@ -123,6 +126,7 @@ export function DrawerLayout({
   logoUrl,
   activeModules = [],
   operationTypes = [],
+  canMobilePdv = false,
 }: DrawerLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -327,6 +331,7 @@ export function DrawerLayout({
         <div className="space-y-0.5">
           <SectionLabel>VENDAS & COMERCIAL</SectionLabel>
           {hasModule("PDV") && <NavItem href="/pdv" icon={<Store size={16} />} label="PDV Caixa" active={pathname === "/pdv"} onNavigate={handleNavigate} />}
+          {hasModule("PDV") && canMobilePdv && <NavItem href="/pdv/mobile" icon={<Smartphone size={16} />} label="PDV Mobile" active={pathname === "/pdv/mobile"} onNavigate={handleNavigate} />}
           <NavItem href="/distribution/orders" icon={<ClipboardList size={16} />} label="Pedidos" active={pathname?.startsWith("/distribution/orders")} onNavigate={handleNavigate} />
           <NavItem href="/contracts" icon={<FileText size={16} />} label="Contratos de Venda" active={pathname === "/contracts"} onNavigate={handleNavigate} />
           <NavItem href="/customers" icon={<Users size={16} />} label="Clientes" active={pathname === "/customers"} onNavigate={handleNavigate} />

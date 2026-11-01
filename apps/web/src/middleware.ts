@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { decrypt } from "@/lib/session";
 
 // Rotas públicas (sem autenticação)
-const PUBLIC_ROUTES = ["/login", "/register", "/cotacao"];
+const PUBLIC_ROUTES = ["/login", "/register", "/cotacao", "/cupom"];
 
 // Rotas exclusivas do Super Admin
 const MASTER_ROUTES = ["/master"];

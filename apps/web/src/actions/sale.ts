@@ -3,6 +3,7 @@
 import { prisma } from "@emporio/database";
 import { revalidatePath } from "next/cache";
 import { simulateInvoiceEmission } from "./invoice";
+import { getSession } from "@/lib/session";
 
 async function getOrCreateCompany() {
   let company = await prisma.company.findFirst();
@@ -30,6 +31,24 @@ async function getOrCreateUser(companyId: string) {
   return user;
 }
 
+/**
+ * Resolve empresa e operador da venda. Usa a sessão logada (multi-tenant);
+ * só cai no comportamento legado quando não existe sessão (ex.: terminais antigos).
+ */
+async function resolveCompanyAndUser() {
+  const session = await getSession();
+  if (session?.companyId && session.userId) {
+    const [company, user] = await Promise.all([
+      prisma.company.findUnique({ where: { id: session.companyId } }),
+      prisma.user.findFirst({ where: { id: session.userId, companyId: session.companyId } }),
+    ]);
+    if (company && user) return { company, user };
+  }
+  const company = await getOrCreateCompany();
+  const user = await getOrCreateUser(company.id);
+  return { company, user };
+}
+
 export async function createSale(data: {
   items: { productId: string; quantity: number; unitPrice: number }[];
   paymentMethod: string;
@@ -38,19 +57,19 @@ export async function createSale(data: {
   customerCpf?: string;
 }) {
   try {
-    const company = await getOrCreateCompany();
-    const user = await getOrCreateUser(company.id);
+    const { company, user } = await resolveCompanyAndUser();
 
     let customerId: string | null = null;
     let cashbackEarned = 0;
     let promoDiscountApplied = 0;
     const generatedCoupons: { campaignName: string; code: string }[] = [];
 
-    // Find customer by CPF if provided
+    // Find customer by CPF if provided (sempre restrito à empresa da venda)
     if (data.customerCpf) {
       const cleanCpf = data.customerCpf.replace(/\D/g, "");
       const customer = await prisma.customer.findFirst({
         where: {
+          companyId: company.id,
           OR: [
             { document: data.customerCpf },
             { document: cleanCpf }

@@ -16,6 +16,7 @@ export const SUPERMARKET_PERMISSIONS = [
   { code: "pdv.reprint", name: "Reimprimir Cupom", module: "Frente de Caixa (PDV)", description: "Reimprimir comprovantes fiscais e não-fiscais anteriores" },
   { code: "pdv.offline_force", name: "Contingência Offline", module: "Frente de Caixa (PDV)", description: "Operar em modo contingência local quando sem internet" },
   { code: "pdv.supervisor_auth", name: "Autorizar Liberações com PIN", module: "Frente de Caixa (PDV)", description: "Atuar como fiscal de caixa e liberar cancelamentos/descontos com PIN" },
+  { code: "pdv.mobile", name: "PDV Mobile (Celular/Tablet)", module: "Frente de Caixa (PDV)", description: "Usar o PDV pelo celular ou tablet e enviar o cupom digital por WhatsApp, e-mail ou SMS" },
 
   // 2. Estoque, Compras & Depósito
   { code: "stock.view", name: "Consultar Estoque", module: "Estoque & Mercadológico", description: "Ver produtos cadastrados e saldo físico em estoque" },
@@ -96,6 +97,7 @@ export const SUPERMARKET_DEFAULT_ROLES = [
       "pdv.reprint",
       "pdv.offline_force",
       "pdv.supervisor_auth",
+      "pdv.mobile",
       "fiscal.emit",
     ]
   },
@@ -159,7 +161,7 @@ export const SUPERMARKET_DEFAULT_ROLES = [
     permissionCodes: [
       "pdv.access", "pdv.sale", "pdv.price_check", "pdv.discount.limited", "pdv.discount.unlimited",
       "pdv.cancel_item", "pdv.cancel_sale", "pdv.withdrawal", "pdv.supplement", "pdv.closing",
-      "pdv.reprint", "pdv.offline_force", "pdv.supervisor_auth",
+      "pdv.reprint", "pdv.offline_force", "pdv.supervisor_auth", "pdv.mobile",
       "stock.view", "stock.create_edit", "stock.costs.view", "stock.pricing.change", "stock.inventory",
       "stock.invoices.import", "stock.losses", "stock.labels", "stock.suppliers",
       "scale.view", "scale.export", "scale.config",
