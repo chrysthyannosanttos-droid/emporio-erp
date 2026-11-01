@@ -20,6 +20,22 @@ function toPlain<T>(obj: T): T {
   );
 }
 
+export async function getCurrentUserSession() {
+  try {
+    const session = await getSession();
+    if (!session) return null;
+    return {
+      userId: session.userId,
+      role: session.role,
+      isSuperAdmin: Boolean(session.isSuperAdmin),
+      name: session.name,
+      isAdmin: session.role === "ADMIN" || Boolean(session.isSuperAdmin),
+    };
+  } catch (err) {
+    return null;
+  }
+}
+
 
 export async function listTenantUsers(filters?: {
   search?: string;
@@ -262,13 +278,14 @@ export async function updateTenantUser(
       return { error: "Sessão inválida." };
     }
 
-    // Regra: operador não pode alterar permissões ou perfil
-    if (session.role !== "ADMIN" && session.role !== "MANAGER") {
-      return { error: "Você não possui permissão para editar dados de usuários." };
+    // Regra: Somente administradores podem alterar dados, perfil ou permissões
+    const isAdmin = session.role === "ADMIN" || Boolean(session.isSuperAdmin);
+    if (!isAdmin) {
+      return { error: "Apenas administradores podem editar colaboradores." };
     }
 
     // Regra: se o usuário estiver alterando o próprio cargo sem ser ADMIN
-    if (session.userId === userId && session.role !== "ADMIN" && data.role !== session.role) {
+    if (session.userId === userId && !isAdmin && data.role !== session.role) {
       return { error: "Você não pode alterar seu próprio cargo." };
     }
 
@@ -378,8 +395,9 @@ export async function toggleTenantUserActive(userId: string, active: boolean) {
       return { error: "Não autorizado" };
     }
 
-    if (session.role !== "ADMIN" && session.role !== "MANAGER") {
-      return { error: "Apenas Administradores e Gerentes podem ativar/bloquear usuários." };
+    const isAdmin = session.role === "ADMIN" || Boolean(session.isSuperAdmin);
+    if (!isAdmin) {
+      return { error: "Apenas Administradores podem ativar ou bloquear colaboradores." };
     }
 
     if (session.userId === userId) {
@@ -415,6 +433,99 @@ export async function toggleTenantUserActive(userId: string, active: boolean) {
     return { error: err.message };
   }
 }
+
+/**
+ * Exclui colaborador. Restrito exclusivamente a ADMINISTRADORES.
+ * Se o usuário tiver histórico de vendas, caixas ou estoque, ele é desativado permanentemente
+ * para resguardar a integridade e auditoria fiscal dos registros existentes.
+ */
+export async function deleteTenantUser(userId: string) {
+  try {
+    const session = await getSession();
+    if (!session?.companyId) {
+      return { error: "Sessão inválida ou não autorizada." };
+    }
+
+    const isAdmin = session.role === "ADMIN" || Boolean(session.isSuperAdmin);
+    if (!isAdmin) {
+      return { error: "Apenas administradores podem excluir colaboradores." };
+    }
+
+    if (session.userId === userId) {
+      return { error: "Você não pode excluir o seu próprio usuário." };
+    }
+
+    const user = await prisma.user.findFirst({
+      where: { id: userId, companyId: session.companyId },
+      include: {
+        _count: {
+          select: {
+            sales: true,
+            cashRegisters: true,
+            cashMovements: true,
+            stockEntries: true,
+          }
+        }
+      }
+    });
+
+    if (!user) {
+      return { error: "Usuário não encontrado." };
+    }
+
+    const hasHistory =
+      user._count.sales > 0 ||
+      user._count.cashRegisters > 0 ||
+      user._count.cashMovements > 0 ||
+      user._count.stockEntries > 0;
+
+    if (hasHistory) {
+      // Preservação de auditoria fiscal: desativa o usuário e encerra a sessão ativa
+      await prisma.user.update({
+        where: { id: userId },
+        data: { active: false, activeSessionToken: null }
+      });
+
+      await logAudit({
+        operation: "users.manage",
+        action: "DELETE",
+        entity: "User",
+        entityId: userId,
+        reason: `Exclusão solicitada para ${user.name}. Como possui histórico de vendas/movimentações fiscais, o usuário foi permanentemente desativado e seu histórico mantido para auditoria.`,
+      });
+
+      revalidatePath("/settings/users");
+      revalidatePath("/users");
+      return {
+        success: true,
+        deactivated: true,
+        message: `O colaborador "${user.name}" possui movimentações fiscais/vendas registradas. Seu acesso foi permanentemente desativado e o histórico preservado para conformidade fiscal.`
+      };
+    }
+
+    // Se não tiver registros fiscais/vendas, remove as dependências e o usuário
+    await prisma.$transaction(async (tx) => {
+      await tx.userStore.deleteMany({ where: { userId } });
+      await tx.userPermission.deleteMany({ where: { userId } });
+      await tx.user.delete({ where: { id: userId } });
+    });
+
+    await logAudit({
+      operation: "users.manage",
+      action: "DELETE",
+      entity: "User",
+      entityId: userId,
+      reason: `Exclusão definitiva do colaborador ${user.name} realizada por administrador.`,
+    });
+
+    revalidatePath("/settings/users");
+    revalidatePath("/users");
+    return { success: true, message: `Colaborador "${user.name}" excluído com sucesso.` };
+  } catch (err: any) {
+    return { error: err.message || "Erro ao excluir colaborador." };
+  }
+}
+
 
 /**
  * Retorna os operadores habilitados para Frente de Caixa (PDV)

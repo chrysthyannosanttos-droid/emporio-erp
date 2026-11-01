@@ -5,11 +5,13 @@ import Link from "next/link";
 import {
   Users, UserPlus, Search, Shield, Key, Store, Check, X,
   ShieldCheck, AlertTriangle, ChevronRight, Lock, Unlock,
-  Sliders, History, Eye, EyeOff, Building2, UserCog, Loader2
+  Sliders, History, Eye, EyeOff, Building2, UserCog, Loader2,
+  Trash2, Edit
 } from "lucide-react";
 import {
   listTenantUsers, getUserDetails, createTenantUser,
-  updateTenantUser, toggleTenantUserActive
+  updateTenantUser, toggleTenantUserActive, deleteTenantUser,
+  getCurrentUserSession
 } from "@/actions/users";
 import { listStores } from "@/actions/stores";
 import { listRolesWithPermissions } from "@/actions/roles";
@@ -50,6 +52,8 @@ export default function UsersSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ userId: string; role: string; isAdmin: boolean } | null>(null);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
   // Form State
   const [formName, setFormName] = useState("");
@@ -69,16 +73,18 @@ export default function UsersSettingsPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [usersRes, storesRes, rolesRes] = await Promise.all([
+      const [usersRes, storesRes, rolesRes, currentSession] = await Promise.all([
         listTenantUsers(),
         listStores(),
         listRolesWithPermissions(),
+        getCurrentUserSession(),
       ]);
 
       if (usersRes.users) setUsers(usersRes.users);
       if (storesRes.stores) setStores(storesRes.stores);
       if (rolesRes.roles) setRoles(rolesRes.roles);
       if (rolesRes.permissions) setPermissions(rolesRes.permissions);
+      if (currentSession) setCurrentUser(currentSession);
     } catch (err) {
       console.error("Erro ao carregar dados de usuários:", err);
     } finally {
@@ -90,7 +96,42 @@ export default function UsersSettingsPage() {
     loadData();
   }, []);
 
+  const handleDeleteUser = async (userId: string, userName: string) => {
+    if (!currentUser?.isAdmin) {
+      alert("Apenas administradores possuem permissão para excluir colaboradores.");
+      return;
+    }
+    if (currentUser.userId === userId) {
+      alert("Você não pode excluir o seu próprio usuário.");
+      return;
+    }
+    const confirmMessage = `Atenção: Deseja realmente excluir o colaborador "${userName}"?\n\nEsta operação é restrita exclusivamente a administradores do sistema.`;
+    if (!window.confirm(confirmMessage)) return;
+
+    setDeletingUserId(userId);
+    try {
+      const res = await deleteTenantUser(userId);
+      if (res.success) {
+        alert(res.message);
+        if (isModalOpen && editingUserId === userId) {
+          setIsModalOpen(false);
+        }
+        await loadData();
+      } else {
+        alert(res.error || "Não foi possível excluir o usuário.");
+      }
+    } catch (err: any) {
+      alert(err.message || "Erro ao excluir o colaborador.");
+    } finally {
+      setDeletingUserId(null);
+    }
+  };
+
   const openNewUserModal = () => {
+    if (currentUser && !currentUser.isAdmin) {
+      alert("Apenas administradores podem cadastrar novos colaboradores.");
+      return;
+    }
     setEditingUserId(null);
     setFormName("");
     setFormEmail("");
@@ -108,6 +149,10 @@ export default function UsersSettingsPage() {
   };
 
   const openEditUserModal = async (userId: string) => {
+    if (currentUser && !currentUser.isAdmin) {
+      alert("Apenas administradores podem editar colaboradores.");
+      return;
+    }
     setEditingUserId(userId);
     setActiveTab("INFO");
     setActionError(null);
@@ -454,8 +499,12 @@ export default function UsersSettingsPage() {
                       {/* Status */}
                       <td className="px-4 py-3">
                         <button
-                          onClick={() => handleToggleActive(user.id, user.active)}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all cursor-pointer ${
+                          onClick={() => currentUser?.isAdmin && handleToggleActive(user.id, user.active)}
+                          disabled={!currentUser?.isAdmin}
+                          title={!currentUser?.isAdmin ? "Apenas administradores podem alterar o status de acesso" : undefined}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all ${
+                            !currentUser?.isAdmin ? "opacity-75 cursor-not-allowed" : "cursor-pointer"
+                          } ${
                             user.active
                               ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border border-emerald-500/20"
                               : "bg-red-500/10 text-red-600 hover:bg-red-500/20 border border-red-500/20"
@@ -468,13 +517,43 @@ export default function UsersSettingsPage() {
 
                       {/* Ações */}
                       <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => openEditUserModal(user.id)}
-                          className="bg-[#fbfdff] hover:bg-indigo-600 hover:text-gray-900 text-slate-600 px-3 py-1.5 rounded-xl font-medium border border-[#c4d5ee] transition-all text-xs cursor-pointer inline-flex items-center gap-1.5"
-                        >
-                          <span>Gerenciar</span>
-                          <ChevronRight size={13} />
-                        </button>
+                        {currentUser?.isAdmin ? (
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => openEditUserModal(user.id)}
+                              className="bg-[#fbfdff] hover:bg-indigo-50 text-indigo-700 hover:text-indigo-800 px-2.5 py-1.5 rounded-xl font-medium border border-indigo-200 transition-all text-xs cursor-pointer inline-flex items-center gap-1 shadow-2xs"
+                              title="Editar colaborador e permissões"
+                            >
+                              <Edit size={12} />
+                              <span>Editar</span>
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUser(user.id, user.name)}
+                              disabled={deletingUserId === user.id || currentUser.userId === user.id}
+                              className={`px-2.5 py-1.5 rounded-xl font-medium border transition-all text-xs inline-flex items-center gap-1 shadow-2xs ${
+                                currentUser.userId === user.id
+                                  ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-60"
+                                  : "bg-red-50 hover:bg-red-100 text-red-600 border-red-200 hover:border-red-300 cursor-pointer"
+                              }`}
+                              title={
+                                currentUser.userId === user.id
+                                  ? "Você não pode excluir o seu próprio usuário"
+                                  : "Excluir colaborador"
+                              }
+                            >
+                              {deletingUserId === user.id ? (
+                                <Loader2 size={12} className="animate-spin" />
+                              ) : (
+                                <Trash2 size={12} />
+                              )}
+                              <span>Excluir</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-[11px] text-slate-400 italic">
+                            Apenas Administradores
+                          </span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -893,19 +972,43 @@ export default function UsersSettingsPage() {
               )}
 
               {/* Botões do Rodapé */}
-              <div className="pt-4 border-t border-[#c4d5ee] flex gap-2.5">
+              <div className="pt-4 border-t border-[#c4d5ee] flex gap-2.5 items-center">
+                {editingUserId && currentUser?.isAdmin && editingUserId !== currentUser.userId && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const userToDelete = users.find(u => u.id === editingUserId);
+                      handleDeleteUser(editingUserId, userToDelete?.name || formName);
+                    }}
+                    disabled={saving || deletingUserId === editingUserId}
+                    className="py-2.5 px-3.5 bg-red-50 hover:bg-red-100 text-red-600 font-semibold rounded-xl text-xs border border-red-200 transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                    title="Excluir este colaborador permanentemente"
+                  >
+                    {deletingUserId === editingUserId ? (
+                      <Loader2 size={13} className="animate-spin" />
+                    ) : (
+                      <Trash2 size={13} />
+                    )}
+                    <span>Excluir Colaborador</span>
+                  </button>
+                )}
+                <div className="flex-1" />
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
                   disabled={saving}
-                  className="flex-1 py-2.5 bg-[#fbfdff] hover:bg-[#eaf1fc] text-slate-600 font-semibold rounded-xl text-xs border border-[#c4d5ee] transition-all"
+                  className="px-4 py-2.5 bg-[#fbfdff] hover:bg-[#eaf1fc] text-slate-600 font-semibold rounded-xl text-xs border border-[#c4d5ee] transition-all cursor-pointer"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  disabled={saving}
-                  className="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  disabled={saving || !currentUser?.isAdmin}
+                  className={`px-5 py-2.5 text-white font-bold rounded-xl text-xs shadow-lg flex items-center justify-center gap-2 transition-all ${
+                    !currentUser?.isAdmin
+                      ? "bg-gray-400 cursor-not-allowed opacity-60"
+                      : "bg-indigo-600 hover:bg-indigo-500 shadow-indigo-600/25 cursor-pointer"
+                  }`}
                 >
                   {saving ? (
                     <>
