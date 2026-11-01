@@ -53,6 +53,20 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
+  // Se o colaborador for operador de caixa e acessar a raiz ou dashboard, vai direto pro PDV
+  const roleUpper = (session.role || "").trim().toUpperCase();
+  const isCashier =
+    roleUpper === "OPERATOR" ||
+    roleUpper === "CASHIER" ||
+    roleUpper.includes("OPERATOR") ||
+    roleUpper.includes("OPERADOR") ||
+    roleUpper.includes("CAIXA") ||
+    roleUpper.includes("CASHIER");
+
+  if (isCashier && (pathname === "/" || pathname === "/dashboard")) {
+    return NextResponse.redirect(new URL("/pdv", request.url));
+  }
+
   // Tudo certo: deixar passar
   return NextResponse.next();
 }

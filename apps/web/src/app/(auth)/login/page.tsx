@@ -28,7 +28,7 @@ export default function LoginPage() {
     const res = await login(formData);
 
     if (res?.success && res.redirectUrl) {
-      router.push(res.redirectUrl);
+      window.location.href = res.redirectUrl;
     } else if (res?.error) {
       setError(res.error);
       setLoading(false);

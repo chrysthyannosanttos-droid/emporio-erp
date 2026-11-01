@@ -37,6 +37,7 @@ import { ConcurrentSessionWatcher } from "@/components/ConcurrentSessionWatcher"
 import { playScannerBeep } from "@/lib/pdvHardwareConfig";
 import { activateTerminalOnline } from "@/actions/terminals";
 import { getPdvOperators, verifyPdvPin } from "@/actions/users";
+import { logout } from "@/actions/auth";
 import {
   loadPdvPaymentConfig,
   savePdvPaymentConfig,
@@ -2138,6 +2139,22 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
               title="Central de Configurações do PDV (5 Módulos)"
             >
               <Settings size={17} />
+            </button>
+
+            {/* Sair do Sistema (Logout) */}
+            <button
+              type="button"
+              onClick={async () => {
+                if (cart.length > 0) {
+                  if (!window.confirm("Há itens em andamento na venda. Deseja realmente sair do caixa?")) return;
+                }
+                await logout();
+                window.location.href = "/login";
+              }}
+              className="p-2 bg-red-50 hover:bg-red-100 rounded-xl text-red-600 hover:text-red-700 border border-red-200 transition-colors cursor-pointer"
+              title="Sair do Caixa (Logout)"
+            >
+              <LogOut size={17} />
             </button>
           </div>
         </div>

@@ -7,3 +7,4 @@ export async function GET() {
   const result = await validateActiveSession();
   return NextResponse.json(result);
 }
+

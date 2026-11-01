@@ -5,6 +5,24 @@ import { prisma } from "@emporio/database";
 import { createSession, deleteSession, getSession } from "@/lib/session";
 import bcrypt from "bcryptjs";
 
+export function isCashierRole(role?: string | null, roleName?: string | null): boolean {
+  if (!role && !roleName) return false;
+  const roleUpper = (role || "").trim().toUpperCase();
+  const nameUpper = (roleName || "").trim().toUpperCase();
+  return (
+    roleUpper === "OPERATOR" ||
+    roleUpper === "CASHIER" ||
+    roleUpper.includes("OPERATOR") ||
+    roleUpper.includes("OPERADOR") ||
+    roleUpper.includes("CAIXA") ||
+    roleUpper.includes("CASHIER") ||
+    nameUpper.includes("OPERADOR") ||
+    nameUpper.includes("CAIXA") ||
+    nameUpper.includes("OPERATOR") ||
+    nameUpper.includes("CASHIER")
+  );
+}
+
 export async function quickLogin(identifier?: string) {
   try {
     // Painel SaaS somente com o alias explícito "master"
@@ -46,6 +64,9 @@ export async function quickLogin(identifier?: string) {
           company: {
             select: { id: true, name: true, licenseStatus: true, licenseExpiresAt: true },
           },
+          roleRelation: {
+            select: { key: true, name: true },
+          },
         },
       });
     }
@@ -57,6 +78,9 @@ export async function quickLogin(identifier?: string) {
         include: {
           company: {
             select: { id: true, name: true, licenseStatus: true, licenseExpiresAt: true },
+          },
+          roleRelation: {
+            select: { key: true, name: true },
           },
         },
       });
@@ -83,9 +107,8 @@ export async function quickLogin(identifier?: string) {
     });
 
     // Redireciona operadores e caixas diretamente para o PDV
-    const roleUpper = (user.role || "").toUpperCase();
-    const isCashierRole = roleUpper.includes("CAIXA") || roleUpper.includes("CASHIER") || roleUpper.includes("OPERADOR");
-    const redirectUrl = isCashierRole ? "/pdv" : "/";
+    const isCashier = isCashierRole(user.role, user.roleRelation?.name || user.roleRelation?.key);
+    const redirectUrl = isCashier ? "/pdv" : "/";
 
     return { success: true, redirectUrl };
   } catch (err) {
@@ -201,7 +224,10 @@ export async function login(formData: FormData) {
       include: { 
         company: { 
           select: { id: true, name: true, licenseStatus: true, licenseExpiresAt: true } 
-        } 
+        },
+        roleRelation: {
+          select: { key: true, name: true }
+        }
       },
     });
 
@@ -238,9 +264,8 @@ export async function login(formData: FormData) {
     });
 
     // Redireciona operadores e caixas diretamente para o PDV
-    const roleUpper = (user.role || "").toUpperCase();
-    const isCashierRole = roleUpper.includes("CAIXA") || roleUpper.includes("CASHIER") || roleUpper.includes("OPERADOR");
-    const redirectUrl = isCashierRole ? "/pdv" : "/";
+    const isCashier = isCashierRole(user.role, user.roleRelation?.name || user.roleRelation?.key);
+    const redirectUrl = isCashier ? "/pdv" : "/";
 
     return { success: true, redirectUrl };
   } catch (err) {

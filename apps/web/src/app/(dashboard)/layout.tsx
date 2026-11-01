@@ -26,6 +26,20 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
+  // Se o colaborador for do grupo Operador de Caixa, redireciona diretamente para a Frente de Caixa (PDV)
+  const roleUpper = (session.role || "").trim().toUpperCase();
+  const isCashier =
+    roleUpper === "OPERATOR" ||
+    roleUpper === "CASHIER" ||
+    roleUpper.includes("OPERATOR") ||
+    roleUpper.includes("OPERADOR") ||
+    roleUpper.includes("CAIXA") ||
+    roleUpper.includes("CASHIER");
+
+  if (isCashier) {
+    redirect("/pdv");
+  }
+
   // ADMIN tem acesso total; os demais dependem das permissões do perfil.
   // A consulta roda em paralelo com as demais, sem aumentar o tempo de espera.
   const mobilePdvPromise: Promise<boolean> =
