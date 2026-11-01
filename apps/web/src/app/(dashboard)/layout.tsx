@@ -1,4 +1,3 @@
-import { AiChatbot } from "@/components/AiChatbot";
 import { getTenantTheme } from "@/actions/theme";
 import { getCompanyModulesConfig } from "@/actions/modules";
 import { getSession } from "@/lib/session";
@@ -35,9 +34,6 @@ export default async function DashboardLayout({
       operationTypes={operationTypes}
     >
       {children}
-      <div className="print:hidden">
-        <AiChatbot />
-      </div>
     </DrawerLayout>
   );
 }
