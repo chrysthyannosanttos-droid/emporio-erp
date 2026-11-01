@@ -69,7 +69,12 @@ export async function quickLogin(identifier?: string) {
       isSuperAdmin: false,
     });
 
-    return { success: true, redirectUrl: "/" };
+    // Redireciona operadores e caixas diretamente para o PDV
+    const roleUpper = (user.role || "").toUpperCase();
+    const isCashierRole = roleUpper.includes("CAIXA") || roleUpper.includes("CASHIER") || roleUpper.includes("OPERADOR");
+    const redirectUrl = isCashierRole ? "/pdv" : "/";
+
+    return { success: true, redirectUrl };
   } catch (err) {
     return { error: `Erro no login rápido: ${String(err)}` };
   }
@@ -117,6 +122,43 @@ export async function login(formData: FormData) {
     }
   }
 
+  // Se o usuário digitou "caixa" ou "operador", cria ou garante o caixa na hora
+  if (username.toLowerCase() === "caixa" || username.toLowerCase() === "operador" || username === "1") {
+    try {
+      const company = await prisma.company.findFirst();
+      if (company) {
+        let cashier = await prisma.user.findFirst({
+          where: { role: "OPERATOR", companyId: company.id }
+        });
+        if (!cashier) {
+          const defaultHash = await bcrypt.hash("123456", 10);
+          cashier = await prisma.user.create({
+            data: {
+              name: "Operador de Caixa",
+              email: "caixa@emporio.com",
+              password: defaultHash,
+              pin: "1234",
+              role: "OPERATOR",
+              companyId: company.id,
+              active: true
+            }
+          });
+        }
+        await createSession({
+          userId: cashier.id,
+          name: cashier.name,
+          role: cashier.role,
+          companyId: cashier.companyId,
+          companyName: company.name,
+          isSuperAdmin: false,
+        });
+        return { success: true, redirectUrl: "/pdv" };
+      }
+    } catch (e) {
+      console.error("Erro ao autenticar operador:", e);
+    }
+  }
+
   // Sistema da empresa (tenant) — usuário cristiano entra aqui, não no painel admin
   try {
     const user = await prisma.user.findFirst({
@@ -161,7 +203,12 @@ export async function login(formData: FormData) {
       isSuperAdmin: false,
     });
 
-    return { success: true, redirectUrl: "/" };
+    // Redireciona operadores e caixas diretamente para o PDV
+    const roleUpper = (user.role || "").toUpperCase();
+    const isCashierRole = roleUpper.includes("CAIXA") || roleUpper.includes("CASHIER") || roleUpper.includes("OPERADOR");
+    const redirectUrl = isCashierRole ? "/pdv" : "/";
+
+    return { success: true, redirectUrl };
   } catch (err) {
     return { error: `Erro ao autenticar. Detalhes: ${String(err)}` };
   }

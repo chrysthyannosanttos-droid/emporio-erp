@@ -2,23 +2,30 @@ import PricingTable from "./PricingTable";
 import { getPricingData, getCategories } from "@/actions/pricing";
 
 export default async function PricingPage() {
-  const [{ products }, { categories }] = await Promise.all([
+  const [pricingResult, { categories }] = await Promise.all([
     getPricingData(),
     getCategories()
   ]);
 
+  const products = (pricingResult as any).products || [];
+  const invoices = (pricingResult as any).invoices || [];
+
   return (
-    <div className="h-full flex flex-col gap-5 pb-2">
-      <div className="flex items-center justify-between shrink-0">
-        <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
-            Precificação Baseada em Notas de Entrada
-          </h1>
-          <p className="text-slate-500 text-sm mt-0.5">Analise o custo real da última nota de entrada e ajuste a margem ou o preço final manualmente de forma rápida.</p>
-        </div>
+    <div className="h-full flex flex-col gap-4 pb-2">
+      <div className="shrink-0">
+        <h1 className="text-2xl font-black text-gray-900 tracking-tight">
+          Precificação &amp; Margens
+        </h1>
+        <p className="text-gray-500 text-sm mt-0.5">
+          Precifique por seção, nota fiscal ou família de produtos. Ajuste markup e preço individual ou em lote.
+        </p>
       </div>
 
-      <PricingTable initialProducts={products || []} categories={categories || []} />
+      <PricingTable
+        initialProducts={products}
+        categories={categories || []}
+        invoices={invoices}
+      />
     </div>
   );
 }

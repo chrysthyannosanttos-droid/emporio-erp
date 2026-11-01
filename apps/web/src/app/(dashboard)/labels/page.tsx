@@ -1,487 +1,1291 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Search, Printer, Tag, AlertCircle, CheckCircle2, Settings, Package, RotateCcw, X, Check } from "lucide-react";
-import { searchProductsForLabels, getProductsPendingLabels, markLabelsAsPrinted } from "@/actions/labels";
+import { useRouter } from "next/navigation";
+import {
+  Search,
+  Printer,
+  Tag,
+  Filter,
+  Calendar,
+  Clock,
+  User,
+  ChevronDown,
+  CheckCircle2,
+  AlertTriangle,
+  Eye,
+  X,
+  DollarSign,
+  Barcode,
+} from "lucide-react";
+import { CybertechBrand } from "@/components/CybertechBrand";
+import {
+  getLabelsFilterMetadata,
+  searchPriceChangedProductsForLabels,
+  validateBeforeLabelPrint,
+  markLabelsAsPrinted,
+  updateProductPrice,
+  getAllProducts,
+  type LabelProductRow,
+} from "@/actions/labels";
 
-type Product = {
-  id: string; name: string; barcode: string | null; price: any;
-  priceChangedAt: string | Date | null; labelPrintedAt: string | Date | null; unit: string;
-  labelType?: "STANDARD" | "PROMO" | "REBAIXA";
-  oldPrice?: number;
-  promoStart?: string;
-  promoEnd?: string;
-};
+type PeriodOption = "TODAY" | "LAST_24H" | "LAST_7D" | "LAST_15D" | "LAST_30D" | "CUSTOM";
+type LabelLayoutType = "STANDARD" | "PRODUCAO" | "PROMO" | "REBAIXA";
 
 export default function LabelsPage() {
-  const [tab, setTab] = useState<"search" | "pending" | "config">("pending");
-  const [query, setQuery] = useState("");
-  const [products, setProducts] = useState<Product[]>([]);
-  const [pendingProducts, setPendingProducts] = useState<Product[]>([]);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [copies, setCopies] = useState<Record<string, number>>({});
-  const [printing, setPrinting] = useState(false);
-  const [printSuccess, setPrintSuccess] = useState(false);
-  const [labelWidth, setLabelWidth] = useState(60);
-  const [labelHeight, setLabelHeight] = useState(30);
-  const [fontSize, setFontSize] = useState(12);
-  const [showBarcode, setShowBarcode] = useState(true);
+  const router = useRouter();
 
-  // Load pending labels on mount
+  // Relógio em tempo real no topo (igual à imagem)
+  const [clockStr, setClockStr] = useState("23:16:04");
+  const [operatorName, setOperatorName] = useState("Maria Silva");
+
+  // Metadados do banco (Seções e Fornecedores)
+  const [sections, setSections] = useState<string[]>([
+    "Bebidas",
+    "Alimentos",
+    "Mercearia",
+    "Higiene",
+    "Limpeza",
+    "Utilidades",
+  ]);
+  const [suppliers, setSuppliers] = useState<Array<{ id: string; name: string }>>([]);
+
+  // Filtros laterais (idênticos à imagem + regras do prompt)
+  const [selectedSection, setSelectedSection] = useState<string>("ALL");
+  const [selectedPeriod, setSelectedPeriod] = useState<PeriodOption>("LAST_7D");
+  const [selectedSupplier, setSelectedSupplier] = useState<string>("ALL");
+  const [barcodeQuery, setBarcodeQuery] = useState<string>("");
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const [filterDate, setFilterDate] = useState<string>(todayIso);
+  const [filterTime, setFilterTime] = useState<string>("00:00:00");
+  const [endDate, setEndDate] = useState<string>(todayIso);
+  const [endTime, setEndTime] = useState<string>("23:59:59");
+
+  // Resultados e Seleção
+  const [products, setProducts] = useState<LabelProductRow[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [copiesByProduct, setCopiesByProduct] = useState<Record<string, number>>({});
+  const [layoutByProduct, setLayoutByProduct] = useState<Record<string, LabelLayoutType>>({});
+
+  // Opções de Impressão (painel inferior esquerdo da imagem)
+  const [defaultQty, setDefaultQty] = useState<number>(1);
+  const [globalLayout, setGlobalLayout] = useState<LabelLayoutType>("STANDARD");
+  const [selectedPrinter, setSelectedPrinter] = useState<string>("ZDesigner GC420t (Zebra)");
+  const [printPrice, setPrintPrice] = useState<boolean>(true);
+  const [printBarcode, setPrintBarcode] = useState<boolean>(true);
+  const [printExpiration, setPrintExpiration] = useState<boolean>(false);
+
+  // Campos de Validade / Lote quando "Imprimir Validade" está marcado
+  const [fabDate, setFabDate] = useState<string>(todayIso);
+  const [expDate, setExpDate] = useState<string>(
+    new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10)
+  );
+  const [batchCode, setBatchCode] = useState<string>(
+    `L${new Date().toISOString().slice(2, 10).replace(/-/g, "")}`
+  );
+
+  // Modais e Alertas
+  const [toast, setToast] = useState<{ type: "success" | "warn" | "error"; text: string } | null>(
+    null
+  );
+  const [previewOpen, setPreviewOpen] = useState<boolean>(false);
+  const [quickPriceModalOpen, setQuickPriceModalOpen] = useState<boolean>(false);
+  const [allCatalogProducts, setAllCatalogProducts] = useState<any[]>([]);
+  const [targetProductId, setTargetProductId] = useState<string>("");
+  const [newPriceInput, setNewPriceInput] = useState<string>("");
+
+  function showBanner(type: "success" | "warn" | "error", text: string) {
+    setToast({ type, text });
+    setTimeout(() => setToast(null), 5000);
+  }
+
+  // Atualiza relógio
   useEffect(() => {
-    loadPending();
+    const updateClock = () => {
+      const now = new Date();
+      setClockStr(
+        now.toLocaleTimeString("pt-BR", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        })
+      );
+    };
+    updateClock();
+    const timer = setInterval(updateClock, 1000);
+    return () => clearInterval(timer);
   }, []);
 
-  async function loadPending() {
-    // Mocking the backend call to save credits and be objective
-    const mockProducts: Product[] = [
-      { id: "1", name: "Heineken Long Neck 330ml", barcode: "7891234567890", price: 7.50, priceChangedAt: new Date().toISOString(), labelPrintedAt: null, unit: "UN", labelType: "STANDARD" },
-      { id: "2", name: "Carvão São José 3kg", barcode: "7890987654321", price: 18.90, priceChangedAt: new Date().toISOString(), labelPrintedAt: null, unit: "UN", labelType: "STANDARD" },
-      { id: "3", name: "Picanha Maturatta (Kg)", barcode: "7891112223334", price: 65.00, priceChangedAt: new Date().toISOString(), labelPrintedAt: null, unit: "KG", labelType: "STANDARD" },
-      { id: "4", name: "Ovelha Negra Malbec 750ml", barcode: "7791234123456", price: 39.90, oldPrice: 59.90, priceChangedAt: new Date().toISOString(), labelPrintedAt: null, unit: "UN", labelType: "PROMO", promoStart: "10/06", promoEnd: "20/06" },
-      { id: "5", name: "Iogurte Natural Batavo", barcode: "7894561239870", price: 4.99, oldPrice: 8.99, priceChangedAt: new Date().toISOString(), labelPrintedAt: null, unit: "UN", labelType: "REBAIXA", promoStart: "13/06", promoEnd: "17/06" }
-    ];
-    setPendingProducts(mockProducts);
-    const all = new Set(mockProducts.map((p: Product) => p.id));
-    setSelected(all);
-  }
+  // Carrega seções e fornecedores do banco
+  useEffect(() => {
+    async function init() {
+      const meta = await getLabelsFilterMetadata();
+      if (meta.sections?.length) setSections(meta.sections);
+      if (meta.suppliers?.length) setSuppliers(meta.suppliers);
+    }
+    init();
+  }, []);
 
-  async function handleSearch() {
-    if (!query.trim()) return;
-    const mockProducts: Product[] = [
-      { id: "1", name: "Heineken Long Neck 330ml", barcode: "7891234567890", price: 7.50, priceChangedAt: new Date().toISOString(), labelPrintedAt: null, unit: "UN", labelType: "STANDARD" }
-    ];
-    setProducts(mockProducts);
-  }
+  // Atualiza campo Data/Horário visualmente quando muda o período
+  const handlePeriodChange = (p: PeriodOption) => {
+    setSelectedPeriod(p);
+    const now = new Date();
+    if (p === "TODAY") {
+      setFilterDate(now.toISOString().slice(0, 10));
+      setFilterTime("00:00:00");
+    } else if (p === "LAST_24H") {
+      const d = new Date(now.getTime() - 24 * 3600 * 1000);
+      setFilterDate(d.toISOString().slice(0, 10));
+      setFilterTime(d.toTimeString().slice(0, 8));
+    } else if (p === "LAST_7D") {
+      const d = new Date(now.getTime() - 7 * 86400 * 1000);
+      setFilterDate(d.toISOString().slice(0, 10));
+      setFilterTime("00:00:00");
+    } else if (p === "LAST_15D") {
+      const d = new Date(now.getTime() - 15 * 86400 * 1000);
+      setFilterDate(d.toISOString().slice(0, 10));
+      setFilterTime("00:00:00");
+    } else if (p === "LAST_30D") {
+      const d = new Date(now.getTime() - 30 * 86400 * 1000);
+      setFilterDate(d.toISOString().slice(0, 10));
+      setFilterTime("00:00:00");
+    }
+  };
 
-  function toggleProduct(id: string) {
-    const s = new Set(selected);
-    if (s.has(id)) s.delete(id); else s.add(id);
-    setSelected(s);
-  }
+  // Busca produtos com alteração de preço (Regra 4)
+  const handleSearch = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await searchPriceChangedProductsForLabels({
+        section: selectedSection,
+        period: selectedPeriod,
+        startDate: filterDate,
+        startTime: filterTime,
+        endDate,
+        endTime,
+        supplier: selectedSupplier,
+        barcodeOrQuery: barcodeQuery,
+      });
 
-  function selectAll(prods: Product[]) {
-    const s = new Set(selected);
-    prods.forEach(p => s.add(p.id));
-    setSelected(s);
-  }
+      const list = res.products || [];
+      setProducts(list);
 
-  function getCopies(id: string) { return copies[id] || 1; }
-  function setCopiesFor(id: string, n: number) { setCopies(prev => ({ ...prev, [id]: Math.max(1, n) })); }
+      // Quantidade padrão = 1 etiqueta por produto (Regra 6)
+      const nextCopies: Record<string, number> = {};
+      const nextLayouts: Record<string, LabelLayoutType> = {};
+      list.forEach((item) => {
+        nextCopies[item.id] = copiesByProduct[item.id] || defaultQty || 1;
+        nextLayouts[item.id] = layoutByProduct[item.id] || globalLayout;
+      });
+      setCopiesByProduct(nextCopies);
+      setLayoutByProduct(nextLayouts);
 
-  async function handlePrint() {
-    setPrinting(true);
-    const selectedIds = Array.from(selected);
-    
-    // Get all products from both lists
-    const allProds = [...products, ...pendingProducts];
-    const toPrint = allProds.filter(p => selectedIds.includes(p.id));
+      // Seleciona automaticamente os resultados encontrados para agilizar a operação
+      setSelectedIds(new Set(list.map((p) => p.id)));
 
-    // Open print window
-    const printWindow = window.open("", "_blank", "width=800,height=600");
-    if (!printWindow) { setPrinting(false); return; }
+      if (list.length === 0) {
+        showBanner("warn", "Nenhum produto teve alteração de preço na seção/período selecionados.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    selectedSection,
+    selectedPeriod,
+    filterDate,
+    filterTime,
+    endDate,
+    endTime,
+    selectedSupplier,
+    barcodeQuery,
+    defaultQty,
+    globalLayout,
+    copiesByProduct,
+    layoutByProduct,
+  ]);
 
-    const now = new Date().toLocaleDateString("pt-BR", { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+  // Limpar filtros (F3)
+  const handleClearFilters = useCallback(() => {
+    setSelectedSection("ALL");
+    setSelectedPeriod("LAST_7D");
+    setSelectedSupplier("ALL");
+    setBarcodeQuery("");
+    const d = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
+    setFilterDate(d);
+    setFilterTime("00:00:00");
+    setProducts([]);
+    setSelectedIds(new Set());
+    showBanner("success", "Filtros limpos (F3). Clique em Filtrar (F2) para buscar.");
+  }, []);
 
-    const labelsHtml = toPrint.map(p => {
-      const qty = getCopies(p.id);
-      return Array(qty).fill(null).map(() => {
-        let content = "";
-        
-        if (p.labelType === "PROMO") {
-          content = `
-            <div style="background-color:#ffe814;color:#000;width:100%;height:100%;padding:2mm;box-sizing:border-box;position:relative;">
-              <div style="font-size:11px;font-weight:900;text-align:center;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                ${p.name}
-              </div>
-              <div style="position:absolute;top:5mm;right:2mm;font-size:9px;font-weight:700;text-decoration:line-through;">DE: R$ ${p.oldPrice?.toFixed(2).replace('.', ',')}</div>
-              
-              <div style="position:absolute;bottom:4mm;left:2mm;width:30%;">
-                ${showBarcode && p.barcode ? `
-                  <div style="height:8mm;background:repeating-linear-gradient(90deg,#000,#000 1px,transparent 1px,transparent 3px);width:100%;"></div>
-                  <div style="font-size:7px;font-family:monospace;text-align:center;font-weight:bold;">${p.barcode}</div>
-                ` : ''}
-              </div>
-              
-              <div style="position:absolute;bottom:4mm;right:2mm;background-color:#000;color:#ffe814;padding:1mm 2mm;border-radius:2mm;display:flex;align-items:baseline;">
-                <span style="font-size:9px;font-weight:900;margin-right:1mm;">R$</span>
-                <span style="font-size:28px;font-weight:900;letter-spacing:-1px;line-height:0.8;">${p.price.toFixed(2).replace('.', ',')}</span>
-              </div>
-              
-              <div style="position:absolute;bottom:1mm;left:2mm;font-size:5px;font-weight:bold;">Válido: ${p.promoStart} a ${p.promoEnd}</div>
-              <div style="position:absolute;bottom:1mm;right:2mm;font-size:5px;font-weight:bold;">Imp: ${now}</div>
-            </div>
-          `;
-        } else if (p.labelType === "REBAIXA") {
-          content = `
-            <div style="background-color:#fff;border:1px solid #e60000;color:#000;width:100%;height:100%;box-sizing:border-box;position:relative;">
-              <div style="font-size:8px;font-weight:900;text-align:center;background:#e60000;color:#fff;padding:0.5mm 0;text-transform:uppercase;">REBAIXA VENCIMENTO</div>
-              <div style="font-size:10px;font-weight:900;text-align:center;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding:0 2mm;margin-top:1mm;">
-                ${p.name}
-              </div>
-              <div style="position:absolute;top:7mm;right:2mm;font-size:9px;font-weight:700;text-decoration:line-through;color:#666;">DE: R$ ${p.oldPrice?.toFixed(2).replace('.', ',')}</div>
-              
-              <div style="position:absolute;bottom:4mm;left:2mm;width:30%;">
-                ${showBarcode && p.barcode ? `
-                  <div style="height:8mm;background:repeating-linear-gradient(90deg,#000,#000 1px,transparent 1px,transparent 3px);width:100%;"></div>
-                  <div style="font-size:7px;font-family:monospace;text-align:center;font-weight:bold;">${p.barcode}</div>
-                ` : ''}
-              </div>
-              
-              <div style="position:absolute;bottom:4mm;right:2mm;background-color:#000;color:#fff;padding:1mm 2mm;border-radius:2mm;display:flex;align-items:baseline;">
-                <span style="font-size:9px;font-weight:900;margin-right:1mm;">R$</span>
-                <span style="font-size:28px;font-weight:900;letter-spacing:-1px;line-height:0.8;">${p.price.toFixed(2).replace('.', ',')}</span>
-              </div>
-              
-              <div style="position:absolute;bottom:1mm;left:2mm;font-size:5px;font-weight:bold;color:#e60000;">Válido: ${p.promoStart} a ${p.promoEnd}</div>
-              <div style="position:absolute;bottom:1mm;right:2mm;font-size:5px;font-weight:bold;color:#e60000;">Imp: ${now}</div>
-            </div>
-          `;
-        } else {
-          content = `
-            <div style="background-color:#fff;color:#000;width:100%;height:100%;padding:2mm;box-sizing:border-box;position:relative;">
-              <div style="font-size:11px;font-weight:900;text-align:center;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                ${p.name}
-              </div>
-              
-              <div style="position:absolute;bottom:4mm;left:2mm;width:35%;">
-                ${showBarcode && p.barcode ? `
-                  <div style="height:8mm;background:repeating-linear-gradient(90deg,#000,#000 1px,transparent 1px,transparent 3px);width:100%;"></div>
-                  <div style="font-size:7px;font-family:monospace;text-align:center;font-weight:bold;">${p.barcode}</div>
-                ` : ''}
-              </div>
-              
-              <div style="position:absolute;bottom:4mm;right:2mm;display:flex;align-items:baseline;">
-                <span style="font-size:9px;font-weight:900;margin-right:1mm;">R$</span>
-                <span style="font-size:32px;font-weight:900;letter-spacing:-1px;line-height:0.8;">${p.price.toFixed(2).replace('.', ',')}</span>
-              </div>
-              
-              <div style="position:absolute;bottom:1mm;left:2mm;font-size:5px;font-weight:bold;color:#666;">UN: ${p.unit}</div>
-              <div style="position:absolute;bottom:1mm;right:2mm;font-size:5px;font-weight:bold;color:#666;">Imp: ${now}</div>
-            </div>
-          `;
-        }
+  // Selecionar / Desmarcar todos (F8)
+  const handleToggleSelectAll = useCallback(() => {
+    if (products.length === 0) return;
+    const allSelected = products.every((p) => selectedIds.has(p.id));
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(products.map((p) => p.id)));
+    }
+  }, [products, selectedIds]);
 
-        return `
-        <div style="width:${labelWidth}mm;height:${labelHeight}mm;box-sizing:border-box;font-family:Arial,sans-serif;overflow:hidden;page-break-after:always;margin:0;padding:0;">
-          ${content}
-        </div>
-      `;
-      }).join("");
-    }).join("");
+  const toggleSingleProduct = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
-    printWindow.document.write(`
-      <html><head><title>Etiquetas</title>
-      <style>
-        @page { size: ${labelWidth}mm ${labelHeight}mm; margin: 0; }
-        body { margin: 0; padding: 0; width: ${labelWidth}mm; }
-        @media print {
-          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-          .page-break { page-break-after: always; }
-        }
-      </style>
-      </head><body>${labelsHtml}
-      <script>window.onload=function(){window.print();window.onafterprint=function(){window.close();}}</script>
-      </body></html>
-    `);
-    printWindow.document.close();
+  const getCopies = (id: string) => copiesByProduct[id] || defaultQty || 1;
 
-    // Mark as printed (mocked)
-    setPendingProducts(prev => prev.filter(p => !selectedIds.includes(p.id)));
-    setPrinting(false);
-    setPrintSuccess(true);
-    setTimeout(() => setPrintSuccess(false), 3000);
-    await loadPending();
-  }
+  const setCopiesForProduct = (id: string, qty: number) => {
+    const valid = Math.max(1, Math.floor(Number(qty) || 1));
+    setCopiesByProduct((prev) => ({ ...prev, [id]: valid }));
+  };
 
-  const displayProducts = tab === "pending" ? pendingProducts : products;
+  const handleGlobalQtyChange = (val: number) => {
+    const valid = Math.max(1, Math.floor(Number(val) || 1));
+    setDefaultQty(valid);
+    setCopiesByProduct((prev) => {
+      const next = { ...prev };
+      selectedIds.forEach((id) => {
+        next[id] = valid;
+      });
+      return next;
+    });
+  };
+
+  const handleGlobalLayoutChange = (layout: LabelLayoutType) => {
+    setGlobalLayout(layout);
+    if (layout === "PRODUCAO") setPrintExpiration(true);
+    setLayoutByProduct((prev) => {
+      const next = { ...prev };
+      products.forEach((p) => {
+        next[p.id] = layout;
+      });
+      return next;
+    });
+  };
+
+  const formatBrDate = (iso: string) => {
+    if (!iso) return "--/--/----";
+    const [y, m, d] = iso.slice(0, 10).split("-");
+    return d && m && y ? `${d}/${m}/${y}` : iso;
+  };
+
+  // Validação antes da impressão (Regra 8) + Impressão real (Regra 7)
+  const executePrint = useCallback(
+    async (mode: "SELECTED" | "ALL") => {
+      const targetItems =
+        mode === "ALL" ? products : products.filter((p) => selectedIds.has(p.id));
+
+      if (targetItems.length === 0) {
+        showBanner("warn", "Selecione ao menos um produto na listagem para imprimir.");
+        return;
+      }
+
+      if (!selectedPrinter) {
+        showBanner("error", "Selecione uma impressora disponível antes de imprimir.");
+        return;
+      }
+
+      // 8. Validação no banco antes de enviar para a impressora
+      const validation = await validateBeforeLabelPrint({
+        items: targetItems.map((p) => ({
+          id: p.id,
+          expectedPrice: p.currentPrice,
+          copies: getCopies(p.id),
+        })),
+        requireBarcode: printBarcode,
+      });
+
+      if (validation.missingIds && validation.missingIds.length > 0) {
+        showBanner(
+          "error",
+          "Um ou mais produtos selecionados foram removidos do cadastro. Atualizando lista..."
+        );
+        await handleSearch();
+        return;
+      }
+
+      if (validation.priceChangedItems && validation.priceChangedItems.length > 0) {
+        const changedNames = validation.priceChangedItems
+          .map(
+            (c) =>
+              `${c.name} (de R$ ${c.oldExpectedPrice.toFixed(2)} para R$ ${c.newDbPrice.toFixed(2)})`
+          )
+          .join(", ");
+        await handleSearch();
+        showBanner(
+          "warn",
+          `Atenção: O preço mudou após a busca para: ${changedNames}. Os valores foram atualizados na tela — confira e confirme a impressão novamente.`
+        );
+        return;
+      }
+
+      if (
+        printBarcode &&
+        validation.missingBarcodeItems &&
+        validation.missingBarcodeItems.length > 0
+      ) {
+        const proceed = window.confirm(
+          `Atenção: Os seguintes produtos não possuem código de barras cadastrado:\n• ${validation.missingBarcodeItems.join(
+            "\n• "
+          )}\n\nDeseja imprimir mesmo assim (usando o código interno)?`
+        );
+        if (!proceed) return;
+      }
+
+      const printWindow = window.open("", "_blank", "width=860,height=660");
+      if (!printWindow) {
+        showBanner("error", "Pop-up bloqueado pelo navegador. Permita pop-ups para imprimir.");
+        return;
+      }
+
+      const nowStr = new Date().toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      const fabBr = formatBrDate(fabDate);
+      const expBr = formatBrDate(expDate);
+
+      // Regra 7: Não imprimir o preço antigo como preço de venda! Usa apenas currentPrice.
+      const labelsHtml = targetItems
+        .map((p) => {
+          const qty = getCopies(p.id);
+          const layout = layoutByProduct[p.id] || globalLayout;
+          const barcodeText = p.barcode || p.code;
+
+          return Array(qty)
+            .fill(null)
+            .map(() => {
+              if (layout === "PRODUCAO" || printExpiration) {
+                return `
+                  <div style="width:60mm;height:35mm;display:inline-block;overflow:hidden;margin:1.5mm;vertical-align:top;border:1px solid #000;padding:2mm;box-sizing:border-box;position:relative;background:#fff;color:#000;font-family:Arial,sans-serif;">
+                    <div style="font-size:10px;font-weight:900;text-align:center;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-bottom:1px solid #000;padding-bottom:0.8mm;">
+                      ${p.name}
+                    </div>
+                    <div style="display:flex;justify-content:space-between;font-size:7.5px;font-weight:800;margin-top:1.2mm;line-height:1.3;">
+                      <div>
+                        <div>FAB: <b>${fabBr}</b></div>
+                        <div>VAL: <b>${expBr}</b></div>
+                        <div>LOTE: <b>${batchCode}</b></div>
+                      </div>
+                      ${
+                        printPrice
+                          ? `<div style="text-align:right;">
+                              <div style="font-size:6.5px;font-weight:700;">PREÇO / ${p.unit}</div>
+                              <div style="display:flex;align-items:baseline;justify-content:flex-end;">
+                                <span style="font-size:8px;font-weight:900;margin-right:0.5mm;">R$</span>
+                                <span style="font-size:19px;font-weight:900;line-height:0.9;">${p.currentPrice
+                                  .toFixed(2)
+                                  .replace(".", ",")}</span>
+                              </div>
+                            </div>`
+                          : ""
+                      }
+                    </div>
+                    ${
+                      printBarcode
+                        ? `<div style="position:absolute;bottom:1.2mm;left:2mm;right:2mm;text-align:center;">
+                            <div style="height:4.5mm;background:repeating-linear-gradient(90deg,#000,#000 1px,transparent 1px,transparent 2.5px);width:100%;"></div>
+                            <div style="font-size:6.5px;font-family:monospace;font-weight:bold;">${barcodeText}</div>
+                          </div>`
+                        : ""
+                    }
+                  </div>`;
+              }
+
+              if (layout === "PROMO") {
+                return `
+                  <div style="width:60mm;height:32mm;display:inline-block;overflow:hidden;margin:1.5mm;vertical-align:top;border:1px solid #000;padding:2mm;box-sizing:border-box;position:relative;background:#ffe814;color:#000;font-family:Arial,sans-serif;">
+                    <div style="font-size:8px;font-weight:900;text-align:center;background:#000;color:#ffe814;padding:0.5mm 0;text-transform:uppercase;">OFERTA ESPECIAL — ${p.section}</div>
+                    <div style="font-size:10.5px;font-weight:900;text-align:center;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1mm;">${p.name}</div>
+                    <div style="position:absolute;bottom:3.5mm;left:2mm;width:36%;">
+                      ${
+                        printBarcode
+                          ? `<div style="height:7mm;background:repeating-linear-gradient(90deg,#000,#000 1px,transparent 1px,transparent 3px);width:100%;"></div>
+                             <div style="font-size:6.5px;font-family:monospace;text-align:center;font-weight:bold;">${barcodeText}</div>`
+                          : ""
+                      }
+                    </div>
+                    ${
+                      printPrice
+                        ? `<div style="position:absolute;bottom:3.5mm;right:2mm;background:#000;color:#ffe814;padding:1mm 2mm;border-radius:1.5mm;display:flex;align-items:baseline;">
+                            <span style="font-size:8px;font-weight:900;margin-right:1mm;">R$</span>
+                            <span style="font-size:22px;font-weight:900;line-height:0.85;">${p.currentPrice
+                              .toFixed(2)
+                              .replace(".", ",")}</span>
+                            <span style="font-size:6.5px;font-weight:700;margin-left:1mm;">/${p.unit}</span>
+                          </div>`
+                        : ""
+                    }
+                    <div style="position:absolute;bottom:0.8mm;right:2mm;font-size:5px;font-weight:bold;">Imp: ${nowStr}</div>
+                  </div>`;
+              }
+
+              // PADRÃO GÔNDOLA
+              return `
+                <div style="width:60mm;height:32mm;display:inline-block;overflow:hidden;margin:1.5mm;vertical-align:top;border:1px solid #333;padding:2mm;box-sizing:border-box;position:relative;background:#fff;color:#000;font-family:Arial,sans-serif;">
+                  <div style="font-size:11px;font-weight:900;text-align:center;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name}</div>
+                  <div style="font-size:6.5px;font-weight:700;text-align:center;color:#444;margin-top:0.5mm;">SEÇÃO: ${p.section.toUpperCase()} • CÓD: ${p.code}</div>
+                  <div style="position:absolute;bottom:3.5mm;left:2mm;width:38%;">
+                    ${
+                      printBarcode
+                        ? `<div style="height:7.5mm;background:repeating-linear-gradient(90deg,#000,#000 1px,transparent 1px,transparent 3px);width:100%;"></div>
+                           <div style="font-size:6.5px;font-family:monospace;text-align:center;font-weight:bold;">${barcodeText}</div>`
+                        : ""
+                    }
+                  </div>
+                  ${
+                    printPrice
+                      ? `<div style="position:absolute;bottom:3.5mm;right:2mm;display:flex;align-items:baseline;">
+                          <span style="font-size:9px;font-weight:900;margin-right:1mm;">R$</span>
+                          <span style="font-size:24px;font-weight:900;letter-spacing:-1px;line-height:0.8;">${p.currentPrice
+                            .toFixed(2)
+                            .replace(".", ",")}</span>
+                          <span style="font-size:7px;font-weight:800;margin-left:1mm;">/${p.unit}</span>
+                        </div>`
+                      : ""
+                  }
+                  <div style="position:absolute;bottom:0.8mm;right:2mm;font-size:5px;">Imp: ${nowStr}</div>
+                </div>`;
+            })
+            .join("");
+        })
+        .join("");
+
+      printWindow.document.write(`
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Impressão de Etiquetas — ${selectedPrinter}</title>
+            <style>@page { margin: 4mm; } body { margin: 0; padding: 0; font-family: Arial, sans-serif; }</style>
+          </head>
+          <body>
+            ${labelsHtml}
+            <script>window.onload = () => { window.print(); window.close(); }<\/script>
+          </body>
+        </html>
+      `);
+      printWindow.document.close();
+
+      await markLabelsAsPrinted(targetItems.map((i) => i.id));
+      showBanner(
+        "success",
+        `${targetItems.length} produto(s) enviados para a impressora "${selectedPrinter}" com sucesso!`
+      );
+    },
+    [
+      products,
+      selectedIds,
+      selectedPrinter,
+      printBarcode,
+      printPrice,
+      printExpiration,
+      fabDate,
+      expDate,
+      batchCode,
+      layoutByProduct,
+      globalLayout,
+      handleSearch,
+    ]
+  );
+
+  // 10. ATALHOS DE TECLADO (F2, F3, F5, F8, F12, ESC)
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "F2") {
+        e.preventDefault();
+        handleSearch();
+      } else if (e.key === "F3") {
+        e.preventDefault();
+        handleClearFilters();
+      } else if (e.key === "F5") {
+        e.preventDefault();
+        handleSearch();
+      } else if (e.key === "F8") {
+        e.preventDefault();
+        handleToggleSelectAll();
+      } else if (e.key === "F12") {
+        e.preventDefault();
+        executePrint("SELECTED");
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        if (previewOpen) setPreviewOpen(false);
+        else if (quickPriceModalOpen) setQuickPriceModalOpen(false);
+        else router.push("/");
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [
+    handleSearch,
+    handleClearFilters,
+    handleToggleSelectAll,
+    executePrint,
+    previewOpen,
+    quickPriceModalOpen,
+    router,
+  ]);
+
+  // Cálculos de rodapé/seleção (Regra 6)
+  const selectedProductsList = products.filter((p) => selectedIds.has(p.id));
+  const totalSelectedProducts = selectedProductsList.length;
+  const totalLabelsToPrint = selectedProductsList.reduce((acc, p) => acc + getCopies(p.id), 0);
+
+  // Abrir modal rápido para alterar o preço real de um produto e testar o histórico
+  const handleOpenQuickPriceChange = async () => {
+    const res = await getAllProducts();
+    setAllCatalogProducts(res.products || []);
+    if (res.products?.length) {
+      setTargetProductId(res.products[0].id);
+      setNewPriceInput(String((Number(res.products[0].price) + 1.5).toFixed(2)));
+    }
+    setQuickPriceModalOpen(true);
+  };
+
+  const handleConfirmQuickPriceChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetProductId || !newPriceInput) return;
+    const res = await updateProductPrice(targetProductId, Number(newPriceInput));
+    if (res.success) {
+      setQuickPriceModalOpen(false);
+      await handleSearch();
+      showBanner(
+        "success",
+        "Preço atualizado no cadastro e registrado no histórico de preços! O produto já está disponível para etiqueta."
+      );
+    } else {
+      alert(res.error || "Erro ao alterar preço.");
+    }
+  };
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
-            <Tag className="text-indigo-400" size={28} />
-            Etiquetas de Preço
-          </h1>
-          <p className="text-slate-400 text-sm mt-1">Imprima etiquetas para gondola e prateleira</p>
+    <div className="w-full flex-1 min-h-0 h-full flex flex-col bg-gradient-to-b from-[#e5effc] to-[#d6e4f8] rounded-2xl border border-[#b8cdec] shadow-lg overflow-hidden select-none">
+      {/* ─── TOP HEADER BAR COMPACTO ─── */}
+      <div className="h-11 px-4 bg-gradient-to-r from-[#eef5ff] via-[#f7faff] to-[#e6f0fe] border-b border-[#c2d5f0] flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-[#0d3b8e]">
+            <Printer size={19} className="text-[#1554c0]" />
+            <h1 className="text-base font-extrabold tracking-tight text-[#0d2d6c]">
+              Impressão de Etiquetas
+            </h1>
+          </div>
         </div>
-        <div className="flex gap-3">
-          {selected.size > 0 && (
-            <button
-              onClick={handlePrint}
-              disabled={printing}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-indigo-600/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
+
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={handleOpenQuickPriceChange}
+            title="Simular ou registrar alteração real de preço no banco"
+            className="px-2.5 py-1 rounded-full bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 text-[11px] font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+          >
+            <DollarSign size={12} className="text-amber-600" />
+            Alterar Preço Produto
+          </button>
+
+          {/* Operador Pill */}
+          <div className="flex items-center gap-1.5 bg-[#f0f6ff] border border-[#c3d6f2] px-3 py-1 rounded-full shadow-2xs">
+            <User size={13} className="text-[#14479c]" />
+            <select
+              value={operatorName}
+              onChange={(e) => setOperatorName(e.target.value)}
+              className="bg-transparent text-[11px] font-bold text-[#0f2957] outline-none cursor-pointer"
             >
-              <Printer size={18} />
-              {printing ? "Imprimindo..." : `Imprimir ${selected.size} etiqueta(s)`}
-            </button>
-          )}
+              <option value="Maria Silva">Maria Silva</option>
+              <option value="João Santos">João Santos</option>
+              <option value="Administrador">Administrador</option>
+            </select>
+            <ChevronDown size={12} className="text-[#4a6da7]" />
+          </div>
+
+          {/* Relógio Pill */}
+          <div className="flex items-center gap-1.5 bg-[#f0f6ff] border border-[#c3d6f2] px-3 py-1 rounded-full shadow-2xs">
+            <Clock size={13} className="text-[#14479c]" />
+            <span className="text-[11px] font-extrabold font-mono text-[#0f2957]">{clockStr}</span>
+          </div>
         </div>
       </div>
 
-      {printSuccess && (
-        <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-xl text-sm font-bold flex items-center gap-2">
-          <CheckCircle2 size={18} /> Etiquetas enviadas para impressão e marcadas como impressas!
+      {/* Banner de Feedback */}
+      {toast && (
+        <div
+          className={`mx-2.5 mt-1.5 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center justify-between border shrink-0 ${
+            toast.type === "success"
+              ? "bg-emerald-50 border-emerald-300 text-emerald-800"
+              : toast.type === "warn"
+              ? "bg-amber-50 border-amber-300 text-amber-800"
+              : "bg-red-50 border-red-300 text-red-800"
+          }`}
+        >
+          <span className="flex items-center gap-2">
+            {toast.type === "success" ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
+            {toast.text}
+          </span>
+          <button onClick={() => setToast(null)} className="text-gray-500 hover:text-gray-800">
+            <X size={14} />
+          </button>
         </div>
       )}
 
-      {/* Tabs */}
-      <div className="flex gap-2 bg-[#111528] p-1.5 rounded-2xl border border-indigo-500/[0.08] w-fit">
-        <TabBtn active={tab === "pending"} onClick={() => setTab("pending")} count={pendingProducts.length}>
-          <AlertCircle size={16} /> Preços Alterados
-        </TabBtn>
-        <TabBtn active={tab === "search"} onClick={() => setTab("search")}>
-          <Search size={16} /> Buscar Produto
-        </TabBtn>
-        <TabBtn active={tab === "config"} onClick={() => setTab("config")}>
-          <Settings size={16} /> Configurar Impressora
-        </TabBtn>
-      </div>
-
-      {tab === "config" ? (
-        /* ─── Printer Config ─── */
-        <div className="bg-[#111528] rounded-2xl border border-indigo-500/[0.08] p-8 max-w-2xl">
-          <h2 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-            <Settings className="text-indigo-400" size={20} />
-            Configuração da Impressora de Etiquetas
-          </h2>
-
-          <div className="space-y-5">
-            <div className="p-5 bg-[#161b33] rounded-2xl border border-indigo-500/15 space-y-4">
-              <h3 className="text-white font-bold text-sm">🖨️ Dispositivo de Impressão</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1">Modelo / Interface</label>
-                  <select className="w-full px-4 py-3 bg-[#111528] border border-slate-600 text-white rounded-xl outline-none focus:border-indigo-500">
-                    <option value="windows">Padrão do Sistema (Windows/Mac)</option>
-                    <option value="qz">QZ Tray (Comunicação Direta USB)</option>
-                    <option value="bluetooth">Bluetooth (Android/iOS)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1">Impressora Selecionada</label>
-                  <select className="w-full px-4 py-3 bg-[#111528] border border-slate-600 text-white rounded-xl outline-none focus:border-indigo-500">
-                    <option value="ZDesigner GC420t">ZDesigner GC420t (Zebra)</option>
-                    <option value="Elgin L42 Pro">Elgin L42 Pro</option>
-                    <option value="Argox OS-214">Argox OS-214 Plus</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-            <div className="p-5 bg-[#161b33] rounded-2xl border border-indigo-500/15 space-y-4">
-              <h3 className="text-white font-bold text-sm">📐 Tamanho da Etiqueta</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1">Largura (mm)</label>
-                  <input type="number" value={labelWidth} onChange={e => setLabelWidth(Number(e.target.value))}
-                    className="w-full px-4 py-3 bg-[#111528] border border-slate-600 text-white rounded-xl outline-none focus:border-indigo-500" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-400 mb-1">Altura (mm)</label>
-                  <input type="number" value={labelHeight} onChange={e => setLabelHeight(Number(e.target.value))}
-                    className="w-full px-4 py-3 bg-[#111528] border border-slate-600 text-white rounded-xl outline-none focus:border-indigo-500" />
-                </div>
-              </div>
+      {/* ─── CORPO PRINCIPAL SEM ROLAGEM EXTERNA ─── */}
+      <div className="flex-1 min-h-0 p-2.5 flex gap-2.5 overflow-hidden">
+        {/* COLUNA ESQUERDA COMPACTA (SEM BARRA DE ROLAGEM) */}
+        <div className="w-[300px] shrink-0 flex flex-col gap-2 overflow-hidden">
+          {/* CARD 1: FILTROS PARA BUSCA */}
+          <div className="bg-[#f3f8ff] border border-[#c3d6f2] rounded-xl p-2.5 shadow-2xs flex flex-col gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 pb-1.5 border-b border-[#d5e3f7] text-[#0d3b8e]">
+              <Filter size={14} className="text-[#1554c0]" />
+              <span className="text-xs font-extrabold tracking-tight">Filtros para Busca</span>
             </div>
 
-            <div className="p-5 bg-[#161b33] rounded-2xl border border-indigo-500/15 space-y-4">
-              <h3 className="text-white font-bold text-sm">🔤 Tipografia</h3>
+            <div className="grid grid-cols-2 gap-2">
+              {/* 2. FILTRO POR SEÇÃO */}
               <div>
-                <label className="block text-xs font-bold text-slate-400 mb-1">Tamanho da Fonte do Preço (px)</label>
-                <input type="number" value={fontSize} onChange={e => setFontSize(Number(e.target.value))}
-                  className="w-full px-4 py-3 bg-[#111528] border border-slate-600 text-white rounded-xl outline-none focus:border-indigo-500" />
+                <label className="block text-[10px] font-bold text-[#1e3a6d] mb-0.5">
+                  Seção / Produto
+                </label>
+                <select
+                  value={selectedSection}
+                  onChange={(e) => setSelectedSection(e.target.value)}
+                  className="w-full px-2 py-1 bg-white border border-[#bfd3f0] rounded-lg text-[11px] font-semibold text-gray-800 outline-none focus:border-[#1554c0]"
+                >
+                  <option value="ALL">Todas as Seções</option>
+                  {sections.map((sec) => (
+                    <option key={sec} value={sec}>
+                      {sec}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 3. FILTRO DE ALTERAÇÃO DE PREÇO (PERÍODO) */}
+              <div>
+                <label className="block text-[10px] font-bold text-[#1e3a6d] mb-0.5">
+                  Período Alteração
+                </label>
+                <select
+                  value={selectedPeriod}
+                  onChange={(e) => handlePeriodChange(e.target.value as PeriodOption)}
+                  className="w-full px-2 py-1 bg-white border border-[#bfd3f0] rounded-lg text-[11px] font-semibold text-gray-800 outline-none focus:border-[#1554c0]"
+                >
+                  <option value="TODAY">Hoje</option>
+                  <option value="LAST_24H">Últimas 24h</option>
+                  <option value="LAST_7D">Últimos 7 dias</option>
+                  <option value="LAST_15D">Últimos 15 dias</option>
+                  <option value="LAST_30D">Últimos 30 dias</option>
+                  <option value="CUSTOM">Personalizado</option>
+                </select>
               </div>
             </div>
 
-            <div className="p-5 bg-[#161b33] rounded-2xl border border-indigo-500/15">
-              <div className="flex items-center justify-between">
+            <div className="grid grid-cols-2 gap-2">
+              {/* Fornecedor */}
+              <div>
+                <label className="block text-[10px] font-bold text-[#1e3a6d] mb-0.5">Fornecedor</label>
+                <select
+                  value={selectedSupplier}
+                  onChange={(e) => setSelectedSupplier(e.target.value)}
+                  className="w-full px-2 py-1 bg-white border border-[#bfd3f0] rounded-lg text-[11px] font-semibold text-gray-800 outline-none focus:border-[#1554c0]"
+                >
+                  <option value="ALL">Todos</option>
+                  {suppliers.map((sup) => (
+                    <option key={sup.id} value={sup.name}>
+                      {sup.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Cód. Barras */}
+              <div>
+                <label className="block text-[10px] font-bold text-[#1e3a6d] mb-0.5">Cód. Barras</label>
+                <input
+                  type="text"
+                  value={barcodeQuery}
+                  onChange={(e) => setBarcodeQuery(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                  placeholder="Digite o código..."
+                  className="w-full px-2 py-1 bg-white border border-[#bfd3f0] rounded-lg text-[11px] font-medium text-gray-800 placeholder:text-gray-400 outline-none focus:border-[#1554c0]"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              {/* Data */}
+              <div>
+                <label className="block text-[10px] font-bold text-[#1e3a6d] mb-0.5">Data</label>
+                <input
+                  type="date"
+                  value={filterDate}
+                  onChange={(e) => {
+                    setFilterDate(e.target.value);
+                    setSelectedPeriod("CUSTOM");
+                  }}
+                  className="w-full px-2 py-1 bg-white border border-[#bfd3f0] rounded-lg text-[11px] font-semibold text-gray-800 outline-none focus:border-[#1554c0]"
+                />
+              </div>
+
+              {/* Horário */}
+              <div>
+                <label className="block text-[10px] font-bold text-[#1e3a6d] mb-0.5">Horário</label>
+                <input
+                  type="time"
+                  step="1"
+                  value={filterTime}
+                  onChange={(e) => {
+                    setFilterTime(e.target.value);
+                    setSelectedPeriod("CUSTOM");
+                  }}
+                  className="w-full px-2 py-1 bg-white border border-[#bfd3f0] rounded-lg text-[11px] font-semibold text-gray-800 outline-none focus:border-[#1554c0]"
+                />
+              </div>
+            </div>
+
+            {/* Botão Filtrar / Buscar Produtos */}
+            <button
+              type="button"
+              onClick={handleSearch}
+              disabled={loading}
+              className="w-full py-1.5 rounded-lg bg-gradient-to-b from-[#1e64d8] to-[#0b45a8] hover:from-[#1858c4] hover:to-[#093b91] text-white font-extrabold text-xs shadow-sm shadow-blue-600/20 flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-[0.99]"
+            >
+              <Search size={14} />
+              {loading ? "Buscando..." : "Filtrar (F2)"}
+            </button>
+          </div>
+
+          {/* CARD 2: OPÇÕES DE IMPRESSÃO */}
+          <div className="flex-1 bg-[#f3f8ff] border border-[#c3d6f2] rounded-xl p-2.5 shadow-2xs flex flex-col justify-between min-h-0">
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-1.5 pb-1.5 border-b border-[#d5e3f7] text-[#0d3b8e]">
+                <Printer size={14} className="text-[#1554c0]" />
+                <span className="text-xs font-extrabold tracking-tight">Opções de Impressão</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <h3 className="text-white font-bold text-sm">Exibir Código de Barras</h3>
-                  <p className="text-slate-500 text-xs mt-0.5">Mostra o código de barras na etiqueta</p>
+                  <label className="block text-[10px] font-bold text-[#1e3a6d] mb-0.5">Quantidade</label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={defaultQty}
+                    onChange={(e) => handleGlobalQtyChange(Number(e.target.value))}
+                    className="w-full px-2 py-1 bg-white border border-[#bfd3f0] rounded-lg text-[11px] font-bold text-center text-gray-900 outline-none focus:border-[#1554c0]"
+                  />
                 </div>
+
+                <div>
+                  <label className="block text-[10px] font-bold text-[#1e3a6d] mb-0.5">Layout</label>
+                  <select
+                    value={globalLayout}
+                    onChange={(e) => handleGlobalLayoutChange(e.target.value as LabelLayoutType)}
+                    className="w-full px-2 py-1 bg-white border border-[#bfd3f0] rounded-lg text-[11px] font-bold text-gray-800 outline-none focus:border-[#1554c0]"
+                  >
+                    <option value="STANDARD">Padrão</option>
+                    <option value="PRODUCAO">Produção / Val.</option>
+                    <option value="PROMO">Oferta / Promo</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-[#1e3a6d] mb-0.5">Impressora</label>
+                <select
+                  value={selectedPrinter}
+                  onChange={(e) => setSelectedPrinter(e.target.value)}
+                  className="w-full px-2 py-1 bg-white border border-[#bfd3f0] rounded-lg text-[11px] font-semibold text-gray-800 outline-none focus:border-[#1554c0]"
+                >
+                  <option>ZDesigner GC420t (Zebra)</option>
+                  <option>Elgin L42 Pro</option>
+                  <option>Argox OS-214 Plus</option>
+                  <option>Padrão do Sistema</option>
+                </select>
+              </div>
+
+              <div className="flex items-center justify-between gap-1 pt-0.5">
+                <label className="flex items-center gap-1 text-[11px] font-semibold text-[#1e3a6d] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={printPrice}
+                    onChange={(e) => setPrintPrice(e.target.checked)}
+                    className="w-3.5 h-3.5 rounded accent-[#1554c0]"
+                  />
+                  Preço
+                </label>
+                <label className="flex items-center gap-1 text-[11px] font-semibold text-[#1e3a6d] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={printBarcode}
+                    onChange={(e) => setPrintBarcode(e.target.checked)}
+                    className="w-3.5 h-3.5 rounded accent-[#1554c0]"
+                  />
+                  Cód. Barras
+                </label>
+                <label className="flex items-center gap-1 text-[11px] font-semibold text-[#1e3a6d] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={printExpiration}
+                    onChange={(e) => setPrintExpiration(e.target.checked)}
+                    className="w-3.5 h-3.5 rounded accent-[#1554c0]"
+                  />
+                  Validade
+                </label>
+              </div>
+
+              {printExpiration && (
+                <div className="grid grid-cols-2 gap-1.5 p-1.5 rounded-lg bg-white border border-[#bfd3f0] text-[10px]">
+                  <div>
+                    <span className="font-bold text-gray-600 block">Validade:</span>
+                    <input
+                      type="date"
+                      value={expDate}
+                      onChange={(e) => setExpDate(e.target.value)}
+                      className="w-full px-1 py-0.5 border border-gray-200 rounded text-[10px] font-bold"
+                    />
+                  </div>
+                  <div>
+                    <span className="font-bold text-gray-600 block">Lote:</span>
+                    <input
+                      type="text"
+                      value={batchCode}
+                      onChange={(e) => setBatchCode(e.target.value)}
+                      className="w-full px-1 py-0.5 border border-gray-200 rounded text-[10px] font-mono font-bold"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1.5 pt-1">
+              <button
+                type="button"
+                onClick={() => executePrint("SELECTED")}
+                className="w-full py-1.5 rounded-lg bg-gradient-to-b from-[#1e64d8] to-[#0b45a8] hover:from-[#1858c4] hover:to-[#093b91] text-white font-extrabold text-xs shadow-sm shadow-blue-600/20 flex items-center justify-center gap-1.5 transition-all cursor-pointer active:scale-[0.99]"
+              >
+                <Printer size={14} />
+                Imprimir Selecionados (F12)
+              </button>
+
+              <div className="grid grid-cols-2 gap-1.5">
                 <button
                   type="button"
-                  onClick={() => setShowBarcode(!showBarcode)}
-                  className={`w-12 h-7 rounded-full transition-colors relative ${showBarcode ? "bg-indigo-600" : "bg-slate-600"}`}
+                  onClick={() => setPreviewOpen(true)}
+                  className="py-1 px-2 rounded-lg bg-white hover:bg-blue-50 border border-[#bfd3f0] text-[#0d3b8e] font-bold text-[11px] flex items-center justify-center gap-1 cursor-pointer"
                 >
-                  <div className={`w-5 h-5 bg-white rounded-full absolute top-1 transition-all ${showBarcode ? "left-6" : "left-1"}`} />
+                  <Eye size={12} /> Visualizar
                 </button>
-              </div>
-            </div>
-
-            {/* Preview */}
-            <div className="p-5 bg-[#161b33] rounded-2xl border border-indigo-500/15">
-              <h3 className="text-white font-bold text-sm mb-3">👁️ Prévia (Etiqueta Padrão)</h3>
-              <div className="flex justify-center p-4">
-                <div
-                  style={{ width: `${labelWidth}mm`, height: `${labelHeight}mm` }}
-                  className="bg-white rounded-lg border-2 border-dashed border-slate-400 flex flex-col justify-between overflow-hidden relative text-black p-2">
-                    <div className="text-[10px] font-black text-center truncate uppercase">COCA-COLA 2L</div>
-                    <div className="flex justify-between items-end mt-2">
-                      <div className="w-[40%]">
-                        {showBarcode && (
-                          <>
-                            <div className="font-mono text-xl leading-[0.8] tracking-tighter">||||||||||</div>
-                            <div className="text-[6px] font-bold font-mono text-center mt-1">7891234567890</div>
-                          </>
-                        )}
-                      </div>
-                      <div className="w-[60%] text-right flex items-end justify-end">
-                         <span className="text-[8px] font-black mr-1 mb-1">R$</span>
-                         <span className="text-[26px] font-black leading-[0.8] tracking-tighter">9,50</span>
-                      </div>
-                    </div>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => executePrint("ALL")}
+                  className="py-1 px-2 rounded-lg bg-white hover:bg-blue-50 border border-[#bfd3f0] text-[#0d3b8e] font-bold text-[11px] flex items-center justify-center gap-1 cursor-pointer"
+                >
+                  <Printer size={12} /> Imp. Todos
+                </button>
               </div>
             </div>
           </div>
         </div>
-      ) : (
-        <>
-          {/* Search Bar (for search tab) */}
-          {tab === "search" && (
-            <div className="bg-[#111528] rounded-2xl border border-indigo-500/[0.08] p-5">
-              <div className="flex gap-3">
-                <div className="relative flex-1">
-                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                  <input
-                    value={query}
-                    onChange={e => setQuery(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && handleSearch()}
-                    className="w-full pl-11 pr-4 py-3 bg-[#161b33] border border-indigo-500/15 text-slate-100 rounded-xl outline-none focus:border-indigo-500 placeholder:text-slate-500"
-                    placeholder="Buscar por nome, código de barras ou código interno..."
-                  />
-                </div>
-                <button onClick={handleSearch} className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-3 rounded-xl font-bold transition-colors">
-                  Buscar
-                </button>
-              </div>
-            </div>
-          )}
 
-          {/* Pending info bar */}
-          {tab === "pending" && (
-            <div className="flex items-center justify-between bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4">
-              <div className="flex items-center gap-3 text-amber-400">
-                <AlertCircle size={20} />
-                <span className="font-bold text-sm">
-                  {pendingProducts.length === 0
-                    ? "Nenhum produto com preço alterado pendente de etiqueta"
-                    : `${pendingProducts.length} produto(s) com preço alterado aguardando etiqueta`
-                  }
+        {/* ─── TABELA PRINCIPAL À DIREITA ─── */}
+        <div className="flex-1 bg-[#f7faff] border border-[#c3d6f2] rounded-xl shadow-2xs overflow-hidden flex flex-col min-w-0">
+          {/* Barra de Resumo de Seleção (Quando há produtos) */}
+          {products.length > 0 && (
+            <div className="px-4 py-1.5 bg-[#eaf2fc] border-b border-[#c3d6f2] flex items-center justify-between text-xs shrink-0">
+              <div className="flex items-center gap-4">
+                <span className="font-bold text-[#0d3b8e]">
+                  Encontrados: <strong className="font-black">{products.length}</strong>
+                </span>
+                <span className="font-bold text-[#0d3b8e]">
+                  Selecionados: <strong className="font-black">{totalSelectedProducts}</strong>
+                </span>
+                <span className="font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                  Total de Etiquetas a Imprimir: <strong>{totalLabelsToPrint}</strong>
                 </span>
               </div>
-              <div className="flex gap-2">
-                <button onClick={loadPending} className="text-slate-400 hover:text-white p-2 hover:bg-[#161b33] rounded-lg transition-colors">
-                  <RotateCcw size={16} />
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set(products.map((p) => p.id)))}
+                  className="px-2.5 py-0.5 rounded-lg bg-white border border-[#bfd3f0] text-[#0d3b8e] font-bold text-[11px] hover:bg-blue-50 cursor-pointer"
+                >
+                  Selecionar Todos (F8)
                 </button>
-                {pendingProducts.length > 0 && (
-                  <button onClick={() => selectAll(pendingProducts)} className="text-indigo-400 text-xs font-bold hover:text-indigo-300 bg-indigo-500/10 px-3 py-1.5 rounded-lg border border-indigo-500/20">
-                    Selecionar Todos
-                  </button>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="px-2.5 py-0.5 rounded-lg bg-white border border-[#bfd3f0] text-gray-600 font-bold text-[11px] hover:bg-gray-50 cursor-pointer"
+                >
+                  Desmarcar Todos
+                </button>
               </div>
             </div>
           )}
 
-          {/* Products Table */}
-          <div className="bg-[#111528] rounded-2xl border border-indigo-500/[0.08] overflow-hidden shadow-xl">
-            <table className="w-full text-sm">
-              <thead className="bg-[#0c0f1a]/50 border-b border-indigo-500/[0.08]">
-                <tr>
-                  <th className="px-4 py-4 text-left w-12">
-                    <input type="checkbox"
-                      checked={displayProducts.length > 0 && displayProducts.every(p => selected.has(p.id))}
-                      onChange={() => {
-                        const all = displayProducts.every(p => selected.has(p.id));
-                        const s = new Set(selected);
-                        displayProducts.forEach(p => all ? s.delete(p.id) : s.add(p.id));
-                        setSelected(s);
-                      }}
-                      className="w-4 h-4 rounded accent-indigo-500"
+          {/* Tabela com Cabeçalho Azul Marinho Real (#0b3b8c) */}
+          <div className={`flex-1 min-h-0 relative ${products.length > 0 ? "overflow-auto" : "overflow-hidden"}`}>
+            <table className="w-full text-xs text-left border-collapse">
+              <thead className="bg-gradient-to-b from-[#1149a6] to-[#0a3278] text-white sticky top-0 z-10 shadow-xs">
+                <tr className="divide-x divide-[#245bb5]">
+                  <th className="py-2.5 px-3 w-10 text-center">
+                    <input
+                      type="checkbox"
+                      checked={products.length > 0 && products.every((p) => selectedIds.has(p.id))}
+                      onChange={handleToggleSelectAll}
+                      className="w-4 h-4 rounded accent-white cursor-pointer"
                     />
                   </th>
-                  <th className="px-4 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Produto</th>
-                  <th className="px-4 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Código</th>
-                  <th className="px-4 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Layout</th>
-                  <th className="px-4 py-4 text-right text-xs font-bold text-slate-500 uppercase tracking-wider">Preço</th>
-                  <th className="px-4 py-4 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Alterado em</th>
-                  <th className="px-4 py-4 text-center text-xs font-bold text-slate-500 uppercase tracking-wider">Cópias</th>
+                  <th className="py-2.5 px-3 font-extrabold text-center w-24">Código</th>
+                  <th className="py-2.5 px-4 font-extrabold">Descrição</th>
+                  <th className="py-2.5 px-3 font-extrabold text-center w-28">Seção</th>
+                  <th className="py-2.5 px-3 font-extrabold text-right w-28">Preço Ant.</th>
+                  <th className="py-2.5 px-3 font-extrabold text-right w-28">Preço Atual</th>
+                  <th className="py-2.5 px-3 font-extrabold text-center w-36">Data Alteração</th>
+                  <th className="py-2.5 px-3 font-extrabold text-center w-20">Qtd.</th>
+                  <th className="py-2.5 px-3 font-extrabold text-center w-36">Código Barras</th>
+                  <th className="py-2.5 px-3 font-extrabold text-center w-28">Layout</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-indigo-500/[0.06]">
-                {displayProducts.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-6 py-16 text-center">
-                      <Package className="mx-auto text-slate-600 mb-3" size={36} />
-                      <p className="text-slate-400 font-medium">
-                        {tab === "pending" ? "Nenhum produto com preço alterado pendente" : "Busque um produto acima"}
-                      </p>
-                    </td>
-                  </tr>
-                ) : displayProducts.map(p => (
-                  <tr key={p.id} className={`hover:bg-[#161b33] transition-colors ${selected.has(p.id) ? "bg-indigo-500/5" : ""}`}>
-                    <td className="px-4 py-4">
-                      <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleProduct(p.id)} className="w-4 h-4 rounded accent-indigo-500" />
-                    </td>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-xl bg-[#161b33] text-slate-400 flex items-center justify-center border border-indigo-500/15">
-                          <Tag size={16} />
-                        </div>
-                        <span className="text-white font-bold text-sm">{p.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-slate-400 font-mono text-xs">{p.barcode || p.id.slice(0, 8)}</td>
-                    <td className="px-4 py-4">
-                      {p.labelType === "PROMO" ? (
-                         <span className="text-[10px] font-bold bg-amber-500/20 text-amber-400 px-2 py-1 rounded-full border border-amber-500/30">OFERTA</span>
-                      ) : p.labelType === "REBAIXA" ? (
-                         <span className="text-[10px] font-bold bg-red-500/20 text-red-400 px-2 py-1 rounded-full border border-red-500/30">REBAIXA</span>
-                      ) : (
-                         <span className="text-[10px] font-bold bg-slate-500/20 text-slate-400 px-2 py-1 rounded-full border border-slate-500/30">PADRÃO</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-4 text-right text-white font-black">R$ {p.price.toFixed(2).replace(".", ",")}</td>
-                    <td className="px-4 py-4 text-center text-xs text-slate-400">
-                      {p.priceChangedAt ? new Date(p.priceChangedAt).toLocaleDateString("pt-BR") : "—"}
-                    </td>
-                    <td className="px-4 py-4 text-center">
-                      <input
-                        type="number" min={1} value={getCopies(p.id)}
-                        onChange={e => setCopiesFor(p.id, Number(e.target.value))}
-                        className="w-14 text-center bg-[#161b33] border border-indigo-500/15 text-white rounded-lg py-1 text-sm outline-none focus:border-indigo-500"
-                      />
-                    </td>
-                  </tr>
-                ))}
+
+              <tbody className="divide-y divide-[#d9e6f7]">
+                {products.length === 0 ? (
+                  Array.from({ length: 12 }).map((_, idx) => (
+                    <tr
+                      key={idx}
+                      className={`h-9 divide-x divide-[#deebfa] ${
+                        idx % 2 === 0 ? "bg-[#f8fbff]" : "bg-[#edf4fc]"
+                      }`}
+                    >
+                      <td className="w-10" />
+                      <td className="w-24" />
+                      <td />
+                      <td className="w-28" />
+                      <td className="w-28" />
+                      <td className="w-28" />
+                      <td className="w-36" />
+                      <td className="w-20" />
+                      <td className="w-36" />
+                      <td className="w-28" />
+                    </tr>
+                  ))
+                ) : (
+                  products.map((p, idx) => {
+                    const isChecked = selectedIds.has(p.id);
+                    const rowLayout = layoutByProduct[p.id] || globalLayout;
+                    return (
+                      <tr
+                        key={p.id}
+                        className={`divide-x divide-[#deebfa] transition-colors ${
+                          isChecked
+                            ? "bg-[#dbeafe]/70 hover:bg-[#dbeafe]"
+                            : idx % 2 === 0
+                            ? "bg-[#f8fbff] hover:bg-blue-50/50"
+                            : "bg-[#edf4fc] hover:bg-blue-50/50"
+                        }`}
+                      >
+                        <td className="py-2.5 px-3 text-center">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => toggleSingleProduct(p.id)}
+                            className="w-4 h-4 rounded accent-[#1554c0] cursor-pointer"
+                          />
+                        </td>
+                        <td
+                          onClick={() => toggleSingleProduct(p.id)}
+                          className="py-2.5 px-3 text-center font-mono font-bold text-[#1e3a6d] cursor-pointer"
+                        >
+                          {p.code}
+                        </td>
+                        <td
+                          onClick={() => toggleSingleProduct(p.id)}
+                          className="py-2.5 px-4 font-bold text-gray-900 cursor-pointer"
+                        >
+                          {p.name}
+                          <span className="ml-1.5 text-[10px] font-semibold text-gray-500">
+                            ({p.unit})
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-center">
+                          <span className="px-2 py-0.5 rounded-full bg-blue-100/80 text-[#0d3b8e] font-bold text-[11px]">
+                            {p.section}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-mono text-gray-500 line-through">
+                          R$ {p.previousPrice.toFixed(2).replace(".", ",")}
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-mono font-black text-emerald-700 text-sm">
+                          R$ {p.currentPrice.toFixed(2).replace(".", ",")}
+                        </td>
+                        <td className="py-2.5 px-3 text-center font-mono text-[11px] text-gray-600">
+                          {new Date(p.priceChangedAt).toLocaleString("pt-BR", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </td>
+                        <td className="py-2 px-2 text-center">
+                          <input
+                            type="number"
+                            min={1}
+                            value={getCopies(p.id)}
+                            onChange={(e) => setCopiesForProduct(p.id, Number(e.target.value))}
+                            className="w-14 py-1 text-center bg-white border border-[#bfd3f0] rounded-lg font-bold text-gray-900 outline-none focus:border-[#1554c0]"
+                          />
+                        </td>
+                        <td className="py-2.5 px-3 text-center font-mono text-xs text-gray-700">
+                          {p.barcode || "SEM EAN"}
+                        </td>
+                        <td className="py-2 px-2 text-center">
+                          <select
+                            value={rowLayout}
+                            onChange={(e) =>
+                              setLayoutByProduct((prev) => ({
+                                ...prev,
+                                [p.id]: e.target.value as LabelLayoutType,
+                              }))
+                            }
+                            className="px-2 py-1 bg-white border border-[#bfd3f0] rounded-lg text-[11px] font-bold text-[#0d3b8e] outline-none"
+                          >
+                            <option value="STANDARD">Padrão</option>
+                            <option value="PRODUCAO">Produção</option>
+                            <option value="PROMO">Oferta</option>
+                          </select>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
+
+            {/* Empty State Overlay (idêntico à imagem enviada) */}
+            {products.length === 0 && (
+              <div className="absolute inset-0 top-10 flex flex-col items-center justify-center pointer-events-none">
+                <div className="w-20 h-20 rounded-full bg-gradient-to-b from-[#e4effe] to-[#d0e2fb] border border-[#b9d2f7] shadow-md flex items-center justify-center mb-3">
+                  <Tag size={36} className="text-[#1554c0]" />
+                </div>
+                <h3 className="text-lg font-extrabold text-[#0d2d6c]">
+                  Nenhuma etiqueta para impressão
+                </h3>
+                <p className="text-xs font-medium text-[#4a6696] mt-1">
+                  Utilize os filtros ao lado para localizar os produtos.
+                </p>
+              </div>
+            )}
           </div>
-        </>
+        </div>
+      </div>
+
+      {/* ─── BARRA DE STATUS E ATALHOS DE TECLADO NO RODAPÉ ─── */}
+      <div className="h-9 px-3.5 bg-gradient-to-r from-[#e3eefc] via-[#edf4fe] to-[#dce9fb] border-t border-[#bfd3f0] flex items-center justify-between shrink-0 text-xs">
+        <div className="flex items-center gap-2 overflow-x-auto">
+          <div className="flex items-center gap-1.5 pr-2.5 border-r border-[#bfd3f0]">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_6px_#10b981]" />
+            <span className="font-bold text-[11px] text-[#16325c]">Sistema Online</span>
+          </div>
+
+          <ShortcutButton kbd="F2" label="Buscar" onClick={handleSearch} />
+          <ShortcutButton kbd="F3" label="Limpar" onClick={handleClearFilters} />
+          <ShortcutButton kbd="F5" label="Atualizar" onClick={handleSearch} />
+          <ShortcutButton kbd="F8" label="Selecionar" onClick={handleToggleSelectAll} />
+          <ShortcutButton kbd="F12" label="Imprimir" onClick={() => executePrint("SELECTED")} />
+          <ShortcutButton kbd="ESC" label="Voltar" onClick={() => router.push("/")} />
+        </div>
+
+        <div className="hidden md:flex items-center gap-2.5 text-[#0d2d6c]">
+          <Barcode size={17} className="text-[#16325c]" />
+          <div className="h-3.5 w-[1px] bg-[#bfd3f0]" />
+          <span className="font-extrabold tracking-tight text-[11px] text-[#0d2d6c]">CyberTech RP</span>
+        </div>
+      </div>
+
+      {/* ─── MODAL: VISUALIZAR ANTES DE IMPRIMIR ─── */}
+      {previewOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-[#bfd3f0] rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden">
+            <div className="p-4 bg-[#f3f8ff] border-b border-[#c3d6f2] flex items-center justify-between">
+              <h3 className="text-sm font-extrabold text-[#0d2d6c] flex items-center gap-2">
+                <Eye size={16} className="text-[#1554c0]" /> Pré-visualização das Etiquetas (
+                {selectedProductsList.length} produtos / {totalLabelsToPrint} etiquetas)
+              </h3>
+              <button
+                onClick={() => setPreviewOpen(false)}
+                className="text-gray-500 hover:text-gray-800 p-1"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-6 max-h-[65vh] overflow-y-auto bg-[#e9f1fc] flex flex-wrap gap-3 justify-center">
+              {selectedProductsList.length === 0 ? (
+                <p className="text-xs font-bold text-gray-500 py-8">
+                  Nenhum produto selecionado para visualizar.
+                </p>
+              ) : (
+                selectedProductsList.map((p) => (
+                  <div
+                    key={p.id}
+                    className="w-[230px] h-[125px] bg-white border-2 border-gray-800 rounded-lg p-2.5 flex flex-col justify-between text-black shadow-md"
+                  >
+                    <div>
+                      <div className="text-[11px] font-black uppercase truncate text-center border-b border-gray-300 pb-0.5">
+                        {p.name}
+                      </div>
+                      <div className="text-[9px] font-bold text-gray-600 text-center mt-0.5">
+                        {p.section} • Qtd: {getCopies(p.id)} via(s)
+                      </div>
+                    </div>
+                    <div className="flex items-end justify-between">
+                      {printBarcode ? (
+                        <div className="text-center">
+                          <div className="font-mono text-base leading-none tracking-tighter">
+                            ||||||||||||
+                          </div>
+                          <div className="text-[8px] font-mono font-bold">
+                            {p.barcode || p.code}
+                          </div>
+                        </div>
+                      ) : (
+                        <div />
+                      )}
+                      {printPrice && (
+                        <div className="text-right">
+                          <span className="text-[10px] font-black mr-0.5">R$</span>
+                          <span className="text-2xl font-black leading-none">
+                            {p.currentPrice.toFixed(2).replace(".", ",")}
+                          </span>
+                          <span className="text-[9px] font-bold ml-0.5">/{p.unit}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="p-4 bg-[#f3f8ff] border-t border-[#c3d6f2] flex justify-end gap-2">
+              <button
+                onClick={() => setPreviewOpen(false)}
+                className="px-4 py-2 rounded-xl bg-white border border-[#bfd3f0] text-gray-700 font-bold text-xs"
+              >
+                Fechar
+              </button>
+              <button
+                onClick={() => {
+                  setPreviewOpen(false);
+                  executePrint("SELECTED");
+                }}
+                className="px-5 py-2 rounded-xl bg-[#1554c0] hover:bg-[#0d3b8e] text-white font-bold text-xs flex items-center gap-1.5"
+              >
+                <Printer size={14} /> Confirmar e Imprimir (F12)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── MODAL: ALTERAR PREÇO DE PRODUTO (PARA TESTAR REPOSIÇÃO DE ETIQUETA EM TEMPO REAL) ─── */}
+      {quickPriceModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-[#bfd3f0] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="p-4 bg-[#f3f8ff] border-b border-[#c3d6f2] flex items-center justify-between">
+              <h3 className="text-sm font-extrabold text-[#0d2d6c] flex items-center gap-2">
+                <DollarSign size={16} className="text-[#1554c0]" /> Alterar Preço de Produto no Banco
+              </h3>
+              <button
+                onClick={() => setQuickPriceModalOpen(false)}
+                className="text-gray-500 hover:text-gray-800 p-1"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <form onSubmit={handleConfirmQuickPriceChange} className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-[#1e3a6d] mb-1">
+                  Selecionar Produto do Cadastro
+                </label>
+                <select
+                  value={targetProductId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setTargetProductId(id);
+                    const found = allCatalogProducts.find((x) => x.id === id);
+                    if (found) {
+                      setNewPriceInput(String((Number(found.price) + 1.0).toFixed(2)));
+                    }
+                  }}
+                  className="w-full px-3 py-2 bg-[#f3f8ff] border border-[#bfd3f0] rounded-xl text-xs font-bold text-gray-900"
+                >
+                  {allCatalogProducts.map((prod) => (
+                    <option key={prod.id} value={prod.id}>
+                      {prod.name} — [{prod.section}] (Atual: R$ {Number(prod.price).toFixed(2)})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-[#1e3a6d] mb-1">
+                  Novo Preço de Venda (R$)
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  required
+                  value={newPriceInput}
+                  onChange={(e) => setNewPriceInput(e.target.value)}
+                  className="w-full px-3 py-2 bg-[#f3f8ff] border border-[#bfd3f0] rounded-xl text-base font-mono font-black text-gray-900"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setQuickPriceModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 font-bold text-xs"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-[#1554c0] hover:bg-[#0d3b8e] text-white font-bold text-xs"
+                >
+                  Salvar Novo Preço e Gerar Histórico
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
 }
 
-function TabBtn({ active, onClick, children, count }: { active: boolean; onClick: () => void; children: React.ReactNode; count?: number }) {
+function ShortcutButton({
+  kbd,
+  label,
+  onClick,
+}: {
+  kbd: string;
+  label: string;
+  onClick: () => void;
+}) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
-        active
-          ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20"
-          : "text-slate-400 hover:text-white hover:bg-[#161b33]"
-      }`}
+      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#f5f9ff] hover:bg-white border border-[#b9d0f0] shadow-2xs transition-all cursor-pointer active:scale-95"
     >
-      {children}
-      {count !== undefined && count > 0 && (
-        <span className={`text-xs px-1.5 py-0.5 rounded-md font-black ${active ? "bg-white/20" : "bg-amber-500/20 text-amber-400"}`}>
-          {count}
-        </span>
-      )}
+      <span className="px-1.5 py-0.5 rounded bg-[#dce8fa] border border-[#a8c5ec] font-mono font-extrabold text-[10px] text-[#0d3b8e]">
+        {kbd}
+      </span>
+      <span className="font-bold text-[11px] text-[#1e3a6d]">{label}</span>
     </button>
   );
 }

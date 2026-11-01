@@ -213,7 +213,10 @@ model Product {
 
   // Balança e Produção Própria
   isSelfProduced Boolean @default(false)
-  internalCode   String? // 5 dígitos para Prix Toledo
+  internalCode   String? // Código de Balança (PLU de 4 ou 5 dígitos para Prix Toledo)
+  sendToScale    Boolean @default(false) // Flag indicando se produto vai para balança
+  scaleDays      Int?    @default(0)     // Dias de validade na balança
+  scaleDept      Int?    @default(1)     // Departamento na balança Toledo (1 a 99)
 
   // Familiarização / Variações
   parentProductId String?

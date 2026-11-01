@@ -6,6 +6,14 @@ import { getTenantCompanyInfo, updateTenantCompanyInfo } from "@/actions/company
 import { TenantUsersManager } from "./TenantUsersManager";
 import { CustoOperacionalTab } from "./CustoOperacionalTab";
 import {
+  loadPdvPaymentConfig,
+  savePdvPaymentConfig,
+  PdvPaymentConfig,
+  DEFAULT_PDV_PAYMENT_CONFIG,
+  ALL_SUGGESTED_ACQUIRERS,
+  ALL_SUGGESTED_BRANDS,
+} from "@/lib/pdvPaymentConfig";
+import {
   Settings as SettingsIcon,
   Shield,
   User,
@@ -95,50 +103,50 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-5 max-w-5xl">
+    <div className="space-y-5 max-w-5xl pb-16">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white tracking-tight">Configurações da Empresa</h1>
+        <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Configurações da Empresa</h1>
       </div>
 
-      <div className="bg-[#111528] rounded-2xl border border-indigo-500/[0.08] shadow-xl overflow-hidden flex min-h-[600px]">
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm flex min-h-[600px]">
         {/* Sidebar */}
-        <div className="w-72 border-r border-indigo-500/[0.08] bg-[#0c0f1a]/50 p-5 space-y-1 shrink-0">
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wider px-3 mb-4">Configurações</p>
+        <div className="w-72 border-r border-gray-100 bg-gray-50 p-5 space-y-1 shrink-0">
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-wider px-3 mb-4">Configurações</p>
           {TABS.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
                 activeTab === tab.id
-                  ? "bg-indigo-600/20 text-indigo-400 border border-indigo-500/30"
-                  : "text-slate-400 hover:bg-[#161b33] hover:text-slate-100"
+                  ? "bg-blue-600 text-white shadow-sm"
+                  : "text-gray-600 hover:bg-white hover:text-gray-900 hover:shadow-sm"
               }`}
             >
-              {tab.icon}
+              <span className={activeTab === tab.id ? "text-white" : "text-gray-400"}>{tab.icon}</span>
               {tab.label}
               {tab.id === "fiscal" && (
-                <span className="ml-auto text-xs bg-amber-500/20 text-amber-400 px-1.5 py-0.5 rounded-md border border-amber-500/20">!</span>
+                <span className="ml-auto text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-md border border-amber-200">!</span>
               )}
             </button>
           ))}
         </div>
 
         {/* Content */}
-        <div className="flex-1 p-8 overflow-y-auto">
+        <div className="flex-1 p-8">
           {saved && (
-            <div className="mb-5 flex items-center gap-2 text-emerald-400 text-sm font-bold bg-emerald-500/10 border border-emerald-500/30 px-4 py-2.5 rounded-xl">
+            <div className="mb-5 flex items-center gap-2 text-emerald-700 text-sm font-bold bg-emerald-50 border border-emerald-200 px-4 py-2.5 rounded-xl">
               <CheckCircle2 size={18} /> Alterações salvas com sucesso!
             </div>
           )}
 
           {errorMsg && (
-            <div className="mb-5 flex items-center gap-2 text-red-400 text-sm font-bold bg-red-500/10 border border-red-500/30 px-4 py-2.5 rounded-xl">
+            <div className="mb-5 flex items-center gap-2 text-red-600 text-sm font-bold bg-red-50 border border-red-200 px-4 py-2.5 rounded-xl">
               <AlertTriangle size={18} /> {errorMsg}
             </div>
           )}
 
           {loading ? (
-            <div className="py-20 flex justify-center text-slate-400">
+            <div className="py-20 flex justify-center text-gray-400">
               <Loader2 className="animate-spin" size={28} />
             </div>
           ) : (
@@ -147,6 +155,9 @@ export default function SettingsPage() {
                 <GeralTab
                   company={companyData}
                   fiscal={fiscalData}
+                  certFile={certFile}
+                  setCertFile={setCertFile}
+                  setActiveTab={setActiveTab}
                   saving={saving}
                   onSubmit={handleGeralSave}
                 />
@@ -175,13 +186,17 @@ export default function SettingsPage() {
   );
 }
 
-function GeralTab({ company, fiscal, saving, onSubmit }: any) {
+function GeralTab({ company, fiscal, certFile, setCertFile, setActiveTab, saving, onSubmit }: any) {
   return (
-    <form onSubmit={onSubmit} className="space-y-5">
-      <div className="flex items-center gap-3 mb-6">
-        <Building2 className="text-indigo-400" size={24} />
-        <h2 className="text-lg font-bold text-white">Informações da Empresa</h2>
+    <form onSubmit={onSubmit} className="space-y-6">
+      <div className="flex items-center gap-3 mb-4">
+        <Building2 className="text-blue-600" size={24} />
+        <div>
+          <h2 className="text-lg font-bold text-gray-900">Informações da Empresa</h2>
+          <p className="text-gray-500 text-xs">Identificação comercial e credenciais fiscais da matriz</p>
+        </div>
       </div>
+
       <div className="space-y-4">
         <Field
           label="Razão Social *"
@@ -204,14 +219,89 @@ function GeralTab({ company, fiscal, saving, onSubmit }: any) {
           placeholder="00.000.000/0001-00"
         />
       </div>
-      <div className="pt-4 border-t border-indigo-500/[0.08]">
+
+      {/* 🔐 Seção de Importação do Certificado Digital A1 direto na Aba Geral */}
+      <div className="pt-5 border-t border-gray-200 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Shield className="text-blue-600" size={20} />
+            <h3 className="text-base font-bold text-gray-900">Certificado Digital A1 (.pfx / .p12)</h3>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveTab("fiscal")}
+            className="text-xs text-blue-600 hover:text-blue-800 font-bold hover:underline flex items-center gap-1"
+          >
+            Ver aba Fiscal &amp; NF-e &rarr;
+          </button>
+        </div>
+
+        <div className="p-4 bg-blue-50/70 border border-blue-200 rounded-2xl text-xs text-blue-800 flex gap-3">
+          <Info size={18} className="shrink-0 mt-0.5 text-blue-600" />
+          <div className="leading-relaxed">
+            O certificado digital A1 é obrigatório para assinar <strong>NF-e, NFC-e</strong> e para a busca automática de notas no <strong>Radar SEFAZ DF-e</strong>. Você pode carregá-lo diretamente aqui ou na aba lateral <strong>Fiscal &amp; NF-e</strong>.
+          </div>
+        </div>
+
+        {/* Upload Box */}
+        <div className={`border-2 border-dashed rounded-2xl p-6 text-center transition-colors ${certFile || fiscal?.certUploaded ? "border-emerald-400 bg-emerald-50/50" : "border-gray-300 bg-gray-50/60 hover:border-blue-400 hover:bg-blue-50/30"}`}>
+          {certFile || fiscal?.certUploaded ? (
+            <div className="space-y-2">
+              <CheckCircle2 size={34} className="mx-auto text-emerald-600" />
+              <p className="text-emerald-800 font-bold text-sm">
+                {certFile ? certFile.name : "Certificado Digital A1 Instalado e Ativo"}
+              </p>
+              {fiscal?.certExpiration && (
+                <p className="text-gray-500 text-xs">Válido até: {new Date(fiscal.certExpiration).toLocaleDateString("pt-BR")}</p>
+              )}
+              <div className="flex items-center justify-center gap-3 pt-1">
+                <label className="text-blue-600 text-xs font-bold hover:underline cursor-pointer">
+                  Substituir Arquivo .pfx
+                  <input type="file" accept=".pfx,.p12" className="hidden" onChange={e => setCertFile(e.target.files?.[0] ?? null)} />
+                </label>
+                {certFile && (
+                  <button type="button" onClick={() => setCertFile(null)} className="text-red-500 text-xs hover:underline font-bold">
+                    Cancelar novo arquivo
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <label className="cursor-pointer block">
+              <input type="file" accept=".pfx,.p12" className="hidden" onChange={e => setCertFile(e.target.files?.[0] ?? null)} />
+              <Upload size={32} className="mx-auto text-gray-400 mb-2" />
+              <p className="text-gray-800 font-bold text-sm">Clique ou arraste seu arquivo .pfx ou .p12</p>
+              <p className="text-gray-500 text-xs mt-0.5">Certificado Digital modelo A1 (Serasa, Certisign, Soluti, etc.)</p>
+              <div className="mt-3 inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition-colors">
+                <Upload size={14} /> Selecionar Certificado (.pfx)
+              </div>
+            </label>
+          )}
+        </div>
+
+        {/* Senha do Certificado */}
+        <div>
+          <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
+            Senha do Certificado Digital A1
+          </label>
+          <input
+            type="password"
+            name="certPassword"
+            placeholder={fiscal?.certUploaded ? "•••••••• (Senha já configurada. Digite apenas se desejar alterar)" : "Digite a senha do arquivo .pfx"}
+            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-900 rounded-xl outline-none focus:border-blue-500 focus:bg-white text-sm transition-all placeholder:text-gray-400"
+          />
+          <p className="text-gray-400 text-[11px] mt-1">A senha é armazenada de forma segura com criptografia.</p>
+        </div>
+      </div>
+
+      <div className="pt-4 border-t border-gray-200">
         <button
           type="submit"
           disabled={saving}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-indigo-600/20 transition-colors disabled:opacity-50"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-md shadow-blue-500/20 transition-colors disabled:opacity-50 text-sm"
         >
           {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-          Salvar Dados da Empresa
+          Salvar Dados da Empresa &amp; Certificado
         </button>
       </div>
     </form>
@@ -223,22 +313,22 @@ function FiscalTab({ fiscal, company, env, setEnv, certFile, setCertFile, saving
     <form onSubmit={onSubmit} className="space-y-5">
       <div className="flex items-center justify-between mb-2">
         <div>
-          <h2 className="text-lg font-bold text-white">Configuração Fiscal & NF-e</h2>
-          <p className="text-slate-400 text-sm">Dados para emissão de NF-e e NFC-e pela SEFAZ</p>
+          <h2 className="text-lg font-bold text-gray-900">Configuração Fiscal & NF-e</h2>
+          <p className="text-gray-500 text-sm">Dados para emissão de NF-e e NFC-e pela SEFAZ</p>
         </div>
       </div>
 
       {/* Environment Toggle */}
-      <div className="p-5 bg-[#161b33] rounded-2xl border border-indigo-500/15">
-        <p className="text-slate-300 font-bold text-sm mb-3">🌐 Ambiente de Emissão</p>
+      <div className="p-5 bg-gray-50 rounded-2xl border border-gray-200">
+        <p className="text-gray-700 font-bold text-sm mb-3">🌐 Ambiente de Emissão</p>
         <div className="flex gap-3">
           <button
             type="button"
             onClick={() => setEnv("homologacao")}
             className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${
               env === "homologacao"
-                ? "bg-amber-500/20 text-amber-400 border-2 border-amber-500/50"
-                : "bg-[#111528] text-slate-400 border border-indigo-500/15 hover:border-slate-600"
+                ? "bg-amber-50 text-amber-700 border-2 border-amber-400"
+                : "bg-white text-gray-600 border border-gray-200 hover:border-gray-300"
             }`}
           >
             🧪 Homologação
@@ -249,8 +339,8 @@ function FiscalTab({ fiscal, company, env, setEnv, certFile, setCertFile, saving
             onClick={() => setEnv("producao")}
             className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${
               env === "producao"
-                ? "bg-emerald-500/20 text-emerald-400 border-2 border-emerald-500/50"
-                : "bg-[#111528] text-slate-400 border border-indigo-500/15 hover:border-slate-600"
+                ? "bg-emerald-50 text-emerald-700 border-2 border-emerald-400"
+                : "bg-white text-gray-600 border border-gray-200 hover:border-gray-300"
             }`}
           >
             🏭 Produção
@@ -261,8 +351,8 @@ function FiscalTab({ fiscal, company, env, setEnv, certFile, setCertFile, saving
 
       {/* Company Data */}
       <div className="space-y-4">
-        <h3 className="text-white font-bold text-sm flex items-center gap-2">
-          <FileText size={16} className="text-indigo-400" /> Dados da Emitente
+        <h3 className="text-gray-900 font-bold text-sm flex items-center gap-2">
+          <FileText size={16} className="text-blue-600" /> Dados da Emitente
         </h3>
         <div className="grid grid-cols-2 gap-4">
           <Field
@@ -288,11 +378,11 @@ function FiscalTab({ fiscal, company, env, setEnv, certFile, setCertFile, saving
             placeholder="Empório Modelo"
           />
           <div>
-            <label className="block text-sm font-bold text-slate-300 mb-1.5">Regime Tributário</label>
+            <label className="block text-sm font-bold text-gray-700 mb-1.5">Regime Tributário</label>
             <select
               name="taxRegime"
               defaultValue={fiscal?.taxRegime || "SN"}
-              className="w-full px-4 py-3 bg-[#161b33] border border-indigo-500/15 text-slate-100 rounded-xl outline-none focus:border-indigo-500"
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 text-gray-900 rounded-xl outline-none focus:border-blue-500 focus:bg-white transition-all"
             >
               <option value="SN">Simples Nacional</option>
               <option value="LP">Lucro Presumido</option>
@@ -318,8 +408,8 @@ function FiscalTab({ fiscal, company, env, setEnv, certFile, setCertFile, saving
 
       {/* Address */}
       <div className="space-y-4">
-        <h3 className="text-white font-bold text-sm flex items-center gap-2">
-          <Building2 size={16} className="text-indigo-400" /> Endereço Fiscal
+        <h3 className="text-gray-900 font-bold text-sm flex items-center gap-2">
+          <Building2 size={16} className="text-blue-600" /> Endereço Fiscal
         </h3>
         <div className="grid grid-cols-3 gap-4">
           <div className="col-span-2">
@@ -351,11 +441,11 @@ function FiscalTab({ fiscal, company, env, setEnv, certFile, setCertFile, saving
             placeholder="São Paulo"
           />
           <div>
-            <label className="block text-sm font-bold text-slate-300 mb-1.5">Estado</label>
+            <label className="block text-sm font-bold text-gray-700 mb-1.5">Estado</label>
             <select
               name="state"
               defaultValue={fiscal?.state || "SP"}
-              className="w-full px-4 py-3 bg-[#161b33] border border-indigo-500/15 text-slate-100 rounded-xl outline-none focus:border-indigo-500 text-sm"
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 text-gray-900 rounded-xl outline-none focus:border-blue-500 focus:bg-white transition-all text-sm"
             >
               {["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"].map(s => (
                 <option key={s} value={s}>{s}</option>
@@ -375,7 +465,7 @@ function FiscalTab({ fiscal, company, env, setEnv, certFile, setCertFile, saving
 
       {/* Series */}
       <div className="space-y-4">
-        <h3 className="text-white font-bold text-sm">📋 Numeração</h3>
+        <h3 className="text-gray-900 font-bold text-sm">📋 Numeração</h3>
         <div className="grid grid-cols-2 gap-4">
           <Field
             label="Série NF-e"
@@ -394,12 +484,12 @@ function FiscalTab({ fiscal, company, env, setEnv, certFile, setCertFile, saving
 
       {/* Focus NFe Token */}
       <div className="space-y-4">
-        <h3 className="text-white font-bold text-sm">⚡ Integração Focus NFe (Emissor)</h3>
-        <div className="p-4 bg-blue-500/10 border border-blue-500/20 rounded-xl text-sm text-blue-300 flex gap-3">
-          <Info size={18} className="shrink-0 mt-0.5" />
+        <h3 className="text-gray-900 font-bold text-sm">⚡ Integração Focus NFe (Emissor)</h3>
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-700 flex gap-3">
+          <Info size={18} className="shrink-0 mt-0.5 text-blue-500" />
           <div>
             Para emissão real, crie uma conta em{" "}
-            <a href="https://focusnfe.com.br" target="_blank" className="underline font-bold text-blue-200 hover:text-white">focusnfe.com.br</a>
+            <a href="https://focusnfe.com.br" target="_blank" className="underline font-bold text-blue-600 hover:text-blue-800">focusnfe.com.br</a>
             {" "}e cole seu token abaixo. Em Homologação, a API é gratuita para testes.
           </div>
         </div>
@@ -413,33 +503,33 @@ function FiscalTab({ fiscal, company, env, setEnv, certFile, setCertFile, saving
 
       {/* Certificate */}
       <div className="space-y-4">
-        <h3 className="text-white font-bold text-sm">🔐 Certificado Digital A1</h3>
-        <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-sm text-amber-300 flex gap-3">
-          <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+        <h3 className="text-gray-900 font-bold text-sm">🔐 Certificado Digital A1</h3>
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700 flex gap-3">
+          <AlertTriangle size={18} className="shrink-0 mt-0.5 text-amber-500" />
           <div>
             Seu certificado digital é o arquivo <strong>.pfx</strong> gerado pela sua CA (Serasa, Certisign, Soluti, etc.). Ele é necessário para assinar digitalmente as notas fiscais.
           </div>
         </div>
 
-        <div className={`border-2 border-dashed rounded-2xl p-8 text-center transition-colors ${certFile || fiscal?.certUploaded ? "border-emerald-500/50 bg-emerald-500/5" : "border-indigo-500/15 bg-[#161b33]/30 hover:border-indigo-500/50 hover:bg-indigo-500/5"}`}>
+        <div className={`border-2 border-dashed rounded-2xl p-8 text-center transition-colors ${certFile || fiscal?.certUploaded ? "border-emerald-400 bg-emerald-50" : "border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50"}`}>
           {certFile || fiscal?.certUploaded ? (
             <div className="space-y-2">
-              <CheckCircle2 size={36} className="mx-auto text-emerald-400" />
-              <p className="text-emerald-400 font-bold">{certFile ? certFile.name : "Certificado Digital A1 Carregado"}</p>
+              <CheckCircle2 size={36} className="mx-auto text-emerald-500" />
+              <p className="text-emerald-700 font-bold">{certFile ? certFile.name : "Certificado Digital A1 Carregado"}</p>
               {fiscal?.certExpiration && (
-                <p className="text-slate-400 text-xs">Válido até: {new Date(fiscal.certExpiration).toLocaleDateString("pt-BR")}</p>
+                <p className="text-gray-500 text-xs">Válido até: {new Date(fiscal.certExpiration).toLocaleDateString("pt-BR")}</p>
               )}
               {certFile && (
-                <button type="button" onClick={() => setCertFile(null)} className="text-red-400 text-xs hover:underline">Remover</button>
+                <button type="button" onClick={() => setCertFile(null)} className="text-red-500 text-xs hover:underline">Remover</button>
               )}
             </div>
           ) : (
             <label className="cursor-pointer block">
               <input type="file" accept=".pfx,.p12" className="hidden" onChange={e => setCertFile(e.target.files?.[0] ?? null)} />
-              <Upload size={36} className="mx-auto text-slate-500 mb-3" />
-              <p className="text-slate-300 font-bold">Clique para carregar o certificado</p>
-              <p className="text-slate-500 text-sm mt-1">Arquivos .pfx ou .p12 (certificado A1)</p>
-              <div className="mt-3 inline-flex items-center gap-2 bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 px-4 py-2 rounded-xl text-sm font-bold">
+              <Upload size={36} className="mx-auto text-gray-400 mb-3" />
+              <p className="text-gray-700 font-bold">Clique para carregar o certificado</p>
+              <p className="text-gray-500 text-sm mt-1">Arquivos .pfx ou .p12 (certificado A1)</p>
+              <div className="mt-3 inline-flex items-center gap-2 bg-blue-50 text-blue-600 border border-blue-200 px-4 py-2 rounded-xl text-sm font-bold">
                 <Upload size={16} /> Selecionar Arquivo .pfx
               </div>
             </label>
@@ -448,23 +538,23 @@ function FiscalTab({ fiscal, company, env, setEnv, certFile, setCertFile, saving
 
         {(certFile || fiscal?.certUploaded) && (
           <div>
-            <label className="block text-sm font-bold text-slate-300 mb-1.5">Senha do Certificado</label>
+            <label className="block text-sm font-bold text-gray-700 mb-1.5">Senha do Certificado</label>
             <input
               type="password"
               name="certPassword"
               placeholder="••••••••"
-              className="w-full px-4 py-3 bg-[#161b33] border border-indigo-500/15 text-white rounded-xl outline-none focus:border-indigo-500 transition-all"
+              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 text-gray-900 rounded-xl outline-none focus:border-blue-500 focus:bg-white transition-all"
             />
-            <p className="text-slate-500 text-xs mt-1.5">A senha é armazenada de forma segura e criptografada.</p>
+            <p className="text-gray-400 text-xs mt-1.5">A senha é armazenada de forma segura e criptografada.</p>
           </div>
         )}
       </div>
 
-      <div className="pt-4 border-t border-indigo-500/[0.08]">
+      <div className="pt-4 border-t border-gray-200">
         <button
           type="submit"
           disabled={saving}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-indigo-600/20 transition-colors disabled:opacity-50"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-bold flex items-center gap-2 shadow-md shadow-blue-500/20 transition-colors disabled:opacity-50"
         >
           {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
           Salvar Configuração Fiscal
@@ -475,16 +565,265 @@ function FiscalTab({ fiscal, company, env, setEnv, certFile, setCertFile, saving
 }
 
 function PagamentosTab() {
+  const [cfg, setCfg] = useState<PdvPaymentConfig>(DEFAULT_PDV_PAYMENT_CONFIG);
+  const [newAcq, setNewAcq] = useState("");
+  const [newBrand, setNewBrand] = useState("");
+  const [savedToast, setSavedToast] = useState(false);
+
+  useEffect(() => {
+    setCfg(loadPdvPaymentConfig());
+  }, []);
+
+  const updateCfg = (next: PdvPaymentConfig) => {
+    setCfg(next);
+    savePdvPaymentConfig(next);
+  };
+
   return (
-    <div className="space-y-5">
-      <h2 className="text-lg font-bold text-white">Pagamentos e PIX</h2>
-      <div className="space-y-4">
-        <Field label="Chave PIX" name="pix" placeholder="12.345.678/0001-99 ou email@pix.com" />
-        <Field label="Nome Beneficiário PIX" name="pixName" placeholder="Mercado & Empório Modelo LTDA" />
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-bold text-gray-900">Formas de Pagamento, PIX e Maquinetas POS (PDV)</h2>
+        <p className="text-gray-500 text-sm">
+          Personalize como as formas de pagamento e maquinetas POS funcionam no PDV de acordo com a operação deste cliente.
+        </p>
       </div>
-      <div className="pt-4">
-        <button className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-indigo-600/20 transition-colors">
-          <Save size={18} /> Salvar
+
+      {savedToast && (
+        <div className="flex items-center gap-2 text-emerald-700 text-sm font-bold bg-emerald-50 border border-emerald-200 px-4 py-2.5 rounded-xl">
+          <CheckCircle2 size={18} /> Configurações de pagamento do PDV salvas!
+        </div>
+      )}
+
+      {/* 1. Formas de Pagamento Ativas no PDV */}
+      <div className="p-5 bg-gray-50 rounded-2xl border border-gray-200 space-y-3">
+        <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">
+          1. Formas de Pagamento Ativas no PDV
+        </h3>
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+          {([
+            { key: "MONEY", label: "Dinheiro" },
+            { key: "PIX", label: "PIX" },
+            { key: "CREDIT_CARD", label: "Cartão Crédito" },
+            { key: "DEBIT_CARD", label: "Cartão Débito" },
+            { key: "VOUCHER", label: "Voucher / Vale" },
+          ] as const).map(m => {
+            const active = cfg.enabledMethods[m.key] !== false;
+            return (
+              <label
+                key={m.key}
+                className={`flex items-center gap-2 p-3 rounded-xl border font-bold text-xs cursor-pointer transition-all ${
+                  active
+                    ? "bg-blue-50 border-blue-500 text-blue-800"
+                    : "bg-white border-gray-200 text-gray-500"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={active}
+                  onChange={e =>
+                    updateCfg({
+                      ...cfg,
+                      enabledMethods: { ...cfg.enabledMethods, [m.key]: e.target.checked },
+                    })
+                  }
+                />
+                {m.label}
+              </label>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 2. Modo de Operação Cartão (Maquineta POS vs Direto) */}
+      <div className="p-5 bg-gray-50 rounded-2xl border border-gray-200 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 uppercase tracking-wider">
+              2. Pagamento em Cartão — Modo Maquineta POS
+            </h3>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Quando ativo, solicita ao operador do caixa a Administradora, Bandeira e o Código de Autenticação impresso no comprovante da maquineta POS.
+            </p>
+          </div>
+          <label className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-gray-200 font-bold text-xs text-blue-700 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={cfg.posModeEnabled}
+              onChange={e => updateCfg({ ...cfg, posModeEnabled: e.target.checked })}
+            />
+            Ativar Modo Maquineta POS
+          </label>
+        </div>
+
+        {cfg.posModeEnabled && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-gray-200">
+            <label className="flex items-center gap-2.5 bg-white p-3 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={cfg.askAcquirer}
+                onChange={e => updateCfg({ ...cfg, askAcquirer: e.target.checked })}
+              />
+              Solicitar seleção da Administradora (Maquineta POS)
+            </label>
+            <label className="flex items-center gap-2.5 bg-white p-3 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={cfg.askBrand}
+                onChange={e => updateCfg({ ...cfg, askBrand: e.target.checked })}
+              />
+              Solicitar seleção da Bandeira do Cartão
+            </label>
+            <label className="flex items-center gap-2.5 bg-white p-3 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={cfg.requireAuthCode}
+                onChange={e => updateCfg({ ...cfg, requireAuthCode: e.target.checked })}
+              />
+              Exigir digitação do Código de Autenticação / NSU do comprovante
+            </label>
+            <label className="flex items-center gap-2.5 bg-white p-3 rounded-xl border border-gray-200 text-xs font-bold text-gray-700 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={cfg.allowInstallments}
+                onChange={e => updateCfg({ ...cfg, allowInstallments: e.target.checked })}
+              />
+              Habilitar seleção de Parcelas no Crédito
+            </label>
+          </div>
+        )}
+      </div>
+
+      {/* 3. Maquinetas (Administradoras) e Bandeiras deste Cliente */}
+      {cfg.posModeEnabled && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="p-5 bg-gray-50 rounded-2xl border border-gray-200 space-y-3">
+            <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider">
+              Maquinetas (Administradoras) do Cliente
+            </h3>
+            <div className="flex flex-wrap gap-1.5">
+              {Array.from(new Set([...ALL_SUGGESTED_ACQUIRERS, ...cfg.acquirers])).map(acq => {
+                const active = cfg.acquirers.includes(acq);
+                return (
+                  <button
+                    key={acq}
+                    type="button"
+                    onClick={() => {
+                      const next = active
+                        ? cfg.acquirers.filter(a => a !== acq)
+                        : [...cfg.acquirers, acq];
+                      if (next.length > 0) updateCfg({ ...cfg, acquirers: next });
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      active
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    {active ? "✓ " : "+ "}
+                    {acq}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex gap-2 pt-1">
+              <input
+                type="text"
+                value={newAcq}
+                onChange={e => setNewAcq(e.target.value)}
+                placeholder="Adicionar outra maquineta..."
+                className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-blue-500"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const v = newAcq.trim();
+                  if (v && !cfg.acquirers.includes(v)) {
+                    updateCfg({ ...cfg, acquirers: [...cfg.acquirers, v] });
+                    setNewAcq("");
+                  }
+                }}
+                className="px-3 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold cursor-pointer"
+              >
+                Adicionar
+              </button>
+            </div>
+          </div>
+
+          <div className="p-5 bg-gray-50 rounded-2xl border border-gray-200 space-y-3">
+            <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider">
+              Bandeiras Aceitas pelo Cliente
+            </h3>
+            <div className="flex flex-wrap gap-1.5">
+              {Array.from(new Set([...ALL_SUGGESTED_BRANDS, ...cfg.brands])).map(brand => {
+                const active = cfg.brands.includes(brand);
+                return (
+                  <button
+                    key={brand}
+                    type="button"
+                    onClick={() => {
+                      const next = active
+                        ? cfg.brands.filter(b => b !== brand)
+                        : [...cfg.brands, brand];
+                      if (next.length > 0) updateCfg({ ...cfg, brands: next });
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      active
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    {active ? "✓ " : "+ "}
+                    {brand}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex gap-2 pt-1">
+              <input
+                type="text"
+                value={newBrand}
+                onChange={e => setNewBrand(e.target.value)}
+                placeholder="Adicionar outra bandeira..."
+                className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-blue-500"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const v = newBrand.trim();
+                  if (v && !cfg.brands.includes(v)) {
+                    updateCfg({ ...cfg, brands: [...cfg.brands, v] });
+                    setNewBrand("");
+                  }
+                }}
+                className="px-3 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold cursor-pointer"
+              >
+                Adicionar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 4. Dados PIX */}
+      <div className="p-5 bg-gray-50 rounded-2xl border border-gray-200 space-y-4">
+        <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider">Configuração de Chave PIX</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Field label="Chave PIX" name="pix" placeholder="12.345.678/0001-99 ou email@pix.com" />
+          <Field label="Nome Beneficiário PIX" name="pixName" placeholder="Mercado & Empório Modelo LTDA" />
+        </div>
+      </div>
+
+      <div className="pt-2">
+        <button
+          type="button"
+          onClick={() => {
+            savePdvPaymentConfig(cfg);
+            setSavedToast(true);
+            setTimeout(() => setSavedToast(false), 3000);
+          }}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-md shadow-blue-500/20 transition-colors cursor-pointer"
+        >
+          <Save size={18} /> Salvar Configurações de Pagamento
         </button>
       </div>
     </div>
@@ -498,10 +837,10 @@ function UsuariosTab() {
 function SegurancaTab() {
   return (
     <div className="space-y-5">
-      <h2 className="text-lg font-bold text-white">Segurança & Senhas</h2>
+      <h2 className="text-lg font-bold text-gray-900">Segurança & Senhas</h2>
       <div className="space-y-4">
-        <div className="p-5 bg-[#161b33] rounded-2xl border border-indigo-500/15 space-y-4">
-          <h3 className="text-white font-bold">Alterar Senha do Usuário</h3>
+        <div className="p-5 bg-gray-50 rounded-2xl border border-gray-200 space-y-4">
+          <h3 className="text-gray-900 font-bold">Alterar Senha do Usuário</h3>
           <Field label="Senha Atual" name="currentPwd" type="password" placeholder="••••••••" />
           <div className="grid grid-cols-2 gap-4">
             <Field label="Nova Senha" name="newPwd" type="password" placeholder="••••••••" />
@@ -509,7 +848,7 @@ function SegurancaTab() {
           </div>
         </div>
       </div>
-      <button className="bg-indigo-600 hover:bg-indigo-500 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-indigo-600/20 transition-colors">
+      <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 shadow-md shadow-blue-500/20 transition-colors">
         <Save size={18} /> Salvar Senha
       </button>
     </div>
@@ -533,14 +872,14 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-sm font-bold text-slate-300 mb-1.5">{label}</label>
+      <label className="block text-sm font-bold text-gray-700 mb-1.5">{label}</label>
       <input
         type={type}
         name={name}
         placeholder={placeholder}
         required={required}
         defaultValue={defaultValue}
-        className="w-full px-4 py-3 bg-[#161b33] border border-indigo-500/15 text-white rounded-xl focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all placeholder:text-slate-500 text-sm"
+        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 text-gray-900 rounded-xl focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500/10 outline-none transition-all placeholder:text-gray-400 text-sm"
       />
     </div>
   );

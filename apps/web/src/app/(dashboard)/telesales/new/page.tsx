@@ -103,17 +103,17 @@ export default function NewOrderPage() {
     <div className="space-y-5 max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-4">
-        <Link href="/telesales" className="p-2 bg-[#161b33] border border-indigo-500/15 rounded-xl hover:bg-[#161b33] transition-colors">
-          <ArrowLeft size={20} className="text-slate-300" />
+        <Link href="/telesales" className="p-2 bg-[#eaf1fc] border border-[#c4d5ee] rounded-xl hover:bg-[#eaf1fc] transition-colors">
+          <ArrowLeft size={20} className="text-slate-600" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-white">Novo Pedido</h1>
-          <p className="text-slate-400 text-sm">Televendas — tire um pedido completo</p>
+          <h1 className="text-2xl font-bold text-gray-900">Novo Pedido</h1>
+          <p className="text-slate-500 text-sm">Televendas — tire um pedido completo</p>
         </div>
       </div>
 
       {error && (
-        <div className="p-4 bg-red-500/10 border border-red-500/30 text-red-400 rounded-xl text-sm font-medium">
+        <div className="p-4 bg-red-500/10 border border-red-500/30 text-red-600 rounded-xl text-sm font-medium">
           {error}
         </div>
       )}
@@ -123,8 +123,8 @@ export default function NewOrderPage() {
         <div className="lg:col-span-2 space-y-5">
           
           {/* Product Search */}
-          <div className="bg-[#111528] rounded-2xl border border-indigo-500/[0.08] p-6">
-            <h2 className="text-white font-bold mb-4 flex items-center gap-2"><Package size={20} className="text-indigo-400" /> Produtos</h2>
+          <div className="bg-[#fbfdff] rounded-2xl border border-indigo-500/[0.08] p-6">
+            <h2 className="text-gray-900 font-bold mb-4 flex items-center gap-2"><Package size={20} className="text-indigo-600" /> Produtos</h2>
             
             <div className="relative mb-4">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
@@ -132,24 +132,24 @@ export default function NewOrderPage() {
                 value={productSearch}
                 onChange={e => { setProductSearch(e.target.value); setShowProductSearch(true); }}
                 onFocus={() => setShowProductSearch(true)}
-                className="w-full pl-11 pr-4 py-3 bg-[#161b33] border border-indigo-500/15 text-slate-100 rounded-xl outline-none focus:border-indigo-500 placeholder:text-slate-500"
+                className="w-full pl-11 pr-4 py-3 bg-[#eaf1fc] border border-[#c4d5ee] text-slate-800 rounded-xl outline-none focus:border-indigo-500 placeholder:text-slate-500"
                 placeholder="Buscar produto por nome ou código..."
               />
               {showProductSearch && productSearch && (
-                <div className="absolute top-full left-0 right-0 bg-[#161b33] border border-indigo-500/15 rounded-xl mt-1 z-30 max-h-60 overflow-y-auto shadow-2xl">
+                <div className="absolute top-full left-0 right-0 bg-[#eaf1fc] border border-[#c4d5ee] rounded-xl mt-1 z-30 max-h-60 overflow-y-auto shadow-2xl">
                   {filteredProducts.length === 0 ? (
                     <div className="p-4 text-slate-500 text-sm text-center">Nenhum produto encontrado</div>
                   ) : filteredProducts.slice(0, 8).map(p => (
                     <button
                       key={p.id}
                       onClick={() => addItem(p)}
-                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-[#161b33] transition-colors text-left"
+                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-[#eaf1fc] transition-colors text-left"
                     >
                       <div>
-                        <div className="text-white font-medium text-sm">{p.name}</div>
-                        <div className="text-slate-400 text-xs">{p.barcode || "Sem código"} · Estoque: {p.stock}</div>
+                        <div className="text-gray-900 font-medium text-sm">{p.name}</div>
+                        <div className="text-slate-500 text-xs">{p.barcode || "Sem código"} · Estoque: {p.stock}</div>
                       </div>
-                      <div className="text-indigo-400 font-bold text-sm">R$ {p.price.toFixed(2).replace('.', ',')}</div>
+                      <div className="text-indigo-600 font-bold text-sm">R$ {p.price.toFixed(2).replace('.', ',')}</div>
                     </button>
                   ))}
                 </div>
@@ -165,10 +165,10 @@ export default function NewOrderPage() {
             ) : (
               <div className="space-y-2">
                 {items.map(item => (
-                  <div key={item.productId} className="flex items-center gap-3 bg-[#161b33] rounded-xl p-3 border border-indigo-500/15">
+                  <div key={item.productId} className="flex items-center gap-3 bg-[#eaf1fc] rounded-xl p-3 border border-[#c4d5ee]">
                     <div className="flex-1 min-w-0">
-                      <div className="text-white font-medium text-sm truncate">{item.name}</div>
-                      <div className="text-slate-400 text-xs">R$ {item.unitPrice.toFixed(2).replace('.', ',')}/un</div>
+                      <div className="text-gray-900 font-medium text-sm truncate">{item.name}</div>
+                      <div className="text-slate-500 text-xs">R$ {item.unitPrice.toFixed(2).replace('.', ',')}/un</div>
                     </div>
                     <div className="flex items-center gap-2">
                       <input
@@ -176,16 +176,16 @@ export default function NewOrderPage() {
                         min={1}
                         value={item.quantity}
                         onChange={e => updateItem(item.productId, "quantity", parseFloat(e.target.value) || 1)}
-                        className="w-16 text-center bg-[#111528] border border-slate-600 text-white rounded-lg py-1.5 px-2 text-sm outline-none focus:border-indigo-500"
+                        className="w-16 text-center bg-[#fbfdff] border border-slate-600 text-gray-900 rounded-lg py-1.5 px-2 text-sm outline-none focus:border-indigo-500"
                       />
-                      <span className="text-slate-400 text-xs">×</span>
+                      <span className="text-slate-500 text-xs">×</span>
                       <input
                         type="number"
                         min={0}
                         step={0.01}
                         value={item.unitPrice}
                         onChange={e => updateItem(item.productId, "unitPrice", parseFloat(e.target.value) || 0)}
-                        className="w-24 text-center bg-[#111528] border border-slate-600 text-white rounded-lg py-1.5 px-2 text-sm outline-none focus:border-indigo-500"
+                        className="w-24 text-center bg-[#fbfdff] border border-slate-600 text-gray-900 rounded-lg py-1.5 px-2 text-sm outline-none focus:border-indigo-500"
                       />
                       <span className="text-slate-500 text-xs">Desc:</span>
                       <input
@@ -194,12 +194,12 @@ export default function NewOrderPage() {
                         step={0.01}
                         value={item.discount}
                         onChange={e => updateItem(item.productId, "discount", parseFloat(e.target.value) || 0)}
-                        className="w-20 text-center bg-[#111528] border border-slate-600 text-amber-400 rounded-lg py-1.5 px-2 text-sm outline-none focus:border-amber-500"
+                        className="w-20 text-center bg-[#fbfdff] border border-slate-600 text-amber-600 rounded-lg py-1.5 px-2 text-sm outline-none focus:border-amber-500"
                       />
-                      <div className="text-white font-bold text-sm w-24 text-right">
+                      <div className="text-gray-900 font-bold text-sm w-24 text-right">
                         R$ {((item.quantity * item.unitPrice) - item.discount).toFixed(2).replace('.', ',')}
                       </div>
-                      <button onClick={() => removeItem(item.productId)} className="text-red-400 hover:text-red-300 p-1 hover:bg-red-500/10 rounded-lg transition-colors">
+                      <button onClick={() => removeItem(item.productId)} className="text-red-600 hover:text-red-700 p-1 hover:bg-red-500/10 rounded-lg transition-colors">
                         <Trash2 size={16} />
                       </button>
                     </div>
@@ -214,13 +214,13 @@ export default function NewOrderPage() {
         <div className="space-y-5">
           
           {/* Seller Selector */}
-          <div className="bg-[#111528] rounded-2xl border border-indigo-500/[0.08] p-6">
-            <h2 className="text-white font-bold mb-4 flex items-center gap-2"><User size={18} className="text-indigo-400" /> Vendedor</h2>
+          <div className="bg-[#fbfdff] rounded-2xl border border-indigo-500/[0.08] p-6">
+            <h2 className="text-gray-900 font-bold mb-4 flex items-center gap-2"><User size={18} className="text-indigo-600" /> Vendedor</h2>
             <div className="space-y-2">
               {sellers.length === 0 ? (
                 <div className="text-slate-500 text-sm text-center py-4">
                   <p>Nenhum vendedor cadastrado.</p>
-                  <Link href="/telesales/sellers/new" className="text-indigo-400 text-xs mt-1 block hover:underline">+ Cadastrar vendedor</Link>
+                  <Link href="/telesales/sellers/new" className="text-indigo-600 text-xs mt-1 block hover:underline">+ Cadastrar vendedor</Link>
                 </div>
               ) : (
                 <>
@@ -232,7 +232,7 @@ export default function NewOrderPage() {
                         className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-bold transition-all ${
                           selectedSeller?.id === s.id
                             ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/20"
-                            : "bg-[#161b33] text-slate-300 hover:bg-[#161b33] border border-indigo-500/15"
+                            : "bg-[#eaf1fc] text-slate-600 hover:bg-[#eaf1fc] border border-[#c4d5ee]"
                         }`}
                       >
                         <div className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-black">
@@ -242,22 +242,22 @@ export default function NewOrderPage() {
                       </button>
                     ))}
                   </div>
-                  <Link href="/telesales/sellers/new" className="text-indigo-400 text-xs block mt-2 hover:underline">+ Novo vendedor</Link>
+                  <Link href="/telesales/sellers/new" className="text-indigo-600 text-xs block mt-2 hover:underline">+ Novo vendedor</Link>
                 </>
               )}
             </div>
           </div>
 
           {/* Customer Selector */}
-          <div className="bg-[#111528] rounded-2xl border border-indigo-500/[0.08] p-6">
-            <h2 className="text-white font-bold mb-4 flex items-center gap-2"><Phone size={18} className="text-indigo-400" /> Cliente</h2>
+          <div className="bg-[#fbfdff] rounded-2xl border border-indigo-500/[0.08] p-6">
+            <h2 className="text-gray-900 font-bold mb-4 flex items-center gap-2"><Phone size={18} className="text-indigo-600" /> Cliente</h2>
             {selectedCustomer ? (
-              <div className="flex items-center justify-between bg-[#161b33] rounded-xl p-3 border border-indigo-500/30">
+              <div className="flex items-center justify-between bg-[#eaf1fc] rounded-xl p-3 border border-indigo-200">
                 <div>
-                  <div className="text-white font-bold text-sm">{selectedCustomer.name}</div>
-                  <div className="text-slate-400 text-xs">{selectedCustomer.phone || selectedCustomer.document || "—"}</div>
+                  <div className="text-gray-900 font-bold text-sm">{selectedCustomer.name}</div>
+                  <div className="text-slate-500 text-xs">{selectedCustomer.phone || selectedCustomer.document || "—"}</div>
                 </div>
-                <button onClick={() => setSelectedCustomer(null)} className="text-red-400 text-xs hover:underline">Remover</button>
+                <button onClick={() => setSelectedCustomer(null)} className="text-red-600 text-xs hover:underline">Remover</button>
               </div>
             ) : (
               <div className="relative">
@@ -267,41 +267,41 @@ export default function NewOrderPage() {
                   onChange={e => { setCustomerSearch(e.target.value); setShowCustomerSearch(true); }}
                   onFocus={() => setShowCustomerSearch(true)}
                   placeholder="Buscar cliente..."
-                  className="w-full pl-9 pr-4 py-2.5 bg-[#161b33] border border-indigo-500/15 text-slate-100 rounded-xl outline-none focus:border-indigo-500 text-sm placeholder:text-slate-500"
+                  className="w-full pl-9 pr-4 py-2.5 bg-[#eaf1fc] border border-[#c4d5ee] text-slate-800 rounded-xl outline-none focus:border-indigo-500 text-sm placeholder:text-slate-500"
                 />
                 {showCustomerSearch && customerSearch && (
-                  <div className="absolute top-full left-0 right-0 bg-[#161b33] border border-indigo-500/15 rounded-xl mt-1 z-30 max-h-48 overflow-y-auto shadow-2xl">
+                  <div className="absolute top-full left-0 right-0 bg-[#eaf1fc] border border-[#c4d5ee] rounded-xl mt-1 z-30 max-h-48 overflow-y-auto shadow-2xl">
                     {filteredCustomers.slice(0, 5).map(c => (
                       <button
                         key={c.id}
                         onClick={() => { setSelectedCustomer(c); setShowCustomerSearch(false); setCustomerSearch(""); }}
-                        className="w-full px-4 py-2.5 hover:bg-[#161b33] text-left text-sm"
+                        className="w-full px-4 py-2.5 hover:bg-[#eaf1fc] text-left text-sm"
                       >
-                        <div className="text-white font-medium">{c.name}</div>
-                        <div className="text-slate-400 text-xs">{c.phone || c.document || "—"}</div>
+                        <div className="text-gray-900 font-medium">{c.name}</div>
+                        <div className="text-slate-500 text-xs">{c.phone || c.document || "—"}</div>
                       </button>
                     ))}
                   </div>
                 )}
               </div>
             )}
-            <Link href="/customers/new" className="text-indigo-400 text-xs mt-2 block hover:underline">+ Novo cliente</Link>
+            <Link href="/customers/new" className="text-indigo-600 text-xs mt-2 block hover:underline">+ Novo cliente</Link>
           </div>
 
           {/* Notes */}
-          <div className="bg-[#111528] rounded-2xl border border-indigo-500/[0.08] p-6">
-            <h2 className="text-white font-bold mb-3 text-sm">Observações</h2>
+          <div className="bg-[#fbfdff] rounded-2xl border border-indigo-500/[0.08] p-6">
+            <h2 className="text-gray-900 font-bold mb-3 text-sm">Observações</h2>
             <textarea
               value={notes}
               onChange={e => setNotes(e.target.value)}
               rows={3}
               placeholder="Ex: Entregar pela manhã..."
-              className="w-full bg-[#161b33] border border-indigo-500/15 text-slate-300 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 resize-none placeholder:text-slate-500"
+              className="w-full bg-[#eaf1fc] border border-[#c4d5ee] text-slate-600 rounded-xl px-4 py-3 text-sm outline-none focus:border-indigo-500 resize-none placeholder:text-slate-500"
             />
           </div>
 
           {/* Totals */}
-          <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl border border-indigo-500/15 p-6">
+          <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl border border-[#c4d5ee] p-6">
             <div className="space-y-3 mb-5">
               <div className="flex justify-between text-slate-400 text-sm">
                 <span>Subtotal</span>
@@ -311,7 +311,7 @@ export default function NewOrderPage() {
                 <span>Descontos</span>
                 <span>- R$ {discountTotal.toFixed(2).replace('.', ',')}</span>
               </div>
-              <div className="border-t border-indigo-500/15 pt-3 flex justify-between text-white font-black text-xl">
+              <div className="border-t border-[#c4d5ee] pt-3 flex justify-between text-white font-black text-xl">
                 <span>Total</span>
                 <span>R$ {total.toFixed(2).replace('.', ',')}</span>
               </div>
@@ -334,7 +334,7 @@ export default function NewOrderPage() {
               <button
                 onClick={() => handleSubmit("DRAFT")}
                 disabled={loading || items.length === 0}
-                className="w-full py-2.5 rounded-xl font-bold text-slate-300 bg-[#161b33] hover:bg-[#161b33] border border-indigo-500/15 transition-colors disabled:opacity-40"
+                className="w-full py-2.5 rounded-xl font-bold text-slate-600 bg-[#eaf1fc] hover:bg-[#eaf1fc] border border-[#c4d5ee] transition-colors disabled:opacity-40"
               >
                 💾 Salvar Rascunho
               </button>

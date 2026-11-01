@@ -3,6 +3,7 @@
 import { prisma } from "@emporio/database";
 import { getSession } from "@/lib/session";
 import { revalidatePath } from "next/cache";
+import { toPlain } from "@/lib/serialize";
 
 export async function getB2BOrders() {
   try {
@@ -21,7 +22,7 @@ export async function getB2BOrders() {
       orderBy: { createdAt: "desc" },
     });
 
-    return { orders };
+    return { orders: toPlain(orders) };
   } catch (err: any) {
     return { error: err.message || "Erro ao buscar pedidos B2B", orders: [] };
   }
@@ -104,7 +105,7 @@ export async function createB2BOrder(data: {
     });
 
     revalidatePath("/distribution/orders");
-    return { success: true, order };
+    return { success: true, order: toPlain(order) };
   } catch (err: any) {
     return { error: err.message || "Erro ao criar pedido B2B" };
   }
@@ -121,7 +122,7 @@ export async function updateB2BOrderStatus(orderId: string, status: string) {
     });
 
     revalidatePath("/distribution/orders");
-    return { success: true, order };
+    return { success: true, order: toPlain(order) };
   } catch (err: any) {
     return { error: err.message || "Erro ao atualizar status do pedido" };
   }

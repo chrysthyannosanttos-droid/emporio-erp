@@ -99,10 +99,10 @@ export function QuickAuthModal({
 
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-      <div className="bg-[#101426] border border-indigo-500/25 rounded-3xl w-full max-w-md shadow-2xl shadow-indigo-950/50 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
+      <div className="bg-[#fbfdff] border border-indigo-200 rounded-3xl w-full max-w-md shadow-2xl shadow-indigo-950/50 overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header com gradiente */}
-        <div className="p-5 bg-gradient-to-r from-indigo-900/40 via-purple-900/20 to-transparent border-b border-indigo-500/15 flex items-center justify-between">
+        <div className="p-5 bg-gradient-to-r from-indigo-900/40 via-purple-900/20 to-transparent border-b border-[#c4d5ee] flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
               <ShieldCheck size={20} />
@@ -121,15 +121,15 @@ export function QuickAuthModal({
         </div>
 
         {/* Resumo da Operação */}
-        <div className="px-5 py-3.5 bg-[#0c0f1e] border-b border-indigo-500/10 flex items-center justify-between text-xs">
+        <div className="px-5 py-3.5 bg-[#f3f7fe] border-b border-[#c4d5ee] flex items-center justify-between text-xs">
           <div>
             <span className="text-slate-500 block">Terminal:</span>
-            <span className="text-slate-300 font-semibold">{terminal}</span>
+            <span className="text-slate-600 font-semibold">{terminal}</span>
           </div>
           {value > 0 && (
             <div className="text-right">
               <span className="text-slate-500 block">Valor envolvido:</span>
-              <span className="text-amber-400 font-bold text-sm">
+              <span className="text-amber-600 font-bold text-sm">
                 {operation.includes("discount") ? `${value}%` : `R$ ${value.toFixed(2)}`}
               </span>
             </div>
@@ -138,8 +138,8 @@ export function QuickAuthModal({
 
         {/* Mensagem de Erro se houver */}
         {error && (
-          <div className="mx-5 mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-2.5 text-xs text-red-300">
-            <AlertCircle size={16} className="shrink-0 text-red-400" />
+          <div className="mx-5 mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-2.5 text-xs text-red-700">
+            <AlertCircle size={16} className="shrink-0 text-red-600" />
             <span className="flex-1">{error}</span>
           </div>
         )}
@@ -148,39 +148,39 @@ export function QuickAuthModal({
         <div className="p-5 space-y-4 flex-1 overflow-y-auto">
           {/* Motivo */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Motivo da Operação <span className="text-red-400">*</span>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+              Motivo da Operação <span className="text-red-600">*</span>
             </label>
             <input
               type="text"
               value={reason}
               onChange={e => setReason(e.target.value)}
               placeholder="Ex: Cliente desistiu da compra / Desconto fidelidade"
-              className="w-full bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-white px-3.5 py-2.5 rounded-xl outline-none text-xs placeholder:text-slate-600 transition-colors"
+              className="w-full bg-[#f3f7fe] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 px-3.5 py-2.5 rounded-xl outline-none text-xs placeholder:text-slate-600 transition-colors"
             />
           </div>
 
           {/* Autorizador Identificador */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-              Usuário Autorizador (Supervisor / Gerente) <span className="text-red-400">*</span>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+              Usuário Autorizador (Supervisor / Gerente) <span className="text-red-600">*</span>
             </label>
             <input
               type="text"
               value={identifier}
               onChange={e => setIdentifier(e.target.value)}
               placeholder="Nome ou e-mail do autorizador"
-              className="w-full bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-white px-3.5 py-2.5 rounded-xl outline-none text-xs placeholder:text-slate-600 transition-colors"
+              className="w-full bg-[#f3f7fe] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 px-3.5 py-2.5 rounded-xl outline-none text-xs placeholder:text-slate-600 transition-colors"
             />
           </div>
 
           {/* Tipo de Autenticação: PIN ou Senha */}
-          <div className="flex gap-2 p-1 bg-[#0c0f1a] border border-indigo-500/15 rounded-xl">
+          <div className="flex gap-2 p-1 bg-[#f3f7fe] border border-[#c4d5ee] rounded-xl">
             <button
               type="button"
               onClick={() => setAuthType("PIN")}
               className={`flex-1 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
-                authType === "PIN" ? "bg-indigo-600 text-white shadow" : "text-slate-400 hover:text-slate-200"
+                authType === "PIN" ? "bg-indigo-600 text-white shadow" : "text-slate-500 hover:text-slate-700"
               }`}
             >
               <Key size={13} />
@@ -190,7 +190,7 @@ export function QuickAuthModal({
               type="button"
               onClick={() => setAuthType("PASSWORD")}
               className={`flex-1 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
-                authType === "PASSWORD" ? "bg-indigo-600 text-white shadow" : "text-slate-400 hover:text-slate-200"
+                authType === "PASSWORD" ? "bg-indigo-600 text-white shadow" : "text-slate-500 hover:text-slate-700"
               }`}
             >
               <Lock size={13} />
@@ -200,26 +200,26 @@ export function QuickAuthModal({
 
           {authType === "PASSWORD" ? (
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">Senha do Autorizador</label>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5">Senha do Autorizador</label>
               <input
                 type="password"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-white px-3.5 py-2.5 rounded-xl outline-none text-xs transition-colors"
+                className="w-full bg-[#f3f7fe] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 px-3.5 py-2.5 rounded-xl outline-none text-xs transition-colors"
               />
             </div>
           ) : (
             <div className="space-y-3">
               {/* Display do PIN Mascarado */}
-              <div className="flex justify-center items-center gap-3 py-2 bg-[#0c0f1a] border border-indigo-500/15 rounded-2xl">
+              <div className="flex justify-center items-center gap-3 py-2 bg-[#f3f7fe] border border-[#c4d5ee] rounded-2xl">
                 {[0, 1, 2, 3, 4, 5].map(idx => (
                   <div
                     key={idx}
                     className={`w-3.5 h-3.5 rounded-full transition-all ${
                       idx < pin.length
                         ? "bg-amber-400 scale-110 shadow-[0_0_8px_rgba(251,191,36,0.8)]"
-                        : "bg-slate-800 border border-slate-700"
+                        : "bg-[#eaf1fc] border border-[#c4d5ee]"
                     }`}
                   />
                 ))}
@@ -232,7 +232,7 @@ export function QuickAuthModal({
                     key={digit}
                     type="button"
                     onClick={() => handlePinClick(digit)}
-                    className="h-11 bg-[#14192d] hover:bg-indigo-600/30 active:bg-indigo-600 border border-indigo-500/10 hover:border-indigo-500/30 text-white text-base font-bold rounded-xl transition-all flex items-center justify-center cursor-pointer select-none"
+                    className="h-11 bg-[#fbfdff] hover:bg-indigo-600/30 active:bg-indigo-600 border border-[#c4d5ee] hover:border-indigo-200 text-gray-900 text-base font-bold rounded-xl transition-all flex items-center justify-center cursor-pointer select-none"
                   >
                     {digit}
                   </button>
@@ -240,21 +240,21 @@ export function QuickAuthModal({
                 <button
                   type="button"
                   onClick={handlePinClear}
-                  className="h-11 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs font-semibold rounded-xl border border-red-500/15 transition-all flex items-center justify-center"
+                  className="h-11 bg-red-500/10 hover:bg-red-500/20 text-red-600 text-xs font-semibold rounded-xl border border-red-500/15 transition-all flex items-center justify-center"
                 >
                   Limpar
                 </button>
                 <button
                   type="button"
                   onClick={() => handlePinClick("0")}
-                  className="h-11 bg-[#14192d] hover:bg-indigo-600/30 text-white text-base font-bold rounded-xl border border-indigo-500/10 transition-all flex items-center justify-center cursor-pointer select-none"
+                  className="h-11 bg-[#fbfdff] hover:bg-indigo-600/30 text-gray-900 text-base font-bold rounded-xl border border-[#c4d5ee] transition-all flex items-center justify-center cursor-pointer select-none"
                 >
                   0
                 </button>
                 <button
                   type="button"
                   onClick={handlePinBackspace}
-                  className="h-11 bg-[#14192d] hover:bg-slate-700 text-slate-400 hover:text-white text-xs font-semibold rounded-xl border border-indigo-500/10 transition-all flex items-center justify-center"
+                  className="h-11 bg-[#fbfdff] hover:bg-slate-700 text-slate-500 hover:text-gray-900 text-xs font-semibold rounded-xl border border-[#c4d5ee] transition-all flex items-center justify-center"
                 >
                   ⌫
                 </button>
@@ -264,12 +264,12 @@ export function QuickAuthModal({
         </div>
 
         {/* Footer com Ações */}
-        <div className="p-5 bg-[#0c0f1e] border-t border-indigo-500/10 flex gap-2.5">
+        <div className="p-5 bg-[#f3f7fe] border-t border-[#c4d5ee] flex gap-2.5">
           <button
             type="button"
             onClick={onClose}
             disabled={loading}
-            className="flex-1 py-3 px-4 bg-[#14192d] hover:bg-[#1a203a] text-slate-300 font-semibold rounded-2xl text-xs border border-indigo-500/10 transition-all"
+            className="flex-1 py-3 px-4 bg-[#fbfdff] hover:bg-[#eaf1fc] text-slate-600 font-semibold rounded-2xl text-xs border border-[#c4d5ee] transition-all"
           >
             Cancelar
           </button>

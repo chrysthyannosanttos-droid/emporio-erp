@@ -50,17 +50,17 @@ export function CompanyActions({
   const isSuspended = currentStatus === "SUSPENDED";
 
   return (
-    <div className="bg-[#111626] border border-emerald-500/[0.08] rounded-xl p-5 flex flex-col gap-4">
-      <h2 className="text-sm font-semibold text-white">Ações da Licença</h2>
+    <div className="bg-[#fbfdff] border border-emerald-500/[0.08] rounded-xl p-5 flex flex-col gap-4">
+      <h2 className="text-sm font-semibold text-gray-900">Ações da Licença</h2>
 
       {/* Renovar */}
       <div className="flex flex-col gap-2">
-        <label className="text-xs text-slate-400">Renovar por (dias)</label>
+        <label className="text-xs text-slate-500">Renovar por (dias)</label>
         <div className="flex gap-2">
           <select
             value={days}
             onChange={(e) => setDays(e.target.value)}
-            className="flex-1 px-3 py-2 bg-[#06080e] border border-emerald-500/[0.08] rounded-lg text-sm text-white outline-none"
+            className="flex-1 px-3 py-2 bg-[#e8f0fc] border border-emerald-500/[0.08] rounded-lg text-sm text-gray-900 outline-none"
           >
             <option value="7">7 dias</option>
             <option value="30">30 dias</option>
@@ -87,7 +87,7 @@ export function CompanyActions({
           <button
             onClick={() => handleStatus("ACTIVE")}
             disabled={!!loading}
-            className="w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-400 text-sm font-medium rounded-lg border border-emerald-500/20 transition-colors disabled:opacity-60"
+            className="w-full flex items-center justify-center gap-2 py-2.5 bg-emerald-600/20 hover:bg-emerald-600/40 text-emerald-600 text-sm font-medium rounded-lg border border-emerald-500/20 transition-colors disabled:opacity-60"
           >
             {loading === "ACTIVE" ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
             Ativar Empresa
@@ -97,7 +97,7 @@ export function CompanyActions({
           <button
             onClick={() => handleStatus("SUSPENDED")}
             disabled={!!loading}
-            className="w-full flex items-center justify-center gap-2 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-sm font-medium rounded-lg border border-amber-500/20 transition-colors disabled:opacity-60"
+            className="w-full flex items-center justify-center gap-2 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 text-sm font-medium rounded-lg border border-amber-500/20 transition-colors disabled:opacity-60"
           >
             {loading === "SUSPENDED" ? <Loader2 size={14} className="animate-spin" /> : <ShieldOff size={14} />}
             Suspender
@@ -106,15 +106,15 @@ export function CompanyActions({
         <button
           onClick={() => handleStatus("READ_ONLY")}
           disabled={!!loading}
-          className="w-full flex items-center justify-center gap-2 py-2.5 bg-slate-500/10 hover:bg-slate-500/20 text-slate-400 text-sm font-medium rounded-lg border border-slate-500/20 transition-colors disabled:opacity-60"
+          className="w-full flex items-center justify-center gap-2 py-2.5 bg-slate-500/10 hover:bg-slate-500/20 text-slate-500 text-sm font-medium rounded-lg border border-slate-500/20 transition-colors disabled:opacity-60"
         >
           {loading === "READ_ONLY" ? <Loader2 size={14} className="animate-spin" /> : <Lock size={14} />}
           Modo Somente Leitura
         </button>
       </div>
 
-      {error && <p className="text-xs text-red-400 mt-1">{error}</p>}
-      {success && <p className="text-xs text-emerald-400 mt-1">{success}</p>}
+      {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
+      {success && <p className="text-xs text-emerald-600 mt-1">{success}</p>}
     </div>
   );
 }

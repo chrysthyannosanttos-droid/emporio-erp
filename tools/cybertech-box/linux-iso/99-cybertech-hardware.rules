@@ -1,0 +1,61 @@
+# ==============================================================================
+# CYBERTECH BOX - REGRAS UDEV UNIVERSAIS PARA FRENTE DE CAIXA (LINUX)
+# Suporte a Pinpads (TEF), Impressoras Térmicas e Balanças de Checkout
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. PINPADS (TEF - Transferência Eletrônica de Fundos)
+# Libera permissão total (0666) e grupo 'dialout' / 'lp' para comunicação serial/USB
+# ------------------------------------------------------------------------------
+
+# GERTEC (PPC 900, PPC 910, PPC 920, PPC 930)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="1cf1", MODE="0666", GROUP="dialout"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1cf1", MODE="0666", GROUP="dialout", SYMLINK+="pinpad_gertec"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0525", ATTRS{idProduct}=="a4a7", MODE="0666", GROUP="dialout"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0525", ATTRS{idProduct}=="a4a7", MODE="0666", GROUP="dialout", SYMLINK+="pinpad_gertec_cdc"
+
+# INGENICO (iPP320, iPP350, Lane 3000, Move 2500)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="079b", MODE="0666", GROUP="dialout"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="079b", MODE="0666", GROUP="dialout", SYMLINK+="pinpad_ingenico"
+
+# VERIFONE (Vx805, Vx820, P400)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="11ca", MODE="0666", GROUP="dialout"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="11ca", MODE="0666", GROUP="dialout", SYMLINK+="pinpad_verifone"
+
+# CHIPS USB-SERIAL COMUNS EM PINPADS E LEITORES (FTDI, Prolific, CH340, Silicon Labs)
+SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", MODE="0666", GROUP="dialout"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="067b", MODE="0666", GROUP="dialout"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", MODE="0666", GROUP="dialout"
+SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", MODE="0666", GROUP="dialout"
+
+# ------------------------------------------------------------------------------
+# 2. IMPRESSORAS TÉRMICAS NÃO FISCAIS (ESC/POS)
+# ------------------------------------------------------------------------------
+
+# EPSON (TM-T20, TM-T20X, TM-T88IV/V/VI, TM-T70)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="04b8", MODE="0666", GROUP="lp"
+KERNEL=="lp[0-9]*", ATTRS{idVendor}=="04b8", MODE="0666", GROUP="lp", SYMLINK+="printer_epson"
+
+# ELGIN (i7, i9, i9+, Elgin Wind)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0dd4", MODE="0666", GROUP="lp"
+KERNEL=="lp[0-9]*", ATTRS{idVendor}=="0dd4", MODE="0666", GROUP="lp", SYMLINK+="printer_elgin"
+
+# BEMATECH (MP-4200 TH, MP-100S TH, MP-2800)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0b1b", MODE="0666", GROUP="lp"
+KERNEL=="lp[0-9]*", ATTRS{idVendor}=="0b1b", MODE="0666", GROUP="lp", SYMLINK+="printer_bematech"
+
+# DARUMA (DR700, DR800)
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", MODE="0666", GROUP="lp", SYMLINK+="printer_daruma"
+
+# GENÉRICO USB THERMAL PRINTER
+KERNEL=="lp[0-9]*", MODE="0666", GROUP="lp"
+SUBSYSTEM=="usblp", MODE="0666", GROUP="lp"
+
+# ------------------------------------------------------------------------------
+# 3. BALANÇAS DE CHECKOUT (TOLEDO, FILIZOLA, URANO, ELGIN)
+# ------------------------------------------------------------------------------
+KERNEL=="ttyUSB*", MODE="0666", GROUP="dialout"
+KERNEL=="ttyACM*", MODE="0666", GROUP="dialout"
+KERNEL=="ttyS0", MODE="0666", GROUP="dialout"
+KERNEL=="ttyS1", MODE="0666", GROUP="dialout"
+

@@ -7,6 +7,7 @@ import {
   Send, Loader2, Tag, TrendingDown, Star, ChevronRight, Bell, CreditCard, Receipt, ArrowLeft, Copy, ExternalLink, Zap, Edit3
 } from "lucide-react";
 import { getProducts } from "@/actions/product";
+import { getSuppliers } from "@/actions/supplier";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 function fmt(v: number) { return v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
@@ -22,43 +23,43 @@ function ReceiveModal({ order, onClose, onConfirm }: {
   const dueDateStr = hasDueDate ? new Date(order.paymentDueDate!).toLocaleDateString("pt-BR") : null;
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-[#111528] border border-indigo-500/15 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
-        <div className="p-5 border-b border-indigo-500/[0.08] flex justify-between items-center bg-[#0c0f1a]/50">
-          <h3 className="text-lg font-bold text-white flex items-center gap-2"><Receipt className="text-emerald-400" size={18}/> Recebimento de NF</h3>
-          <button onClick={onClose} className="p-1 hover:bg-indigo-500/10 rounded-lg text-slate-500"><X size={18}/></button>
+      <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+        <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+          <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2"><Receipt className="text-emerald-600" size={18}/> Recebimento de NF</h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg text-gray-500"><X size={18}/></button>
         </div>
         <div className="p-5 space-y-4">
-          <div className="bg-[#0c0f1a] border border-indigo-500/10 rounded-xl p-4 space-y-2">
-            <div className="flex justify-between"><span className="text-slate-500 text-xs">Pedido</span><span className="text-white font-bold font-mono">{order.id}</span></div>
-            <div className="flex justify-between"><span className="text-slate-500 text-xs">Loja</span><span className="text-indigo-400 font-bold text-xs">{order.storeName}</span></div>
-            <div className="flex justify-between"><span className="text-slate-500 text-xs">Fornecedor</span><span className="text-white font-semibold text-xs">{order.supplier}</span></div>
-            <div className="flex justify-between border-t border-indigo-500/10 pt-2"><span className="text-slate-300 font-semibold text-xs">Total</span><span className="text-emerald-400 font-bold text-lg font-mono">R$ {fmt(order.total)}</span></div>
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-2">
+            <div className="flex justify-between"><span className="text-gray-500 text-xs">Pedido</span><span className="text-gray-900 font-bold font-mono">{order.id}</span></div>
+            <div className="flex justify-between"><span className="text-slate-500 text-xs">Loja</span><span className="text-indigo-600 font-bold text-xs">{order.storeName}</span></div>
+            <div className="flex justify-between"><span className="text-slate-500 text-xs">Fornecedor</span><span className="text-gray-900 font-bold text-xs">{order.supplier}</span></div>
+            <div className="flex justify-between border-t border-gray-200 pt-2"><span className="text-gray-700 font-semibold text-xs">Total</span><span className="text-emerald-600 font-bold text-lg font-mono">R$ {fmt(order.total)}</span></div>
           </div>
           {hasDueDate && (
-            <div className="p-4 bg-amber-500/10 border border-amber-500/25 rounded-xl flex gap-3">
-              <AlertTriangle size={18} className="text-amber-400 shrink-0 mt-0.5" />
+            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl flex gap-3">
+              <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
               <div>
-                <p className="text-amber-300 font-black text-sm">Atenção — Verificar Boleto!</p>
-                <p className="text-amber-200/80 text-xs mt-0.5">
+                <p className="text-amber-700 font-black text-sm">Atenção — Verificar Boleto!</p>
+                <p className="text-amber-700/80 text-xs mt-0.5">
                   A data de pagamento negociada neste pedido é <strong>{dueDateStr}</strong>. Confira se a data do boleto/NF coincide com o acordado.
                 </p>
-                <p className="text-amber-400/60 text-[10px] mt-1">Condição: {order.paymentCondition}</p>
+                <p className="text-amber-600/60 text-[10px] mt-1">Condição: {order.paymentCondition}</p>
               </div>
             </div>
           )}
-          <div className="p-3 bg-slate-500/5 border border-slate-500/10 rounded-xl text-slate-400 text-xs flex gap-2 items-start">
+          <div className="p-3 bg-gray-50 border border-gray-200 rounded-xl text-gray-600 text-xs flex gap-2 items-start">
             <AlertTriangle size={14} className="shrink-0 mt-0.5 text-slate-500" />
             <span>O estoque será atualizado automaticamente ao confirmar o recebimento.</span>
           </div>
           <div>
-            <label className="block text-[10px] font-semibold text-slate-500 mb-1 uppercase">Número da NF-e</label>
+            <label className="block text-[10px] font-semibold text-gray-500 mb-1 uppercase">Número da NF-e</label>
             <input value={invoiceNum} onChange={e => setInvoiceNum(e.target.value)} placeholder="000.000.000"
-              className="w-full bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-white px-3 py-2 rounded-lg outline-none text-sm font-mono" />
+              className="w-full bg-gray-50 border border-gray-200 focus:border-blue-500 focus:bg-white text-gray-900 px-3 py-2 rounded-xl outline-none text-sm font-mono" />
           </div>
           <div className="flex gap-2">
-            <button onClick={onClose} className="flex-1 bg-[#0c0f1a] hover:bg-[#161b33] text-slate-400 font-semibold py-2.5 rounded-xl border border-indigo-500/10 text-sm">Cancelar</button>
+            <button onClick={onClose} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2.5 rounded-xl border border-gray-200 text-sm">Cancelar</button>
             <button onClick={() => onConfirm(order.id, invoiceNum)}
-              className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-xl shadow-lg text-sm flex items-center justify-center gap-1.5">
+              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl shadow-md text-sm flex items-center justify-center gap-1.5">
               <CheckCircle2 size={14}/> Confirmar Recebimento
             </button>
           </div>
@@ -116,24 +117,24 @@ function SupplierResponseModal({ quote, suppliers, onClose, onSave }: {
 
   return (
     <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-[#111528] border border-indigo-500/20 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-        <div className="p-5 border-b border-indigo-500/[0.08] flex justify-between items-center bg-[#0c0f1a]/50">
+      <div className="bg-white border border-gray-200 rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gray-50">
           <div>
-            <h3 className="text-md font-bold text-white flex items-center gap-2">
-              <Mail className="text-indigo-400" size={18}/> Simular / Preencher Resposta de Fornecedor
+            <h3 className="text-md font-bold text-gray-900 flex items-center gap-2">
+              <Mail className="text-blue-600" size={18}/> Simular / Preencher Resposta de Fornecedor
             </h3>
-            <p className="text-[10px] text-slate-400 mt-0.5">Cotação <strong className="text-indigo-300">{quote.id}</strong></p>
+            <p className="text-[10px] text-slate-500 mt-0.5">Cotação <strong className="text-indigo-700">{quote.id}</strong></p>
           </div>
           <button type="button" onClick={onClose} className="p-1 hover:bg-indigo-500/10 rounded-lg text-slate-500"><X size={18}/></button>
         </div>
 
         <div className="p-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 mb-1.5 uppercase">Fornecedor Respondente *</label>
+            <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase">Fornecedor Respondente *</label>
             <select
               value={supplierId}
               onChange={e => handleSupplierChange(e.target.value)}
-              className="w-full bg-[#070914] border border-indigo-500/20 text-white px-3 py-2.5 rounded-xl outline-none text-xs font-semibold focus:border-indigo-500"
+              className="w-full bg-gray-50 border border-gray-200 text-gray-900 px-3 py-2.5 rounded-xl outline-none text-xs font-semibold focus:border-blue-500 focus:bg-white"
             >
               {quote.supplierIds.map(id => {
                 const s = suppliers.find(x => x.id === id);
@@ -148,34 +149,34 @@ function SupplierResponseModal({ quote, suppliers, onClose, onSave }: {
           </div>
 
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 mb-1.5 uppercase">Condição de Pagamento Proposta</label>
+            <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase">Condição de Pagamento Proposta</label>
             <input
               type="text"
               value={paymentProposal}
               onChange={e => setPaymentProposal(e.target.value)}
               placeholder="Ex: 30 dias, À Vista, 28/56 dias"
-              className="w-full bg-[#070914] border border-indigo-500/20 text-white px-3 py-2.5 rounded-xl outline-none text-xs font-medium focus:border-indigo-500"
+              className="w-full bg-gray-50 border border-gray-200 text-gray-900 px-3 py-2.5 rounded-xl outline-none text-xs font-medium focus:border-blue-500 focus:bg-white"
             />
           </div>
 
           <div className="space-y-2">
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Preços Unitários por Produto (R$)</label>
-            <div className="bg-[#070914] border border-indigo-500/15 rounded-xl divide-y divide-indigo-500/10">
+            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">Preços Unitários por Produto (R$)</label>
+            <div className="bg-gray-50 border border-gray-200 rounded-xl divide-y divide-gray-200">
               {quote.products.map(p => (
                 <div key={p.id} className="p-3 flex items-center justify-between gap-3 text-xs">
                   <div className="flex-1">
-                    <p className="text-white font-bold">{p.name}</p>
-                    <p className="text-[10px] text-slate-500">Qtd Solicitada: <strong className="text-indigo-400">{p.qty} {p.unit}</strong></p>
+                    <p className="text-gray-900 font-bold">{p.name}</p>
+                    <p className="text-[10px] text-slate-500">Qtd Solicitada: <strong className="text-indigo-600">{p.qty} {p.unit}</strong></p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-slate-400 font-mono text-xs">R$</span>
+                    <span className="text-slate-500 font-mono text-xs">R$</span>
                     <input
                       type="number"
                       step="0.01"
                       value={prices[p.id] !== undefined ? prices[p.id] : ""}
                       onChange={e => handlePriceChange(p.id, e.target.value)}
                       placeholder="0.00"
-                      className="w-28 bg-[#111528] border border-indigo-500/20 text-emerald-400 font-mono font-bold px-3 py-2 rounded-lg outline-none text-right text-xs focus:border-indigo-500"
+                      className="w-28 bg-white border border-gray-200 text-emerald-600 font-mono font-bold px-3 py-2 rounded-lg outline-none text-right text-xs focus:border-blue-500"
                     />
                   </div>
                 </div>
@@ -184,8 +185,8 @@ function SupplierResponseModal({ quote, suppliers, onClose, onSave }: {
           </div>
         </div>
 
-        <div className="p-4 border-t border-indigo-500/[0.08] bg-[#0c0f1a]/50 flex justify-end gap-2 shrink-0">
-          <button type="button" onClick={onClose} className="px-4 py-2 bg-[#070914] hover:bg-[#161b33] text-slate-400 rounded-xl text-xs font-semibold border border-indigo-500/10">Cancelar</button>
+        <div className="p-4 border-t border-indigo-500/[0.08] bg-[#f3f7fe]/50 flex justify-end gap-2 shrink-0">
+          <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl text-xs font-semibold border border-gray-200">Cancelar</button>
           <button type="button" onClick={handleSave} className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-emerald-600/20 flex items-center gap-1.5 active:scale-95 transition-all">
             <CheckCircle2 size={14} /> Registrar Proposta do Fornecedor
           </button>
@@ -271,10 +272,10 @@ const DEMO_QUOTE: ActiveQuote = {
 };
 
 const STATUS_CFG: Record<OrderStatus, { label: string; cls: string; icon: React.ReactNode }> = {
-  RECEIVED:   { label: "Recebido",    cls: "bg-emerald-500/10 text-emerald-400 border-emerald-500/15", icon: <CheckCircle2 size={12} /> },
-  PENDING:    { label: "Pendente",    cls: "bg-amber-500/10 text-amber-400 border-amber-500/15",       icon: <Clock size={12} /> },
-  IN_TRANSIT: { label: "Em Trânsito", cls: "bg-blue-500/10 text-blue-400 border-blue-500/15",         icon: <Truck size={12} /> },
-  CANCELLED:  { label: "Cancelado",   cls: "bg-red-500/10 text-red-400 border-red-500/15",            icon: <X size={12} /> },
+  RECEIVED:   { label: "Recebido",    cls: "bg-emerald-500/10 text-emerald-600 border-emerald-500/15", icon: <CheckCircle2 size={12} /> },
+  PENDING:    { label: "Pendente",    cls: "bg-amber-500/10 text-amber-600 border-amber-500/15",       icon: <Clock size={12} /> },
+  IN_TRANSIT: { label: "Em Trânsito", cls: "bg-blue-500/10 text-blue-600 border-blue-500/15",         icon: <Truck size={12} /> },
+  CANCELLED:  { label: "Cancelado",   cls: "bg-red-500/10 text-red-600 border-red-500/15",            icon: <X size={12} /> },
 };
 
 function StatusBadge({ status }: { status: OrderStatus }) {
@@ -330,6 +331,18 @@ export default function PurchasesPage() {
 
   useEffect(() => {
     getProducts().then(res => { if (res.products) setProducts(res.products); });
+    getSuppliers().then(res => {
+      if (res.suppliers && res.suppliers.length > 0) {
+        setLocalSuppliers(res.suppliers.map((s: any) => ({
+          id: s.id,
+          name: s.name,
+          cnpj: s.document || "---",
+          quoteEmail: s.quoteEmail || s.email || "---",
+          contactName: s.contactName || "",
+          contactPhone: s.contactPhone || s.phone || "",
+        })));
+      }
+    });
   }, []);
 
   const handleQuickSupplierSave = (e: React.FormEvent) => {
@@ -650,37 +663,37 @@ export default function PurchasesPage() {
   return (
     <>
       {isModalOpen ? (
-        <div className="fixed inset-0 z-50 bg-[#070914] text-white flex flex-col p-6 overflow-hidden animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-50 bg-[#f5f8ff] text-gray-900 flex flex-col p-6 overflow-hidden animate-in fade-in duration-200">
           {/* Header Superior Fullscreen */}
-          <div className="flex items-center justify-between pb-5 border-b border-indigo-500/10 shrink-0">
+          <div className="flex items-center justify-between pb-5 border-b border-gray-200 shrink-0">
             <div className="flex items-center gap-4">
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="p-2.5 bg-[#111528] border border-indigo-500/15 text-slate-400 hover:text-white rounded-xl font-bold text-xs transition-all hover:bg-indigo-600/20 hover:border-indigo-500/30 flex items-center gap-2"
+                className="p-2.5 bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl font-bold text-xs transition-all flex items-center gap-2 shadow-xs"
               >
                 <ArrowLeft size={16} /> Voltar ao Painel
               </button>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-black text-white tracking-tight">Novo Pedido de Compra</h1>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 uppercase tracking-widest">
+                  <h1 className="text-2xl font-black text-gray-900 tracking-tight">Novo Pedido de Compra</h1>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-600 border border-blue-200 uppercase tracking-widest">
                     Modo Emissão
                   </span>
                 </div>
-                <p className="text-slate-400 text-xs mt-0.5">Preencha os fornecedores, prazos, condições de pagamento e itens da compra.</p>
+                <p className="text-slate-500 text-xs mt-0.5">Preencha os fornecedores, prazos, condições de pagamento e itens da compra.</p>
               </div>
             </div>
 
             {/* Quick Stats Badges Header */}
             <div className="flex items-center gap-3">
-              <div className="bg-[#111528] border border-indigo-500/10 px-4 py-2 rounded-xl text-right">
+              <div className="bg-white border border-gray-200 shadow-xs px-4 py-2 rounded-xl text-right">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Itens no Pedido</span>
-                <span className="text-sm font-black text-indigo-400 font-mono">{orderItems.length} produto(s)</span>
+                <span className="text-sm font-black text-blue-600 font-mono">{orderItems.length} produto(s)</span>
               </div>
-              <div className="bg-[#111528] border border-indigo-500/10 px-4 py-2 rounded-xl text-right">
+              <div className="bg-white border border-gray-200 shadow-xs px-4 py-2 rounded-xl text-right">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Lojas Selecionadas</span>
-                <span className="text-sm font-black text-emerald-400 font-mono">{selectedStores.length} loja(s)</span>
+                <span className="text-sm font-black text-emerald-600 font-mono">{selectedStores.length} loja(s)</span>
               </div>
             </div>
           </div>
@@ -690,9 +703,9 @@ export default function PurchasesPage() {
             <div className="col-span-12 lg:col-span-4 space-y-4 overflow-y-auto pr-2 custom-scrollbar">
               
               {/* 1. Lojas de Destino */}
-              <div className="bg-[#0f1324] p-5 rounded-2xl border border-indigo-500/10 space-y-3 shadow-lg">
+              <div className="bg-white p-5 rounded-2xl border border-gray-200 space-y-3 shadow-xs">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-extrabold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
+                  <h4 className="text-xs font-extrabold text-indigo-600 uppercase tracking-wider flex items-center gap-2">
                     <Building size={14} /> 1. Loja de Destino
                   </h4>
                   <span className="text-[10px] text-slate-500">Replicar em múltiplas lojas</span>
@@ -705,8 +718,8 @@ export default function PurchasesPage() {
                         key={store.id}
                         className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
                           isChecked
-                            ? "bg-indigo-600/20 text-indigo-300 border-indigo-500/40 shadow-sm"
-                            : "bg-[#090b16] text-slate-400 border-indigo-500/10 hover:border-slate-700"
+                            ? "bg-indigo-600/20 text-indigo-700 border-indigo-500/40 shadow-sm"
+                            : "bg-[#e8f0fc] text-slate-500 border-[#c4d5ee] hover:border-[#c4d5ee]"
                         }`}
                       >
                         <input
@@ -719,7 +732,7 @@ export default function PurchasesPage() {
                                 : [...prev, store.id]
                             )
                           }
-                          className="rounded text-indigo-600 focus:ring-indigo-500 bg-[#060812] border-slate-700"
+                          className="rounded text-indigo-600 focus:ring-indigo-500 bg-[#e8f0fc] border-[#c4d5ee]"
                         />
                         {store.name}
                       </label>
@@ -729,19 +742,19 @@ export default function PurchasesPage() {
               </div>
 
               {/* 2. Informações Gerais do Fornecedor */}
-              <div className="bg-[#0f1324] p-5 rounded-2xl border border-indigo-500/10 space-y-4 shadow-lg">
-                <h4 className="text-xs font-extrabold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
+              <div className="bg-white p-5 rounded-2xl border border-gray-200 space-y-4 shadow-xs">
+                <h4 className="text-xs font-extrabold text-indigo-600 uppercase tracking-wider flex items-center gap-2">
                   <FileText size={14} /> 2. Informações do Fornecedor
                 </h4>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1.5 uppercase tracking-wider">
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase tracking-wider">
                     Fornecedor Selecionado *
                   </label>
                   <div className="flex gap-2">
                     <select
                       value={selectedSupplier}
                       onChange={(e) => setSelectedSupplier(e.target.value)}
-                      className="flex-1 bg-[#070914] border border-indigo-500/20 text-white px-3.5 py-2.5 rounded-xl outline-none focus:border-indigo-500 text-xs font-semibold transition-all"
+                      className="flex-1 bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3.5 py-2.5 rounded-xl outline-none focus:border-indigo-500 text-xs font-semibold transition-all"
                     >
                       {localSuppliers.map((s) => (
                         <option key={s.id} value={s.name}>
@@ -760,32 +773,32 @@ export default function PurchasesPage() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 mb-1.5 uppercase tracking-wider">
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase tracking-wider">
                     Previsão de Entrega
                   </label>
                   <input
                     type="date"
                     value={expectedDate}
                     onChange={(e) => setExpectedDate(e.target.value)}
-                    className="w-full bg-[#070914] border border-indigo-500/20 text-white px-3.5 py-2.5 rounded-xl outline-none focus:border-indigo-500 text-xs font-medium transition-all"
+                    className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3.5 py-2.5 rounded-xl outline-none focus:border-indigo-500 text-xs font-medium transition-all"
                   />
                 </div>
               </div>
 
               {/* 3. Condições de Pagamento */}
-              <div className="bg-[#0f1324] p-5 rounded-2xl border border-amber-500/15 space-y-4 shadow-lg">
-                <h4 className="text-xs font-extrabold text-amber-400 uppercase tracking-wider flex items-center gap-2">
+              <div className="bg-[#fbfdff] p-5 rounded-2xl border border-amber-500/15 space-y-4 shadow-lg">
+                <h4 className="text-xs font-extrabold text-amber-600 uppercase tracking-wider flex items-center gap-2">
                   <CreditCard size={14} /> 3. Condições Negociadas
                 </h4>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1.5 uppercase tracking-wider">
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase tracking-wider">
                       Prazo Negociado
                     </label>
                     <select
                       value={paymentCondition}
                       onChange={(e) => setPaymentCondition(e.target.value)}
-                      className="w-full bg-[#070914] border border-amber-500/20 focus:border-amber-500 text-white px-3.5 py-2.5 rounded-xl outline-none text-xs font-semibold transition-all"
+                      className="w-full bg-[#e8f0fc] border border-amber-500/20 focus:border-amber-500 text-gray-900 px-3.5 py-2.5 rounded-xl outline-none text-xs font-semibold transition-all"
                     >
                       {[
                         "À Vista",
@@ -805,19 +818,19 @@ export default function PurchasesPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1.5 uppercase tracking-wider">
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase tracking-wider">
                       Vencimento Boleto
                     </label>
                     <input
                       type="date"
                       value={paymentDueDate}
                       onChange={(e) => setPaymentDueDate(e.target.value)}
-                      className="w-full bg-[#070914] border border-amber-500/20 focus:border-amber-500 text-white px-3.5 py-2.5 rounded-xl outline-none text-xs transition-all"
+                      className="w-full bg-[#e8f0fc] border border-amber-500/20 focus:border-amber-500 text-gray-900 px-3.5 py-2.5 rounded-xl outline-none text-xs transition-all"
                     />
                   </div>
                 </div>
                 {paymentDueDate && (
-                  <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[11px] text-amber-300 flex items-center gap-2">
+                  <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-[11px] text-amber-700 flex items-center gap-2">
                     <Bell size={13} className="shrink-0" />
                     <span>Alertas automáticos agendados no Financeiro e Recebimento Fiscal.</span>
                   </div>
@@ -825,22 +838,22 @@ export default function PurchasesPage() {
               </div>
 
               {/* 4. Inserir Item no Pedido */}
-              <div className="bg-[#0f1324] p-5 rounded-2xl border border-indigo-500/10 space-y-4 shadow-lg">
+              <div className="bg-white p-5 rounded-2xl border border-gray-200 space-y-4 shadow-xs">
                 <div className="flex justify-between items-center">
-                  <h4 className="text-xs font-extrabold text-indigo-400 uppercase tracking-wider flex items-center gap-2">
+                  <h4 className="text-xs font-extrabold text-indigo-600 uppercase tracking-wider flex items-center gap-2">
                     <Tag size={14} /> 4. Adicionar Produto
                   </h4>
                   <button
                     type="button"
                     onClick={() => setIsQuickProductModalOpen(true)}
-                    className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 px-2.5 py-1 rounded-lg border border-indigo-500/20 transition-all flex items-center gap-1"
+                    className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 bg-indigo-500/10 hover:bg-indigo-500/20 px-2.5 py-1 rounded-lg border border-indigo-200 transition-all flex items-center gap-1"
                   >
                     + Novo Produto Rápido
                   </button>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                     Buscar por Nome ou Código de Barras
                   </label>
                   <div className="relative">
@@ -850,11 +863,11 @@ export default function PurchasesPage() {
                       value={productSearch}
                       onChange={(e) => setProductSearch(e.target.value)}
                       placeholder="Digite o nome do produto..."
-                      className="w-full pl-9 pr-3.5 py-2.5 bg-[#070914] border border-indigo-500/20 text-white rounded-xl outline-none text-xs font-semibold focus:border-indigo-500 transition-all"
+                      className="w-full pl-9 pr-3.5 py-2.5 bg-[#e8f0fc] border border-indigo-200 text-gray-900 rounded-xl outline-none text-xs font-semibold focus:border-indigo-500 transition-all"
                     />
                   </div>
                   {productSearch.trim().length >= 1 && (
-                    <div className="bg-[#070914] border border-indigo-500/20 rounded-xl max-h-40 overflow-y-auto divide-y divide-indigo-500/10">
+                    <div className="bg-[#e8f0fc] border border-indigo-200 rounded-xl max-h-40 overflow-y-auto divide-y divide-[#c4d5ee]">
                       {products
                         .filter(
                           (p) =>
@@ -870,13 +883,13 @@ export default function PurchasesPage() {
                               setItemCost(p.cost?.toString() ?? "");
                               setProductSearch(p.name);
                             }}
-                            className="p-2.5 cursor-pointer hover:bg-indigo-600/20 text-xs text-white font-medium flex justify-between items-center transition-colors"
+                            className="p-2.5 cursor-pointer hover:bg-indigo-600/20 text-xs text-gray-900 font-medium flex justify-between items-center transition-colors"
                           >
                             <div>
-                              <div className="font-bold text-white">{p.name}</div>
+                              <div className="font-bold text-gray-900">{p.name}</div>
                               <div className="text-[10px] text-slate-500 font-mono">{p.barcode || "Sem EAN"}</div>
                             </div>
-                            <span className="text-amber-400 font-mono text-[10px] font-bold">
+                            <span className="text-amber-600 font-mono text-[10px] font-bold">
                               R$ {fmt(Number(p.cost || p.price))}
                             </span>
                           </div>
@@ -886,10 +899,10 @@ export default function PurchasesPage() {
                 </div>
 
                 {selectedProduct && (
-                  <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl space-y-1.5">
+                  <div className="p-3 bg-indigo-500/10 border border-indigo-200 rounded-xl space-y-1.5">
                     <div className="flex justify-between items-center">
-                      <span className="text-[10px] text-slate-300 font-bold uppercase">Impostos no Cadastro</span>
-                      <span className="text-[11px] text-amber-400 font-bold font-mono">
+                      <span className="text-[10px] text-slate-600 font-bold uppercase">Impostos no Cadastro</span>
+                      <span className="text-[11px] text-amber-600 font-bold font-mono">
                         +
                         {Number(selectedProduct.icmsRate || 0) +
                           Number(selectedProduct.fecoepRate || 0) +
@@ -904,7 +917,7 @@ export default function PurchasesPage() {
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1.5 uppercase tracking-wider">
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase tracking-wider">
                       Quantidade
                     </label>
                     <input
@@ -912,11 +925,11 @@ export default function PurchasesPage() {
                       min="1"
                       value={itemQty}
                       onChange={(e) => setItemQty(e.target.value)}
-                      className="w-full bg-[#070914] border border-indigo-500/20 text-white px-3.5 py-2.5 rounded-xl outline-none text-xs text-right font-mono font-bold focus:border-indigo-500 transition-all"
+                      className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3.5 py-2.5 rounded-xl outline-none text-xs text-right font-mono font-bold focus:border-indigo-500 transition-all"
                     />
                   </div>
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-400 mb-1.5 uppercase tracking-wider">
+                    <label className="block text-[10px] font-bold text-slate-500 mb-1.5 uppercase tracking-wider">
                       Custo Unit. (R$)
                     </label>
                     <input
@@ -924,7 +937,7 @@ export default function PurchasesPage() {
                       step="0.01"
                       value={itemCost}
                       onChange={(e) => setItemCost(e.target.value)}
-                      className="w-full bg-[#070914] border border-indigo-500/20 text-white px-3.5 py-2.5 rounded-xl outline-none text-xs text-right font-mono font-bold focus:border-indigo-500 transition-all"
+                      className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3.5 py-2.5 rounded-xl outline-none text-xs text-right font-mono font-bold focus:border-indigo-500 transition-all"
                     />
                   </div>
                 </div>
@@ -941,11 +954,11 @@ export default function PurchasesPage() {
 
             {/* Coluna Direita: Tabela de Itens e Resumo Financeiro (8 colunas) */}
             <div className="col-span-12 lg:col-span-8 flex flex-col min-h-0 overflow-hidden">
-              <div className="bg-[#0f1324] border border-indigo-500/10 rounded-2xl flex-1 flex flex-col overflow-hidden min-h-0 shadow-xl">
+              <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl flex-1 flex flex-col overflow-hidden min-h-0 shadow-xl">
                 {/* Tabela de Itens */}
                 <div className="flex-1 overflow-auto min-h-0 custom-scrollbar">
                   <table className="w-full text-xs text-left">
-                    <thead className="bg-[#070914]/80 text-slate-400 border-b border-indigo-500/10 sticky top-0 backdrop-blur-md">
+                    <thead className="bg-[#e8f0fc]/80 text-slate-500 border-b border-[#c4d5ee] sticky top-0 backdrop-blur-md">
                       <tr>
                         <th className="px-5 py-3.5 font-bold uppercase tracking-wider">Produto</th>
                         <th className="px-4 py-3.5 text-right font-bold uppercase tracking-wider w-20">Qtd</th>
@@ -956,26 +969,26 @@ export default function PurchasesPage() {
                         <th className="px-4 py-3.5 w-10 text-center"></th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-indigo-500/5">
+                    <tbody className="divide-y divide-[#c4d5ee]">
                       {orderItems.map((item: any, i) => (
                         <tr key={i} className="hover:bg-indigo-500/5 transition-colors">
-                          <td className="px-5 py-3.5 text-white font-bold">{item.name}</td>
-                          <td className="px-4 py-3.5 text-right text-slate-300 font-mono font-semibold">{item.qty}</td>
-                          <td className="px-4 py-3.5 text-right text-slate-400 font-mono">R$ {fmt(item.unitCost)}</td>
-                          <td className="px-4 py-3.5 text-right text-amber-400 font-mono font-bold">
+                          <td className="px-5 py-3.5 text-gray-900 font-bold">{item.name}</td>
+                          <td className="px-4 py-3.5 text-right text-slate-600 font-mono font-semibold">{item.qty}</td>
+                          <td className="px-4 py-3.5 text-right text-slate-500 font-mono">R$ {fmt(item.unitCost)}</td>
+                          <td className="px-4 py-3.5 text-right text-amber-600 font-mono font-bold">
                             +{item.totalTaxPercent || 0}%
                           </td>
-                          <td className="px-4 py-3.5 text-right text-slate-200 font-mono">
+                          <td className="px-4 py-3.5 text-right text-slate-700 font-mono">
                             R$ {fmt(item.effectiveUnitCost || item.unitCost)}
                           </td>
-                          <td className="px-5 py-3.5 text-right text-emerald-400 font-black font-mono text-sm">
+                          <td className="px-5 py-3.5 text-right text-emerald-600 font-black font-mono text-sm">
                             R$ {fmt(item.effectiveTotal || item.total)}
                           </td>
                           <td className="px-4 py-3.5 text-center">
                             <button
                               type="button"
                               onClick={() => setOrderItems((p) => p.filter((_, idx) => idx !== i))}
-                              className="p-1 text-slate-500 hover:text-red-400 transition-colors"
+                              className="p-1 text-slate-500 hover:text-red-600 transition-colors"
                             >
                               <X size={16} />
                             </button>
@@ -995,17 +1008,17 @@ export default function PurchasesPage() {
 
                 {/* Footer Resumo de Totais */}
                 {orderItems.length > 0 && (
-                  <div className="p-5 border-t border-indigo-500/10 bg-[#070914]/80 flex justify-between items-center">
+                  <div className="p-5 border-t border-[#c4d5ee] bg-[#e8f0fc]/80 flex justify-between items-center">
                     <div className="space-y-0.5">
                       <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Resumo Tributário</span>
-                      <div className="text-xs text-slate-300 font-mono">
-                        Bruto: <span className="font-bold text-white">R$ {fmt(orderItems.reduce((a, i: any) => a + i.total, 0))}</span> | 
-                        Impostos: <span className="font-bold text-amber-400">R$ {fmt(orderItems.reduce((a, i: any) => a + (i.taxAmount || 0), 0))}</span>
+                      <div className="text-xs text-slate-600 font-mono">
+                        Bruto: <span className="font-bold text-gray-900">R$ {fmt(orderItems.reduce((a, i: any) => a + i.total, 0))}</span> | 
+                        Impostos: <span className="font-bold text-amber-600">R$ {fmt(orderItems.reduce((a, i: any) => a + (i.taxAmount || 0), 0))}</span>
                       </div>
                     </div>
                     <div className="text-right">
-                      <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Total Geral do Pedido</span>
-                      <span className="text-2xl font-black text-emerald-400 font-mono drop-shadow-[0_0_12px_rgba(52,211,153,0.3)]">
+                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Total Geral do Pedido</span>
+                      <span className="text-2xl font-black text-emerald-600 font-mono drop-shadow-[0_0_12px_rgba(52,211,153,0.3)]">
                         R$ {fmt(orderItems.reduce((a, i: any) => a + (i.effectiveTotal || i.total), 0))}
                       </span>
                     </div>
@@ -1018,7 +1031,7 @@ export default function PurchasesPage() {
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-6 py-3 bg-[#0f1324] border border-indigo-500/15 text-slate-400 font-bold rounded-xl text-xs hover:bg-[#161b33] hover:text-white transition-all"
+                  className="px-6 py-3 bg-[#fbfdff] border border-[#c4d5ee] text-slate-500 font-bold rounded-xl text-xs hover:bg-[#eaf1fc] hover:text-gray-900 transition-all"
                 >
                   Cancelar
                 </button>
@@ -1036,21 +1049,21 @@ export default function PurchasesPage() {
           </form>
         </div>
       ) : (
-        <div className="h-full flex flex-col gap-4">
+        <div className="w-full flex flex-col gap-6 pb-20 select-none">
       <div className="flex items-center justify-between shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Compras, Pedidos & Cotações</h1>
-          <p className="text-slate-500 text-sm mt-0.5">Gerencie pedidos, dispare cotações e compare propostas de fornecedores.</p>
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Compras, Pedidos & Cotações</h1>
+          <p className="text-gray-500 text-sm mt-0.5">Gerencie pedidos, dispare cotações e compare propostas de fornecedores.</p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => { setTab("quotes"); setQuoteProducts([]); setSelectedQuoteSuppliers([]); }}
-            className="bg-[#111528] hover:bg-[#181e38] text-indigo-400 border border-indigo-500/20 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-md text-sm active:scale-95"
+            className="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-xs text-sm active:scale-95"
           >
-            <Mail size={16}/> + Nova Cotação
+            <Mail size={16}/> + Nova Cotação de Preços
           </button>
           <button onClick={() => setIsModalOpen(true)}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-indigo-600/20 text-sm active:scale-95">
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-md shadow-blue-500/20 text-sm active:scale-95">
             <Plus size={16}/> Novo Pedido
           </button>
         </div>
@@ -1059,10 +1072,10 @@ export default function PurchasesPage() {
       {/* Payment alert banner */}
       {upcomingPayments.length > 0 && (
         <div className="shrink-0 flex items-center gap-3 p-3.5 bg-amber-500/8 border border-amber-500/20 rounded-2xl">
-          <Bell size={16} className="text-amber-400 shrink-0 animate-pulse" />
+          <Bell size={16} className="text-amber-600 shrink-0 animate-pulse" />
           <div className="flex-1">
-            <p className="text-xs font-bold text-amber-300">⚠️ Pagamentos vencendo em breve</p>
-            <p className="text-[10px] text-amber-400/80">
+            <p className="text-xs font-bold text-amber-700">⚠️ Pagamentos vencendo em breve</p>
+            <p className="text-[10px] text-amber-600/80">
               {upcomingPayments.map(o => `${o.id} (${new Date(o.paymentDueDate!).toLocaleDateString("pt-BR")})`).join(" · ")}
             </p>
           </div>
@@ -1070,14 +1083,14 @@ export default function PurchasesPage() {
       )}
 
       {/* Tabs */}
-      <div className="flex gap-4 border-b border-indigo-500/[0.08] px-1 shrink-0">
+      <div className="flex gap-4 border-b border-gray-200 px-1 shrink-0">
         {[
           { key: "orders",   label: "Pedidos & Recebimentos" },
-          { key: "quotes",   label: "Cotações por E-mail" },
-          { key: "analysis", label: "Análise de Propostas" + (activeQuotes.some(q => q.status === "COMPLETE") ? " 🔴" : "") },
+          { key: "quotes",   label: "Cotações de Preço (WhatsApp & E-mail)" },
+          { key: "analysis", label: "Mapa Comparativo & Menor Preço" + (activeQuotes.some(q => q.status === "COMPLETE") ? " 🔴" : "") },
         ].map(t => (
           <button key={t.key} onClick={() => setTab(t.key as any)}
-            className={`pb-3 pt-1 text-xs font-semibold border-b-2 px-1 transition-all ${tab === t.key ? "border-indigo-500 text-indigo-400" : "border-transparent text-slate-500 hover:text-slate-300"}`}>
+            className={`pb-3 pt-1 text-xs font-semibold border-b-2 px-1 transition-all ${tab === t.key ? "border-blue-600 text-blue-600 font-black" : "border-transparent text-gray-500 hover:text-gray-900"}`}>
             {t.label}
           </button>
         ))}
@@ -1093,9 +1106,9 @@ export default function PurchasesPage() {
               { label: "Recebidos",      value: receivedCount,          icon: <CheckCircle2 size={16} /> },
               { label: "Total Pedidos",  value: orders.length,          icon: <ShoppingCart size={16} /> },
             ].map(stat => (
-              <div key={stat.label} className="bg-[#111528] border border-indigo-500/10 rounded-2xl p-4 flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/15 shrink-0">{stat.icon}</div>
-                <div><p className="text-slate-500 text-[10px] font-semibold uppercase">{stat.label}</p><p className="text-lg font-bold text-white">{stat.value}</p></div>
+              <div key={stat.label} className="bg-white border border-gray-200 shadow-sm rounded-2xl p-4 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center border border-[#c4d5ee] shrink-0">{stat.icon}</div>
+                <div><p className="text-gray-500 text-[10px] font-semibold uppercase">{stat.label}</p><p className="text-lg font-bold text-gray-900">{stat.value}</p></div>
               </div>
             ))}
           </div>
@@ -1104,22 +1117,22 @@ export default function PurchasesPage() {
             <div className="relative flex-1 max-w-sm">
               <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600" />
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar pedido, fornecedor ou loja..."
-                className="w-full bg-[#111528] border border-indigo-500/15 text-white pl-9 pr-4 py-2 rounded-lg outline-none text-sm" />
+                className="w-full bg-white border border-gray-200 text-gray-900 pl-9 pr-4 py-2.5 rounded-xl outline-none text-sm shadow-xs focus:border-blue-500" />
             </div>
             <div className="flex gap-1.5">
               {(["ALL","PENDING","IN_TRANSIT","RECEIVED"] as const).map(val => (
                 <button key={val} onClick={() => setStatusFilter(val)}
-                  className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all ${statusFilter === val ? "bg-indigo-600 border-indigo-500 text-white" : "bg-[#111528] border-indigo-500/10 text-slate-500 hover:text-white"}`}>
+                  className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all ${statusFilter === val ? "bg-blue-600 border-blue-600 text-white shadow-xs" : "bg-white border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50"}`}>
                   {val === "ALL" ? "Todos" : STATUS_CFG[val].label}
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="bg-[#111528] rounded-2xl border border-indigo-500/10 overflow-hidden flex-1 flex flex-col min-h-0">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex-1 flex flex-col min-h-0">
             <div className="flex-1 overflow-auto min-h-0">
               <table className="w-full text-sm text-left">
-                <thead className="bg-[#0c0f1a]/60 border-b border-indigo-500/[0.08] text-slate-500 sticky top-0 z-10">
+                <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 font-bold uppercase sticky top-0 z-10">
                   <tr>
                     <th className="px-5 py-3 font-semibold uppercase tracking-wider text-[10px]">Nº Pedido</th>
                     <th className="px-5 py-3 font-semibold uppercase tracking-wider text-[10px]">Loja</th>
@@ -1132,29 +1145,29 @@ export default function PurchasesPage() {
                     <th className="px-5 py-3"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-indigo-500/[0.06]">
+                <tbody className="divide-y divide-gray-100">
                   {filteredOrders.map(o => {
                     const isNearDue = o.paymentDueDate && (new Date(o.paymentDueDate).getTime() - Date.now()) / (1000*60*60*24) <= 3 && o.status !== "RECEIVED";
                     return (
-                      <tr key={o.id} className="hover:bg-indigo-500/[0.04] transition-colors">
-                        <td className="px-5 py-3 font-mono font-bold text-indigo-400 text-xs">{o.id}</td>
-                        <td className="px-5 py-3 text-slate-300 text-xs font-medium">{o.storeName}</td>
-                        <td className="px-5 py-3 font-bold text-white text-xs">{o.supplier}</td>
+                      <tr key={o.id} className="hover:bg-blue-50/40 transition-colors transition-colors">
+                        <td className="px-5 py-3 font-mono font-bold text-blue-600 text-xs font-black">{o.id}</td>
+                        <td className="px-5 py-3 text-slate-600 text-xs font-medium">{o.storeName}</td>
+                        <td className="px-5 py-3 font-bold text-gray-900 text-xs">{o.supplier}</td>
                         <td className="px-5 py-3 text-slate-500 text-xs"><span className="inline-flex items-center gap-1"><Calendar size={11}/> {o.date}</span></td>
-                        <td className="px-5 py-3 text-slate-400 text-xs">{o.paymentCondition ?? "—"}</td>
+                        <td className="px-5 py-3 text-slate-500 text-xs">{o.paymentCondition ?? "—"}</td>
                         <td className="px-5 py-3 text-xs">
                           {o.paymentDueDate ? (
-                            <span className={`flex items-center gap-1 font-mono font-bold ${isNearDue ? "text-amber-400" : "text-slate-400"}`}>
+                            <span className={`flex items-center gap-1 font-mono font-bold ${isNearDue ? "text-amber-600" : "text-slate-500"}`}>
                               {isNearDue && <AlertTriangle size={11} />}
                               {new Date(o.paymentDueDate).toLocaleDateString("pt-BR")}
                             </span>
                           ) : <span className="text-slate-600">—</span>}
                         </td>
-                        <td className="px-5 py-3 font-bold text-white font-mono text-xs">R$ {fmt(o.total)}</td>
+                        <td className="px-5 py-3 font-bold text-gray-900 font-mono font-bold text-xs">R$ {fmt(o.total)}</td>
                         <td className="px-5 py-3"><StatusBadge status={o.status} /></td>
                         <td className="px-5 py-3 text-right">
                           {o.status === "PENDING" && (
-                            <button onClick={() => setReceiveModal(o)} className="text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/15 px-2.5 py-1 rounded-lg hover:bg-emerald-500/15 transition-colors">Receber NF</button>
+                            <button onClick={() => setReceiveModal(o)} className="text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/15 px-2.5 py-1 rounded-lg hover:bg-emerald-500/15 transition-colors">Receber NF</button>
                           )}
                         </td>
                       </tr>
@@ -1169,21 +1182,21 @@ export default function PurchasesPage() {
 
       {/* ── TAB: QUOTES ──────────────────────────────────────── */}
       {tab === "quotes" && (
-        <div className="flex-1 grid grid-cols-3 gap-5 min-h-0 overflow-hidden">
-          <div className="space-y-4 overflow-y-auto pr-1 custom-scrollbar">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="space-y-5">
 
             {/* Active Quotes list */}
             {activeQuotes.length > 0 && (
-              <div className="bg-[#111528] p-4 rounded-2xl border border-indigo-500/10 space-y-2">
-                <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-1.5"><Mail size={12}/> Cotações Ativas</h3>
+              <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-3">
+                <h3 className="text-xs font-bold text-blue-600 uppercase tracking-widest flex items-center gap-1.5"><Mail size={12}/> Cotações Ativas</h3>
                 {activeQuotes.map(q => (
-                  <div key={q.id} className="p-3 bg-[#0c0f1a] rounded-xl border border-indigo-500/[0.08] space-y-2">
+                  <div key={q.id} className="p-3.5 bg-gray-50 rounded-xl border border-gray-200 space-y-2">
                     <div className="flex justify-between items-start">
-                      <p className="text-xs text-white font-mono font-bold">{q.id}</p>
+                      <p className="text-xs text-gray-900 font-mono font-bold">{q.id}</p>
                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md border ${
-                        q.status === "COMPLETE" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/15" :
-                        q.status === "PARTIAL"  ? "bg-amber-500/10 text-amber-400 border-amber-500/15" :
-                        "bg-slate-500/10 text-slate-400 border-slate-500/15"
+                        q.status === "COMPLETE" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/15" :
+                        q.status === "PARTIAL"  ? "bg-amber-500/10 text-amber-600 border-amber-500/15" :
+                        "bg-slate-500/10 text-slate-500 border-slate-500/15"
                       }`}>
                         {q.status === "COMPLETE" ? "Completa" : q.status === "PARTIAL" ? "Parcial" : "Aguardando"}
                       </span>
@@ -1191,11 +1204,11 @@ export default function PurchasesPage() {
                     <p className="text-[10px] text-slate-500">{q.products.length} produtos · {q.responses.length}/{q.supplierIds.length} respostas</p>
                     <p className="text-[10px] text-slate-600">Prazo: {new Date(q.deadline).toLocaleDateString("pt-BR")}</p>
                     
-                    <div className="flex flex-col gap-1.5 pt-1 border-t border-indigo-500/10">
+                    <div className="flex flex-col gap-1.5 pt-1 border-t border-gray-200">
                       <div className="flex justify-between items-center">
                         <button
                           onClick={() => setResponseModalQuote(q)}
-                          className="text-[10px] font-bold text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 px-2 py-1 rounded-md border border-indigo-500/20 transition-all flex items-center gap-1"
+                          className="text-[10px] font-bold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100 px-2 py-1 rounded-md border border-blue-200 transition-all flex items-center gap-1"
                         >
                           <Edit3 size={10} /> Preencher Resposta
                         </button>
@@ -1205,7 +1218,7 @@ export default function PurchasesPage() {
                             setCopiedToken(q.id);
                             setTimeout(() => setCopiedToken(null), 2500);
                           }}
-                          className="text-[10px] font-semibold text-slate-400 hover:text-white flex items-center gap-1"
+                          className="text-[10px] font-semibold text-gray-500 hover:text-blue-600 flex items-center gap-1"
                         >
                           <Copy size={10} /> {copiedToken === q.id ? "Link Copiado! ✅" : "Copiar Link"}
                         </button>
@@ -1214,12 +1227,12 @@ export default function PurchasesPage() {
                       <div className="flex gap-2">
                         {q.status === "COMPLETE" && (
                           <button onClick={() => { setSelectedAnalysisQuote(q); setTab("analysis"); }}
-                            className="text-[10px] font-bold text-emerald-400 hover:text-emerald-300 flex items-center gap-0.5">
+                            className="text-[10px] font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-0.5">
                             Ver Análise <ChevronRight size={10}/>
                           </button>
                         )}
                         <button onClick={() => handleResendQuote(q.id)}
-                          className="text-[10px] font-bold text-amber-400 hover:text-amber-300 flex items-center gap-0.5 ml-auto">
+                          className="text-[10px] font-bold text-amber-600 hover:text-amber-700 flex items-center gap-0.5 ml-auto">
                           Reenviar 🔄
                         </button>
                       </div>
@@ -1230,37 +1243,48 @@ export default function PurchasesPage() {
             )}
 
             {/* Select Suppliers */}
-            <div className="bg-[#111528] p-4 rounded-2xl border border-indigo-500/10 space-y-3">
-              <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-1.5"><Truck size={12}/> 1. Fornecedores</h3>
+            <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-3">
+              <h3 className="text-xs font-bold text-blue-600 uppercase tracking-widest flex items-center gap-1.5"><Truck size={12}/> 1. Fornecedores</h3>
               <div className="space-y-2">
                 {localSuppliers.map(s => (
-                  <label key={s.id} className="flex items-start gap-2.5 text-xs text-white cursor-pointer">
+                  <label key={s.id} className="flex items-start gap-2.5 text-xs text-gray-800 cursor-pointer">
                     <input type="checkbox" checked={selectedQuoteSuppliers.includes(s.id)}
                       onChange={() => setSelectedQuoteSuppliers(prev => prev.includes(s.id) ? prev.filter(id => id !== s.id) : [...prev, s.id])}
                       className="rounded mt-0.5" />
-                    <div><p className="font-semibold">{s.name}</p><p className="text-[9px] text-slate-500">{s.quoteEmail}</p></div>
+                    <div>
+                      <p className="font-semibold text-gray-900">{s.name}</p>
+                      <p className="text-[10px] text-gray-500">
+                        {s.contactName ? `${s.contactName} · ` : ""}
+                        {s.quoteEmail || "Sem e-mail"}
+                      </p>
+                      {s.contactPhone && (
+                        <p className="text-[10px] text-emerald-600 font-mono mt-0.5">
+                          WhatsApp: {s.contactPhone}
+                        </p>
+                      )}
+                    </div>
                   </label>
                 ))}
               </div>
             </div>
 
             {/* Quote deadline */}
-            <div className="bg-[#111528] p-4 rounded-2xl border border-indigo-500/10 space-y-2">
-              <h3 className="text-xs font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-1.5"><Calendar size={12}/> 2. Prazo para Resposta</h3>
+            <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-3">
+              <h3 className="text-xs font-bold text-blue-600 uppercase tracking-widest flex items-center gap-1.5"><Calendar size={12}/> 2. Prazo para Resposta</h3>
               <input type="date" value={quoteDeadline} onChange={e => setQuoteDeadline(e.target.value)}
-                className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-lg outline-none text-xs" />
+                className="w-full bg-gray-50 border border-gray-200 text-gray-900 px-3 py-2.5 rounded-xl outline-none text-xs focus:bg-white focus:border-blue-500 font-medium" />
             </div>
           </div>
 
           {/* Right: Products & Dispatch */}
-          <div className="col-span-2 flex flex-col min-h-0 bg-[#111528] rounded-2xl border border-indigo-500/10 p-5 overflow-hidden">
-            <div className="flex justify-between items-center shrink-0 border-b border-indigo-500/[0.08] pb-4 mb-4">
+          <div className="col-span-2 bg-white rounded-2xl border border-gray-200 shadow-sm p-6 flex flex-col">
+            <div className="flex justify-between items-center shrink-0 border-b border-gray-200 pb-4 mb-4">
               <div>
-                <h3 className="text-sm font-bold text-white flex items-center gap-2"><Mail size={15}/> Produtos na Cotação</h3>
+                <h3 className="text-base font-black text-gray-900 flex items-center gap-2"><Mail size={15}/> Produtos na Cotação</h3>
                 <p className="text-[10px] text-slate-500 mt-0.5">Busque produtos e defina quantidades/unidades de medida.</p>
               </div>
               <button onClick={handleSendQuotation} disabled={!quoteProducts.length || !selectedQuoteSuppliers.length || sendingQuote}
-                className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-indigo-600/20 active:scale-95 transition-all">
+                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-blue-500/20 active:scale-95 transition-all">
                 {sendingQuote ? <><Loader2 size={12} className="animate-spin"/> Enviando...</> : <><Send size={12}/> Disparar Cotação por E-mail</>}
               </button>
             </div>
@@ -1268,9 +1292,9 @@ export default function PurchasesPage() {
             <div className="relative mb-3 shrink-0">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600" size={13} />
               <input type="text" value={quoteSearch} onChange={e => setQuoteSearch(e.target.value)} placeholder="Buscar produto por nome..."
-                className="w-full pl-9 pr-3 py-2 bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-xs text-white rounded-lg outline-none font-semibold" />
+                className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 focus:border-blue-500 focus:bg-white text-xs text-gray-900 rounded-xl outline-none font-semibold" />
               {quoteSearch.trim().length >= 1 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-[#0c0f1a] border border-indigo-500/15 rounded-lg z-10 max-h-36 overflow-y-auto divide-y divide-indigo-500/[0.06] shadow-xl">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl z-20 max-h-48 overflow-y-auto divide-y divide-gray-100 shadow-xl">
                   {products.filter(p => p.name.toLowerCase().includes(quoteSearch.toLowerCase())).slice(0, 10).map(p => (
                     <div key={p.id} onClick={() => {
                       if (!quoteProducts.some(x => x.id === p.id)) {
@@ -1278,8 +1302,8 @@ export default function PurchasesPage() {
                       }
                       setQuoteSearch("");
                     }}
-                      className="p-2 cursor-pointer hover:bg-indigo-500/10 text-xs text-white font-medium flex justify-between items-center">
-                      <span>{p.name}</span><span className="text-[9px] text-indigo-400 font-bold">+ Incluir</span>
+                      className="p-2.5 cursor-pointer hover:bg-blue-50 text-xs text-gray-900 font-semibold flex justify-between items-center transition-colors">
+                      <span>{p.name}</span><span className="text-[10px] text-blue-600 font-bold bg-blue-50 px-2 py-0.5 rounded border border-blue-200">+ Incluir</span>
                     </div>
                   ))}
                 </div>
@@ -1287,14 +1311,14 @@ export default function PurchasesPage() {
             </div>
 
             {quoteSentStatus && (
-              <div className="mb-3 p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl text-indigo-300 text-xs font-semibold flex items-center gap-2 shrink-0">
+              <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 text-xs font-semibold flex items-center gap-2 shrink-0">
                 <Loader2 size={13} className="animate-spin shrink-0" /><span>{quoteSentStatus}</span>
               </div>
             )}
 
             <div className="flex-1 overflow-auto min-h-0">
               <table className="w-full text-xs">
-                <thead className="bg-[#0c0f1a]/60 text-slate-500 border-b border-indigo-500/[0.08] sticky top-0">
+                <thead className="bg-gray-50 text-gray-500 font-bold uppercase border-b border-gray-200 sticky top-0">
                   <tr>
                     <th className="px-4 py-2 text-left">Produto</th>
                     <th className="px-4 py-2 text-center w-28">Quantidade</th>
@@ -1303,10 +1327,10 @@ export default function PurchasesPage() {
                     <th className="px-4 py-2 w-10"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-indigo-500/[0.06]">
+                <tbody className="divide-y divide-gray-100">
                   {quoteProducts.map((p, i) => (
-                    <tr key={i} className="hover:bg-indigo-500/[0.04]">
-                      <td className="px-4 py-2.5 text-white font-semibold">{p.name}</td>
+                    <tr key={i} className="hover:bg-blue-50/40 transition-colors">
+                      <td className="px-4 py-2.5 text-gray-900 font-bold">{p.name}</td>
                       <td className="px-4 py-2.5 text-center">
                         <input
                           type="number"
@@ -1316,7 +1340,7 @@ export default function PurchasesPage() {
                             const val = parseFloat(e.target.value) || 1;
                             setQuoteProducts(prev => prev.map((item, idx) => idx === i ? { ...item, qty: val } : item));
                           }}
-                          className="w-16 bg-[#0c0f1a] border border-indigo-500/15 text-white text-center font-mono font-bold px-2 py-1 rounded-lg outline-none text-xs"
+                          className="w-16 bg-white border border-gray-200 text-gray-900 text-center font-mono font-bold px-2 py-1 rounded-lg outline-none text-xs focus:border-blue-500"
                         />
                       </td>
                       <td className="px-4 py-2.5 text-center">
@@ -1326,16 +1350,16 @@ export default function PurchasesPage() {
                             const val = e.target.value;
                             setQuoteProducts(prev => prev.map((item, idx) => idx === i ? { ...item, unit: val } : item));
                           }}
-                          className="bg-[#0c0f1a] border border-indigo-500/15 text-white text-center font-semibold px-2 py-1 rounded-lg outline-none text-xs"
+                          className="bg-white border border-gray-200 text-gray-900 text-center font-bold px-2 py-1 rounded-lg outline-none text-xs focus:border-blue-500"
                         >
                           {["UN", "CX", "KG", "FD", "L", "PCT", "M2"].map(u => (
                             <option key={u} value={u}>{u}</option>
                           ))}
                         </select>
                       </td>
-                      <td className="px-4 py-2.5 text-right font-mono text-slate-400">R$ {p.cost?.toFixed(2) ?? "0,00"}</td>
+                      <td className="px-4 py-2.5 text-right font-mono text-slate-500">R$ {p.cost?.toFixed(2) ?? "0,00"}</td>
                       <td className="px-4 py-2.5 text-center">
-                        <button onClick={() => setQuoteProducts(prev => prev.filter((_, idx) => idx !== i))} className="text-slate-600 hover:text-red-400">
+                        <button onClick={() => setQuoteProducts(prev => prev.filter((_, idx) => idx !== i))} className="text-slate-600 hover:text-red-600">
                           <X size={14}/>
                         </button>
                       </td>
@@ -1354,10 +1378,10 @@ export default function PurchasesPage() {
         <div className="flex-1 flex flex-col min-h-0 gap-4 overflow-hidden">
           {/* Quote selector */}
           <div className="flex items-center gap-3 shrink-0">
-            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Cotação:</label>
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Cotação:</label>
             <select value={selectedAnalysisQuote?.id}
               onChange={e => { const q = activeQuotes.find(x => x.id === e.target.value); if (q) setSelectedAnalysisQuote(q); }}
-              className="bg-[#111528] border border-indigo-500/15 text-white px-3 py-2 rounded-lg outline-none text-sm font-semibold">
+              className="bg-white border border-gray-200 text-gray-900 px-3 py-2 rounded-xl outline-none text-sm font-semibold">
               {activeQuotes.map(q => <option key={q.id} value={q.id}>{q.id} ({q.responses.length} respostas)</option>)}
             </select>
           </div>
@@ -1370,19 +1394,19 @@ export default function PurchasesPage() {
             const totalSavings = singleBestTotal > smartSplitTotal ? singleBestTotal - smartSplitTotal : 0;
 
             return (
-              <div className="flex-1 flex flex-col min-h-0 gap-4 overflow-hidden">
+              <div className="w-full flex flex-col gap-4">
                 {/* Proposal Recommendations Cards (Single vs Smart Split) */}
                 <div className="grid grid-cols-2 gap-4 shrink-0">
                   {/* Card 1: Fornecedor Único Recomendado */}
                   {bestSupplier && (
                     <div className="flex items-center gap-4 p-4 bg-emerald-500/8 border border-emerald-500/20 rounded-2xl">
                       <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/20 flex items-center justify-center shrink-0">
-                        <Star size={18} className="text-emerald-400" />
+                        <Star size={18} className="text-emerald-600" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">🏆 Fornecedor Único Ideal</p>
-                        <p className="text-white font-black text-sm truncate">{bestSupplier.supplierName}</p>
-                        <p className="text-xs text-emerald-300">Total: <strong className="font-mono">R$ {fmt(singleBestTotal)}</strong></p>
+                        <p className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest">🏆 Fornecedor Único Ideal</p>
+                        <p className="text-gray-900 font-black text-sm truncate">{bestSupplier.supplierName}</p>
+                        <p className="text-xs text-emerald-700 font-bold">Total: <strong className="font-mono">R$ {fmt(singleBestTotal)}</strong></p>
                       </div>
                       <button onClick={() => handleCreateOrderFromBestQuote(selectedAnalysisQuote)}
                         className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-2 rounded-xl text-xs shadow-lg shrink-0 flex items-center gap-1 transition-all active:scale-95">
@@ -1392,52 +1416,52 @@ export default function PurchasesPage() {
                   )}
 
                   {/* Card 2: Compra Inteligente (Menor Preço por Item) */}
-                  <div className="flex items-center gap-4 p-4 bg-indigo-500/10 border border-indigo-500/30 rounded-2xl">
-                    <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
-                      <Zap size={18} className="text-indigo-400" />
+                  <div className="flex items-center gap-4 p-4 bg-blue-50 border border-blue-200 rounded-2xl">
+                    <div className="w-10 h-10 rounded-xl bg-blue-100 border border-blue-200 flex items-center justify-center shrink-0">
+                      <Zap size={18} className="text-blue-600" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-1">
+                      <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest flex items-center gap-1">
                         ⚡ Compra Inteligente (Divisão por Item)
                       </p>
-                      <p className="text-white font-black text-sm font-mono">R$ {fmt(smartSplitTotal)}</p>
+                      <p className="text-gray-900 font-black text-sm font-mono">R$ {fmt(smartSplitTotal)}</p>
                       {totalSavings > 0 ? (
-                        <p className="text-xs text-emerald-400 font-bold">
+                        <p className="text-xs text-emerald-600 font-bold">
                           Economia Adicional: <span className="font-mono font-black">R$ {fmt(totalSavings)}</span>
                         </p>
                       ) : (
-                        <p className="text-[10px] text-slate-400">Gera pedidos fracionados otimizados</p>
+                        <p className="text-[10px] text-gray-500">Gera pedidos fracionados otimizados</p>
                       )}
                     </div>
                     <button onClick={() => handleCreateSmartSplitOrders(selectedAnalysisQuote)}
-                      className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold px-3 py-2 rounded-xl text-xs shadow-lg shrink-0 flex items-center gap-1 transition-all active:scale-95">
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-3 py-2 rounded-xl text-xs shadow-md shrink-0 flex items-center gap-1 transition-all active:scale-95">
                       <Zap size={12}/> Gerar Compra Inteligente
                     </button>
                   </div>
                 </div>
 
                 {/* Comparison table */}
-                <div className="flex-1 bg-[#111528] rounded-2xl border border-indigo-500/10 overflow-hidden flex flex-col min-h-0">
+                <div className="flex-1 bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col min-h-0">
                   <div className="overflow-auto flex-1 min-h-0">
                     <table className="w-full text-xs">
-                      <thead className="bg-[#0c0f1a]/70 text-slate-500 border-b border-indigo-500/[0.08] sticky top-0 z-10">
+                      <thead className="bg-gray-50 text-gray-500 font-bold uppercase border-b border-gray-200 sticky top-0 z-10">
                         <tr>
                           <th className="px-5 py-3 text-left font-bold uppercase tracking-wider w-48">Produto</th>
                           <th className="px-5 py-3 text-right font-bold uppercase text-slate-600">Qtd</th>
                           {selectedAnalysisQuote.responses.map(r => (
                             <th key={r.supplierId} className="px-5 py-3 text-center font-bold uppercase tracking-wider min-w-36">
                               <div className="flex flex-col items-center gap-0.5">
-                                <span className={bestSupplier?.supplierId === r.supplierId ? "text-emerald-400" : ""}>{r.supplierName.split(" ")[0]}</span>
-                                {bestSupplier?.supplierId === r.supplierId && <span className="text-[8px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded-md font-bold">MENOR TOTAL</span>}
+                                <span className={bestSupplier?.supplierId === r.supplierId ? "text-emerald-600" : ""}>{r.supplierName.split(" ")[0]}</span>
+                                {bestSupplier?.supplierId === r.supplierId && <span className="text-[8px] bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-1.5 py-0.5 rounded-md font-bold">MENOR TOTAL</span>}
                               </div>
                             </th>
                           ))}
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-indigo-500/[0.06]">
+                      <tbody className="divide-y divide-gray-100">
                         {selectedAnalysisQuote.products.map(p => (
-                          <tr key={p.id} className="hover:bg-indigo-500/[0.04] transition-colors">
-                            <td className="px-5 py-3 text-white font-semibold">
+                          <tr key={p.id} className="hover:bg-blue-50/40 transition-colors transition-colors">
+                            <td className="px-5 py-3 text-gray-900 font-bold">
                               {p.name}
                               <span className="text-[10px] text-slate-500 ml-1">({p.qty} {p.unit})</span>
                             </td>
@@ -1448,7 +1472,7 @@ export default function PurchasesPage() {
                               return (
                                 <td key={r.supplierId} className={`px-5 py-3 text-center ${isBest ? "bg-emerald-500/5" : ""}`}>
                                   <div className="flex flex-col items-center">
-                                    <span className={`font-mono font-bold ${isBest ? "text-emerald-400" : "text-slate-300"}`}>
+                                    <span className={`font-mono font-bold ${isBest ? "text-emerald-600" : "text-gray-900"}`}>
                                       R$ {price.toFixed(2)}
                                     </span>
                                     {isBest && <TrendingDown size={10} className="text-emerald-500 mt-0.5" />}
@@ -1460,9 +1484,9 @@ export default function PurchasesPage() {
                           </tr>
                         ))}
                       </tbody>
-                      <tfoot className="border-t-2 border-indigo-500/15 bg-[#0c0f1a]/60 sticky bottom-0">
+                      <tfoot className="border-t-2 border-gray-200 bg-gray-50 sticky bottom-0">
                         <tr>
-                          <td className="px-5 py-3 font-bold text-slate-400 uppercase text-[10px]">Total Geral</td>
+                          <td className="px-5 py-3 font-bold text-gray-700 uppercase text-[10px]">Total Geral</td>
                           <td />
                           {selectedAnalysisQuote.responses.map(r => {
                             const t = calcSupplierTotal(selectedAnalysisQuote, r);
@@ -1470,7 +1494,7 @@ export default function PurchasesPage() {
                             return (
                               <td key={r.supplierId} className={`px-5 py-3 text-center ${isBest ? "bg-emerald-500/5" : ""}`}>
                                 <div className="flex flex-col items-center">
-                                  <span className={`font-mono font-black text-sm ${isBest ? "text-emerald-400" : "text-slate-300"}`}>R$ {fmt(t)}</span>
+                                  <span className={`font-mono font-black text-sm ${isBest ? "text-emerald-600" : "text-gray-900"}`}>R$ {fmt(t)}</span>
                                   <span className="text-[9px] text-slate-500">{r.paymentProposal}</span>
                                 </div>
                               </td>
@@ -1489,7 +1513,7 @@ export default function PurchasesPage() {
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center space-y-2">
                 <Clock size={40} className="mx-auto text-slate-600" />
-                <p className="text-slate-400 font-semibold">Aguardando respostas dos fornecedores...</p>
+                <p className="text-slate-500 font-semibold">Aguardando respostas dos fornecedores...</p>
                 <p className="text-slate-600 text-xs">Use o botão "Preencher Resposta" na aba de cotações para simular uma proposta.</p>
               </div>
             </div>
@@ -1511,28 +1535,28 @@ export default function PurchasesPage() {
       {/* ── Cadastro Rápido Fornecedor Modal ─────────────────── */}
       {isQuickSupplierModalOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#111528] border border-indigo-500/15 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
-            <div className="p-5 border-b border-indigo-500/[0.08] flex justify-between items-center bg-[#0c0f1a]/50">
-              <h3 className="text-md font-bold text-white flex items-center gap-2">
-                <Truck className="text-indigo-400" size={16} /> Cadastro Rápido de Fornecedor
+          <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+              <h3 className="text-md font-bold text-gray-900 flex items-center gap-2">
+                <Truck className="text-indigo-600" size={16} /> Cadastro Rápido de Fornecedor
               </h3>
               <button type="button" onClick={() => setIsQuickSupplierModalOpen(false)} className="p-1 hover:bg-indigo-500/10 rounded-lg text-slate-500"><X size={18}/></button>
             </div>
             <form onSubmit={handleQuickSupplierSave} className="p-5 space-y-4">
               <div>
-                <label className="block text-[10px] font-semibold text-slate-400 mb-1 uppercase">Razão Social / Nome *</label>
-                <input required value={quickSupplierName} onChange={e => setQuickSupplierName(e.target.value)} placeholder="Distribuidora de Alimentos..." className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-lg outline-none text-xs" />
+                <label className="block text-[10px] font-semibold text-slate-500 mb-1 uppercase">Razão Social / Nome *</label>
+                <input required value={quickSupplierName} onChange={e => setQuickSupplierName(e.target.value)} placeholder="Distribuidora de Alimentos..." className="w-full bg-gray-50 border border-gray-200 text-gray-900 px-3 py-2.5 rounded-xl outline-none text-xs focus:bg-white focus:border-blue-500 font-medium" />
               </div>
               <div>
-                <label className="block text-[10px] font-semibold text-slate-400 mb-1 uppercase">CNPJ</label>
-                <input value={quickSupplierCnpj} onChange={e => setQuickSupplierCnpj(e.target.value)} placeholder="00.000.000/0001-00" className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-lg outline-none text-xs font-mono" />
+                <label className="block text-[10px] font-semibold text-slate-500 mb-1 uppercase">CNPJ</label>
+                <input value={quickSupplierCnpj} onChange={e => setQuickSupplierCnpj(e.target.value)} placeholder="00.000.000/0001-00" className="w-full bg-[#f3f7fe] border border-[#c4d5ee] text-gray-900 px-3 py-2 rounded-lg outline-none text-xs font-mono" />
               </div>
               <div>
-                <label className="block text-[10px] font-semibold text-slate-400 mb-1 uppercase">E-mail de Cotação</label>
-                <input type="email" value={quickSupplierEmail} onChange={e => setQuickSupplierEmail(e.target.value)} placeholder="cotacao@fornecedor.com" className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-lg outline-none text-xs" />
+                <label className="block text-[10px] font-semibold text-slate-500 mb-1 uppercase">E-mail de Cotação</label>
+                <input type="email" value={quickSupplierEmail} onChange={e => setQuickSupplierEmail(e.target.value)} placeholder="cotacao@fornecedor.com" className="w-full bg-gray-50 border border-gray-200 text-gray-900 px-3 py-2.5 rounded-xl outline-none text-xs focus:bg-white focus:border-blue-500 font-medium" />
               </div>
               <div className="flex gap-2 pt-2">
-                <button type="button" onClick={() => setIsQuickSupplierModalOpen(false)} className="flex-1 bg-[#0c0f1a] hover:bg-[#161b33] text-slate-400 font-semibold py-2.5 rounded-xl border border-indigo-500/10 text-xs">Cancelar</button>
+                <button type="button" onClick={() => setIsQuickSupplierModalOpen(false)} className="flex-1 bg-[#f3f7fe] hover:bg-[#eaf1fc] text-slate-500 font-semibold py-2.5 rounded-xl border border-[#c4d5ee] text-xs">Cancelar</button>
                 <button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-xl shadow-lg text-xs">Salvar Fornecedor</button>
               </div>
             </form>
@@ -1543,67 +1567,67 @@ export default function PurchasesPage() {
       {/* ── Cadastro Rápido de Produto Modal ─────────────────── */}
       {isQuickProductModalOpen && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#111528] border border-indigo-500/20 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
-            <div className="p-5 border-b border-indigo-500/[0.08] flex justify-between items-center bg-[#0c0f1a]/50">
-              <h3 className="text-md font-bold text-white flex items-center gap-2">
-                <Tag className="text-indigo-400" size={16} /> Cadastro Rápido de Produto
+          <div className="bg-[#fbfdff] border border-indigo-200 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden">
+            <div className="p-5 border-b border-gray-200 flex justify-between items-center bg-gray-50">
+              <h3 className="text-md font-bold text-gray-900 flex items-center gap-2">
+                <Tag className="text-indigo-600" size={16} /> Cadastro Rápido de Produto
               </h3>
               <button type="button" onClick={() => setIsQuickProductModalOpen(false)} className="p-1 hover:bg-indigo-500/10 rounded-lg text-slate-500"><X size={18}/></button>
             </div>
             <form onSubmit={handleQuickProductSave} className="p-5 space-y-4">
               <div>
-                <label className="block text-[10px] font-semibold text-slate-400 mb-1 uppercase">Nome do Produto *</label>
-                <input required value={qpName} onChange={e => setQpName(e.target.value)} placeholder="Ex: Arroz Tipo 1 5kg" className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-lg outline-none text-xs" />
+                <label className="block text-[10px] font-semibold text-slate-500 mb-1 uppercase">Nome do Produto *</label>
+                <input required value={qpName} onChange={e => setQpName(e.target.value)} placeholder="Ex: Arroz Tipo 1 5kg" className="w-full bg-gray-50 border border-gray-200 text-gray-900 px-3 py-2.5 rounded-xl outline-none text-xs focus:bg-white focus:border-blue-500 font-medium" />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[10px] font-semibold text-slate-400 mb-1 uppercase">Código de Barras (EAN)</label>
-                  <input value={qpBarcode} onChange={e => setQpBarcode(e.target.value)} placeholder="789..." className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-lg outline-none text-xs font-mono" />
+                  <label className="block text-[10px] font-semibold text-slate-500 mb-1 uppercase">Código de Barras (EAN)</label>
+                  <input value={qpBarcode} onChange={e => setQpBarcode(e.target.value)} placeholder="789..." className="w-full bg-[#f3f7fe] border border-[#c4d5ee] text-gray-900 px-3 py-2 rounded-lg outline-none text-xs font-mono" />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-semibold text-slate-400 mb-1 uppercase">NCM</label>
-                  <input value={qpNcm} onChange={e => setQpNcm(e.target.value)} placeholder="1006.30.21" className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-lg outline-none text-xs font-mono" />
+                  <label className="block text-[10px] font-semibold text-slate-500 mb-1 uppercase">NCM</label>
+                  <input value={qpNcm} onChange={e => setQpNcm(e.target.value)} placeholder="1006.30.21" className="w-full bg-[#f3f7fe] border border-[#c4d5ee] text-gray-900 px-3 py-2 rounded-lg outline-none text-xs font-mono" />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[10px] font-semibold text-slate-400 mb-1 uppercase">Custo Unitário (R$)</label>
-                  <input type="number" step="0.01" value={qpCost} onChange={e => setQpCost(e.target.value)} placeholder="0.00" className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-lg outline-none text-xs font-mono" />
+                  <label className="block text-[10px] font-semibold text-slate-500 mb-1 uppercase">Custo Unitário (R$)</label>
+                  <input type="number" step="0.01" value={qpCost} onChange={e => setQpCost(e.target.value)} placeholder="0.00" className="w-full bg-[#f3f7fe] border border-[#c4d5ee] text-gray-900 px-3 py-2 rounded-lg outline-none text-xs font-mono" />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-semibold text-slate-400 mb-1 uppercase">Preço Venda (R$)</label>
-                  <input type="number" step="0.01" value={qpPrice} onChange={e => setQpPrice(e.target.value)} placeholder="0.00" className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-lg outline-none text-xs font-mono" />
+                  <label className="block text-[10px] font-semibold text-slate-500 mb-1 uppercase">Preço Venda (R$)</label>
+                  <input type="number" step="0.01" value={qpPrice} onChange={e => setQpPrice(e.target.value)} placeholder="0.00" className="w-full bg-[#f3f7fe] border border-[#c4d5ee] text-gray-900 px-3 py-2 rounded-lg outline-none text-xs font-mono" />
                 </div>
               </div>
               
-              <div className="p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-xl space-y-2">
-                <p className="text-[10px] font-bold text-indigo-400 uppercase">Impostos de Entrada (Alíquotas)</p>
+              <div className="p-3 bg-indigo-500/5 border border-[#c4d5ee] rounded-xl space-y-2">
+                <p className="text-[10px] font-bold text-indigo-600 uppercase">Impostos de Entrada (Alíquotas)</p>
                 <div className="grid grid-cols-5 gap-1.5">
                   <div>
-                    <label className="block text-[9px] text-slate-400">ICMS %</label>
-                    <input value={qpIcmsRate} onChange={e => setQpIcmsRate(e.target.value)} className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white p-1 text-center text-xs font-mono rounded" />
+                    <label className="block text-[9px] text-slate-500">ICMS %</label>
+                    <input value={qpIcmsRate} onChange={e => setQpIcmsRate(e.target.value)} className="w-full bg-[#f3f7fe] border border-[#c4d5ee] text-gray-900 p-1 text-center text-xs font-mono rounded" />
                   </div>
                   <div>
-                    <label className="block text-[9px] text-slate-400">FECOEP %</label>
-                    <input value={qpFecoepRate} onChange={e => setQpFecoepRate(e.target.value)} className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white p-1 text-center text-xs font-mono rounded" />
+                    <label className="block text-[9px] text-slate-500">FECOEP %</label>
+                    <input value={qpFecoepRate} onChange={e => setQpFecoepRate(e.target.value)} className="w-full bg-[#f3f7fe] border border-[#c4d5ee] text-gray-900 p-1 text-center text-xs font-mono rounded" />
                   </div>
                   <div>
-                    <label className="block text-[9px] text-slate-400">PIS %</label>
-                    <input value={qpPisRate} onChange={e => setQpPisRate(e.target.value)} className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white p-1 text-center text-xs font-mono rounded" />
+                    <label className="block text-[9px] text-slate-500">PIS %</label>
+                    <input value={qpPisRate} onChange={e => setQpPisRate(e.target.value)} className="w-full bg-[#f3f7fe] border border-[#c4d5ee] text-gray-900 p-1 text-center text-xs font-mono rounded" />
                   </div>
                   <div>
-                    <label className="block text-[9px] text-slate-400">COFINS %</label>
-                    <input value={qpCofinsRate} onChange={e => setQpCofinsRate(e.target.value)} className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white p-1 text-center text-xs font-mono rounded" />
+                    <label className="block text-[9px] text-slate-500">COFINS %</label>
+                    <input value={qpCofinsRate} onChange={e => setQpCofinsRate(e.target.value)} className="w-full bg-[#f3f7fe] border border-[#c4d5ee] text-gray-900 p-1 text-center text-xs font-mono rounded" />
                   </div>
                   <div>
-                    <label className="block text-[9px] text-slate-400">IPI %</label>
-                    <input value={qpIpiRate} onChange={e => setQpIpiRate(e.target.value)} className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white p-1 text-center text-xs font-mono rounded" />
+                    <label className="block text-[9px] text-slate-500">IPI %</label>
+                    <input value={qpIpiRate} onChange={e => setQpIpiRate(e.target.value)} className="w-full bg-[#f3f7fe] border border-[#c4d5ee] text-gray-900 p-1 text-center text-xs font-mono rounded" />
                   </div>
                 </div>
               </div>
 
               <div className="flex gap-2 pt-2">
-                <button type="button" onClick={() => setIsQuickProductModalOpen(false)} className="flex-1 bg-[#0c0f1a] hover:bg-[#161b33] text-slate-400 font-semibold py-2.5 rounded-xl border border-indigo-500/10 text-xs">Cancelar</button>
+                <button type="button" onClick={() => setIsQuickProductModalOpen(false)} className="flex-1 bg-[#f3f7fe] hover:bg-[#eaf1fc] text-slate-500 font-semibold py-2.5 rounded-xl border border-[#c4d5ee] text-xs">Cancelar</button>
                 <button type="submit" className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-xl shadow-lg text-xs">Cadastrar e Selecionar</button>
               </div>
             </form>

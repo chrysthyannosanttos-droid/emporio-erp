@@ -2,6 +2,7 @@
 
 import { prisma } from "@emporio/database";
 import { revalidatePath } from "next/cache";
+import { recordPriceChange } from "./labels";
 
 export async function calculateSuggestedPrice(data: {
   productId: string;
@@ -97,11 +98,26 @@ export async function getAIPricingSuggestion(productName: string, cost: number) 
 
 export async function applyNewPrice(productId: string, price: number) {
   try {
+    const existing = await prisma.product.findUnique({
+      where: { id: productId },
+      include: { category: true },
+    });
+    if (!existing) return { error: "Produto não encontrado" };
+
+    const oldPrice = Number(existing.price || 0);
     await prisma.product.update({
       where: { id: productId },
-      data: { price }
+      data: { price, priceChangedAt: new Date() }
+    });
+    await recordPriceChange({
+      productId,
+      oldPrice,
+      newPrice: Number(price),
+      sectionName: existing.category?.name || "Sem Seção",
+      companyId: existing.companyId,
     });
     revalidatePath("/stock");
+    revalidatePath("/labels");
     return { success: true };
   } catch (err: any) {
     return { error: err.message || "Erro ao aplicar novo preço" };
@@ -116,9 +132,10 @@ export async function getPricingData() {
         stockEntryItems: {
           orderBy: { stockEntry: { entryDate: 'desc' } },
           take: 1,
-          include: {
-            stockEntry: true
-          }
+          include: { stockEntry: true }
+        },
+        variations: {
+          select: { id: true, name: true }
         }
       },
       orderBy: { name: 'asc' }
@@ -126,60 +143,91 @@ export async function getPricingData() {
 
     const data = products.map(p => {
       let cost = Number(p.cost || 0);
-      let lastInvoice = null;
-      let lastEntryDate = null;
+      let lastInvoice: string | null = null;
+      let lastInvoiceId: string | null = null;
+      let lastEntryDate: string | null = null;
+      let supplierId: string | null = null;
+      let supplierName: string | null = null;
 
       if (p.stockEntryItems && p.stockEntryItems.length > 0) {
         const lastEntry = p.stockEntryItems[0];
-        cost = Number(lastEntry.unitCost);
-        lastInvoice = lastEntry.stockEntry?.invoiceNum || 'S/N';
+        if (Number(lastEntry.unitCost) > 0) cost = Number(lastEntry.unitCost);
+        lastInvoice = lastEntry.stockEntry?.invoiceNum || null;
+        lastInvoiceId = lastEntry.stockEntry?.id || null;
         lastEntryDate = lastEntry.stockEntry?.entryDate?.toISOString() || null;
+        supplierId = (lastEntry.stockEntry as any)?.supplierId || null;
+        supplierName = (lastEntry.stockEntry as any)?.supplierName || null;
       }
 
-      const taxRate = Number(p.ibsRate || 0) + Number(p.cbsRate || 0) + Number(p.isRate || 0);
       const price = Number(p.price || 0);
-      
-      let markup = 0;
-      if (cost > 0) {
-        markup = ((price - cost) / cost) * 100;
-      }
+      let markup = cost > 0 ? ((price - cost) / cost) * 100 : 0;
 
       return {
         id: p.id,
         name: p.name,
+        barcode: p.barcode || null,
+        brand: (p as any).brand || null,
         category: p.category?.name || "Sem Seção",
         categoryId: p.categoryId,
+        parentProductId: p.parentProductId || null,
+        variationsCount: p.variations?.length || 0,
         price,
         cost,
         lastInvoice,
+        lastInvoiceId,
         lastEntryDate,
-        taxRate,
-        markup
+        supplierId,
+        supplierName,
+        markup,
+        priceChangedAt: p.priceChangedAt?.toISOString() || null,
       };
     });
 
-    return { success: true, products: data };
+    // Build unique invoice list for filter
+    const invoiceMap = new Map<string, { id: string; num: string; date: string | null }>();
+    data.forEach(p => {
+      if (p.lastInvoiceId && p.lastInvoice) {
+        invoiceMap.set(p.lastInvoiceId, {
+          id: p.lastInvoiceId,
+          num: p.lastInvoice,
+          date: p.lastEntryDate
+        });
+      }
+    });
+
+    return {
+      success: true,
+      products: data,
+      invoices: Array.from(invoiceMap.values()).sort((a, b) =>
+        (b.date || "").localeCompare(a.date || "")
+      )
+    };
   } catch (err: any) {
-    return { error: err.message || "Erro ao buscar dados de precificação", products: [] };
+    return { error: err.message || "Erro ao buscar dados de precificação", products: [], invoices: [] };
   }
 }
 
 export async function updatePricing(productId: string, newPrice: number) {
   try {
     const product = await prisma.product.findUnique({
-      where: { id: productId }
+      where: { id: productId },
+      include: { category: true }
     });
 
     if (!product) return { error: "Produto não encontrado" };
 
-    // Atualiza o produto alvo
-    await prisma.product.update({
-      where: { id: productId },
-      data: { price: newPrice }
-    });
-
     // Propagação em cadeia para produtos da mesma família (familiarização por sabor/fragrância)
     const familyId = product.parentProductId || product.id;
+    const familyProducts = await prisma.product.findMany({
+      where: {
+        OR: [
+          { id: familyId },
+          { parentProductId: familyId }
+        ]
+      },
+      include: { category: true }
+    });
+
     await prisma.product.updateMany({
       where: {
         OR: [
@@ -187,10 +235,21 @@ export async function updatePricing(productId: string, newPrice: number) {
           { parentProductId: familyId }
         ]
       },
-      data: { price: newPrice }
+      data: { price: newPrice, priceChangedAt: new Date() }
     });
 
+    for (const fp of familyProducts) {
+      await recordPriceChange({
+        productId: fp.id,
+        oldPrice: Number(fp.price || 0),
+        newPrice: Number(newPrice),
+        sectionName: fp.category?.name || "Sem Seção",
+        companyId: fp.companyId,
+      });
+    }
+
     revalidatePath("/pricing");
+    revalidatePath("/labels");
     return { success: true };
   } catch (err: any) {
     return { error: err.message || "Erro ao salvar preço" };
@@ -240,5 +299,60 @@ export async function applyMarginToCategory(categoryId: string, marginPercent: n
     return { success: true };
   } catch (err: any) {
     return { error: err.message || "Erro ao precificar em lote" };
+  }
+}
+
+// Precifica todos os produtos de uma nota fiscal com a margem informada
+export async function applyMarginToInvoice(stockEntryId: string, marginPercent: number) {
+  try {
+    const items = await prisma.stockEntryItem.findMany({
+      where: { stockEntryId },
+      include: { product: true }
+    });
+
+    const updates = items.map(item => {
+      let cost = Number(item.unitCost);
+      if (cost <= 0) cost = Number(item.product?.cost || 1);
+      const newPrice = cost * (1 + marginPercent / 100);
+      return prisma.product.update({
+        where: { id: item.productId },
+        data: { price: newPrice, priceChangedAt: new Date() }
+      });
+    });
+
+    await prisma.$transaction(updates);
+    revalidatePath("/pricing");
+    return { success: true, count: updates.length };
+  } catch (err: any) {
+    return { error: err.message || "Erro ao precificar por nota" };
+  }
+}
+
+// Precifica todos os produtos de uma família (produto pai + variações) com a mesma margem
+export async function applyMarginToFamily(parentProductId: string, marginPercent: number) {
+  try {
+    const products = await prisma.product.findMany({
+      where: {
+        OR: [
+          { id: parentProductId },
+          { parentProductId }
+        ]
+      }
+    });
+
+    const updates = products.map(p => {
+      const cost = Number(p.cost || 1);
+      const newPrice = cost * (1 + marginPercent / 100);
+      return prisma.product.update({
+        where: { id: p.id },
+        data: { price: newPrice, priceChangedAt: new Date() }
+      });
+    });
+
+    await prisma.$transaction(updates);
+    revalidatePath("/pricing");
+    return { success: true, count: updates.length };
+  } catch (err: any) {
+    return { error: err.message || "Erro ao precificar família" };
   }
 }

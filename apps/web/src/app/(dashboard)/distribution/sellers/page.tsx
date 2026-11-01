@@ -67,11 +67,11 @@ export default function SellersPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
-            <Users className="text-indigo-400" />
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+            <Users className="text-indigo-600" />
             Gestão & Ranking de Vendedores B2B
           </h1>
-          <p className="text-slate-400 text-xs mt-1">
+          <p className="text-slate-500 text-xs mt-1">
             Comissões, metas mensais, margens e ranking de desempenho da equipe comercial.
           </p>
         </div>
@@ -88,11 +88,11 @@ export default function SellersPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {sortedPerformance.slice(0, 3).map((p, index) => {
           const medalColors = [
-            "from-amber-500/20 to-yellow-500/10 border-amber-500/30 text-amber-400",
-            "from-slate-400/20 to-slate-500/10 border-slate-400/30 text-slate-300",
+            "from-amber-500/20 to-yellow-500/10 border-amber-500/30 text-amber-600",
+            "from-slate-400/20 to-slate-500/10 border-slate-400/30 text-slate-600",
             "from-amber-700/20 to-amber-800/10 border-amber-700/30 text-amber-500",
           ];
-          const colorClass = medalColors[index] || "from-indigo-500/10 to-indigo-600/10 border-indigo-500/20 text-indigo-300";
+          const colorClass = medalColors[index] || "from-indigo-500/10 to-indigo-600/10 border-indigo-200 text-indigo-700";
           const percentGoal = p.goal && p.goal > 0 ? Math.min(100, Math.round((p.totalSold / p.goal) * 100)) : 0;
 
           return (
@@ -134,7 +134,7 @@ export default function SellersPage() {
                 )}
               </div>
 
-              <div className="flex items-center justify-between text-[11px] pt-3 border-t border-white/10 text-slate-300">
+              <div className="flex items-center justify-between text-[11px] pt-3 border-t border-[#c4d5ee] text-slate-300">
                 <span>Margem Média: <strong className="text-emerald-400">{p.margin.toFixed(1)}%</strong></span>
                 <span>Vendas: <strong className="text-white">{p.salesCount}</strong></span>
               </div>
@@ -144,15 +144,15 @@ export default function SellersPage() {
       </div>
 
       {/* Lista de Vendedores Registrados */}
-      <div className="bg-[#111528] border border-indigo-500/15 rounded-2xl overflow-hidden shadow-xl">
-        <div className="p-4 border-b border-indigo-500/10 flex justify-between items-center">
-          <h2 className="text-sm font-bold text-white">Equipe Comercial ({sellers.length})</h2>
+      <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl overflow-hidden shadow-xl">
+        <div className="p-4 border-b border-[#c4d5ee] flex justify-between items-center">
+          <h2 className="text-sm font-bold text-gray-900">Equipe Comercial ({sellers.length})</h2>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="text-indigo-400/60 uppercase tracking-wider border-b border-indigo-500/10 text-[10px] bg-[#0c0f1a]/40">
+              <tr className="text-indigo-600/60 uppercase tracking-wider border-b border-[#c4d5ee] text-[10px] bg-[#f3f7fe]/40">
                 <th className="py-3 px-4">Vendedor</th>
                 <th className="py-3 px-4">Contato</th>
                 <th className="py-3 px-4 text-center">Comissão Padrão</th>
@@ -177,22 +177,22 @@ export default function SellersPage() {
               ) : (
                 sellers.map((s) => (
                   <tr key={s.id} className="hover:bg-indigo-500/[0.03]">
-                    <td className="py-3.5 px-4 font-bold text-white">{s.name}</td>
-                    <td className="py-3.5 px-4 text-slate-400">
+                    <td className="py-3.5 px-4 font-bold text-gray-900">{s.name}</td>
+                    <td className="py-3.5 px-4 text-slate-500">
                       <div>{s.phone || "---"}</div>
                       <div className="text-[10px] text-slate-500">{s.email || "---"}</div>
                     </td>
-                    <td className="py-3.5 px-4 text-center font-mono font-bold text-indigo-300">
+                    <td className="py-3.5 px-4 text-center font-mono font-bold text-indigo-700">
                       {s.commission}%
                     </td>
-                    <td className="py-3.5 px-4 text-right font-mono text-slate-300">
+                    <td className="py-3.5 px-4 text-right font-mono text-slate-600">
                       {s.goal ? `R$ ${Number(s.goal).toFixed(2)}` : "Sem Meta"}
                     </td>
-                    <td className="py-3.5 px-4 text-center font-mono font-bold text-slate-300">
+                    <td className="py-3.5 px-4 text-center font-mono font-bold text-slate-600">
                       {s._count?.customers || 0}
                     </td>
                     <td className="py-3.5 px-4 text-center">
-                      <span className="bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded text-[10px] font-bold">
+                      <span className="bg-emerald-500/20 text-emerald-600 px-2 py-0.5 rounded text-[10px] font-bold">
                         Ativo
                       </span>
                     </td>
@@ -207,66 +207,66 @@ export default function SellersPage() {
       {/* Modal Criar Vendedor */}
       {showModal && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#111528] border border-indigo-500/20 rounded-2xl p-6 max-w-md w-full shadow-2xl">
-            <h2 className="text-lg font-bold text-white mb-4">Novo Vendedor B2B</h2>
+          <div className="bg-[#fbfdff] border border-indigo-200 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Novo Vendedor B2B</h2>
             <form onSubmit={handleCreateSeller} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nome Completo *</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome Completo *</label>
                 <input
                   type="text"
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Ex: Carlos Oliveira"
-                  className="w-full bg-[#0c0f1a] border border-indigo-500/20 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500"
+                  className="w-full bg-[#f3f7fe] border border-indigo-200 rounded-xl px-3 py-2 text-xs text-gray-900 outline-none focus:border-indigo-500"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Telefone / WhatsApp</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Telefone / WhatsApp</label>
                   <input
                     type="text"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="(11) 99999-9999"
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/20 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500"
+                    className="w-full bg-[#f3f7fe] border border-indigo-200 rounded-xl px-3 py-2 text-xs text-gray-900 outline-none focus:border-indigo-500"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1">E-mail</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">E-mail</label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="carlos@empresa.com"
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/20 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500"
+                    className="w-full bg-[#f3f7fe] border border-indigo-200 rounded-xl px-3 py-2 text-xs text-gray-900 outline-none focus:border-indigo-500"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Comissão Padrão (%)</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Comissão Padrão (%)</label>
                   <input
                     type="number"
                     step="0.1"
                     value={commission}
                     onChange={(e) => setCommission(e.target.value)}
                     placeholder="2.5"
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/20 rounded-xl px-3 py-2 text-xs text-white font-mono outline-none"
+                    className="w-full bg-[#f3f7fe] border border-indigo-200 rounded-xl px-3 py-2 text-xs text-gray-900 font-mono outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Meta Mensal (R$)</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Meta Mensal (R$)</label>
                   <input
                     type="number"
                     value={goal}
                     onChange={(e) => setGoal(e.target.value)}
                     placeholder="50000"
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/20 rounded-xl px-3 py-2 text-xs text-white font-mono outline-none"
+                    className="w-full bg-[#f3f7fe] border border-indigo-200 rounded-xl px-3 py-2 text-xs text-gray-900 font-mono outline-none"
                   />
                 </div>
               </div>
@@ -275,7 +275,7 @@ export default function SellersPage() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs text-slate-400 hover:text-white"
+                  className="px-4 py-2 rounded-xl text-xs text-slate-500 hover:text-gray-900"
                 >
                   Cancelar
                 </button>

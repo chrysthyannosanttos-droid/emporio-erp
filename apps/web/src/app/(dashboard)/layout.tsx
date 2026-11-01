@@ -35,7 +35,9 @@ export default async function DashboardLayout({
       operationTypes={operationTypes}
     >
       {children}
-      <AiChatbot />
+      <div className="print:hidden">
+        <AiChatbot />
+      </div>
     </DrawerLayout>
   );
 }

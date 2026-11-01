@@ -55,8 +55,8 @@ export function TenantUsersManager() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold text-white">Usuários da Empresa</h2>
-          <p className="text-slate-400 text-sm">Gerencie o acesso e permissões (RBAC) dos seus colaboradores.</p>
+          <h2 className="text-lg font-bold text-gray-900">Usuários da Empresa</h2>
+          <p className="text-slate-500 text-sm">Gerencie o acesso e permissões (RBAC) dos seus colaboradores.</p>
         </div>
         <button
           onClick={() => setShowModal(true)}
@@ -67,13 +67,13 @@ export function TenantUsersManager() {
       </div>
 
       {loading ? (
-        <div className="py-12 flex justify-center text-slate-400">
+        <div className="py-12 flex justify-center text-slate-500">
           <Loader2 className="animate-spin" size={24} />
         </div>
       ) : (
-        <div className="bg-[#161b33] rounded-2xl border border-indigo-500/15 overflow-hidden">
+        <div className="bg-[#eaf1fc] rounded-2xl border border-[#c4d5ee] overflow-hidden">
           <table className="w-full text-left border-collapse">
-            <thead className="bg-[#111528] text-xs font-bold text-slate-400 uppercase">
+            <thead className="bg-[#fbfdff] text-xs font-bold text-slate-500 uppercase">
               <tr>
                 <th className="px-5 py-3.5">Nome / Email</th>
                 <th className="px-5 py-3.5">Perfil (Role)</th>
@@ -81,21 +81,21 @@ export function TenantUsersManager() {
                 <th className="px-5 py-3.5 text-right">Ação</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-indigo-500/10 text-sm">
+            <tbody className="divide-y divide-[#c4d5ee] text-sm">
               {users.map((u) => (
                 <tr key={u.id} className="hover:bg-indigo-500/5 transition-colors">
                   <td className="px-5 py-4">
-                    <div className="font-bold text-white">{u.name}</div>
-                    <div className="text-xs text-slate-400">{u.email}</div>
+                    <div className="font-bold text-gray-900">{u.name}</div>
+                    <div className="text-xs text-slate-500">{u.email}</div>
                   </td>
                   <td className="px-5 py-4">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-500/10 text-indigo-600 border border-indigo-200">
                       <Shield size={12} />
                       {roleLabels[u.role] || u.role}
                     </span>
                   </td>
                   <td className="px-5 py-4">
-                    <span className={`inline-flex items-center gap-1 text-xs font-bold ${u.active ? "text-emerald-400" : "text-red-400"}`}>
+                    <span className={`inline-flex items-center gap-1 text-xs font-bold ${u.active ? "text-emerald-600" : "text-red-600"}`}>
                       {u.active ? <CheckCircle size={14} /> : <XCircle size={14} />}
                       {u.active ? "Ativo" : "Inativo"}
                     </span>
@@ -105,8 +105,8 @@ export function TenantUsersManager() {
                       onClick={() => handleToggle(u.id, u.active)}
                       className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors ${
                         u.active
-                          ? "border-red-500/30 text-red-400 hover:bg-red-500/10"
-                          : "border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+                          ? "border-red-500/30 text-red-600 hover:bg-red-500/10"
+                          : "border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10"
                       }`}
                     >
                       {u.active ? "Desativar" : "Ativar"}
@@ -130,47 +130,47 @@ export function TenantUsersManager() {
       {/* Modal Criar Usuário */}
       {showModal && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#111528] border border-indigo-500/20 rounded-2xl p-6 w-full max-w-md space-y-4">
-            <h3 className="text-lg font-bold text-white">Novo Usuário</h3>
+          <div className="bg-[#fbfdff] border border-indigo-200 rounded-2xl p-6 w-full max-w-md space-y-4">
+            <h3 className="text-lg font-bold text-gray-900">Novo Usuário</h3>
 
             <form onSubmit={handleCreate} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Nome Completo *</label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Nome Completo *</label>
                 <input
                   name="name"
                   required
                   placeholder="Ex: Carlos Oliveira"
-                  className="w-full px-3 py-2 bg-[#161b33] border border-indigo-500/20 text-white rounded-xl text-sm outline-none focus:border-indigo-500"
+                  className="w-full px-3 py-2 bg-[#eaf1fc] border border-indigo-200 text-gray-900 rounded-xl text-sm outline-none focus:border-indigo-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">E-mail *</label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">E-mail *</label>
                 <input
                   name="email"
                   type="email"
                   required
                   placeholder="carlos@empresa.com"
-                  className="w-full px-3 py-2 bg-[#161b33] border border-indigo-500/20 text-white rounded-xl text-sm outline-none focus:border-indigo-500"
+                  className="w-full px-3 py-2 bg-[#eaf1fc] border border-indigo-200 text-gray-900 rounded-xl text-sm outline-none focus:border-indigo-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Senha *</label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Senha *</label>
                 <input
                   name="password"
                   type="password"
                   required
                   placeholder="••••••••"
-                  className="w-full px-3 py-2 bg-[#161b33] border border-indigo-500/20 text-white rounded-xl text-sm outline-none focus:border-indigo-500"
+                  className="w-full px-3 py-2 bg-[#eaf1fc] border border-indigo-200 text-gray-900 rounded-xl text-sm outline-none focus:border-indigo-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">Perfil de Acesso (RBAC)</label>
+                <label className="block text-xs font-bold text-slate-600 mb-1">Perfil de Acesso (RBAC)</label>
                 <select
                   name="role"
-                  className="w-full px-3 py-2 bg-[#161b33] border border-indigo-500/20 text-white rounded-xl text-sm outline-none focus:border-indigo-500"
+                  className="w-full px-3 py-2 bg-[#eaf1fc] border border-indigo-200 text-gray-900 rounded-xl text-sm outline-none focus:border-indigo-500"
                 >
                   <option value="OPERATOR">Operador de Caixa</option>
                   <option value="SELLER">Vendedor / Atendente</option>
@@ -180,13 +180,13 @@ export function TenantUsersManager() {
                 </select>
               </div>
 
-              {error && <div className="text-xs text-red-400 font-bold">{error}</div>}
+              {error && <div className="text-xs text-red-600 font-bold">{error}</div>}
 
               <div className="flex gap-2 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 py-2.5 border border-slate-700 text-slate-400 rounded-xl font-bold text-sm hover:bg-slate-800"
+                  className="flex-1 py-2.5 border border-[#c4d5ee] text-slate-500 rounded-xl font-bold text-sm hover:bg-[#eaf1fc]"
                 >
                   Cancelar
                 </button>

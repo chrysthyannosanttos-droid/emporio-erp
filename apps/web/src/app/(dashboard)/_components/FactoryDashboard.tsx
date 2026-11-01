@@ -12,7 +12,7 @@ export function FactoryDashboard({ ordersCount, recipesCount, plannedTotal, prod
   return (
     <div className="flex flex-col gap-6">
       {/* Banner Superior */}
-      <div className="bg-gradient-to-r from-emerald-950/40 via-[#111528] to-[#0c0f1a] rounded-2xl p-6 border border-emerald-500/20 relative overflow-hidden">
+      <div className="bg-gradient-to-r from-emerald-950/40 via-[#fbfdff] to-[#f3f7fe] rounded-2xl p-6 border border-emerald-500/20 relative overflow-hidden">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative z-10">
           <div>
             <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400 bg-emerald-500/10 px-3 py-1 rounded-full border border-emerald-500/20 mb-2 inline-block">
@@ -35,7 +35,7 @@ export function FactoryDashboard({ ordersCount, recipesCount, plannedTotal, prod
             </Link>
             <Link
               href="/restaurant/recipes"
-              className="bg-[#161b33] border border-indigo-500/20 text-slate-200 hover:text-white px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5"
+              className="bg-[#eaf1fc] border border-indigo-200 text-slate-700 hover:text-gray-900 px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-1.5"
             >
               <BookOpen size={14} /> Fichas Técnicas
             </Link>
@@ -45,50 +45,50 @@ export function FactoryDashboard({ ordersCount, recipesCount, plannedTotal, prod
 
       {/* KPI Cards Industriais */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-[#111528] border border-indigo-500/15 rounded-2xl p-5">
+        <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl p-5">
           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
             Ordens de Produção Totais
           </span>
-          <div className="text-2xl font-black font-mono text-indigo-400">
+          <div className="text-2xl font-black font-mono text-indigo-600">
             {ordersCount}
           </div>
-          <span className="text-[10px] text-slate-400 mt-2 block">
+          <span className="text-[10px] text-slate-500 mt-2 block">
             OPs planejadas ou executadas
           </span>
         </div>
 
-        <div className="bg-[#111528] border border-indigo-500/15 rounded-2xl p-5">
+        <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl p-5">
           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
             Fichas Técnicas (Fórmulas)
           </span>
-          <div className="text-2xl font-black font-mono text-white">
+          <div className="text-2xl font-black font-mono text-gray-900">
             {recipesCount}
           </div>
-          <span className="text-[10px] text-slate-400 mt-2 block">
+          <span className="text-[10px] text-slate-500 mt-2 block">
             Produtos com composição definida
           </span>
         </div>
 
-        <div className="bg-[#111528] border border-indigo-500/15 rounded-2xl p-5">
+        <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl p-5">
           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
             Volume Planejado (Total)
           </span>
-          <div className="text-2xl font-black font-mono text-amber-400">
+          <div className="text-2xl font-black font-mono text-amber-600">
             {plannedTotal} un
           </div>
-          <span className="text-[10px] text-slate-400 mt-2 block">
+          <span className="text-[10px] text-slate-500 mt-2 block">
             Meta de produção acumulada
           </span>
         </div>
 
-        <div className="bg-[#111528] border border-indigo-500/15 rounded-2xl p-5">
+        <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl p-5">
           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
             Volume Produzido (Concluído)
           </span>
-          <div className="text-2xl font-black font-mono text-emerald-400">
+          <div className="text-2xl font-black font-mono text-emerald-600">
             {producedTotal} un
           </div>
-          <span className="text-[10px] text-slate-400 mt-2 block">
+          <span className="text-[10px] text-slate-500 mt-2 block">
             Produtos acabados em estoque
           </span>
         </div>
@@ -98,50 +98,50 @@ export function FactoryDashboard({ ordersCount, recipesCount, plannedTotal, prod
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Link
           href="/factory/production-orders"
-          className="bg-[#111528] border border-indigo-500/15 hover:border-emerald-500/40 rounded-2xl p-5 transition-all group flex items-center justify-between"
+          className="bg-[#fbfdff] border border-[#c4d5ee] hover:border-emerald-500/40 rounded-2xl p-5 transition-all group flex items-center justify-between"
         >
           <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-emerald-600/20 text-emerald-400 group-hover:bg-emerald-600 group-hover:text-white transition-all">
+            <div className="p-3 rounded-xl bg-emerald-600/20 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-gray-900 transition-all">
               <Hammer size={22} />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-white">Ordens de Produção (OP)</h3>
-              <p className="text-[11px] text-slate-400 mt-0.5">Lotes, validade e baixa de insumos</p>
+              <h3 className="font-bold text-sm text-gray-900">Ordens de Produção (OP)</h3>
+              <p className="text-[11px] text-slate-500 mt-0.5">Lotes, validade e baixa de insumos</p>
             </div>
           </div>
-          <ArrowRight size={18} className="text-slate-600 group-hover:text-emerald-400 transition-colors" />
+          <ArrowRight size={18} className="text-slate-600 group-hover:text-emerald-600 transition-colors" />
         </Link>
 
         <Link
           href="/restaurant/recipes"
-          className="bg-[#111528] border border-indigo-500/15 hover:border-indigo-500/40 rounded-2xl p-5 transition-all group flex items-center justify-between"
+          className="bg-[#fbfdff] border border-[#c4d5ee] hover:border-indigo-500/40 rounded-2xl p-5 transition-all group flex items-center justify-between"
         >
           <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-indigo-600/20 text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white transition-all">
+            <div className="p-3 rounded-xl bg-indigo-600/20 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-gray-900 transition-all">
               <BookOpen size={22} />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-white">Fichas Técnicas & Insumos</h3>
-              <p className="text-[11px] text-slate-400 mt-0.5">Composição de matérias-primas</p>
+              <h3 className="font-bold text-sm text-gray-900">Fichas Técnicas & Insumos</h3>
+              <p className="text-[11px] text-slate-500 mt-0.5">Composição de matérias-primas</p>
             </div>
           </div>
-          <ArrowRight size={18} className="text-slate-600 group-hover:text-indigo-400 transition-colors" />
+          <ArrowRight size={18} className="text-slate-600 group-hover:text-indigo-600 transition-colors" />
         </Link>
 
         <Link
           href="/pricing"
-          className="bg-[#111528] border border-indigo-500/15 hover:border-indigo-500/40 rounded-2xl p-5 transition-all group flex items-center justify-between"
+          className="bg-[#fbfdff] border border-[#c4d5ee] hover:border-indigo-500/40 rounded-2xl p-5 transition-all group flex items-center justify-between"
         >
           <div className="flex items-center gap-3">
-            <div className="p-3 rounded-xl bg-amber-600/20 text-amber-400 group-hover:bg-amber-600 group-hover:text-white transition-all">
+            <div className="p-3 rounded-xl bg-amber-600/20 text-amber-600 group-hover:bg-amber-600 group-hover:text-gray-900 transition-all">
               <Factory size={22} />
             </div>
             <div>
-              <h3 className="font-bold text-sm text-white">Custo Industrial & Margens</h3>
-              <p className="text-[11px] text-slate-400 mt-0.5">Formação de preço por lote</p>
+              <h3 className="font-bold text-sm text-gray-900">Custo Industrial & Margens</h3>
+              <p className="text-[11px] text-slate-500 mt-0.5">Formação de preço por lote</p>
             </div>
           </div>
-          <ArrowRight size={18} className="text-slate-600 group-hover:text-amber-400 transition-colors" />
+          <ArrowRight size={18} className="text-slate-600 group-hover:text-amber-600 transition-colors" />
         </Link>
       </div>
     </div>

@@ -131,74 +131,74 @@ export default function CotacaoPortalPage({ params }: { params: Promise<{ token:
 
   // ─── NOT FOUND ───────────────────────────────────────
   if (phase === "notfound") return (
-    <div className="min-h-screen bg-[#060919] flex items-center justify-center p-6">
+    <div className="min-h-screen bg-[#f3f7fe] flex items-center justify-center p-6">
       <div className="text-center space-y-4">
-        <AlertCircle size={56} className="mx-auto text-rose-400" />
-        <h1 className="text-2xl font-bold text-white">Link Inválido</h1>
-        <p className="text-slate-400 max-w-sm">Este link de cotação não existe ou foi removido.</p>
+        <AlertCircle size={56} className="mx-auto text-rose-600" />
+        <h1 className="text-2xl font-bold text-gray-900">Link Inválido</h1>
+        <p className="text-slate-500 max-w-sm">Este link de cotação não existe ou foi removido.</p>
       </div>
     </div>
   );
 
   // ─── EXPIRED ─────────────────────────────────────────
   if (phase === "expired") return (
-    <div className="min-h-screen bg-[#060919] flex items-center justify-center p-6">
+    <div className="min-h-screen bg-[#f3f7fe] flex items-center justify-center p-6">
       <div className="text-center space-y-4">
-        <AlertCircle size={56} className="mx-auto text-amber-400" />
-        <h1 className="text-2xl font-bold text-white">Cotação Encerrada</h1>
-        <p className="text-slate-400 max-w-sm">O prazo para envio de propostas já foi encerrado.</p>
+        <AlertCircle size={56} className="mx-auto text-amber-600" />
+        <h1 className="text-2xl font-bold text-gray-900">Cotação Encerrada</h1>
+        <p className="text-slate-500 max-w-sm">O prazo para envio de propostas já foi encerrado.</p>
       </div>
     </div>
   );
 
   // ─── LOGIN ───────────────────────────────────────────
   if (phase === "login") return (
-    <div className="min-h-screen bg-[#060919] flex items-center justify-center p-6">
+    <div className="min-h-screen bg-[#f3f7fe] flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="w-16 h-16 rounded-2xl bg-indigo-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-600/40">
             <Building2 size={28} className="text-white" />
           </div>
-          <h1 className="text-2xl font-black text-white">Portal de Cotação</h1>
+          <h1 className="text-2xl font-black text-gray-900">Portal de Cotação</h1>
           {session && (
-            <p className="text-slate-400 mt-1 text-sm">
-              Solicitado por <span className="text-indigo-400 font-semibold">{session.companyName}</span>
+            <p className="text-slate-500 mt-1 text-sm">
+              Solicitado por <span className="text-indigo-600 font-semibold">{session.companyName}</span>
             </p>
           )}
           {session && (
-            <div className="mt-3 inline-flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-bold px-3 py-1.5 rounded-full">
+            <div className="mt-3 inline-flex items-center gap-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-700 text-xs font-bold px-3 py-1.5 rounded-full">
               Prazo: {new Date(session.deadline).toLocaleDateString("pt-BR")}
             </div>
           )}
         </div>
 
-        <div className="bg-[#111528] border border-indigo-500/15 rounded-2xl shadow-2xl overflow-hidden">
-          <div className="p-6 border-b border-indigo-500/[0.08] bg-[#0c0f1a]/60">
-            <h2 className="text-sm font-bold text-white flex items-center gap-2">
-              <Lock size={14} className="text-indigo-400" /> Acesso do Fornecedor
+        <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl shadow-2xl overflow-hidden">
+          <div className="p-6 border-b border-indigo-500/[0.08] bg-[#f3f7fe]/60">
+            <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+              <Lock size={14} className="text-indigo-600" /> Acesso do Fornecedor
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">Insira seu CNPJ e a senha recebida por e-mail</p>
           </div>
 
           <form onSubmit={handleLogin} className="p-6 space-y-4">
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">CNPJ da Empresa</label>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">CNPJ da Empresa</label>
               <input
                 type="text" value={cnpj} onChange={e => setCnpj(e.target.value)}
                 placeholder="00.000.000/0001-00" required autoFocus
-                className="w-full bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-white px-3 py-2.5 rounded-lg outline-none text-sm font-mono transition-all"
+                className="w-full bg-[#f3f7fe] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 px-3 py-2.5 rounded-lg outline-none text-sm font-mono transition-all"
               />
             </div>
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Senha de Acesso</label>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Senha de Acesso</label>
               <input
                 type="password" value={password} onChange={e => setPassword(e.target.value)}
                 placeholder="Senha recebida no e-mail" required
-                className="w-full bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-white px-3 py-2.5 rounded-lg outline-none text-sm transition-all"
+                className="w-full bg-[#f3f7fe] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 px-3 py-2.5 rounded-lg outline-none text-sm transition-all"
               />
             </div>
             {loginError && (
-              <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-300 text-xs flex items-start gap-2">
+              <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-700 text-xs flex items-start gap-2">
                 <AlertCircle size={14} className="shrink-0 mt-0.5" /> {loginError}
               </div>
             )}
@@ -215,25 +215,25 @@ export default function CotacaoPortalPage({ params }: { params: Promise<{ token:
 
   // ─── SUBMITTED ───────────────────────────────────────
   if (phase === "submitted") return (
-    <div className="min-h-screen bg-[#060919] flex items-center justify-center p-6">
+    <div className="min-h-screen bg-[#f3f7fe] flex items-center justify-center p-6">
       <div className="text-center space-y-5 max-w-md">
         <div className="w-20 h-20 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto">
-          <CheckCircle2 size={40} className="text-emerald-400" />
+          <CheckCircle2 size={40} className="text-emerald-600" />
         </div>
         <div>
-          <h1 className="text-2xl font-black text-white">Cotação Enviada!</h1>
-          <p className="text-slate-400 mt-2 text-sm leading-relaxed">
-            Obrigado, <span className="text-white font-semibold">{loggedSupplierName}</span>!
+          <h1 className="text-2xl font-black text-gray-900">Cotação Enviada!</h1>
+          <p className="text-slate-500 mt-2 text-sm leading-relaxed">
+            Obrigado, <span className="text-gray-900 font-semibold">{loggedSupplierName}</span>!
             Sua proposta foi registrada com sucesso.
           </p>
         </div>
-        <div className="bg-[#111528] border border-indigo-500/10 rounded-2xl p-5 text-left space-y-2">
+        <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl p-5 text-left space-y-2">
           <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Resumo da Proposta</p>
-          <p className="text-xs text-slate-300">Condição: <span className="text-white font-semibold">{paymentProposal}</span></p>
-          <p className="text-xs text-slate-300">Total: <span className="text-indigo-400 font-bold text-base font-mono">
+          <p className="text-xs text-slate-600">Condição: <span className="text-gray-900 font-semibold">{paymentProposal}</span></p>
+          <p className="text-xs text-slate-600">Total: <span className="text-indigo-600 font-bold text-base font-mono">
             R$ {total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
           </span></p>
-          {observations && <p className="text-xs text-slate-400 italic">"{observations}"</p>}
+          {observations && <p className="text-xs text-slate-500 italic">"{observations}"</p>}
         </div>
         <p className="text-[10px] text-slate-600">Você pode fechar esta janela.</p>
       </div>
@@ -242,27 +242,27 @@ export default function CotacaoPortalPage({ params }: { params: Promise<{ token:
 
   // ─── FILLING (main form with sticky footer) ──────────
   return (
-    <div className="min-h-screen bg-[#060919] flex flex-col">
+    <div className="min-h-screen bg-[#f3f7fe] flex flex-col">
 
       {/* ── Sticky top header ── */}
-      <div className="sticky top-0 z-20 bg-[#060919]/95 backdrop-blur-sm border-b border-indigo-500/10 px-4 py-3">
+      <div className="sticky top-0 z-20 bg-[#f3f7fe]/95 backdrop-blur-sm border-b border-[#c4d5ee] px-4 py-3">
         <div className="max-w-3xl mx-auto flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2 mb-0.5">
               <div className="w-6 h-6 rounded-lg bg-indigo-600 flex items-center justify-center">
                 <Building2 size={12} className="text-white" />
               </div>
-              <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Portal de Cotação</span>
+              <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest">Portal de Cotação</span>
             </div>
-            <p className="text-xs text-slate-400">
-              <span className="text-white font-semibold">{session?.companyName}</span>
+            <p className="text-xs text-slate-500">
+              <span className="text-gray-900 font-semibold">{session?.companyName}</span>
               {" · "}
-              Logado como <span className="text-indigo-300 font-semibold">{loggedSupplierName}</span>
+              Logado como <span className="text-indigo-700 font-semibold">{loggedSupplierName}</span>
             </p>
           </div>
           <div className="text-right">
             <p className="text-[10px] text-slate-500 uppercase">Prazo</p>
-            <p className="text-sm font-bold text-amber-400">
+            <p className="text-sm font-bold text-amber-600">
               {session && new Date(session.deadline).toLocaleDateString("pt-BR")}
             </p>
           </div>
@@ -275,10 +275,10 @@ export default function CotacaoPortalPage({ params }: { params: Promise<{ token:
           <form id="quote-form" onSubmit={handleSubmitQuote} className="space-y-4">
 
             {/* Products table */}
-            <div className="bg-[#111528] border border-indigo-500/10 rounded-2xl overflow-hidden">
-              <div className="p-5 border-b border-indigo-500/[0.08] bg-[#0c0f1a]/50">
-                <h2 className="text-sm font-bold text-white flex items-center gap-2">
-                  <Package size={16} className="text-indigo-400" /> Produtos para Cotar
+            <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl overflow-hidden">
+              <div className="p-5 border-b border-indigo-500/[0.08] bg-[#f3f7fe]/50">
+                <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                  <Package size={16} className="text-indigo-600" /> Produtos para Cotar
                 </h2>
                 <p className="text-[10px] text-slate-500 mt-0.5">
                   Preencha o seu <strong>preço unitário</strong> para cada item. Todos os campos são obrigatórios.
@@ -286,7 +286,7 @@ export default function CotacaoPortalPage({ params }: { params: Promise<{ token:
               </div>
 
               <table className="w-full text-sm">
-                <thead className="bg-[#0c0f1a]/40 text-slate-500 text-[10px] font-bold uppercase border-b border-indigo-500/[0.06]">
+                <thead className="bg-[#f3f7fe]/40 text-slate-500 text-[10px] font-bold uppercase border-b border-indigo-500/[0.06]">
                   <tr>
                     <th className="px-5 py-3 text-left">Produto</th>
                     <th className="px-5 py-3 text-right w-16">Qtd</th>
@@ -302,11 +302,11 @@ export default function CotacaoPortalPage({ params }: { params: Promise<{ token:
                     return (
                       <tr key={p.id} className="hover:bg-indigo-500/[0.03] transition-colors">
                         <td className="px-5 py-4">
-                          <p className="font-semibold text-white text-xs">{p.name}</p>
+                          <p className="font-semibold text-gray-900 text-xs">{p.name}</p>
                           {p.barcode && <p className="text-[10px] text-slate-500 font-mono mt-0.5">{p.barcode}</p>}
                         </td>
-                        <td className="px-5 py-4 text-right text-slate-400 text-xs font-mono">{p.qty}</td>
-                        <td className="px-5 py-4 text-right text-slate-400 text-xs font-mono">{p.unit}</td>
+                        <td className="px-5 py-4 text-right text-slate-500 text-xs font-mono">{p.qty}</td>
+                        <td className="px-5 py-4 text-right text-slate-500 text-xs font-mono">{p.unit}</td>
                         <td className="px-5 py-4">
                           <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs font-semibold">R$</span>
@@ -315,16 +315,16 @@ export default function CotacaoPortalPage({ params }: { params: Promise<{ token:
                               value={prices[p.id] || ""}
                               onChange={e => setPrices(prev => ({ ...prev, [p.id]: e.target.value }))}
                               required placeholder="0,00"
-                              className={`w-full rounded-xl pl-9 pr-3 py-2.5 outline-none text-sm font-mono text-right font-bold transition-all border bg-[#0c0f1a] ${
+                              className={`w-full rounded-xl pl-9 pr-3 py-2.5 outline-none text-sm font-mono text-right font-bold transition-all border bg-[#f3f7fe] ${
                                 filled
-                                  ? "border-emerald-500/40 text-emerald-300 focus:border-emerald-400"
-                                  : "border-indigo-500/20 text-white focus:border-indigo-500"
+                                  ? "border-emerald-500/40 text-emerald-700 focus:border-emerald-400"
+                                  : "border-indigo-200 text-gray-900 focus:border-indigo-500"
                               }`}
                             />
                           </div>
                         </td>
                         <td className="px-5 py-4 text-right">
-                          <span className={`font-mono text-sm font-bold ${itemTotal > 0 ? "text-emerald-400" : "text-slate-600"}`}>
+                          <span className={`font-mono text-sm font-bold ${itemTotal > 0 ? "text-emerald-600" : "text-slate-600"}`}>
                             {itemTotal > 0 ? `R$ ${itemTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : "—"}
                           </span>
                         </td>
@@ -332,11 +332,11 @@ export default function CotacaoPortalPage({ params }: { params: Promise<{ token:
                     );
                   })}
                 </tbody>
-                <tfoot className="border-t border-indigo-500/10 bg-[#0c0f1a]/60">
+                <tfoot className="border-t border-[#c4d5ee] bg-[#f3f7fe]/60">
                   <tr>
-                    <td colSpan={4} className="px-5 py-4 text-right text-slate-400 font-bold text-xs uppercase">Total Geral da Proposta:</td>
+                    <td colSpan={4} className="px-5 py-4 text-right text-slate-500 font-bold text-xs uppercase">Total Geral da Proposta:</td>
                     <td className="px-5 py-4 text-right">
-                      <span className="text-indigo-400 font-black text-lg font-mono">
+                      <span className="text-indigo-600 font-black text-lg font-mono">
                         R$ {total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                       </span>
                     </td>
@@ -346,13 +346,13 @@ export default function CotacaoPortalPage({ params }: { params: Promise<{ token:
             </div>
 
             {/* Condições Comerciais */}
-            <div className="bg-[#111528] border border-indigo-500/10 rounded-2xl p-5 space-y-4">
-              <h2 className="text-sm font-bold text-white">Condições Comerciais</h2>
+            <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl p-5 space-y-4">
+              <h2 className="text-sm font-bold text-gray-900">Condições Comerciais</h2>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Condição de Pagamento Proposta</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Condição de Pagamento Proposta</label>
                   <select value={paymentProposal} onChange={e => setPaymentProposal(e.target.value)}
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-white px-3 py-2.5 rounded-lg outline-none text-sm font-semibold">
+                    className="w-full bg-[#f3f7fe] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 px-3 py-2.5 rounded-lg outline-none text-sm font-semibold">
                     {["À Vista","7 dias","14 dias","28 dias","30 dias","30/60 dias","30/60/90 dias","45 dias","60 dias"].map(c => (
                       <option key={c}>{c}</option>
                     ))}
@@ -360,11 +360,11 @@ export default function CotacaoPortalPage({ params }: { params: Promise<{ token:
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Observações (opcional)</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Observações (opcional)</label>
                 <textarea value={observations} onChange={e => setObservations(e.target.value)}
                   placeholder="Prazo de entrega, disponibilidade, informações adicionais..."
                   rows={3}
-                  className="w-full bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-white px-3 py-2.5 rounded-lg outline-none text-sm resize-none transition-all"
+                  className="w-full bg-[#f3f7fe] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 px-3 py-2.5 rounded-lg outline-none text-sm resize-none transition-all"
                 />
               </div>
             </div>
@@ -374,18 +374,18 @@ export default function CotacaoPortalPage({ params }: { params: Promise<{ token:
       </div>
 
       {/* ── STICKY FOOTER — sempre visível ── */}
-      <div className="fixed bottom-0 left-0 right-0 z-30 bg-[#0b0e1f]/96 backdrop-blur-md border-t border-indigo-500/15 shadow-[0_-8px_40px_rgba(0,0,0,0.6)]">
+      <div className="fixed bottom-0 left-0 right-0 z-30 bg-[#f3f7fe]/96 backdrop-blur-md border-t border-[#c4d5ee] shadow-[0_-8px_40px_rgba(0,0,0,0.6)]">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-5">
 
           {/* Progress bar */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-1.5">
               <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">Itens preenchidos</p>
-              <p className="text-[10px] text-slate-400 font-mono font-bold">
+              <p className="text-[10px] text-slate-500 font-mono font-bold">
                 {filledCount} / {session?.products.length ?? 0}
               </p>
             </div>
-            <div className="h-2 bg-[#1a1f3a] rounded-full overflow-hidden">
+            <div className="h-2 bg-[#eaf1fc] rounded-full overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-500"
                 style={{
@@ -397,14 +397,14 @@ export default function CotacaoPortalPage({ params }: { params: Promise<{ token:
               />
             </div>
             {allFilled && (
-              <p className="text-[10px] text-emerald-400 font-semibold mt-1">✓ Todos os preços preenchidos. Pronto para enviar!</p>
+              <p className="text-[10px] text-emerald-600 font-semibold mt-1">✓ Todos os preços preenchidos. Pronto para enviar!</p>
             )}
           </div>
 
           {/* Total */}
           <div className="text-right shrink-0">
             <p className="text-[10px] text-slate-500 uppercase tracking-wider">Total</p>
-            <p className="text-xl font-black text-indigo-400 font-mono leading-none">
+            <p className="text-xl font-black text-indigo-600 font-mono leading-none">
               R$ {total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
             </p>
             <p className="text-[10px] text-slate-500 mt-0.5">{paymentProposal}</p>

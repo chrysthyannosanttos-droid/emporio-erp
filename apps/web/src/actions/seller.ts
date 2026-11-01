@@ -2,6 +2,7 @@
 
 import { prisma } from "@emporio/database";
 import { revalidatePath } from "next/cache";
+import { toPlain } from "@/lib/serialize";
 
 async function getOrCreateCompany() {
   let company = await prisma.company.findFirst();
@@ -19,7 +20,7 @@ export async function getSellers() {
       include: { user: true, _count: { select: { sales: true, orders: true } } },
       orderBy: { createdAt: "desc" }
     });
-    return { sellers };
+    return { sellers: toPlain(sellers) };
   } catch (err: any) {
     return { error: err.message, sellers: [] };
   }

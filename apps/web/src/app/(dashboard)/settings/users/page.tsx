@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   Users, UserPlus, Search, Shield, Key, Store, Check, X,
   ShieldCheck, AlertTriangle, ChevronRight, Lock, Unlock,
@@ -21,11 +22,14 @@ interface RoleDef {
 }
 
 const ROLES_INFO: Record<string, { label: string; color: string; bg: string; border: string }> = {
-  ADMIN:      { label: "Administrador", color: "text-violet-400", bg: "bg-violet-500/10", border: "border-violet-500/25" },
-  MANAGER:    { label: "Gerente",       color: "text-indigo-400", bg: "bg-indigo-500/10", border: "border-indigo-500/25" },
-  SUPERVISOR: { label: "Supervisor",    color: "text-amber-400",  bg: "bg-amber-500/10",  border: "border-amber-500/25" },
-  OPERATOR:   { label: "Operador",      color: "text-emerald-400",bg: "bg-emerald-500/10",border: "border-emerald-500/25" },
-  VIEWER:     { label: "Consulta",      color: "text-sky-400",    bg: "bg-sky-500/10",    border: "border-sky-500/25" },
+  ADMIN:        { label: "Administrador",     color: "text-violet-600", bg: "bg-violet-500/10", border: "border-violet-500/25" },
+  MANAGER:      { label: "Gerente Geral",     color: "text-indigo-600", bg: "bg-indigo-500/10", border: "border-indigo-200" },
+  SUPERVISOR:   { label: "Fiscal de Caixa",   color: "text-amber-600",  bg: "bg-amber-500/10",  border: "border-amber-500/25" },
+  OPERATOR:     { label: "Operador de Caixa", color: "text-emerald-600",bg: "bg-emerald-500/10",border: "border-emerald-500/25" },
+  STOCKIST:     { label: "Estoque & Depósito",color: "text-blue-600",   bg: "bg-blue-500/10",   border: "border-blue-500/25" },
+  SCALE_SECTOR: { label: "Balança & Açougue", color: "text-orange-600", bg: "bg-orange-500/10", border: "border-orange-500/25" },
+  FINANCIAL:    { label: "Financeiro & Fiscal",color: "text-purple-600",bg: "bg-purple-500/10",border: "border-purple-500/25" },
+  VIEWER:       { label: "Consulta / Auditor",color: "text-sky-600",    bg: "bg-sky-500/10",    border: "border-sky-500/25" },
 };
 
 export default function UsersSettingsPage() {
@@ -250,51 +254,61 @@ export default function UsersSettingsPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shrink-0">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+            <div className="w-9 h-9 rounded-xl bg-indigo-600/10 border border-indigo-200 flex items-center justify-center text-indigo-600">
               <UserCog size={18} />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white tracking-tight">Usuários e Permissões</h1>
-              <p className="text-slate-400 text-xs mt-0.5">Gerenciamento multiempresa e multiloja com controle granular de acessos e PINs.</p>
+              <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Usuários e Permissões</h1>
+              <p className="text-slate-500 text-xs mt-0.5">Gerenciamento multiempresa e multiloja com controle granular de acessos e PINs.</p>
             </div>
           </div>
         </div>
 
-        <button
-          onClick={openNewUserModal}
-          className="bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white px-4 py-2.5 rounded-xl font-semibold flex items-center gap-2 transition-all shadow-lg shadow-indigo-600/25 text-xs cursor-pointer"
-        >
-          <UserPlus size={15} />
-          <span>Novo Usuário</span>
-        </button>
+        <div className="flex items-center gap-2.5">
+          <Link
+            href="/settings/roles"
+            className="border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 px-3.5 py-2.5 rounded-xl font-bold flex items-center gap-1.5 transition-all text-xs cursor-pointer shadow-xs"
+          >
+            <Shield size={15} />
+            <span>Grupos de Setores & Permissões</span>
+          </Link>
+
+          <button
+            onClick={openNewUserModal}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-md shadow-indigo-600/25 text-xs cursor-pointer"
+          >
+            <UserPlus size={15} />
+            <span>+ Novo Usuário</span>
+          </button>
+        </div>
       </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 shrink-0">
-        <div className="bg-[#101426] border border-indigo-500/10 rounded-2xl p-3.5">
-          <span className="text-[11px] text-slate-400 font-medium">Total de Colaboradores</span>
-          <p className="text-xl font-bold text-white mt-1">{users.length}</p>
+        <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl p-3.5">
+          <span className="text-[11px] text-slate-500 font-medium">Total de Colaboradores</span>
+          <p className="text-xl font-bold text-gray-900 mt-1">{users.length}</p>
         </div>
-        <div className="bg-[#101426] border border-indigo-500/10 rounded-2xl p-3.5">
-          <span className="text-[11px] text-violet-400 font-medium">Administradores</span>
-          <p className="text-xl font-bold text-violet-300 mt-1">{users.filter(u => u.role === "ADMIN").length}</p>
+        <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl p-3.5">
+          <span className="text-[11px] text-violet-600 font-medium">Administradores</span>
+          <p className="text-xl font-bold text-violet-700 mt-1">{users.filter(u => u.role === "ADMIN").length}</p>
         </div>
-        <div className="bg-[#101426] border border-indigo-500/10 rounded-2xl p-3.5">
-          <span className="text-[11px] text-indigo-400 font-medium">Gerentes & Supervisores</span>
-          <p className="text-xl font-bold text-indigo-300 mt-1">{users.filter(u => u.role === "MANAGER" || u.role === "SUPERVISOR").length}</p>
+        <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl p-3.5">
+          <span className="text-[11px] text-indigo-600 font-medium">Gerentes & Supervisores</span>
+          <p className="text-xl font-bold text-indigo-700 mt-1">{users.filter(u => u.role === "MANAGER" || u.role === "SUPERVISOR").length}</p>
         </div>
-        <div className="bg-[#101426] border border-indigo-500/10 rounded-2xl p-3.5">
-          <span className="text-[11px] text-emerald-400 font-medium">Operadores de Loja</span>
-          <p className="text-xl font-bold text-emerald-300 mt-1">{users.filter(u => u.role === "OPERATOR").length}</p>
+        <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl p-3.5">
+          <span className="text-[11px] text-emerald-600 font-medium">Operadores de Loja</span>
+          <p className="text-xl font-bold text-emerald-700 mt-1">{users.filter(u => u.role === "OPERATOR").length}</p>
         </div>
-        <div className="bg-[#101426] border border-indigo-500/10 rounded-2xl p-3.5">
-          <span className="text-[11px] text-red-400 font-medium">Bloqueados</span>
-          <p className="text-xl font-bold text-red-400 mt-1">{users.filter(u => !u.active).length}</p>
+        <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl p-3.5">
+          <span className="text-[11px] text-red-600 font-medium">Bloqueados</span>
+          <p className="text-xl font-bold text-red-600 mt-1">{users.filter(u => !u.active).length}</p>
         </div>
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-[#101426] border border-indigo-500/10 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3 shrink-0">
+      <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3 shrink-0">
         <div className="relative flex-1 min-w-[220px]">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
           <input
@@ -302,7 +316,7 @@ export default function UsersSettingsPage() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Buscar por nome ou e-mail..."
-            className="w-full pl-9 pr-3 py-1.5 bg-[#0a0d18] border border-indigo-500/15 focus:border-indigo-500 text-white rounded-xl outline-none text-xs placeholder:text-slate-600 transition-colors"
+            className="w-full pl-9 pr-3 py-1.5 bg-[#e8f0fc] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 rounded-xl outline-none text-xs placeholder:text-slate-600 transition-colors"
           />
         </div>
 
@@ -311,7 +325,7 @@ export default function UsersSettingsPage() {
           <select
             value={roleFilter}
             onChange={e => setRoleFilter(e.target.value)}
-            className="bg-[#0a0d18] border border-indigo-500/15 text-slate-300 text-xs px-3 py-1.5 rounded-xl outline-none"
+            className="bg-[#e8f0fc] border border-[#c4d5ee] text-slate-600 text-xs px-3 py-1.5 rounded-xl outline-none"
           >
             <option value="ALL">Todos os Perfis</option>
             <option value="ADMIN">Administrador</option>
@@ -325,7 +339,7 @@ export default function UsersSettingsPage() {
           <select
             value={storeFilter}
             onChange={e => setStoreFilter(e.target.value)}
-            className="bg-[#0a0d18] border border-indigo-500/15 text-slate-300 text-xs px-3 py-1.5 rounded-xl outline-none"
+            className="bg-[#e8f0fc] border border-[#c4d5ee] text-slate-600 text-xs px-3 py-1.5 rounded-xl outline-none"
           >
             <option value="ALL">Todas as Lojas</option>
             {stores.map(s => (
@@ -337,7 +351,7 @@ export default function UsersSettingsPage() {
           <select
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
-            className="bg-[#0a0d18] border border-indigo-500/15 text-slate-300 text-xs px-3 py-1.5 rounded-xl outline-none"
+            className="bg-[#e8f0fc] border border-[#c4d5ee] text-slate-600 text-xs px-3 py-1.5 rounded-xl outline-none"
           >
             <option value="ALL">Todos os Status</option>
             <option value="ACTIVE">Apenas Ativos</option>
@@ -347,11 +361,11 @@ export default function UsersSettingsPage() {
       </div>
 
       {/* Users Table */}
-      <div className="bg-[#101426] rounded-2xl border border-indigo-500/10 flex-1 flex flex-col min-h-0 overflow-hidden shadow-xl">
+      <div className="bg-[#fbfdff] rounded-2xl border border-[#c4d5ee] flex-1 flex flex-col min-h-0 overflow-hidden shadow-xl">
         <div className="flex-1 overflow-auto min-h-0">
           {loading ? (
             <div className="flex flex-col items-center justify-center h-full p-8 text-slate-500 gap-3">
-              <Loader2 className="animate-spin text-indigo-400" size={32} />
+              <Loader2 className="animate-spin text-indigo-600" size={32} />
               <p className="text-xs">Carregando usuários e permissões...</p>
             </div>
           ) : filteredUsers.length === 0 ? (
@@ -361,7 +375,7 @@ export default function UsersSettingsPage() {
             </div>
           ) : (
             <table className="w-full text-left text-xs border-collapse">
-              <thead className="bg-[#0c0f1e]/80 border-b border-indigo-500/10 text-slate-400 sticky top-0 backdrop-blur-sm z-10">
+              <thead className="bg-[#f3f7fe]/80 border-b border-[#c4d5ee] text-slate-500 sticky top-0 backdrop-blur-sm z-10">
                 <tr>
                   <th className="px-4 py-3 font-semibold">Colaborador</th>
                   <th className="px-4 py-3 font-semibold">Perfil / Hierarquia</th>
@@ -385,15 +399,15 @@ export default function UsersSettingsPage() {
                             {initials}
                           </div>
                           <div>
-                            <div className="font-semibold text-white group-hover:text-indigo-300 transition-colors flex items-center gap-2">
+                            <div className="font-semibold text-gray-900 group-hover:text-indigo-700 transition-colors flex items-center gap-2">
                               {user.name}
                               {user.pin && (
-                                <span title="PIN de liberação configurado" className="inline-flex items-center text-[10px] text-amber-400 bg-amber-500/10 px-1 rounded">
+                                <span title="PIN de liberação configurado" className="inline-flex items-center text-[10px] text-amber-600 bg-amber-500/10 px-1 rounded">
                                   <Key size={10} className="mr-0.5" /> PIN
                                 </span>
                               )}
                             </div>
-                            <span className="text-[11px] text-slate-400 font-mono">{user.email}</span>
+                            <span className="text-[11px] text-slate-500 font-mono">{user.email}</span>
                           </div>
                         </div>
                       </td>
@@ -411,10 +425,10 @@ export default function UsersSettingsPage() {
                         <div className="flex flex-wrap gap-1 max-w-[200px]">
                           {user.userStores && user.userStores.length > 0 ? (
                             user.userStores.map((us: any) => (
-                              <span key={us.id} className="text-[10px] bg-[#0c0f1a] text-slate-300 border border-indigo-500/15 px-1.5 py-0.5 rounded-md flex items-center gap-1">
-                                <Store size={10} className="text-indigo-400" />
+                              <span key={us.id} className="text-[10px] bg-[#f3f7fe] text-slate-600 border border-[#c4d5ee] px-1.5 py-0.5 rounded-md flex items-center gap-1">
+                                <Store size={10} className="text-indigo-600" />
                                 {us.store?.code || us.storeId}
-                                {us.isDefault && <span className="text-[9px] text-amber-400 font-bold">★</span>}
+                                {us.isDefault && <span className="text-[9px] text-amber-600 font-bold">★</span>}
                               </span>
                             ))
                           ) : (
@@ -426,11 +440,11 @@ export default function UsersSettingsPage() {
                       {/* Permissões */}
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          <span className="text-slate-300 font-medium">
+                          <span className="text-slate-600 font-medium">
                             {user.role === "ADMIN" ? "Acesso Total (35)" : "Perfil Padrão"}
                           </span>
                           {user.userPermissions && user.userPermissions.length > 0 && (
-                            <span className="text-[10px] bg-indigo-500/15 text-indigo-300 font-semibold px-1.5 py-0.5 rounded border border-indigo-500/20">
+                            <span className="text-[10px] bg-indigo-500/15 text-indigo-700 font-semibold px-1.5 py-0.5 rounded border border-indigo-200">
                               +{user.userPermissions.length} custom
                             </span>
                           )}
@@ -443,8 +457,8 @@ export default function UsersSettingsPage() {
                           onClick={() => handleToggleActive(user.id, user.active)}
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold transition-all cursor-pointer ${
                             user.active
-                              ? "bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20"
-                              : "bg-red-500/10 text-red-400 hover:bg-red-500/20 border border-red-500/20"
+                              ? "bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 border border-emerald-500/20"
+                              : "bg-red-500/10 text-red-600 hover:bg-red-500/20 border border-red-500/20"
                           }`}
                         >
                           {user.active ? <Unlock size={11} /> : <Lock size={11} />}
@@ -456,7 +470,7 @@ export default function UsersSettingsPage() {
                       <td className="px-4 py-3 text-right">
                         <button
                           onClick={() => openEditUserModal(user.id)}
-                          className="bg-[#14192d] hover:bg-indigo-600 hover:text-white text-slate-300 px-3 py-1.5 rounded-xl font-medium border border-indigo-500/15 transition-all text-xs cursor-pointer inline-flex items-center gap-1.5"
+                          className="bg-[#fbfdff] hover:bg-indigo-600 hover:text-gray-900 text-slate-600 px-3 py-1.5 rounded-xl font-medium border border-[#c4d5ee] transition-all text-xs cursor-pointer inline-flex items-center gap-1.5"
                         >
                           <span>Gerenciar</span>
                           <ChevronRight size={13} />
@@ -474,12 +488,12 @@ export default function UsersSettingsPage() {
       {/* Modal / Drawer de Detalhes do Usuário com 4 Abas */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#101426] border border-indigo-500/20 rounded-3xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+          <div className="bg-[#fbfdff] border border-indigo-200 rounded-3xl w-full max-w-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
             
             {/* Header do Modal */}
-            <div className="p-5 border-b border-indigo-500/15 flex items-center justify-between bg-gradient-to-r from-indigo-900/30 via-transparent to-transparent">
+            <div className="p-5 border-b border-[#c4d5ee] flex items-center justify-between bg-gradient-to-r from-indigo-900/30 via-transparent to-transparent">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-600/20 border border-indigo-200 flex items-center justify-center text-indigo-400">
                   <UserCog size={20} />
                 </div>
                 <div>
@@ -498,14 +512,14 @@ export default function UsersSettingsPage() {
             </div>
 
             {/* Abas */}
-            <div className="flex border-b border-indigo-500/10 px-5 bg-[#0c0f1e] gap-2">
+            <div className="flex border-b border-[#c4d5ee] px-5 bg-[#f3f7fe] gap-2">
               <button
                 type="button"
                 onClick={() => setActiveTab("INFO")}
                 className={`py-3 px-3 text-xs font-semibold border-b-2 flex items-center gap-1.5 transition-all cursor-pointer ${
                   activeTab === "INFO"
-                    ? "border-indigo-500 text-indigo-400"
-                    : "border-transparent text-slate-400 hover:text-slate-200"
+                    ? "border-indigo-500 text-indigo-600"
+                    : "border-transparent text-slate-500 hover:text-slate-700"
                 }`}
               >
                 <Shield size={14} />
@@ -516,8 +530,8 @@ export default function UsersSettingsPage() {
                 onClick={() => setActiveTab("STORES")}
                 className={`py-3 px-3 text-xs font-semibold border-b-2 flex items-center gap-1.5 transition-all cursor-pointer ${
                   activeTab === "STORES"
-                    ? "border-indigo-500 text-indigo-400"
-                    : "border-transparent text-slate-400 hover:text-slate-200"
+                    ? "border-indigo-500 text-indigo-600"
+                    : "border-transparent text-slate-500 hover:text-slate-700"
                 }`}
               >
                 <Store size={14} />
@@ -528,8 +542,8 @@ export default function UsersSettingsPage() {
                 onClick={() => setActiveTab("PERMISSIONS")}
                 className={`py-3 px-3 text-xs font-semibold border-b-2 flex items-center gap-1.5 transition-all cursor-pointer ${
                   activeTab === "PERMISSIONS"
-                    ? "border-indigo-500 text-indigo-400"
-                    : "border-transparent text-slate-400 hover:text-slate-200"
+                    ? "border-indigo-500 text-indigo-600"
+                    : "border-transparent text-slate-500 hover:text-slate-700"
                 }`}
               >
                 <Sliders size={14} />
@@ -541,8 +555,8 @@ export default function UsersSettingsPage() {
                   onClick={() => setActiveTab("HISTORY")}
                   className={`py-3 px-3 text-xs font-semibold border-b-2 flex items-center gap-1.5 transition-all cursor-pointer ${
                     activeTab === "HISTORY"
-                      ? "border-indigo-500 text-indigo-400"
-                      : "border-transparent text-slate-400 hover:text-slate-200"
+                      ? "border-indigo-500 text-indigo-600"
+                      : "border-transparent text-slate-500 hover:text-slate-700"
                   }`}
                 >
                   <History size={14} />
@@ -553,12 +567,12 @@ export default function UsersSettingsPage() {
 
             {/* Mensagens de Feedback */}
             {actionError && (
-              <div className="mx-5 mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-2xl text-xs text-red-300">
+              <div className="mx-5 mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-2xl text-xs text-red-700">
                 {actionError}
               </div>
             )}
             {actionSuccess && (
-              <div className="mx-5 mt-4 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-xs text-emerald-300 flex items-center gap-2">
+              <div className="mx-5 mt-4 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-xs text-emerald-700 flex items-center gap-2">
                 <Check size={14} />
                 <span>{actionSuccess}</span>
               </div>
@@ -572,8 +586,8 @@ export default function UsersSettingsPage() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                        Nome Completo <span className="text-red-400">*</span>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                        Nome Completo <span className="text-red-600">*</span>
                       </label>
                       <input
                         type="text"
@@ -581,12 +595,12 @@ export default function UsersSettingsPage() {
                         value={formName}
                         onChange={e => setFormName(e.target.value)}
                         placeholder="Ex: João da Silva"
-                        className="w-full bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-white px-3.5 py-2.5 rounded-xl outline-none text-xs"
+                        className="w-full bg-[#f3f7fe] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 px-3.5 py-2.5 rounded-xl outline-none text-xs"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                        E-mail de Login <span className="text-red-400">*</span>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                        E-mail de Login <span className="text-red-600">*</span>
                       </label>
                       <input
                         type="email"
@@ -594,15 +608,15 @@ export default function UsersSettingsPage() {
                         value={formEmail}
                         onChange={e => setFormEmail(e.target.value)}
                         placeholder="joao@emporio.com"
-                        className="w-full bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-white px-3.5 py-2.5 rounded-xl outline-none text-xs"
+                        className="w-full bg-[#f3f7fe] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 px-3.5 py-2.5 rounded-xl outline-none text-xs"
                       />
                     </div>
                   </div>
 
                   {/* Perfil na Hierarquia */}
                   <div>
-                    <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                      Perfil / Nível de Acesso na Hierarquia <span className="text-red-400">*</span>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1.5">
+                      Perfil / Nível de Acesso na Hierarquia <span className="text-red-600">*</span>
                     </label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                       {roles.map(r => {
@@ -615,14 +629,14 @@ export default function UsersSettingsPage() {
                             className={`p-3 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
                               isSelected
                                 ? "bg-indigo-600/15 border-indigo-500 shadow-md shadow-indigo-600/10"
-                                : "bg-[#0c0f1a] border-indigo-500/10 hover:border-indigo-500/25"
+                                : "bg-[#f3f7fe] border-[#c4d5ee] hover:border-indigo-200"
                             }`}
                           >
                             <div className="flex items-center justify-between mb-1">
                               <span className={`text-xs font-bold ${style.color}`}>{r.name}</span>
-                              {isSelected && <Check size={14} className="text-indigo-400" />}
+                              {isSelected && <Check size={14} className="text-indigo-600" />}
                             </div>
-                            <p className="text-[10px] text-slate-400 leading-tight">{r.description}</p>
+                            <p className="text-[10px] text-slate-500 leading-tight">{r.description}</p>
                           </div>
                         );
                       })}
@@ -630,9 +644,9 @@ export default function UsersSettingsPage() {
                   </div>
 
                   {/* Senha e PIN */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-indigo-500/10">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-[#c4d5ee]">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-1">
+                      <label className="block text-xs font-semibold text-slate-600 mb-1">
                         {editingUserId ? "Alterar Senha (Opcional)" : "Senha de Acesso *"}
                       </label>
                       <input
@@ -640,13 +654,13 @@ export default function UsersSettingsPage() {
                         value={formPassword}
                         onChange={e => setFormPassword(e.target.value)}
                         placeholder={editingUserId ? "Deixe em branco para manter a atual" : "Mínimo 4 caracteres"}
-                        className="w-full bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-white px-3.5 py-2.5 rounded-xl outline-none text-xs"
+                        className="w-full bg-[#f3f7fe] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 px-3.5 py-2.5 rounded-xl outline-none text-xs"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center justify-between">
+                      <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center justify-between">
                         <span>PIN de Liberação Rápida (PDV)</span>
-                        <span className="text-[10px] text-amber-400">4 a 6 dígitos</span>
+                        <span className="text-[10px] text-amber-600">4 a 6 dígitos</span>
                       </label>
                       <input
                         type="password"
@@ -654,7 +668,7 @@ export default function UsersSettingsPage() {
                         value={formPin}
                         onChange={e => setFormPin(e.target.value.replace(/\D/g, ""))}
                         placeholder={editingUserId ? "•••• (deixe em branco p/ manter)" : "Ex: 1234"}
-                        className="w-full bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-white px-3.5 py-2.5 rounded-xl outline-none text-xs tracking-widest font-mono"
+                        className="w-full bg-[#f3f7fe] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 px-3.5 py-2.5 rounded-xl outline-none text-xs tracking-widest font-mono"
                       />
                     </div>
                   </div>
@@ -664,7 +678,7 @@ export default function UsersSettingsPage() {
               {/* ABA 2: LOJAS */}
               {activeTab === "STORES" && (
                 <div className="space-y-4">
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-slate-500">
                     Selecione quais lojas da rede este usuário pode operar e qual será a loja inicial padrão.
                   </p>
 
@@ -679,7 +693,7 @@ export default function UsersSettingsPage() {
                           className={`p-3.5 rounded-2xl border transition-all flex items-center justify-between ${
                             isChecked
                               ? "bg-indigo-600/10 border-indigo-500/40"
-                              : "bg-[#0c0f1a] border-indigo-500/10 opacity-70"
+                              : "bg-[#f3f7fe] border-[#c4d5ee] opacity-70"
                           }`}
                         >
                           <label className="flex items-center gap-3 cursor-pointer flex-1">
@@ -697,11 +711,11 @@ export default function UsersSettingsPage() {
                                   }
                                 }
                               }}
-                              className="rounded border-slate-700 text-indigo-600 focus:ring-indigo-500 w-4 h-4"
+                              className="rounded border-[#c4d5ee] text-indigo-600 focus:ring-indigo-500 w-4 h-4"
                             />
                             <div>
-                              <span className="text-xs font-bold text-white block">{s.code} - {s.name}</span>
-                              <span className="text-[10px] text-slate-400">{s.city}/{s.state || "SP"}</span>
+                              <span className="text-xs font-bold text-gray-900 block">{s.code} - {s.name}</span>
+                              <span className="text-[10px] text-slate-500">{s.city}/{s.state || "SP"}</span>
                             </div>
                           </label>
 
@@ -711,8 +725,8 @@ export default function UsersSettingsPage() {
                               onClick={() => setFormDefaultStore(s.id)}
                               className={`text-[10px] px-2 py-1 rounded-lg font-semibold border transition-all ${
                                 isDefault
-                                  ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
-                                  : "text-slate-400 hover:text-white border-transparent"
+                                  ? "bg-amber-500/15 text-amber-700 border-amber-500/30"
+                                  : "text-slate-500 hover:text-gray-900 border-transparent"
                               }`}
                             >
                               {isDefault ? "★ Principal" : "Definir Principal"}
@@ -728,11 +742,11 @@ export default function UsersSettingsPage() {
               {/* ABA 3: PERMISSÕES GRANULARES */}
               {activeTab === "PERMISSIONS" && (
                 <div className="space-y-5">
-                  <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl text-xs text-indigo-300 flex items-center justify-between">
+                  <div className="p-3 bg-indigo-500/10 border border-indigo-200 rounded-2xl text-xs text-indigo-700 flex items-center justify-between">
                     <span>
-                      Perfil base: <strong className="text-white">{ROLES_INFO[formRole]?.label || formRole}</strong>
+                      Perfil base: <strong className="text-gray-900">{ROLES_INFO[formRole]?.label || formRole}</strong>
                     </span>
-                    <span className="text-[11px] text-slate-400">
+                    <span className="text-[11px] text-slate-500">
                       Clique para Conceder (+) ou Revogar (-) permissões específicas deste colaborador.
                     </span>
                   </div>
@@ -741,8 +755,8 @@ export default function UsersSettingsPage() {
                     const modPerms = permissions.filter(p => p.module === mod);
 
                     return (
-                      <div key={mod} className="bg-[#0c0f1a] rounded-2xl border border-indigo-500/10 p-3.5">
-                        <h4 className="text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2.5 flex items-center gap-2">
+                      <div key={mod} className="bg-[#f3f7fe] rounded-2xl border border-[#c4d5ee] p-3.5">
+                        <h4 className="text-xs font-bold text-indigo-600 uppercase tracking-wider mb-2.5 flex items-center gap-2">
                           <ShieldCheck size={14} />
                           {mod} ({modPerms.length})
                         </h4>
@@ -753,32 +767,32 @@ export default function UsersSettingsPage() {
                             const customOverride = formCustomPerms[p.id]; // true = explicit grant, false = explicit revoke, undefined = inherited
 
                             let statusBadge = "HERDADA";
-                            let badgeClass = "bg-slate-800 text-slate-400 border-slate-700";
+                            let badgeClass = "bg-[#eaf1fc] text-slate-500 border-[#c4d5ee]";
 
                             if (formRole === "ADMIN") {
                               statusBadge = "ADMIN TOTAL";
-                              badgeClass = "bg-violet-500/20 text-violet-300 border-violet-500/30";
+                              badgeClass = "bg-violet-500/20 text-violet-700 border-violet-500/30";
                             } else if (customOverride === true) {
                               statusBadge = "CONCEDIDA (+)";
-                              badgeClass = "bg-emerald-500/20 text-emerald-300 border-emerald-500/30";
+                              badgeClass = "bg-emerald-500/20 text-emerald-700 border-emerald-500/30";
                             } else if (customOverride === false) {
                               statusBadge = "REVOGADA (-)";
-                              badgeClass = "bg-red-500/20 text-red-300 border-red-500/30";
+                              badgeClass = "bg-red-500/20 text-red-700 border-red-500/30";
                             } else if (isInherited) {
                               statusBadge = "HERDADA (PERFIL)";
-                              badgeClass = "bg-indigo-500/15 text-indigo-300 border-indigo-500/25";
+                              badgeClass = "bg-indigo-500/15 text-indigo-700 border-indigo-200";
                             } else {
                               statusBadge = "BLOQUEADA";
-                              badgeClass = "bg-slate-900 text-slate-600 border-slate-800";
+                              badgeClass = "bg-[#fbfdff] text-slate-600 border-[#c4d5ee]";
                             }
 
                             return (
                               <div
                                 key={p.id}
-                                className="p-2.5 rounded-xl bg-[#101426] border border-indigo-500/10 flex items-center justify-between gap-2"
+                                className="p-2.5 rounded-xl bg-[#fbfdff] border border-[#c4d5ee] flex items-center justify-between gap-2"
                               >
                                 <div className="min-w-0 flex-1">
-                                  <span className="text-xs font-semibold text-white block truncate">{p.name}</span>
+                                  <span className="text-xs font-semibold text-gray-900 block truncate">{p.name}</span>
                                   <span className="text-[10px] text-slate-500 font-mono truncate block">{p.code}</span>
                                 </div>
 
@@ -801,7 +815,7 @@ export default function UsersSettingsPage() {
                                         className={`w-6 h-6 rounded-lg text-xs font-bold flex items-center justify-center transition-all ${
                                           customOverride === true
                                             ? "bg-emerald-600 text-white"
-                                            : "bg-slate-800 text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10"
+                                            : "bg-[#eaf1fc] text-slate-500 hover:text-emerald-600 hover:bg-emerald-500/10"
                                         }`}
                                       >
                                         +
@@ -818,7 +832,7 @@ export default function UsersSettingsPage() {
                                         className={`w-6 h-6 rounded-lg text-xs font-bold flex items-center justify-center transition-all ${
                                           customOverride === false
                                             ? "bg-red-600 text-white"
-                                            : "bg-slate-800 text-slate-400 hover:text-red-400 hover:bg-red-500/10"
+                                            : "bg-[#eaf1fc] text-slate-500 hover:text-red-600 hover:bg-red-500/10"
                                         }`}
                                       >
                                         -
@@ -839,7 +853,7 @@ export default function UsersSettingsPage() {
               {/* ABA 4: HISTÓRICO & AUDITORIA */}
               {activeTab === "HISTORY" && (
                 <div className="space-y-4">
-                  <h4 className="text-xs font-bold text-slate-300">Últimas Atividades e Liberações</h4>
+                  <h4 className="text-xs font-bold text-slate-600">Últimas Atividades e Liberações</h4>
 
                   {userHistory.auditLogs.length === 0 && userHistory.requestedApprovals.length === 0 ? (
                     <div className="p-6 text-center text-slate-500 text-xs">
@@ -848,14 +862,14 @@ export default function UsersSettingsPage() {
                   ) : (
                     <div className="space-y-2 max-h-[350px] overflow-y-auto">
                       {userHistory.requestedApprovals.map((req: any) => (
-                        <div key={req.id} className="p-3 bg-[#0c0f1a] border border-indigo-500/10 rounded-xl text-xs flex items-center justify-between">
+                        <div key={req.id} className="p-3 bg-[#f3f7fe] border border-[#c4d5ee] rounded-xl text-xs flex items-center justify-between">
                           <div>
-                            <span className="font-semibold text-white block">Liberação: {req.operation}</span>
-                            <span className="text-[10px] text-slate-400">Motivo: {req.reason} • Terminal: {req.terminal}</span>
+                            <span className="font-semibold text-gray-900 block">Liberação: {req.operation}</span>
+                            <span className="text-[10px] text-slate-500">Motivo: {req.reason} • Terminal: {req.terminal}</span>
                           </div>
                           <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                            req.status === "APPROVED" ? "bg-emerald-500/10 text-emerald-400" :
-                            req.status === "REJECTED" ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"
+                            req.status === "APPROVED" ? "bg-emerald-500/10 text-emerald-600" :
+                            req.status === "REJECTED" ? "bg-red-500/10 text-red-600" : "bg-amber-500/10 text-amber-600"
                           }`}>
                             {req.status}
                           </span>
@@ -863,12 +877,12 @@ export default function UsersSettingsPage() {
                       ))}
 
                       {userHistory.auditLogs.map((log: any) => (
-                        <div key={log.id} className="p-3 bg-[#0c0f1a] border border-indigo-500/10 rounded-xl text-xs flex items-center justify-between">
+                        <div key={log.id} className="p-3 bg-[#f3f7fe] border border-[#c4d5ee] rounded-xl text-xs flex items-center justify-between">
                           <div>
-                            <span className="font-semibold text-slate-300 block">{log.action}: {log.operation}</span>
+                            <span className="font-semibold text-slate-600 block">{log.action}: {log.operation}</span>
                             <span className="text-[10px] text-slate-500">{new Date(log.createdAt).toLocaleString("pt-BR")}</span>
                           </div>
-                          <span className="text-[10px] text-indigo-400 bg-indigo-500/10 px-2 py-0.5 rounded font-mono">
+                          <span className="text-[10px] text-indigo-600 bg-indigo-500/10 px-2 py-0.5 rounded font-mono">
                             {log.result}
                           </span>
                         </div>
@@ -879,12 +893,12 @@ export default function UsersSettingsPage() {
               )}
 
               {/* Botões do Rodapé */}
-              <div className="pt-4 border-t border-indigo-500/10 flex gap-2.5">
+              <div className="pt-4 border-t border-[#c4d5ee] flex gap-2.5">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
                   disabled={saving}
-                  className="flex-1 py-2.5 bg-[#14192d] hover:bg-[#1a203a] text-slate-300 font-semibold rounded-xl text-xs border border-indigo-500/10 transition-all"
+                  className="flex-1 py-2.5 bg-[#fbfdff] hover:bg-[#eaf1fc] text-slate-600 font-semibold rounded-xl text-xs border border-[#c4d5ee] transition-all"
                 >
                   Cancelar
                 </button>

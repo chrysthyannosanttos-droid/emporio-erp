@@ -123,12 +123,12 @@ export default function CentralApprovalsPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shrink-0">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600">
               <ShieldAlert size={18} />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white tracking-tight">Central de Liberações</h1>
-              <p className="text-slate-400 text-xs mt-0.5">Autorize ou recuse cancelamentos, descontos e operações críticas em tempo real.</p>
+              <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Central de Liberações</h1>
+              <p className="text-slate-500 text-xs mt-0.5">Autorize ou recuse cancelamentos, descontos e operações críticas em tempo real.</p>
             </div>
           </div>
         </div>
@@ -136,7 +136,7 @@ export default function CentralApprovalsPage() {
         {counts.pending > 0 && (
           <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/20 px-3.5 py-2 rounded-2xl animate-pulse">
             <span className="w-2 h-2 rounded-full bg-amber-400" />
-            <span className="text-xs font-bold text-amber-300">
+            <span className="text-xs font-bold text-amber-700">
               {counts.pending} solicitação{counts.pending > 1 ? "ões" : ""} aguardando autorização
             </span>
           </div>
@@ -148,49 +148,49 @@ export default function CentralApprovalsPage() {
         <div
           onClick={() => setStatusTab("PENDING")}
           className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
-            statusTab === "PENDING" ? "bg-amber-500/15 border-amber-500/40 shadow-lg shadow-amber-500/10" : "bg-[#101426] border-indigo-500/10"
+            statusTab === "PENDING" ? "bg-amber-500/15 border-amber-500/40 shadow-lg shadow-amber-500/10" : "bg-[#fbfdff] border-[#c4d5ee]"
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] text-amber-400 font-semibold">Pendentes</span>
+            <span className="text-[11px] text-amber-600 font-semibold">Pendentes</span>
             <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
           </div>
-          <p className="text-2xl font-bold text-white mt-1">{counts.pending}</p>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{counts.pending}</p>
         </div>
 
         <div
           onClick={() => setStatusTab("APPROVED")}
           className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
-            statusTab === "APPROVED" ? "bg-emerald-500/15 border-emerald-500/40 shadow-lg shadow-emerald-500/10" : "bg-[#101426] border-indigo-500/10"
+            statusTab === "APPROVED" ? "bg-emerald-500/15 border-emerald-500/40 shadow-lg shadow-emerald-500/10" : "bg-[#fbfdff] border-[#c4d5ee]"
           }`}
         >
-          <span className="text-[11px] text-emerald-400 font-semibold">Aprovadas</span>
-          <p className="text-2xl font-bold text-white mt-1">{counts.approved}</p>
+          <span className="text-[11px] text-emerald-600 font-semibold">Aprovadas</span>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{counts.approved}</p>
         </div>
 
         <div
           onClick={() => setStatusTab("REJECTED")}
           className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
-            statusTab === "REJECTED" ? "bg-red-500/15 border-red-500/40 shadow-lg shadow-red-500/10" : "bg-[#101426] border-indigo-500/10"
+            statusTab === "REJECTED" ? "bg-red-500/15 border-red-500/40 shadow-lg shadow-red-500/10" : "bg-[#fbfdff] border-[#c4d5ee]"
           }`}
         >
-          <span className="text-[11px] text-red-400 font-semibold">Negadas</span>
-          <p className="text-2xl font-bold text-white mt-1">{counts.rejected}</p>
+          <span className="text-[11px] text-red-600 font-semibold">Negadas</span>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{counts.rejected}</p>
         </div>
 
         <div
           onClick={() => setStatusTab("ALL")}
           className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
-            statusTab === "ALL" ? "bg-indigo-600/15 border-indigo-500/40 shadow-lg shadow-indigo-600/10" : "bg-[#101426] border-indigo-500/10"
+            statusTab === "ALL" ? "bg-indigo-600/15 border-indigo-500/40 shadow-lg shadow-indigo-600/10" : "bg-[#fbfdff] border-[#c4d5ee]"
           }`}
         >
-          <span className="text-[11px] text-indigo-400 font-semibold">Total Geral</span>
-          <p className="text-2xl font-bold text-white mt-1">{counts.total}</p>
+          <span className="text-[11px] text-indigo-600 font-semibold">Total Geral</span>
+          <p className="text-2xl font-bold text-gray-900 mt-1">{counts.total}</p>
         </div>
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-[#101426] border border-indigo-500/10 rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3 shrink-0">
+      <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3 shrink-0">
         <div className="relative flex-1 min-w-[220px]">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
           <input
@@ -198,7 +198,7 @@ export default function CentralApprovalsPage() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Buscar por solicitante, motivo ou terminal..."
-            className="w-full pl-9 pr-3 py-1.5 bg-[#0a0d18] border border-indigo-500/15 focus:border-indigo-500 text-white rounded-xl outline-none text-xs"
+            className="w-full pl-9 pr-3 py-1.5 bg-[#e8f0fc] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 rounded-xl outline-none text-xs"
           />
         </div>
 
@@ -206,7 +206,7 @@ export default function CentralApprovalsPage() {
           <select
             value={selectedStore}
             onChange={e => setSelectedStore(e.target.value)}
-            className="bg-[#0a0d18] border border-indigo-500/15 text-slate-300 text-xs px-3 py-1.5 rounded-xl outline-none"
+            className="bg-[#e8f0fc] border border-[#c4d5ee] text-slate-600 text-xs px-3 py-1.5 rounded-xl outline-none"
           >
             <option value="ALL">Todas as Lojas</option>
             {stores.map(s => (
@@ -217,11 +217,11 @@ export default function CentralApprovalsPage() {
       </div>
 
       {/* Lista de Solicitações */}
-      <div className="bg-[#101426] rounded-2xl border border-indigo-500/10 flex-1 flex flex-col min-h-0 overflow-hidden shadow-xl p-4">
+      <div className="bg-[#fbfdff] rounded-2xl border border-[#c4d5ee] flex-1 flex flex-col min-h-0 overflow-hidden shadow-xl p-4">
         <div className="flex-1 overflow-auto min-h-0 space-y-3">
           {loading ? (
             <div className="flex flex-col items-center justify-center h-full p-8 text-slate-500 gap-3">
-              <Loader2 className="animate-spin text-amber-400" size={32} />
+              <Loader2 className="animate-spin text-amber-600" size={32} />
               <p className="text-xs">Carregando solicitações de liberação...</p>
             </div>
           ) : requests.length === 0 ? (
@@ -240,44 +240,44 @@ export default function CentralApprovalsPage() {
                   key={req.id}
                   className={`p-4 rounded-2xl border transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
                     isPending
-                      ? "bg-[#14192d] border-amber-500/30 shadow-md shadow-amber-500/5"
-                      : "bg-[#0c0f1a] border-indigo-500/10 opacity-80"
+                      ? "bg-[#fbfdff] border-amber-500/30 shadow-md shadow-amber-500/5"
+                      : "bg-[#f3f7fe] border-[#c4d5ee] opacity-80"
                   }`}
                 >
                   {/* Informações da Operação */}
                   <div className="flex items-start gap-3.5 flex-1 min-w-0">
                     <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
-                      isPending ? "bg-amber-500/15 text-amber-400 border border-amber-500/25" :
-                      isApproved ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/25" :
-                      "bg-red-500/15 text-red-400 border border-red-500/25"
+                      isPending ? "bg-amber-500/15 text-amber-600 border border-amber-500/25" :
+                      isApproved ? "bg-emerald-500/15 text-emerald-600 border border-emerald-500/25" :
+                      "bg-red-500/15 text-red-600 border border-red-500/25"
                     }`}>
                       {isPending ? <Clock size={18} /> : isApproved ? <Check size={18} /> : <X size={18} />}
                     </div>
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <span className="text-xs font-bold text-white">{req.operation}</span>
+                        <span className="text-xs font-bold text-gray-900">{req.operation}</span>
                         {req.value > 0 && (
-                          <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20 font-mono">
+                          <span className="text-xs font-bold text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-lg border border-amber-500/20 font-mono">
                             {req.operation.includes("discount") ? `${req.value}%` : `R$ ${Number(req.value).toFixed(2)}`}
                           </span>
                         )}
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          isPending ? "bg-amber-500/20 text-amber-300 border border-amber-500/30" :
-                          isApproved ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30" :
-                          "bg-red-500/20 text-red-300 border border-red-500/30"
+                          isPending ? "bg-amber-500/20 text-amber-700 border border-amber-500/30" :
+                          isApproved ? "bg-emerald-500/20 text-emerald-700 border border-emerald-500/30" :
+                          "bg-red-500/20 text-red-700 border border-red-500/30"
                         }`}>
                           {req.status}
                         </span>
                       </div>
 
-                      <p className="text-xs text-slate-300 font-medium mb-2">
-                        Motivo: <span className="text-white italic">"{req.reason}"</span>
+                      <p className="text-xs text-slate-600 font-medium mb-2">
+                        Motivo: <span className="text-gray-900 italic">"{req.reason}"</span>
                       </p>
 
-                      <div className="flex items-center gap-4 text-[11px] text-slate-400 flex-wrap">
+                      <div className="flex items-center gap-4 text-[11px] text-slate-500 flex-wrap">
                         <span className="flex items-center gap-1">
-                          <User size={12} className="text-indigo-400" />
+                          <User size={12} className="text-indigo-600" />
                           Solicitante: <strong>{req.requester?.name || "Desconhecido"}</strong> ({req.requester?.role})
                         </span>
                         <span className="flex items-center gap-1">
@@ -296,14 +296,14 @@ export default function CentralApprovalsPage() {
 
                       {/* Se Aprovado ou Negado */}
                       {isApproved && req.approver && (
-                        <div className="mt-2 text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg inline-flex items-center gap-1">
+                        <div className="mt-2 text-[10px] text-emerald-600 bg-emerald-500/10 px-2 py-1 rounded-lg inline-flex items-center gap-1">
                           <ShieldCheck size={11} />
                           Aprovado por: <strong>{req.approver.name}</strong> ({req.approver.role}) em {new Date(req.authorizedAt).toLocaleTimeString("pt-BR")}
                         </div>
                       )}
 
                       {isRejected && (
-                        <div className="mt-2 text-[10px] text-red-400 bg-red-500/10 px-2 py-1 rounded-lg inline-flex items-center gap-1">
+                        <div className="mt-2 text-[10px] text-red-600 bg-red-500/10 px-2 py-1 rounded-lg inline-flex items-center gap-1">
                           <AlertCircle size={11} />
                           Negado por: <strong>{req.approver?.name || "Gerência"}</strong> • Justificativa: "{req.rejectionReason}"
                         </div>
@@ -315,7 +315,7 @@ export default function CentralApprovalsPage() {
                   <div className="flex items-center gap-2 shrink-0">
                     <button
                       onClick={() => setDetailsModalReq(req)}
-                      className="p-2 bg-[#0a0d18] hover:bg-white/5 text-slate-400 hover:text-white rounded-xl border border-indigo-500/10 transition-all text-xs"
+                      className="p-2 bg-[#e8f0fc] hover:bg-[#e8f0fc] text-slate-500 hover:text-gray-900 rounded-xl border border-[#c4d5ee] transition-all text-xs"
                       title="Ver detalhes"
                     >
                       <Eye size={15} />
@@ -331,7 +331,7 @@ export default function CentralApprovalsPage() {
                             setSecretPin("");
                             setRejectionReason("");
                           }}
-                          className="px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 font-semibold rounded-xl border border-red-500/20 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                          className="px-3 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-600 hover:text-red-700 font-semibold rounded-xl border border-red-500/20 text-xs flex items-center gap-1.5 transition-all cursor-pointer"
                         >
                           <X size={14} />
                           <span>Negar</span>
@@ -361,51 +361,51 @@ export default function CentralApprovalsPage() {
       {/* Modal de Aprovação */}
       {approveModalReq && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#101426] border border-indigo-500/20 rounded-3xl w-full max-w-md shadow-2xl p-5 space-y-4">
-            <div className="flex justify-between items-center border-b border-indigo-500/10 pb-3">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Check size={16} className="text-emerald-400" />
+          <div className="bg-[#fbfdff] border border-indigo-200 rounded-3xl w-full max-w-md shadow-2xl p-5 space-y-4">
+            <div className="flex justify-between items-center border-b border-[#c4d5ee] pb-3">
+              <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                <Check size={16} className="text-emerald-600" />
                 Autorizar Liberação de Operação
               </h3>
-              <button onClick={() => setApproveModalReq(null)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setApproveModalReq(null)} className="text-slate-500 hover:text-gray-900">
                 <X size={16} />
               </button>
             </div>
 
-            <div className="bg-[#0c0f1a] p-3 rounded-2xl border border-indigo-500/10 text-xs space-y-1">
-              <div><span className="text-slate-500">Operação:</span> <strong className="text-white">{approveModalReq.operation}</strong></div>
-              <div><span className="text-slate-500">Solicitante:</span> <strong className="text-indigo-300">{approveModalReq.requester?.name}</strong></div>
-              <div><span className="text-slate-500">Motivo:</span> <span className="text-slate-300 italic">"{approveModalReq.reason}"</span></div>
+            <div className="bg-[#f3f7fe] p-3 rounded-2xl border border-[#c4d5ee] text-xs space-y-1">
+              <div><span className="text-slate-500">Operação:</span> <strong className="text-gray-900">{approveModalReq.operation}</strong></div>
+              <div><span className="text-slate-500">Solicitante:</span> <strong className="text-indigo-700">{approveModalReq.requester?.name}</strong></div>
+              <div><span className="text-slate-500">Motivo:</span> <span className="text-slate-600 italic">"{approveModalReq.reason}"</span></div>
             </div>
 
             {actionError && (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-300">
+              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-700">
                 {actionError}
               </div>
             )}
 
             <form onSubmit={handleApprove} className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Identificador do Autorizador (Supervisor / Gerente)</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Identificador do Autorizador (Supervisor / Gerente)</label>
                 <input
                   type="text"
                   required
                   value={authorizerIden}
                   onChange={e => setAuthorizerIden(e.target.value)}
                   placeholder="Nome ou e-mail"
-                  className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-xl text-xs"
+                  className="w-full bg-[#f3f7fe] border border-[#c4d5ee] text-gray-900 px-3 py-2 rounded-xl text-xs"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">PIN ou Senha de Autorização</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">PIN ou Senha de Autorização</label>
                 <input
                   type="password"
                   required
                   value={secretPin}
                   onChange={e => setSecretPin(e.target.value)}
                   placeholder="••••"
-                  className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-xl text-xs"
+                  className="w-full bg-[#f3f7fe] border border-[#c4d5ee] text-gray-900 px-3 py-2 rounded-xl text-xs"
                 />
               </div>
 
@@ -413,7 +413,7 @@ export default function CentralApprovalsPage() {
                 <button
                   type="button"
                   onClick={() => setApproveModalReq(null)}
-                  className="flex-1 py-2.5 bg-[#14192d] text-slate-300 text-xs rounded-xl font-semibold"
+                  className="flex-1 py-2.5 bg-[#fbfdff] text-slate-600 text-xs rounded-xl font-semibold"
                 >
                   Cancelar
                 </button>
@@ -434,27 +434,27 @@ export default function CentralApprovalsPage() {
       {/* Modal de Negação com Motivo Obrigatório */}
       {rejectModalReq && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#101426] border border-indigo-500/20 rounded-3xl w-full max-w-md shadow-2xl p-5 space-y-4">
-            <div className="flex justify-between items-center border-b border-indigo-500/10 pb-3">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <X size={16} className="text-red-400" />
+          <div className="bg-[#fbfdff] border border-indigo-200 rounded-3xl w-full max-w-md shadow-2xl p-5 space-y-4">
+            <div className="flex justify-between items-center border-b border-[#c4d5ee] pb-3">
+              <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                <X size={16} className="text-red-600" />
                 Negar Solicitação de Liberação
               </h3>
-              <button onClick={() => setRejectModalReq(null)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setRejectModalReq(null)} className="text-slate-500 hover:text-gray-900">
                 <X size={16} />
               </button>
             </div>
 
             {actionError && (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-300">
+              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-700">
                 {actionError}
               </div>
             )}
 
             <form onSubmit={handleReject} className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Motivo da Recusa <span className="text-red-400">* (Obrigatório)</span>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  Motivo da Recusa <span className="text-red-600">* (Obrigatório)</span>
                 </label>
                 <textarea
                   required
@@ -462,31 +462,31 @@ export default function CentralApprovalsPage() {
                   value={rejectionReason}
                   onChange={e => setRejectionReason(e.target.value)}
                   placeholder="Informe a justificativa da negação..."
-                  className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-xl text-xs resize-none"
+                  className="w-full bg-[#f3f7fe] border border-[#c4d5ee] text-gray-900 px-3 py-2 rounded-xl text-xs resize-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Autorizador (Supervisor / Gerente)</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Autorizador (Supervisor / Gerente)</label>
                 <input
                   type="text"
                   required
                   value={authorizerIden}
                   onChange={e => setAuthorizerIden(e.target.value)}
                   placeholder="Nome ou e-mail"
-                  className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-xl text-xs"
+                  className="w-full bg-[#f3f7fe] border border-[#c4d5ee] text-gray-900 px-3 py-2 rounded-xl text-xs"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">PIN ou Senha</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">PIN ou Senha</label>
                 <input
                   type="password"
                   required
                   value={secretPin}
                   onChange={e => setSecretPin(e.target.value)}
                   placeholder="••••"
-                  className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-xl text-xs"
+                  className="w-full bg-[#f3f7fe] border border-[#c4d5ee] text-gray-900 px-3 py-2 rounded-xl text-xs"
                 />
               </div>
 
@@ -494,7 +494,7 @@ export default function CentralApprovalsPage() {
                 <button
                   type="button"
                   onClick={() => setRejectModalReq(null)}
-                  className="flex-1 py-2.5 bg-[#14192d] text-slate-300 text-xs rounded-xl font-semibold"
+                  className="flex-1 py-2.5 bg-[#fbfdff] text-slate-600 text-xs rounded-xl font-semibold"
                 >
                   Cancelar
                 </button>
@@ -515,52 +515,52 @@ export default function CentralApprovalsPage() {
       {/* Modal de Detalhes */}
       {detailsModalReq && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#101426] border border-indigo-500/20 rounded-3xl w-full max-w-md shadow-2xl p-5 space-y-4">
-            <div className="flex justify-between items-center border-b border-indigo-500/10 pb-3">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Eye size={16} className="text-indigo-400" />
+          <div className="bg-[#fbfdff] border border-indigo-200 rounded-3xl w-full max-w-md shadow-2xl p-5 space-y-4">
+            <div className="flex justify-between items-center border-b border-[#c4d5ee] pb-3">
+              <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                <Eye size={16} className="text-indigo-600" />
                 Detalhes da Solicitação
               </h3>
-              <button onClick={() => setDetailsModalReq(null)} className="text-slate-400 hover:text-white">
+              <button onClick={() => setDetailsModalReq(null)} className="text-slate-500 hover:text-gray-900">
                 <X size={16} />
               </button>
             </div>
 
             <div className="space-y-2.5 text-xs">
-              <div className="flex justify-between p-2.5 bg-[#0c0f1a] rounded-xl">
-                <span className="text-slate-400">Status:</span>
-                <strong className="text-white font-bold">{detailsModalReq.status}</strong>
+              <div className="flex justify-between p-2.5 bg-[#f3f7fe] rounded-xl">
+                <span className="text-slate-500">Status:</span>
+                <strong className="text-gray-900 font-bold">{detailsModalReq.status}</strong>
               </div>
-              <div className="flex justify-between p-2.5 bg-[#0c0f1a] rounded-xl">
-                <span className="text-slate-400">Operação:</span>
-                <strong className="text-white">{detailsModalReq.operation}</strong>
+              <div className="flex justify-between p-2.5 bg-[#f3f7fe] rounded-xl">
+                <span className="text-slate-500">Operação:</span>
+                <strong className="text-gray-900">{detailsModalReq.operation}</strong>
               </div>
-              <div className="flex justify-between p-2.5 bg-[#0c0f1a] rounded-xl">
-                <span className="text-slate-400">Valor / Percentual:</span>
-                <strong className="text-amber-400 font-mono">
+              <div className="flex justify-between p-2.5 bg-[#f3f7fe] rounded-xl">
+                <span className="text-slate-500">Valor / Percentual:</span>
+                <strong className="text-amber-600 font-mono">
                   {detailsModalReq.value ? `R$ ${Number(detailsModalReq.value).toFixed(2)}` : "Sem valor"}
                 </strong>
               </div>
-              <div className="flex justify-between p-2.5 bg-[#0c0f1a] rounded-xl">
-                <span className="text-slate-400">Solicitante:</span>
-                <strong className="text-indigo-300">{detailsModalReq.requester?.name} ({detailsModalReq.requester?.email})</strong>
+              <div className="flex justify-between p-2.5 bg-[#f3f7fe] rounded-xl">
+                <span className="text-slate-500">Solicitante:</span>
+                <strong className="text-indigo-700">{detailsModalReq.requester?.name} ({detailsModalReq.requester?.email})</strong>
               </div>
-              <div className="flex justify-between p-2.5 bg-[#0c0f1a] rounded-xl">
-                <span className="text-slate-400">Terminal:</span>
-                <strong className="text-slate-200">{detailsModalReq.terminal || "PDV"}</strong>
+              <div className="flex justify-between p-2.5 bg-[#f3f7fe] rounded-xl">
+                <span className="text-slate-500">Terminal:</span>
+                <strong className="text-slate-700">{detailsModalReq.terminal || "PDV"}</strong>
               </div>
-              <div className="flex justify-between p-2.5 bg-[#0c0f1a] rounded-xl">
-                <span className="text-slate-400">Data / Hora:</span>
-                <strong className="text-slate-200">{new Date(detailsModalReq.createdAt).toLocaleString("pt-BR")}</strong>
+              <div className="flex justify-between p-2.5 bg-[#f3f7fe] rounded-xl">
+                <span className="text-slate-500">Data / Hora:</span>
+                <strong className="text-slate-700">{new Date(detailsModalReq.createdAt).toLocaleString("pt-BR")}</strong>
               </div>
-              <div className="p-2.5 bg-[#0c0f1a] rounded-xl space-y-1">
-                <span className="text-slate-400 block">Motivo Informado:</span>
-                <p className="text-white italic">"{detailsModalReq.reason}"</p>
+              <div className="p-2.5 bg-[#f3f7fe] rounded-xl space-y-1">
+                <span className="text-slate-500 block">Motivo Informado:</span>
+                <p className="text-gray-900 italic">"{detailsModalReq.reason}"</p>
               </div>
 
               {detailsModalReq.rejectionReason && (
-                <div className="p-2.5 bg-red-500/10 border border-red-500/20 rounded-xl space-y-1 text-red-300">
-                  <span className="text-red-400 font-semibold block">Motivo da Recusa:</span>
+                <div className="p-2.5 bg-red-500/10 border border-red-500/20 rounded-xl space-y-1 text-red-700">
+                  <span className="text-red-600 font-semibold block">Motivo da Recusa:</span>
                   <p>"{detailsModalReq.rejectionReason}"</p>
                 </div>
               )}
@@ -569,7 +569,7 @@ export default function CentralApprovalsPage() {
             <button
               type="button"
               onClick={() => setDetailsModalReq(null)}
-              className="w-full py-2.5 bg-[#14192d] text-slate-300 text-xs rounded-xl font-semibold"
+              className="w-full py-2.5 bg-[#fbfdff] text-slate-600 text-xs rounded-xl font-semibold"
             >
               Fechar
             </button>

@@ -2,6 +2,7 @@
 
 import { prisma } from "@emporio/database";
 import { revalidatePath } from "next/cache";
+import { toPlain } from "@/lib/serialize";
 
 async function getOrCreateCompany() {
   let company = await prisma.company.findFirst();
@@ -24,7 +25,7 @@ export async function getOrders(status?: string) {
       },
       orderBy: { createdAt: "desc" }
     });
-    return { orders };
+    return { orders: toPlain(orders) };
   } catch (err: any) {
     return { error: err.message, orders: [] };
   }
@@ -68,7 +69,7 @@ export async function createOrder(data: {
     });
 
     revalidatePath("/telesales");
-    return { success: true, order };
+    return { success: true, order: toPlain(order) };
   } catch (err: any) {
     return { error: err.message || "Erro ao criar pedido" };
   }
@@ -94,7 +95,7 @@ export async function getOrderById(id: string) {
         items: { include: { product: true } },
       }
     });
-    return { order };
+    return { order: toPlain(order) };
   } catch (err: any) {
     return { error: err.message };
   }

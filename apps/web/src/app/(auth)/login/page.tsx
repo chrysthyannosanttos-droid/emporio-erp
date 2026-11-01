@@ -300,8 +300,9 @@ export default function LoginPage() {
               name="username"
               type="text"
               required
+              autoFocus
               autoComplete="username"
-              placeholder="Usuário"
+              placeholder="Usuário (ou 'caixa')"
               className="login-input"
             />
           </div>

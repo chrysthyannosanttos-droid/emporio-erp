@@ -133,6 +133,33 @@ export function TerminalActivation({ onActivated }: TerminalActivationProps) {
     fetchOrGenerateCode(apiUrl);
   };
 
+  const handleDemoActivation = () => {
+    const demoConfig: PdvTerminalConfig = {
+      paired: true,
+      terminalId: 'term_demo_01',
+      terminalName: 'Caixa 01 - Frente de Loja',
+      cashierNumber: 1,
+      code: code || 'PDV-7431-YY',
+      token: 'demo_token_123',
+      company: {
+        id: 'comp_demo',
+        name: 'Cybertech RP',
+        document: '12.345.678/0001-90'
+      },
+      store: {
+        id: 'store_demo',
+        name: 'Loja Matriz',
+        code: 'LJ01',
+        tradeName: 'SUPERMERCADO CYBERTECH',
+        city: 'São Paulo',
+        state: 'SP'
+      },
+      apiUrl: apiUrl || 'http://localhost:3000'
+    };
+    localStorage.setItem('emporio_pdv_terminal', JSON.stringify(demoConfig));
+    onActivated(demoConfig);
+  };
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -356,6 +383,32 @@ export function TerminalActivation({ onActivated }: TerminalActivationProps) {
                 </div>
               )}
             </div>
+
+            {/* Botão de Acesso Imediato para Testes */}
+            <button
+              type="button"
+              onClick={handleDemoActivation}
+              style={{
+                width: '100%',
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 12,
+                padding: '13px 20px',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: 'pointer',
+                marginBottom: 20,
+                boxShadow: '0 4px 15px rgba(16, 185, 129, 0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                transition: 'all 0.2s ease'
+              }}
+            >
+              ⚡ Entrar Imediatamente no Caixa (Modo Teste / Demonstração)
+            </button>
 
             {/* Passo a Passo para o Operador/Admin */}
             <div style={{

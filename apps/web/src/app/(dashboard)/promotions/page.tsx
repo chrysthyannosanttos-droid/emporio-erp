@@ -155,7 +155,7 @@ export default function PromotionsPage() {
     <div className="h-full flex flex-col gap-5">
       <div className="flex items-center justify-between shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Promoções e Ofertas</h1>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Promoções e Ofertas</h1>
           <p className="text-slate-500 text-sm mt-0.5">Crie regras e ofertas de desconto agendadas para todos os clientes no PDV (sem CPF).</p>
         </div>
         <button onClick={() => setIsModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-indigo-600/20 text-sm active:scale-95">
@@ -163,11 +163,11 @@ export default function PromotionsPage() {
         </button>
       </div>
 
-      <div className="bg-[#111528] rounded-2xl border border-indigo-500/10 overflow-hidden flex-1 flex flex-col min-h-0">
+      <div className="bg-[#fbfdff] rounded-2xl border border-[#c4d5ee] overflow-hidden flex-1 flex flex-col min-h-0">
         <div className="p-4 border-b border-indigo-500/[0.08] shrink-0">
           <div className="relative max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
-            <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} type="text" placeholder="Buscar promoção..." className="w-full pl-9 pr-4 py-2 bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-white rounded-lg outline-none text-sm font-medium placeholder:text-slate-600" />
+            <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} type="text" placeholder="Buscar promoção..." className="w-full pl-9 pr-4 py-2 bg-[#f3f7fe] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 rounded-lg outline-none text-sm font-medium placeholder:text-slate-600" />
           </div>
         </div>
         
@@ -184,7 +184,7 @@ export default function PromotionsPage() {
             </div>
           ) : (
             <table className="w-full text-sm text-left">
-              <thead className="bg-[#0c0f1a]/60 border-b border-indigo-500/[0.08] text-slate-500 sticky top-0 z-10">
+              <thead className="bg-[#f3f7fe]/60 border-b border-indigo-500/[0.08] text-slate-500 sticky top-0 z-10">
                 <tr>
                   <th className="px-5 py-3 font-semibold uppercase tracking-wider text-[10px]">Nome da Promoção</th>
                   <th className="px-5 py-3 font-semibold uppercase tracking-wider text-[10px]">Regra & Mecânica</th>
@@ -197,16 +197,16 @@ export default function PromotionsPage() {
               <tbody className="divide-y divide-indigo-500/[0.06]">
                 {filtered.map(p => (
                   <tr key={p.id} className="hover:bg-indigo-500/[0.04] transition-colors">
-                    <td className="px-5 py-3 font-bold text-white">{p.name}</td>
-                    <td className="px-5 py-3 text-slate-300 font-medium max-w-xs truncate">{formatPromoDescription(p)}</td>
-                    <td className="px-5 py-3 text-slate-400 font-mono text-xs">{new Date(p.startDate).toLocaleString("pt-BR")}</td>
-                    <td className="px-5 py-3 text-slate-400 font-mono text-xs">
+                    <td className="px-5 py-3 font-bold text-gray-900">{p.name}</td>
+                    <td className="px-5 py-3 text-slate-600 font-medium max-w-xs truncate">{formatPromoDescription(p)}</td>
+                    <td className="px-5 py-3 text-slate-500 font-mono text-xs">{new Date(p.startDate).toLocaleString("pt-BR")}</td>
+                    <td className="px-5 py-3 text-slate-500 font-mono text-xs">
                       {p.endDate ? new Date(p.endDate).toLocaleString("pt-BR") : "Sem expiração"}
                     </td>
                     <td className="px-5 py-3">
                       <span className={`text-[10px] px-2 py-0.5 border font-bold rounded-md ${
                         p.active 
-                          ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/15" 
+                          ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/15" 
                           : "bg-slate-500/10 text-slate-500 border-slate-500/15"
                       }`}>
                         {p.active ? "Ativa no PDV" : "Pausada"}
@@ -217,8 +217,8 @@ export default function PromotionsPage() {
                         onClick={() => handleToggleStatus(p.id, !p.active)}
                         className={`px-2.5 py-1 rounded text-[10px] font-bold border transition-colors ${
                           p.active 
-                            ? "bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20"
-                            : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
+                            ? "bg-rose-500/10 text-rose-600 border-rose-500/20 hover:bg-rose-500/20"
+                            : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/20"
                         }`}
                       >
                         {p.active ? "Pausar" : "Ativar"}
@@ -234,9 +234,9 @@ export default function PromotionsPage() {
 
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#111528] border border-indigo-500/15 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
-            <div className="p-5 border-b border-indigo-500/[0.08] flex justify-between items-center shrink-0 bg-[#0c0f1a]/50">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2"><Ticket className="text-indigo-400" size={18}/> Criar Nova Promoção</h3>
+          <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200">
+            <div className="p-5 border-b border-indigo-500/[0.08] flex justify-between items-center shrink-0 bg-[#f3f7fe]/50">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2"><Ticket className="text-indigo-600" size={18}/> Criar Nova Promoção</h3>
               <button onClick={() => setIsModalOpen(false)} className="text-slate-500 hover:bg-indigo-500/10 p-1 rounded-lg"><X size={18} /></button>
             </div>
 
@@ -244,34 +244,34 @@ export default function PromotionsPage() {
               {/* Informações Básicas */}
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Nome Comercial da Promoção</label>
-                  <input value={promoName} onChange={e => setPromoName(e.target.value)} required autoFocus className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-lg outline-none focus:border-indigo-500 text-sm font-semibold transition-all" placeholder="Ex: Festival de Sucos Tang" />
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Nome Comercial da Promoção</label>
+                  <input value={promoName} onChange={e => setPromoName(e.target.value)} required autoFocus className="w-full bg-[#f3f7fe] border border-[#c4d5ee] text-gray-900 px-3 py-2 rounded-lg outline-none focus:border-indigo-500 text-sm font-semibold transition-all" placeholder="Ex: Festival de Sucos Tang" />
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Tipo do Desconto</label>
-                    <select value={promoType} onChange={e => setPromoType(e.target.value)} className="w-full bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-white px-3 py-2 rounded-lg outline-none text-sm font-semibold transition-all">
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Tipo do Desconto</label>
+                    <select value={promoType} onChange={e => setPromoType(e.target.value)} className="w-full bg-[#f3f7fe] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 px-3 py-2 rounded-lg outline-none text-sm font-semibold transition-all">
                       <option value="DISCOUNT_PERCENT">Desconto Percentual (%)</option>
                       <option value="DISCOUNT_FIXED">Desconto em Valor Fixo (R$)</option>
                       <option value="BOGO">Leve X Pague Y (BOGO)</option>
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Início da Promoção</label>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Início da Promoção</label>
                     <div className="flex gap-2">
-                      <input value={startDate} onChange={e => setStartDate(e.target.value)} type="date" required className="flex-1 bg-[#0c0f1a] border border-indigo-500/15 text-slate-300 px-3 py-2 rounded-lg outline-none focus:border-indigo-500 text-sm" />
-                      <input value={startTime} onChange={e => setStartTime(e.target.value)} type="time" required className="w-24 bg-[#0c0f1a] border border-indigo-500/15 text-slate-300 px-3 py-2 rounded-lg outline-none focus:border-indigo-500 text-sm" />
+                      <input value={startDate} onChange={e => setStartDate(e.target.value)} type="date" required className="flex-1 bg-[#f3f7fe] border border-[#c4d5ee] text-slate-600 px-3 py-2 rounded-lg outline-none focus:border-indigo-500 text-sm" />
+                      <input value={startTime} onChange={e => setStartTime(e.target.value)} type="time" required className="w-24 bg-[#f3f7fe] border border-[#c4d5ee] text-slate-600 px-3 py-2 rounded-lg outline-none focus:border-indigo-500 text-sm" />
                     </div>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Término da Promoção (Opcional)</label>
+                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Término da Promoção (Opcional)</label>
                     <div className="flex gap-2">
-                      <input value={endDate} onChange={e => setEndDate(e.target.value)} type="date" className="flex-1 bg-[#0c0f1a] border border-indigo-500/15 text-slate-300 px-3 py-2 rounded-lg outline-none focus:border-indigo-500 text-sm" />
-                      <input value={endTime} onChange={e => setEndTime(e.target.value)} type="time" className="w-24 bg-[#0c0f1a] border border-indigo-500/15 text-slate-300 px-3 py-2 rounded-lg outline-none focus:border-indigo-500 text-sm" />
+                      <input value={endDate} onChange={e => setEndDate(e.target.value)} type="date" className="flex-1 bg-[#f3f7fe] border border-[#c4d5ee] text-slate-600 px-3 py-2 rounded-lg outline-none focus:border-indigo-500 text-sm" />
+                      <input value={endTime} onChange={e => setEndTime(e.target.value)} type="time" className="w-24 bg-[#f3f7fe] border border-[#c4d5ee] text-slate-600 px-3 py-2 rounded-lg outline-none focus:border-indigo-500 text-sm" />
                     </div>
                   </div>
                 </div>
@@ -279,8 +279,8 @@ export default function PromotionsPage() {
 
               {/* Produtos Participantes */}
               <div className="space-y-4 pt-4 border-t border-indigo-500/[0.08]">
-                <div className="bg-[#0c0f1a]/50 p-4 rounded-xl border border-indigo-500/10 space-y-3">
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Selecionar Produtos Participantes</label>
+                <div className="bg-[#f3f7fe]/50 p-4 rounded-xl border border-[#c4d5ee] space-y-3">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Selecionar Produtos Participantes</label>
                   
                   <div className="flex gap-2">
                     <div className="relative flex-1">
@@ -290,7 +290,7 @@ export default function PromotionsPage() {
                         value={productSearch} 
                         onChange={e => setProductSearch(e.target.value)} 
                         placeholder="Buscar por nome, EAN ou código..." 
-                        className="w-full pl-9 pr-4 py-2 bg-[#111528] border border-indigo-500/15 text-white rounded-lg outline-none focus:border-indigo-500 text-xs font-semibold"
+                        className="w-full pl-9 pr-4 py-2 bg-[#fbfdff] border border-[#c4d5ee] text-gray-900 rounded-lg outline-none focus:border-indigo-500 text-xs font-semibold"
                       />
                     </div>
                     {productSearch.trim().length >= 2 && (
@@ -317,14 +317,14 @@ export default function PromotionsPage() {
                   </div>
 
                   {/* Scrollable list of products */}
-                  <div className="bg-[#111528] border border-indigo-500/15 rounded-lg max-h-36 overflow-y-auto divide-y divide-indigo-500/[0.06] custom-scrollbar">
+                  <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-lg max-h-36 overflow-y-auto divide-y divide-indigo-500/[0.06] custom-scrollbar">
                     {products.filter(p => {
                       if (!productSearch.trim()) return true;
                       const q = productSearch.toLowerCase();
                       return p.name.toLowerCase().includes(q) || p.barcode?.includes(q);
                     }).slice(0, 10).map(p => (
                       <div key={p.id} className="p-2 flex justify-between items-center text-xs">
-                        <span className="text-white font-semibold truncate max-w-[70%]">{p.name} (R$ {p.price.toFixed(2)})</span>
+                        <span className="text-gray-900 font-semibold truncate max-w-[70%]">{p.name} (R$ {p.price.toFixed(2)})</span>
                         <button 
                           type="button" 
                           onClick={() => {
@@ -333,7 +333,7 @@ export default function PromotionsPage() {
                             }
                             setProductSearch("");
                           }}
-                          className="text-indigo-400 hover:underline font-bold"
+                          className="text-indigo-600 hover:underline font-bold"
                         >
                           + Adicionar
                         </button>
@@ -343,14 +343,14 @@ export default function PromotionsPage() {
 
                   {/* Selected products tag list */}
                   {selectedProducts.length > 0 ? (
-                    <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto p-2 bg-[#111528]/50 rounded-lg border border-indigo-500/5">
+                    <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto p-2 bg-[#fbfdff]/50 rounded-lg border border-[#c4d5ee]">
                       {selectedProducts.map(p => (
-                        <div key={p.id} className="flex items-center gap-1 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[10px] font-bold px-2 py-1 rounded-md">
+                        <div key={p.id} className="flex items-center gap-1 bg-indigo-500/10 border border-indigo-200 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded-md">
                           <span className="truncate max-w-[150px]">{p.name}</span>
                           <button 
                             type="button" 
                             onClick={() => setSelectedProducts(prev => prev.filter(sp => sp.id !== p.id))}
-                            className="text-indigo-400 hover:text-rose-400"
+                            className="text-indigo-600 hover:text-rose-600"
                           >
                             <X size={10} />
                           </button>
@@ -364,16 +364,16 @@ export default function PromotionsPage() {
               </div>
 
               {/* Promo Rules Engine */}
-              <div className="bg-[#0c0f1a] border border-indigo-500/10 rounded-xl p-4 space-y-3">
-                <h4 className="text-[10px] uppercase font-black text-indigo-400 tracking-wider">Regras de Ativação do Desconto</h4>
+              <div className="bg-[#f3f7fe] border border-[#c4d5ee] rounded-xl p-4 space-y-3">
+                <h4 className="text-[10px] uppercase font-black text-indigo-600 tracking-wider">Regras de Ativação do Desconto</h4>
                 
                 {promoType !== "BOGO" && (
                   <div className="flex gap-4 border-b border-indigo-500/[0.05] pb-2">
-                    <label className="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                    <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
                       <input type="radio" name="ruleType" checked={ruleType === "QTY"} onChange={() => setRuleType("QTY")} className="text-indigo-500" />
                       Por quantidade mínima de itens
                     </label>
-                    <label className="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                    <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
                       <input type="radio" name="ruleType" checked={ruleType === "AMT"} onChange={() => setRuleType("AMT")} className="text-indigo-500" />
                       Por valor mínimo acumulado
                     </label>
@@ -384,12 +384,12 @@ export default function PromotionsPage() {
                   ruleType === "QTY" ? (
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">A partir de quantas unidades compradas?</label>
-                      <input type="number" min="1" value={minQty} onChange={e => setMinQty(e.target.value)} className="w-32 bg-[#111528] border border-indigo-500/15 rounded-lg px-3 py-2 text-sm text-white font-mono outline-none focus:border-indigo-500" />
+                      <input type="number" min="1" value={minQty} onChange={e => setMinQty(e.target.value)} className="w-32 bg-[#fbfdff] border border-[#c4d5ee] rounded-lg px-3 py-2 text-sm text-gray-900 font-mono outline-none focus:border-indigo-500" />
                     </div>
                   ) : (
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">A partir de qual valor acumulado do produto?</label>
-                      <input type="number" step="0.01" value={minAmount} onChange={e => setMinAmount(e.target.value)} className="w-32 bg-[#111528] border border-indigo-500/15 rounded-lg px-3 py-2 text-sm text-white font-mono outline-none focus:border-indigo-500" />
+                      <input type="number" step="0.01" value={minAmount} onChange={e => setMinAmount(e.target.value)} className="w-32 bg-[#fbfdff] border border-[#c4d5ee] rounded-lg px-3 py-2 text-sm text-gray-900 font-mono outline-none focus:border-indigo-500" />
                     </div>
                   )
                 )}
@@ -398,14 +398,14 @@ export default function PromotionsPage() {
                 {promoType === "DISCOUNT_FIXED" && (
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Valor do desconto (R$)</label>
-                    <input type="number" step="0.01" value={discountValue} onChange={e => setDiscountValue(e.target.value)} className="w-32 bg-[#111528] border border-indigo-500/15 rounded-lg px-3 py-2 text-sm text-rose-400 font-mono font-bold outline-none focus:border-indigo-500" />
+                    <input type="number" step="0.01" value={discountValue} onChange={e => setDiscountValue(e.target.value)} className="w-32 bg-[#fbfdff] border border-[#c4d5ee] rounded-lg px-3 py-2 text-sm text-rose-600 font-mono font-bold outline-none focus:border-indigo-500" />
                   </div>
                 )}
 
                 {promoType === "DISCOUNT_PERCENT" && (
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Porcentagem do desconto (%)</label>
-                    <input type="number" step="0.1" value={discountPercent} onChange={e => setDiscountPercent(e.target.value)} className="w-32 bg-[#111528] border border-indigo-500/15 rounded-lg px-3 py-2 text-sm text-rose-400 font-mono font-bold outline-none focus:border-indigo-500" />
+                    <input type="number" step="0.1" value={discountPercent} onChange={e => setDiscountPercent(e.target.value)} className="w-32 bg-[#fbfdff] border border-[#c4d5ee] rounded-lg px-3 py-2 text-sm text-rose-600 font-mono font-bold outline-none focus:border-indigo-500" />
                   </div>
                 )}
 
@@ -413,18 +413,18 @@ export default function PromotionsPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Leve (Quantidade total)</label>
-                      <input type="number" min="1" value={buyQty} onChange={e => setBuyQty(e.target.value)} className="w-full bg-[#111528] border border-indigo-500/15 rounded-lg px-3 py-2 text-sm text-white font-mono outline-none focus:border-indigo-500" />
+                      <input type="number" min="1" value={buyQty} onChange={e => setBuyQty(e.target.value)} className="w-full bg-[#fbfdff] border border-[#c4d5ee] rounded-lg px-3 py-2 text-sm text-gray-900 font-mono outline-none focus:border-indigo-500" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Pague (Quantidade cobrada)</label>
-                      <input type="number" min="1" value={payQty} onChange={e => setPayQty(e.target.value)} className="w-full bg-[#111528] border border-indigo-500/15 rounded-lg px-3 py-2 text-sm text-white font-mono outline-none focus:border-indigo-500" />
+                      <input type="number" min="1" value={payQty} onChange={e => setPayQty(e.target.value)} className="w-full bg-[#fbfdff] border border-[#c4d5ee] rounded-lg px-3 py-2 text-sm text-gray-900 font-mono outline-none focus:border-indigo-500" />
                     </div>
                   </div>
                 )}
               </div>
 
-              <div className="flex gap-3 pt-6 border-t border-indigo-500/[0.08] sticky bottom-0 bg-[#111528] pb-1">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 bg-[#0c0f1a] hover:bg-[#161b33] text-slate-400 font-bold py-3 rounded-xl border border-indigo-500/10 text-sm transition-all active:scale-95">Cancelar</button>
+              <div className="flex gap-3 pt-6 border-t border-indigo-500/[0.08] sticky bottom-0 bg-[#fbfdff] pb-1">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 bg-[#f3f7fe] hover:bg-[#eaf1fc] text-slate-500 font-bold py-3 rounded-xl border border-[#c4d5ee] text-sm transition-all active:scale-95">Cancelar</button>
                 <button type="submit" disabled={saving} className="flex-grow bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold py-3 rounded-xl shadow-lg shadow-indigo-600/20 text-sm transition-all active:scale-95 flex items-center justify-center gap-1">
                   {saving ? (
                     <><Loader2 size={14} className="animate-spin" /> Gravando...</>

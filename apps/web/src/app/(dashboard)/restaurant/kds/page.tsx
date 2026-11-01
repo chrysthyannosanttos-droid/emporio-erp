@@ -110,27 +110,27 @@ export default function RestaurantKdsPage() {
   });
 
   return (
-    <div className="h-full flex flex-col bg-[#070914] text-white p-6 space-y-4 overflow-hidden animate-in fade-in duration-200">
+    <div className="h-full flex flex-col bg-[#e8f0fc] text-gray-900 p-6 space-y-4 overflow-hidden animate-in fade-in duration-200">
       
       {/* ── Header KDS ──────────────────────────────────────────────────────── */}
-      <div className="flex justify-between items-center bg-[#0f1324] p-4 rounded-3xl border border-indigo-500/15 shrink-0 shadow-lg">
+      <div className="flex justify-between items-center bg-[#fbfdff] p-4 rounded-3xl border border-[#c4d5ee] shrink-0 shadow-lg">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-500 to-red-600 flex items-center justify-center text-white shadow-lg shadow-amber-500/20">
             <ChefHat size={22} />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-black text-white tracking-tight">KDS — Tela da Cozinha & Produção</h1>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase tracking-widest flex items-center gap-1">
+              <h1 className="text-xl font-black text-gray-900 tracking-tight">KDS — Tela da Cozinha & Produção</h1>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 uppercase tracking-widest flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" /> Ao Vivo
               </span>
             </div>
-            <p className="text-xs text-slate-400">Acompanhamento em tempo real dos pedidos por setor de produção.</p>
+            <p className="text-xs text-slate-500">Acompanhamento em tempo real dos pedidos por setor de produção.</p>
           </div>
         </div>
 
         {/* Filtros por Setor */}
-        <div className="flex bg-[#070914] p-1 rounded-2xl border border-indigo-500/20 gap-1">
+        <div className="flex bg-[#e8f0fc] p-1 rounded-2xl border border-indigo-200 gap-1">
           {[
             { key: "ALL", label: "Todos os Setores", icon: <Utensils size={14} /> },
             { key: "KITCHEN", label: "Cozinha Principal", icon: <ChefHat size={14} /> },
@@ -144,7 +144,7 @@ export default function RestaurantKdsPage() {
               className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                 selectedSector === s.key
                   ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30"
-                  : "text-slate-400 hover:text-white hover:bg-indigo-500/10"
+                  : "text-slate-500 hover:text-gray-900 hover:bg-indigo-500/10"
               }`}
             >
               {s.icon} {s.label}
@@ -163,33 +163,33 @@ export default function RestaurantKdsPage() {
           return (
             <div
               key={ticket.id}
-              className={`rounded-3xl border-2 p-4 flex flex-col justify-between transition-all shadow-xl bg-[#0f1324] ${
+              className={`rounded-3xl border-2 p-4 flex flex-col justify-between transition-all shadow-xl bg-[#fbfdff] ${
                 ticket.status === "READY"
-                  ? "border-emerald-500/50 bg-[#091512]/80"
+                  ? "border-emerald-500/50 bg-emerald-50/80"
                   : isDelayed
-                  ? "border-red-500/60 bg-[#260e12]/80 animate-pulse"
+                  ? "border-red-500/60 bg-red-50/80 animate-pulse"
                   : isWarning
-                  ? "border-amber-500/50 bg-[#241a08]/80"
-                  : "border-indigo-500/20"
+                  ? "border-amber-500/50 bg-amber-50/80"
+                  : "border-indigo-200"
               }`}
             >
               {/* Card Top */}
-              <div className="border-b border-indigo-500/10 pb-3 space-y-1">
+              <div className="border-b border-[#c4d5ee] pb-3 space-y-1">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h2 className="text-lg font-black text-white leading-none">{ticket.tableOrOrder}</h2>
-                    <span className="text-[10px] text-slate-400 block mt-1">Garçom: {ticket.waiter}</span>
+                    <h2 className="text-lg font-black text-gray-900 leading-none">{ticket.tableOrOrder}</h2>
+                    <span className="text-[10px] text-slate-500 block mt-1">Garçom: {ticket.waiter}</span>
                   </div>
                   <span className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase font-mono tracking-wider flex items-center gap-1 ${
-                    isDelayed ? "bg-red-500/20 text-red-300 border border-red-500/40" :
-                    isWarning ? "bg-amber-500/20 text-amber-300 border border-amber-500/40" :
-                    "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                    isDelayed ? "bg-red-500/20 text-red-700 border border-red-500/40" :
+                    isWarning ? "bg-amber-500/20 text-amber-700 border border-amber-500/40" :
+                    "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
                   }`}>
                     <Clock size={12} /> {elapsedMinutes} min
                   </span>
                 </div>
                 <div className="flex justify-between items-center pt-1">
-                  <span className="text-[10px] text-indigo-400 font-bold uppercase tracking-widest bg-indigo-500/10 border border-indigo-500/20 px-2 py-0.5 rounded-md">
+                  <span className="text-[10px] text-indigo-600 font-bold uppercase tracking-widest bg-indigo-500/10 border border-indigo-200 px-2 py-0.5 rounded-md">
                     Setor: {ticket.sector}
                   </span>
                   <span className="text-[10px] font-mono text-slate-500 font-bold">{ticket.id}</span>
@@ -199,30 +199,30 @@ export default function RestaurantKdsPage() {
               {/* Lista de Itens do Pedido */}
               <div className="py-3 flex-1 space-y-2.5 overflow-y-auto max-h-56 custom-scrollbar">
                 {ticket.items.map((item, idx) => (
-                  <div key={idx} className="bg-[#070914] p-3 rounded-2xl border border-indigo-500/10 space-y-1">
+                  <div key={idx} className="bg-[#e8f0fc] p-3 rounded-2xl border border-[#c4d5ee] space-y-1">
                     <div className="flex items-start gap-2">
                       <span className="w-6 h-6 rounded-lg bg-indigo-600 text-white font-black text-xs flex items-center justify-center shrink-0 font-mono">
                         {item.quantity}x
                       </span>
-                      <p className="text-xs font-bold text-white leading-snug">{item.name}</p>
+                      <p className="text-xs font-bold text-gray-900 leading-snug">{item.name}</p>
                     </div>
 
                     {item.notes && (
-                      <p className="text-[10px] text-amber-300 font-semibold italic pl-8">⚠️ Obs: {item.notes}</p>
+                      <p className="text-[10px] text-amber-700 font-semibold italic pl-8">⚠️ Obs: {item.notes}</p>
                     )}
 
                     {item.additions && item.additions.length > 0 && (
-                      <p className="text-[10px] text-indigo-300 font-medium pl-8">+ {item.additions.join(", ")}</p>
+                      <p className="text-[10px] text-indigo-700 font-medium pl-8">+ {item.additions.join(", ")}</p>
                     )}
                   </div>
                 ))}
               </div>
 
               {/* Card Footer / Ações de Status */}
-              <div className="border-t border-indigo-500/10 pt-3 flex items-center justify-between gap-2">
+              <div className="border-t border-[#c4d5ee] pt-3 flex items-center justify-between gap-2">
                 <button
                   onClick={() => handlePrintTicket(ticket)}
-                  className="p-2.5 bg-[#070914] hover:bg-indigo-600/20 text-slate-400 hover:text-indigo-300 border border-indigo-500/15 rounded-xl transition-all"
+                  className="p-2.5 bg-[#e8f0fc] hover:bg-indigo-600/20 text-slate-500 hover:text-indigo-700 border border-[#c4d5ee] rounded-xl transition-all"
                   title="Imprimir Comanda do Setor"
                 >
                   <Printer size={15} />
@@ -250,7 +250,7 @@ export default function RestaurantKdsPage() {
         {!filteredTickets.length && (
           <div className="col-span-full py-32 text-center text-slate-500 space-y-3">
             <ChefHat size={48} className="mx-auto opacity-30" />
-            <p className="text-sm font-bold text-slate-400">Nenhum pedido pendente neste setor!</p>
+            <p className="text-sm font-bold text-slate-500">Nenhum pedido pendente neste setor!</p>
             <p className="text-xs text-slate-600">Novos pedidos lançados no PDV Touch aparecerão aqui automaticamente.</p>
           </div>
         )}

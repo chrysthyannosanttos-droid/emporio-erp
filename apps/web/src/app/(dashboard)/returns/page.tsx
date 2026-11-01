@@ -105,7 +105,7 @@ export default function ReturnsPage() {
   return (
     <div className="h-full flex flex-col gap-6 max-w-5xl mx-auto">
       <div>
-        <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
+        <h1 className="text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-3">
           <ArrowLeftRight className="text-[var(--accent)]" size={28} />
           Central de Trocas e Devoluções
         </h1>
@@ -113,14 +113,14 @@ export default function ReturnsPage() {
       </div>
 
       {error && (
-        <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl flex items-center gap-3">
+        <div className="bg-red-500/10 border border-red-500/20 text-red-600 p-4 rounded-xl flex items-center gap-3">
           <AlertTriangle size={20} />
           <span className="font-medium text-sm">{error}</span>
         </div>
       )}
 
       {success && (
-        <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-6 rounded-xl space-y-4">
+        <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 p-6 rounded-xl space-y-4">
           <div className="flex items-center gap-3">
             <CheckCircle size={24} />
             <span className="font-bold text-lg">{success.message}</span>
@@ -129,7 +129,7 @@ export default function ReturnsPage() {
             <button className="bg-emerald-500 hover:bg-emerald-400 text-black font-bold px-4 py-2 rounded-lg text-sm flex items-center gap-2">
               <FileText size={16} /> Ver NF-e de Devolução
             </button>
-            <button onClick={() => setSuccess(null)} className="bg-slate-800 hover:bg-slate-700 text-white font-bold px-4 py-2 rounded-lg text-sm">
+            <button onClick={() => setSuccess(null)} className="bg-[#eaf1fc] hover:bg-slate-700 text-gray-900 font-bold px-4 py-2 rounded-lg text-sm">
               Nova Devolução
             </button>
           </div>
@@ -137,7 +137,7 @@ export default function ReturnsPage() {
       )}
 
       {!success && (
-        <div className="bg-[#111528] border border-indigo-500/10 rounded-2xl p-6">
+        <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl p-6">
           <form onSubmit={handleSearch} className="flex gap-4 mb-6">
             <div className="relative flex-1">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
@@ -146,10 +146,10 @@ export default function ReturnsPage() {
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 placeholder="Digite o número da Nota, Chave de Acesso ou ID da Venda..."
-                className="w-full pl-12 pr-4 py-4 bg-[#0c0f1a] border border-indigo-500/15 focus:border-[var(--accent)] text-white rounded-xl outline-none text-base font-medium shadow-inner"
+                className="w-full pl-12 pr-4 py-4 bg-[#f3f7fe] border border-[#c4d5ee] focus:border-[var(--accent)] text-gray-900 rounded-xl outline-none text-base font-medium shadow-inner"
               />
             </div>
-            <button type="submit" disabled={loading} className="bg-[var(--accent)] hover:opacity-90 text-white font-black px-8 py-4 rounded-xl tracking-widest text-sm shadow-[0_0_20px_var(--accent)]/30 disabled:opacity-50">
+            <button type="submit" disabled={loading} className="bg-[var(--accent)] hover:opacity-90 text-gray-900 font-black px-8 py-4 rounded-xl tracking-widest text-sm shadow-[0_0_20px_var(--accent)]/30 disabled:opacity-50">
               {loading ? "BUSCANDO..." : "BUSCAR VENDA"}
             </button>
           </form>
@@ -157,43 +157,43 @@ export default function ReturnsPage() {
           {sale && (
             <div className="space-y-6">
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-[#0c0f1a] border border-indigo-500/15 rounded-xl p-4 flex gap-4">
+                <div className="bg-[#f3f7fe] border border-[#c4d5ee] rounded-xl p-4 flex gap-4">
                   <div className="w-12 h-12 rounded-full bg-indigo-500/10 flex items-center justify-center shrink-0">
-                    <ShoppingCart className="text-indigo-400" />
+                    <ShoppingCart className="text-indigo-600" />
                   </div>
                   <div>
                     <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Dados da Venda</span>
-                    <div className="text-white font-bold text-lg">ID: {sale.id.slice(0, 8).toUpperCase()}</div>
-                    <div className="text-slate-400 text-sm mt-1">Total: R$ {Number(sale.total).toFixed(2)}</div>
+                    <div className="text-gray-900 font-bold text-lg">ID: {sale.id.slice(0, 8).toUpperCase()}</div>
+                    <div className="text-slate-500 text-sm mt-1">Total: R$ {Number(sale.total).toFixed(2)}</div>
                   </div>
                 </div>
                 
-                <div className={`border rounded-xl p-4 flex gap-4 ${!sale.customerId || !sale.customer?.document ? 'bg-red-500/5 border-red-500/20' : 'bg-[#0c0f1a] border-indigo-500/15'}`}>
+                <div className={`border rounded-xl p-4 flex gap-4 ${!sale.customerId || !sale.customer?.document ? 'bg-red-500/5 border-red-500/20' : 'bg-[#f3f7fe] border-[#c4d5ee]'}`}>
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${!sale.customerId || !sale.customer?.document ? 'bg-red-500/10' : 'bg-emerald-500/10'}`}>
-                    <User className={!sale.customerId || !sale.customer?.document ? 'text-red-400' : 'text-emerald-400'} />
+                    <User className={!sale.customerId || !sale.customer?.document ? 'text-red-600' : 'text-emerald-600'} />
                   </div>
                   <div>
                     <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Cliente Identificado</span>
                     {sale.customer ? (
                       <>
-                        <div className="text-white font-bold text-lg">{sale.customer.name}</div>
-                        <div className={`${sale.customer.document ? 'text-slate-400' : 'text-red-400'} text-sm mt-1 font-mono`}>
+                        <div className="text-gray-900 font-bold text-lg">{sale.customer.name}</div>
+                        <div className={`${sale.customer.document ? 'text-slate-500' : 'text-red-600'} text-sm mt-1 font-mono`}>
                           CPF: {sale.customer.document || "NÃO INFORMADO"}
                         </div>
                       </>
                     ) : (
-                      <div className="text-red-400 font-bold mt-1">Consumidor Não Identificado na Venda Original</div>
+                      <div className="text-red-600 font-bold mt-1">Consumidor Não Identificado na Venda Original</div>
                     )}
                   </div>
                 </div>
               </div>
 
-              <div className="border border-indigo-500/15 rounded-xl overflow-hidden">
-                <div className="bg-[#0c0f1a] px-4 py-3 border-b border-indigo-500/15 text-sm font-bold text-slate-400 flex items-center gap-2">
+              <div className="border border-[#c4d5ee] rounded-xl overflow-hidden">
+                <div className="bg-[#f3f7fe] px-4 py-3 border-b border-[#c4d5ee] text-sm font-bold text-slate-500 flex items-center gap-2">
                   <Package size={16} /> Itens da Venda Original
                 </div>
-                <table className="w-full text-sm text-left text-slate-300">
-                  <thead className="bg-[#111528] text-slate-500 border-b border-indigo-500/10">
+                <table className="w-full text-sm text-left text-slate-600">
+                  <thead className="bg-[#fbfdff] text-slate-500 border-b border-[#c4d5ee]">
                     <tr>
                       <th className="px-4 py-3 w-10"></th>
                       <th className="px-4 py-3">Produto</th>
@@ -203,7 +203,7 @@ export default function ReturnsPage() {
                       <th className="px-4 py-3 text-right">Valor Restituição</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-indigo-500/5">
+                  <tbody className="divide-y divide-[#c4d5ee]">
                     {sale.items.map((item: any) => {
                       const isSelected = !!selectedItems[item.productId];
                       const selectedData = selectedItems[item.productId];
@@ -215,11 +215,11 @@ export default function ReturnsPage() {
                               type="checkbox" 
                               checked={isSelected}
                               onChange={(e) => handleItemToggle(item.productId, e.target.checked)}
-                              className="w-5 h-5 rounded border-indigo-500/30 text-[var(--accent)] bg-[#0c0f1a] focus:ring-[var(--accent)] cursor-pointer"
+                              className="w-5 h-5 rounded border-indigo-200 text-[var(--accent)] bg-[#f3f7fe] focus:ring-[var(--accent)] cursor-pointer"
                             />
                           </td>
-                          <td className="px-4 py-4 font-bold text-white">{item.product.name}</td>
-                          <td className="px-4 py-4 text-center font-mono text-slate-400">{item.quantity}</td>
+                          <td className="px-4 py-4 font-bold text-gray-900">{item.product.name}</td>
+                          <td className="px-4 py-4 text-center font-mono text-slate-500">{item.quantity}</td>
                           <td className="px-4 py-4">
                             {isSelected && (
                               <input 
@@ -228,7 +228,7 @@ export default function ReturnsPage() {
                                 max={item.quantity}
                                 value={selectedData.quantity}
                                 onChange={(e) => handleItemChange(item.productId, "quantity", Number(e.target.value))}
-                                className="w-20 bg-[#0c0f1a] border border-indigo-500/30 focus:border-[var(--accent)] text-white text-center py-1.5 rounded outline-none font-mono"
+                                className="w-20 bg-[#f3f7fe] border border-indigo-200 focus:border-[var(--accent)] text-gray-900 text-center py-1.5 rounded outline-none font-mono"
                               />
                             )}
                           </td>
@@ -237,14 +237,14 @@ export default function ReturnsPage() {
                               <select 
                                 value={selectedData.destiny}
                                 onChange={(e) => handleItemChange(item.productId, "destiny", e.target.value)}
-                                className="bg-[#0c0f1a] border border-indigo-500/30 focus:border-[var(--accent)] text-white py-1.5 px-3 rounded outline-none text-xs font-bold"
+                                className="bg-[#f3f7fe] border border-indigo-200 focus:border-[var(--accent)] text-gray-900 py-1.5 px-3 rounded outline-none text-xs font-bold"
                               >
                                 <option value="STOCK">Volta pro Estoque (Bom)</option>
                                 <option value="LOSS">Avaria/Perda (Lixo)</option>
                               </select>
                             )}
                           </td>
-                          <td className="px-4 py-4 text-right font-bold text-emerald-400 font-mono">
+                          <td className="px-4 py-4 text-right font-bold text-emerald-600 font-mono">
                             {isSelected ? `R$ ${(selectedData.quantity * Number(item.unitPrice)).toFixed(2)}` : '-'}
                           </td>
                         </tr>
@@ -254,7 +254,7 @@ export default function ReturnsPage() {
                 </table>
               </div>
 
-              <div className="flex justify-end pt-4 border-t border-indigo-500/15">
+              <div className="flex justify-end pt-4 border-t border-[#c4d5ee]">
                 <button 
                   onClick={handleProcessReturn}
                   disabled={loading}

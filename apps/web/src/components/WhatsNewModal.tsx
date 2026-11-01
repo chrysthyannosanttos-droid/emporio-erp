@@ -23,36 +23,36 @@ const CHANGELOG_ITEMS: ChangelogItem[] = [
   {
     icon: Menu,
     iconBg: "bg-indigo-500/15",
-    iconColor: "text-indigo-400",
+    iconColor: "text-indigo-600",
     badge: "Novo Design",
-    badgeColor: "bg-indigo-500/10 text-indigo-300 border-indigo-500/20",
+    badgeColor: "bg-indigo-500/10 text-indigo-700 border-indigo-200",
     title: "Menu Gaveta Flutuante (100% de Tela Livre)",
     description: "O menu agora desliza em uma gaveta rápida ao clicar no botão superior esquerdo. Com isso, o PDV e os relatórios ocupam todo o seu monitor sem barras fixas atrapalhando.",
   },
   {
     icon: Layers,
     iconBg: "bg-purple-500/15",
-    iconColor: "text-purple-400",
+    iconColor: "text-purple-600",
     badge: "Multitarefas",
-    badgeColor: "bg-purple-500/10 text-purple-300 border-purple-500/20",
+    badgeColor: "bg-purple-500/10 text-purple-700 border-purple-500/20",
     title: "Sistema de Abas de Navegação",
     description: "Trabalhe em várias telas ao mesmo tempo! Abra PDV, Estoque, Pedidos e Clientes em abas no topo e alterne entre elas com um clique, sem perder o que estava fazendo.",
   },
   {
     icon: Zap,
     iconBg: "bg-amber-500/15",
-    iconColor: "text-amber-400",
+    iconColor: "text-amber-600",
     badge: "Super Rápido",
-    badgeColor: "bg-amber-500/10 text-amber-300 border-amber-500/20",
+    badgeColor: "bg-amber-500/10 text-amber-700 border-amber-500/20",
     title: "Carregamento Instantâneo (Turbopack)",
     description: "O motor do sistema foi turbinado. As novas telas agora abrem em menos de 300ms, com redução drástica de consumo de memória do servidor.",
   },
   {
     icon: ShieldCheck,
     iconBg: "bg-emerald-500/15",
-    iconColor: "text-emerald-400",
+    iconColor: "text-emerald-600",
     badge: "Otimizado",
-    badgeColor: "bg-emerald-500/10 text-emerald-300 border-emerald-500/20",
+    badgeColor: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20",
     title: "Rotas Corrigidas & Gastronomia Integrada",
     description: "Módulos de PDV Restaurante, Cozinha (KDS), Fichas Técnicas e relatórios de fluxo financeiro totalmente sincronizados.",
   },
@@ -112,10 +112,10 @@ export function WhatsNewModal({ userName = "Usuário", forceOpen, onClose }: Wha
       />
 
       {/* Caixa do Modal */}
-      <div className="relative w-full max-w-2xl bg-[#0c1020] border border-indigo-500/25 rounded-2xl shadow-2xl shadow-indigo-950/60 flex flex-col overflow-hidden z-10 max-h-[90vh]">
+      <div className="relative w-full max-w-2xl bg-[#f3f7fe] border border-indigo-200 rounded-2xl shadow-2xl shadow-indigo-950/60 flex flex-col overflow-hidden z-10 max-h-[90vh]">
         
         {/* Banner Superior Decorativo */}
-        <div className="relative bg-gradient-to-r from-indigo-950 via-[#131938] to-[#0c1020] p-6 border-b border-indigo-500/20 overflow-hidden shrink-0">
+        <div className="relative bg-gradient-to-r from-indigo-950 via-[#eaf1fc] to-[#f3f7fe] p-6 border-b border-indigo-200 overflow-hidden shrink-0">
           {/* Efeito Glow Neon no Fundo */}
           <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
           
@@ -138,7 +138,7 @@ export function WhatsNewModal({ userName = "Usuário", forceOpen, onClose }: Wha
 
             <button
               onClick={handleDismiss}
-              className="p-1.5 text-slate-400 hover:text-white hover:bg-indigo-500/15 rounded-xl transition-colors border border-indigo-500/10"
+              className="p-1.5 text-slate-400 hover:text-white hover:bg-indigo-500/15 rounded-xl transition-colors border border-[#c4d5ee]"
               title="Fechar (Esc)"
             >
               <X size={18} />
@@ -147,27 +147,27 @@ export function WhatsNewModal({ userName = "Usuário", forceOpen, onClose }: Wha
         </div>
 
         {/* Lista de Novidades com Scroll */}
-        <div className="p-4 sm:p-6 space-y-3.5 overflow-y-auto custom-scrollbar flex-1 bg-[#090d1a]/50">
+        <div className="p-4 sm:p-6 space-y-3.5 overflow-y-auto custom-scrollbar flex-1 bg-[#f3f7fe]/50">
           {CHANGELOG_ITEMS.map((item, idx) => {
             const Icon = item.icon;
             return (
               <div
                 key={idx}
-                className="flex items-start gap-3.5 p-3.5 rounded-xl bg-[#11162a] border border-indigo-500/10 hover:border-indigo-500/30 transition-all hover:bg-[#151b33] group"
+                className="flex items-start gap-3.5 p-3.5 rounded-xl bg-[#fbfdff] border border-[#c4d5ee] hover:border-indigo-200 transition-all hover:bg-[#eaf1fc] group"
               >
-                <div className={`w-10 h-10 rounded-xl ${item.iconBg} ${item.iconColor} flex items-center justify-center shrink-0 border border-indigo-500/15 shadow-sm group-hover:scale-105 transition-transform`}>
+                <div className={`w-10 h-10 rounded-xl ${item.iconBg} ${item.iconColor} flex items-center justify-center shrink-0 border border-[#c4d5ee] shadow-sm group-hover:scale-105 transition-transform`}>
                   <Icon size={20} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <h3 className="text-xs sm:text-sm font-bold text-white tracking-tight">
+                    <h3 className="text-xs sm:text-sm font-bold text-gray-900 tracking-tight">
                       {item.title}
                     </h3>
                     <span className={`text-[10px] font-bold px-2 py-0.2 rounded-md border ${item.badgeColor} uppercase tracking-wider`}>
                       {item.badge}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400 leading-relaxed">
+                  <p className="text-xs text-slate-500 leading-relaxed">
                     {item.description}
                   </p>
                 </div>
@@ -177,9 +177,9 @@ export function WhatsNewModal({ userName = "Usuário", forceOpen, onClose }: Wha
         </div>
 
         {/* Rodapé com Botão de Ação */}
-        <div className="p-4 sm:p-5 border-t border-indigo-500/15 bg-[#0a0d18] flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
-          <div className="flex items-center gap-2 text-xs text-slate-400">
-            <CheckCircle2 size={15} className="text-emerald-400 shrink-0" />
+        <div className="p-4 sm:p-5 border-t border-[#c4d5ee] bg-[#e8f0fc] flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-2 text-xs text-slate-500">
+            <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
             <span>Você pode rever este aviso a qualquer momento pelo botão <strong>Novidades</strong> no topo.</span>
           </div>
 

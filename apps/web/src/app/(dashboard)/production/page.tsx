@@ -144,15 +144,15 @@ export default function ProductionPage() {
   };
 
   return (
-    <div className="space-y-5 text-slate-100">
+    <div className="space-y-5 text-slate-800">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
-            <Hammer className="text-indigo-400" size={28} />
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-3">
+            <Hammer className="text-indigo-600" size={28} />
             Produção & Panificação
           </h1>
-          <p className="text-slate-400 text-sm mt-1">Gerencie fichas técnicas (receitas) de fabricação própria e ordens de produção.</p>
+          <p className="text-slate-500 text-sm mt-1">Gerencie fichas técnicas (receitas) de fabricação própria e ordens de produção.</p>
         </div>
         <button 
           onClick={() => setIsRecipeModalOpen(true)}
@@ -164,13 +164,13 @@ export default function ProductionPage() {
 
       {/* Messages */}
       {error && (
-        <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-2xl flex items-center gap-2 text-sm font-semibold">
+        <div className="p-4 bg-red-500/10 border border-red-500/20 text-red-600 rounded-2xl flex items-center gap-2 text-sm font-semibold">
           <AlertCircle size={20} />
           {error}
         </div>
       )}
       {success && (
-        <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-2xl flex items-center gap-2 text-sm font-semibold">
+        <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 rounded-2xl flex items-center gap-2 text-sm font-semibold">
           <Check size={20} />
           {success}
         </div>
@@ -182,8 +182,8 @@ export default function ProductionPage() {
           onClick={() => setActiveTab("recipes")}
           className={`pb-4 text-sm font-bold border-b-2 px-2 transition-all ${
             activeTab === "recipes" 
-              ? "border-indigo-500 text-white" 
-              : "border-transparent text-slate-500 hover:text-slate-300"
+              ? "border-indigo-500 text-gray-900" 
+              : "border-transparent text-slate-500 hover:text-slate-600"
           }`}
         >
           Fichas Técnicas ({recipes.length})
@@ -192,8 +192,8 @@ export default function ProductionPage() {
           onClick={() => setActiveTab("logs")}
           className={`pb-4 text-sm font-bold border-b-2 px-2 transition-all ${
             activeTab === "logs" 
-              ? "border-indigo-500 text-white" 
-              : "border-transparent text-slate-500 hover:text-slate-300"
+              ? "border-indigo-500 text-gray-900" 
+              : "border-transparent text-slate-500 hover:text-slate-600"
           }`}
         >
           Histórico de Produção ({logs.length})
@@ -207,7 +207,7 @@ export default function ProductionPage() {
         /* RECIPES TAB */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {recipes.length === 0 ? (
-            <div className="col-span-full bg-[#111528]/40 rounded-2xl border border-indigo-500/[0.08] p-12 text-center text-slate-500">
+            <div className="col-span-full bg-[#fbfdff]/40 rounded-2xl border border-indigo-500/[0.08] p-12 text-center text-slate-500">
               <Clipboard size={48} className="mx-auto mb-3 opacity-20" />
               <p className="font-bold">Nenhuma ficha técnica cadastrada</p>
               <p className="text-sm">Clique em &apos;Nova Ficha Técnica&apos; para começar a associar insumos aos produtos de fabricação própria.</p>
@@ -217,14 +217,14 @@ export default function ProductionPage() {
               const totalCost = calculateRecipeCost(recipe.items);
               const unitCost = totalCost / recipe.yield;
               return (
-                <div key={recipe.id} className="bg-[#111528] border border-indigo-500/[0.08] rounded-2xl p-6 flex flex-col justify-between shadow-xl relative overflow-hidden group hover:border-indigo-500/30 transition-all">
+                <div key={recipe.id} className="bg-[#fbfdff] border border-indigo-500/[0.08] rounded-2xl p-6 flex flex-col justify-between shadow-xl relative overflow-hidden group hover:border-indigo-200 transition-all">
                   <div className="space-y-4">
                     <div className="flex justify-between items-start">
                       <div>
-                        <h2 className="text-lg font-bold text-white group-hover:text-indigo-400 transition-colors">{recipe.product.name}</h2>
+                        <h2 className="text-lg font-bold text-gray-900 group-hover:text-indigo-600 transition-colors">{recipe.product.name}</h2>
                         <span className="text-xs text-slate-500 font-mono">RENDIMENTO: {recipe.yield} {recipe.product.unit || "UN"}</span>
                       </div>
-                      <span className="bg-indigo-500/10 text-indigo-400 text-xs px-2.5 py-1 rounded-lg border border-indigo-500/20 font-bold">
+                      <span className="bg-indigo-500/10 text-indigo-600 text-xs px-2.5 py-1 rounded-lg border border-indigo-200 font-bold">
                         Fabricação
                       </span>
                     </div>
@@ -234,9 +234,9 @@ export default function ProductionPage() {
                       <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Insumos ({recipe.items.length})</span>
                       <div className="max-h-24 overflow-y-auto pr-1 space-y-1.5 scrollbar-thin">
                         {recipe.items.map((item: any) => (
-                          <div key={item.id} className="flex justify-between text-xs text-slate-400 font-medium">
+                          <div key={item.id} className="flex justify-between text-xs text-slate-500 font-medium">
                             <span>• {item.product.name}</span>
-                            <span className="font-mono text-slate-300">{item.quantity} {item.unit}</span>
+                            <span className="font-mono text-slate-600">{item.quantity} {item.unit}</span>
                           </div>
                         ))}
                       </div>
@@ -246,11 +246,11 @@ export default function ProductionPage() {
                     <div className="pt-4 border-t border-indigo-500/[0.08]/60 grid grid-cols-2 gap-4">
                       <div>
                         <span className="text-[10px] font-bold text-slate-500 block uppercase">Custo da Receita</span>
-                        <span className="font-mono font-bold text-slate-300">R$ {totalCost.toFixed(2)}</span>
+                        <span className="font-mono font-bold text-slate-600">R$ {totalCost.toFixed(2)}</span>
                       </div>
                       <div>
                         <span className="text-[10px] font-bold text-slate-500 block uppercase">Custo Unitário</span>
-                        <span className="font-mono font-black text-indigo-400">R$ {unitCost.toFixed(2)}</span>
+                        <span className="font-mono font-black text-indigo-600">R$ {unitCost.toFixed(2)}</span>
                       </div>
                     </div>
                   </div>
@@ -261,7 +261,7 @@ export default function ProductionPage() {
                         setSelectedRecipe(recipe);
                         setIsProdModalOpen(true);
                       }}
-                      className="w-full bg-indigo-600/10 hover:bg-indigo-600 border border-indigo-500/20 hover:border-transparent text-indigo-400 hover:text-white font-bold py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 text-sm"
+                      className="w-full bg-indigo-600/10 hover:bg-indigo-600 border border-indigo-200 hover:border-transparent text-indigo-600 hover:text-gray-900 font-bold py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 text-sm"
                     >
                       <Layers size={16} /> Registrar Produção
                     </button>
@@ -273,9 +273,9 @@ export default function ProductionPage() {
         </div>
       ) : (
         /* LOGS TAB */
-        <div className="bg-[#111528] rounded-2xl border border-indigo-500/[0.08] overflow-hidden shadow-xl">
+        <div className="bg-[#fbfdff] rounded-2xl border border-indigo-500/[0.08] overflow-hidden shadow-xl">
           <table className="w-full text-sm">
-            <thead className="bg-[#0c0f1a]/60 border-b border-indigo-500/[0.08] text-slate-500 font-bold">
+            <thead className="bg-[#f3f7fe]/60 border-b border-indigo-500/[0.08] text-slate-500 font-bold">
               <tr>
                 <th className="px-6 py-4 text-left">Data</th>
                 <th className="px-6 py-4 text-left">Produto Fabricado</th>
@@ -295,12 +295,12 @@ export default function ProductionPage() {
               ) : (
                 logs.map((log) => (
                   <tr key={log.id} className="hover:bg-indigo-500/[0.04] transition-colors">
-                    <td className="px-6 py-4 text-slate-400">{new Date(log.createdAt).toLocaleString()}</td>
-                    <td className="px-6 py-4 text-white font-bold">{log.recipe.product.name}</td>
-                    <td className="px-6 py-4 text-center text-indigo-400 font-bold font-mono">+{log.quantityProduced} {log.recipe.product.unit || "UN"}</td>
-                    <td className="px-6 py-4"><span className="font-mono text-xs bg-[#0c0f1a] border border-indigo-500/[0.08] text-slate-300 px-2 py-0.5 rounded-md">{log.batchNumber}</span></td>
-                    <td className="px-6 py-4 text-slate-400 font-mono">{log.expirationDate ? new Date(log.expirationDate).toLocaleDateString() : "—"}</td>
-                    <td className="px-6 py-4 text-slate-400">{log.user.name}</td>
+                    <td className="px-6 py-4 text-slate-500">{new Date(log.createdAt).toLocaleString()}</td>
+                    <td className="px-6 py-4 text-gray-900 font-bold">{log.recipe.product.name}</td>
+                    <td className="px-6 py-4 text-center text-indigo-600 font-bold font-mono">+{log.quantityProduced} {log.recipe.product.unit || "UN"}</td>
+                    <td className="px-6 py-4"><span className="font-mono text-xs bg-[#f3f7fe] border border-indigo-500/[0.08] text-slate-600 px-2 py-0.5 rounded-md">{log.batchNumber}</span></td>
+                    <td className="px-6 py-4 text-slate-500 font-mono">{log.expirationDate ? new Date(log.expirationDate).toLocaleDateString() : "—"}</td>
+                    <td className="px-6 py-4 text-slate-500">{log.user.name}</td>
                   </tr>
                 ))
               )}
@@ -312,15 +312,15 @@ export default function ProductionPage() {
       {/* MODAL 1: NEW RECIPE */}
       {isRecipeModalOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#111528] border border-indigo-500/[0.08] rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl">
-            <div className="p-6 border-b border-indigo-500/[0.08] flex justify-between items-center bg-[#0c0f1a]/60">
-              <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                <Plus className="text-indigo-400" />
+          <div className="bg-[#fbfdff] border border-indigo-500/[0.08] rounded-2xl w-full max-w-3xl overflow-hidden shadow-2xl">
+            <div className="p-6 border-b border-indigo-500/[0.08] flex justify-between items-center bg-[#f3f7fe]/60">
+              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <Plus className="text-indigo-600" />
                 Nova Ficha Técnica (Receita)
               </h3>
               <button 
                 onClick={() => setIsRecipeModalOpen(false)}
-                className="p-1 rounded-lg hover:bg-[#161b33] text-slate-400 hover:text-white transition-colors"
+                className="p-1 rounded-lg hover:bg-[#eaf1fc] text-slate-500 hover:text-gray-900 transition-colors"
               >
                 <X size={20} />
               </button>
@@ -329,11 +329,11 @@ export default function ProductionPage() {
             <form onSubmit={handleCreateRecipeSubmit} className="p-6 space-y-5">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-bold text-slate-400 mb-1">Produto Acabado</label>
+                  <label className="block text-sm font-bold text-slate-500 mb-1">Produto Acabado</label>
                   <select 
                     value={selectedProductId}
                     onChange={(e) => setSelectedProductId(e.target.value)}
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white rounded-xl px-4 py-3 outline-none transition-all"
+                    className="w-full bg-[#f3f7fe] border border-indigo-500/[0.08] focus:border-indigo-500 text-gray-900 rounded-xl px-4 py-3 outline-none transition-all"
                     required
                   >
                     <option value="">Selecione o produto final...</option>
@@ -343,12 +343,12 @@ export default function ProductionPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-slate-400 mb-1">Rendimento Padrão</label>
+                  <label className="block text-sm font-bold text-slate-500 mb-1">Rendimento Padrão</label>
                   <input 
                     type="number" 
                     value={recipeYield}
                     onChange={(e) => setRecipeYield(e.target.value)}
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white rounded-xl px-4 py-3 outline-none transition-all"
+                    className="w-full bg-[#f3f7fe] border border-indigo-500/[0.08] focus:border-indigo-500 text-gray-900 rounded-xl px-4 py-3 outline-none transition-all"
                     required
                     min="0.01"
                     step="0.01"
@@ -359,18 +359,18 @@ export default function ProductionPage() {
               {/* Ingredients List */}
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <h4 className="text-sm font-bold text-slate-300 uppercase tracking-wide">Insumos & Ingredientes</h4>
+                  <h4 className="text-sm font-bold text-slate-600 uppercase tracking-wide">Insumos & Ingredientes</h4>
                   <button 
                     type="button"
                     onClick={handleAddRecipeItem}
-                    className="bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 px-3 py-1.5 rounded-lg border border-indigo-500/20 font-bold text-xs transition-colors flex items-center gap-1"
+                    className="bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-600 px-3 py-1.5 rounded-lg border border-indigo-200 font-bold text-xs transition-colors flex items-center gap-1"
                   >
                     <Plus size={14} /> Adicionar Insumo
                   </button>
                 </div>
 
                 {recipeItems.length === 0 ? (
-                  <div className="p-6 bg-[#0c0f1a]/30 rounded-2xl border border-indigo-500/10 text-center text-slate-500 text-sm">
+                  <div className="p-6 bg-[#f3f7fe]/30 rounded-2xl border border-[#c4d5ee] text-center text-slate-500 text-sm">
                     Nenhum ingrediente adicionado. Adicione insumos para compor o custo do produto acabado.
                   </div>
                 ) : (
@@ -380,7 +380,7 @@ export default function ProductionPage() {
                         <select 
                           value={item.productId}
                           onChange={(e) => handleRecipeItemChange(index, "productId", e.target.value)}
-                          className="flex-1 bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white rounded-xl px-3 py-2 text-sm outline-none transition-all"
+                          className="flex-1 bg-[#f3f7fe] border border-indigo-500/[0.08] focus:border-indigo-500 text-gray-900 rounded-xl px-3 py-2 text-sm outline-none transition-all"
                           required
                         >
                           <option value="">Selecione o insumo...</option>
@@ -393,7 +393,7 @@ export default function ProductionPage() {
                           value={item.quantity || ""}
                           onChange={(e) => handleRecipeItemChange(index, "quantity", e.target.value)}
                           placeholder="Quant."
-                          className="w-24 bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white rounded-xl px-3 py-2 text-sm text-right outline-none transition-all"
+                          className="w-24 bg-[#f3f7fe] border border-indigo-500/[0.08] focus:border-indigo-500 text-gray-900 rounded-xl px-3 py-2 text-sm text-right outline-none transition-all"
                           required
                           min="0.0001"
                           step="0.0001"
@@ -401,7 +401,7 @@ export default function ProductionPage() {
                         <select 
                           value={item.unit}
                           onChange={(e) => handleRecipeItemChange(index, "unit", e.target.value)}
-                          className="w-24 bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white rounded-xl px-3 py-2 text-sm outline-none transition-all"
+                          className="w-24 bg-[#f3f7fe] border border-indigo-500/[0.08] focus:border-indigo-500 text-gray-900 rounded-xl px-3 py-2 text-sm outline-none transition-all"
                         >
                           <option value="KG">KG</option>
                           <option value="G">G</option>
@@ -423,11 +423,11 @@ export default function ProductionPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-slate-400 mb-1">Modo de Preparo / Instruções</label>
+                <label className="block text-sm font-bold text-slate-500 mb-1">Modo de Preparo / Instruções</label>
                 <textarea 
                   value={recipeInstructions}
                   onChange={(e) => setRecipeInstructions(e.target.value)}
-                  className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white rounded-xl px-4 py-3 outline-none transition-all h-20 resize-none"
+                  className="w-full bg-[#f3f7fe] border border-indigo-500/[0.08] focus:border-indigo-500 text-gray-900 rounded-xl px-4 py-3 outline-none transition-all h-20 resize-none"
                   placeholder="Instruções de fabricação..."
                 />
               </div>
@@ -436,7 +436,7 @@ export default function ProductionPage() {
                 <button 
                   type="button" 
                   onClick={() => setIsRecipeModalOpen(false)}
-                  className="bg-[#161b33] hover:bg-[#161b33] text-slate-300 font-bold px-5 py-3 rounded-xl transition-colors text-sm"
+                  className="bg-[#eaf1fc] hover:bg-[#eaf1fc] text-slate-600 font-bold px-5 py-3 rounded-xl transition-colors text-sm"
                 >
                   Cancelar
                 </button>
@@ -455,34 +455,34 @@ export default function ProductionPage() {
       {/* MODAL 2: RECORD PRODUCTION */}
       {isProdModalOpen && selectedRecipe && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#111528] border border-indigo-500/[0.08] rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-            <div className="p-6 border-b border-indigo-500/[0.08] flex justify-between items-center bg-[#0c0f1a]/60">
-              <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                <Layers className="text-indigo-400" />
+          <div className="bg-[#fbfdff] border border-indigo-500/[0.08] rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div className="p-6 border-b border-indigo-500/[0.08] flex justify-between items-center bg-[#f3f7fe]/60">
+              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <Layers className="text-indigo-600" />
                 Registrar Produção
               </h3>
               <button 
                 onClick={() => setIsProdModalOpen(false)}
-                className="p-1 rounded-lg hover:bg-[#161b33] text-slate-400 hover:text-white transition-colors"
+                className="p-1 rounded-lg hover:bg-[#eaf1fc] text-slate-500 hover:text-gray-900 transition-colors"
               >
                 <X size={20} />
               </button>
             </div>
 
             <form onSubmit={handleRecordProductionSubmit} className="p-6 space-y-5">
-              <div className="text-center bg-[#0c0f1a]/50 p-4 rounded-2xl border border-indigo-500/[0.08]/60">
+              <div className="text-center bg-[#f3f7fe]/50 p-4 rounded-2xl border border-indigo-500/[0.08]/60">
                 <span className="text-slate-500 text-[10px] font-bold block uppercase tracking-wider">PRODUTO FINITO</span>
-                <span className="text-xl font-bold text-white block">{selectedRecipe.product.name}</span>
-                <span className="text-xs text-slate-400 font-mono">Unidade base: {selectedRecipe.product.unit || "UN"}</span>
+                <span className="text-xl font-bold text-gray-900 block">{selectedRecipe.product.name}</span>
+                <span className="text-xs text-slate-500 font-mono">Unidade base: {selectedRecipe.product.unit || "UN"}</span>
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-slate-400 mb-2">Quantidade Produzida ({selectedRecipe.product.unit || "UN"})</label>
+                <label className="block text-sm font-bold text-slate-500 mb-2">Quantidade Produzida ({selectedRecipe.product.unit || "UN"})</label>
                 <input 
                   type="number"
                   value={prodQty}
                   onChange={(e) => setProdQty(e.target.value)}
-                  className="w-full text-center text-3xl font-black bg-[#0c0f1a] border-2 border-indigo-500/50 focus:border-indigo-400 text-white rounded-2xl py-4 outline-none font-mono tracking-tight"
+                  className="w-full text-center text-3xl font-black bg-[#f3f7fe] border-2 border-indigo-500/50 focus:border-indigo-400 text-gray-900 rounded-2xl py-4 outline-none font-mono tracking-tight"
                   required
                   min="0.01"
                   step="0.01"
@@ -490,15 +490,15 @@ export default function ProductionPage() {
               </div>
 
               {/* Insumos required simulation card */}
-              <div className="bg-[#0c0f1a]/60 border border-indigo-500/10 p-4 rounded-2xl space-y-2">
+              <div className="bg-[#f3f7fe]/60 border border-[#c4d5ee] p-4 rounded-2xl space-y-2">
                 <span className="text-[10px] font-bold text-slate-500 block uppercase tracking-wider">Insumos que serão baixados:</span>
                 <div className="space-y-1.5">
                   {selectedRecipe.items.map((item: any) => {
                     const simulatedUsage = (item.quantity / selectedRecipe.yield) * (parseFloat(prodQty) || 0);
                     return (
-                      <div key={item.id} className="flex justify-between text-xs text-slate-400">
+                      <div key={item.id} className="flex justify-between text-xs text-slate-500">
                         <span>• {item.product.name}</span>
-                        <span className="font-mono font-bold text-red-400">-{simulatedUsage.toFixed(4)} {item.unit}</span>
+                        <span className="font-mono font-bold text-red-600">-{simulatedUsage.toFixed(4)} {item.unit}</span>
                       </div>
                     );
                   })}
@@ -509,7 +509,7 @@ export default function ProductionPage() {
                 <button 
                   type="button" 
                   onClick={() => setIsProdModalOpen(false)}
-                  className="flex-1 bg-[#161b33] hover:bg-[#161b33] text-slate-300 font-bold py-3.5 rounded-xl border border-indigo-500/15 text-sm transition-colors"
+                  className="flex-1 bg-[#eaf1fc] hover:bg-[#eaf1fc] text-slate-600 font-bold py-3.5 rounded-xl border border-[#c4d5ee] text-sm transition-colors"
                 >
                   Voltar
                 </button>

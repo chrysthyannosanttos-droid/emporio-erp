@@ -6,12 +6,35 @@ import {
   Search, ShoppingCart, Trash2, CreditCard, Banknote, QrCode,
   Keyboard, Plus, Minus, X, FileText, Check, AlertCircle,
   TrendingDown, Package, Clock, User, Users, ChevronRight, Monitor,
-  DollarSign, BarChart2, LogOut, RefreshCw, Zap, Download, Settings
+  DollarSign, BarChart2, LogOut, RefreshCw, Zap, Download, Settings,
+  Maximize2, Minimize2, Wifi, Volume2, Battery, Barcode, Tag, Key
 } from "lucide-react";
-import { getProductByBarcode, searchProducts, lookupBarcodeOnline } from "@/actions/product";
+import {
+  getProductByBarcode,
+  searchProducts,
+  lookupBarcodeOnline,
+  getProductsByCategory,
+  seedSampleCategoryProducts,
+  getFullCatalogForOfflineSync
+} from "@/actions/product";
 import { getOrderById, getOrders } from "@/actions/order";
 import { createSale } from "@/actions/sale";
+import { saveCashClosing } from "@/actions/cashClosing";
 import { useHotkeys, hotkeyLabels, PDVHotkeys, defaultHotkeys } from "@/hooks/useHotkeys";
+import { PdvSplashScreen } from "@/components/PdvSplashScreen";
+import { CybertechBrand } from "@/components/CybertechBrand";
+import { PdvConfigModal } from "@/components/PdvConfigModal";
+import { playScannerBeep } from "@/lib/pdvHardwareConfig";
+import { activateTerminalOnline } from "@/actions/terminals";
+import { getPdvOperators, verifyPdvPin } from "@/actions/users";
+import {
+  loadPdvPaymentConfig,
+  savePdvPaymentConfig,
+  PdvPaymentConfig,
+  DEFAULT_PDV_PAYMENT_CONFIG,
+  ALL_SUGGESTED_ACQUIRERS,
+  ALL_SUGGESTED_BRANDS,
+} from "@/lib/pdvPaymentConfig";
 
 /* ─────────────────────────────────────────────
    Types
@@ -109,6 +132,44 @@ function useClock() {
   return time;
 }
 
+export function findInOfflineCatalog(query: string) {
+  try {
+    const raw = typeof window !== "undefined" ? localStorage.getItem("CYBERTECH_OFFLINE_CATALOG") : null;
+    if (!raw) return { product: null, products: [] };
+    const catalog: any[] = JSON.parse(raw);
+    const qClean = query.trim().toLowerCase();
+
+    // 1. Código de barras exato ou código interno
+    const exact = catalog.find(p => String(p.barcode || "").trim() === query || String(p.internalCode || "").trim() === query);
+    if (exact) return { product: exact, products: [exact] };
+
+    // 2. Busca por nome aproximado
+    const matches = catalog.filter(p =>
+      String(p.name || "").toLowerCase().includes(qClean) ||
+      String(p.barcode || "").includes(query)
+    );
+    if (matches.length > 0) {
+      return { product: matches.length === 1 ? matches[0] : null, products: matches };
+    }
+  } catch {}
+  return { product: null, products: [] };
+}
+
+export async function syncOfflineCatalog(companyId?: string) {
+  try {
+    const res = await getFullCatalogForOfflineSync(companyId);
+    if (res.success && res.products) {
+      localStorage.setItem("CYBERTECH_OFFLINE_CATALOG", JSON.stringify(res.products));
+      localStorage.setItem("CYBERTECH_OFFLINE_CATALOG_SYNC_AT", new Date().toISOString());
+      console.log(`[CyberSync] Catálogo offline atualizado: ${res.products.length} itens.`);
+      return res.products;
+    }
+  } catch (err) {
+    console.warn("[CyberSync] Não foi possível atualizar catálogo offline (offline):", err);
+  }
+  return [];
+}
+
 /* ─────────────────────────────────────────────
    Sugestão Visual de Troco (Notas e Moedas BR)
 ───────────────────────────────────────────── */
@@ -127,12 +188,12 @@ interface CurrencyPiece {
 const CURRENCY_PIECES: CurrencyPiece[] = [
   { value: 200, label: 'R$ 200', shortLabel: '200', type: 'note', gradientFrom: '#8B9DAF', gradientTo: '#C4CED8', accentColor: '#6B7F94', textColor: '#3B4A5A', borderColor: '#7B8FA2' },
   { value: 100, label: 'R$ 100', shortLabel: '100', type: 'note', gradientFrom: '#4DB8C7', gradientTo: '#A8DDE5', accentColor: '#2A9AAD', textColor: '#1A6B78', borderColor: '#3BAABB' },
-  { value: 50,  label: 'R$ 50',  shortLabel: '50',  type: 'note', gradientFrom: '#E8955A', gradientTo: '#F5C9A0', accentColor: '#D47835', textColor: '#8B4513', borderColor: '#D98C52' },
-  { value: 20,  label: 'R$ 20',  shortLabel: '20',  type: 'note', gradientFrom: '#E8C54A', gradientTo: '#F5E4A0', accentColor: '#D4A827', textColor: '#8B7000', borderColor: '#D9B63E' },
-  { value: 10,  label: 'R$ 10',  shortLabel: '10',  type: 'note', gradientFrom: '#E07070', gradientTo: '#F5B8B8', accentColor: '#C04040', textColor: '#8B2020', borderColor: '#D06060' },
-  { value: 5,   label: 'R$ 5',   shortLabel: '5',   type: 'note', gradientFrom: '#B080D0', gradientTo: '#D8C0E8', accentColor: '#9060B0', textColor: '#5A3070', borderColor: '#A070C0' },
-  { value: 2,   label: 'R$ 2',   shortLabel: '2',   type: 'note', gradientFrom: '#7090C0', gradientTo: '#B8CCE0', accentColor: '#5070A0', textColor: '#2A4060', borderColor: '#6080B0' },
-  { value: 1,    label: 'R$ 1',    shortLabel: '1',    type: 'coin', gradientFrom: '#D4A844', gradientTo: '#F0D080', accentColor: '#B88C2A', textColor: '#705010', borderColor: '#C89838' },
+  { value: 50, label: 'R$ 50', shortLabel: '50', type: 'note', gradientFrom: '#E8955A', gradientTo: '#F5C9A0', accentColor: '#D47835', textColor: '#8B4513', borderColor: '#D98C52' },
+  { value: 20, label: 'R$ 20', shortLabel: '20', type: 'note', gradientFrom: '#E8C54A', gradientTo: '#F5E4A0', accentColor: '#D4A827', textColor: '#8B7000', borderColor: '#D9B63E' },
+  { value: 10, label: 'R$ 10', shortLabel: '10', type: 'note', gradientFrom: '#E07070', gradientTo: '#F5B8B8', accentColor: '#C04040', textColor: '#8B2020', borderColor: '#D06060' },
+  { value: 5, label: 'R$ 5', shortLabel: '5', type: 'note', gradientFrom: '#B080D0', gradientTo: '#D8C0E8', accentColor: '#9060B0', textColor: '#5A3070', borderColor: '#A070C0' },
+  { value: 2, label: 'R$ 2', shortLabel: '2', type: 'note', gradientFrom: '#7090C0', gradientTo: '#B8CCE0', accentColor: '#5070A0', textColor: '#2A4060', borderColor: '#6080B0' },
+  { value: 1, label: 'R$ 1', shortLabel: '1', type: 'coin', gradientFrom: '#D4A844', gradientTo: '#F0D080', accentColor: '#B88C2A', textColor: '#705010', borderColor: '#C89838' },
   { value: 0.50, label: 'R$ 0,50', shortLabel: '0,50', type: 'coin', gradientFrom: '#C0C0C0', gradientTo: '#E8E8E8', accentColor: '#A0A0A0', textColor: '#606060', borderColor: '#B0B0B0' },
   { value: 0.25, label: 'R$ 0,25', shortLabel: '0,25', type: 'coin', gradientFrom: '#B8B0A0', gradientTo: '#D8D0C4', accentColor: '#989080', textColor: '#585048', borderColor: '#A8A090' },
   { value: 0.10, label: 'R$ 0,10', shortLabel: '0,10', type: 'coin', gradientFrom: '#C8A838', gradientTo: '#E8D078', accentColor: '#A88C20', textColor: '#685010', borderColor: '#B89830' },
@@ -309,7 +370,7 @@ function ChangeVisual({ amount }: { amount: number }) {
 /* ─────────────────────────────────────────────
    Select Cashier Screen
 ───────────────────────────────────────────── */
-function SelectCashierScreen({ onSelect, autoCaixa }: { onSelect: (session: CashierSession) => void, autoCaixa: string | null }) {
+function SelectCashierScreen({ onSelect, autoCaixa }: { onSelect: (session: CashierSession, pausedData?: any) => void, autoCaixa: string | null }) {
   const [cashiers] = useState<CashierSession[]>([
     { id: "cx1", number: 1, operator: "Maria Silva", openedAt: new Date(), initialBalance: 200, sales: [], withdrawals: [], supplements: [] },
     { id: "cx2", number: 2, operator: "João Santos", openedAt: new Date(), initialBalance: 200, sales: [], withdrawals: [], supplements: [] },
@@ -318,32 +379,211 @@ function SelectCashierScreen({ onSelect, autoCaixa }: { onSelect: (session: Cash
     { id: "cx5", number: 5, operator: "Livre", openedAt: new Date(), initialBalance: 0, sales: [], withdrawals: [], supplements: [] },
     { id: "cx6", number: 6, operator: "Livre", openedAt: new Date(), initialBalance: 0, sales: [], withdrawals: [], supplements: [] },
   ]);
-  
-  const [pin, setPin] = useState("");
-  const [selected, setSelected] = useState<CashierSession | null>(null);
-  const [error, setError] = useState("");
+
+  const OPERATORS = [
+    { name: "Maria Silva", pin: "1234", role: "Operador Líder" },
+    { name: "João Santos", pin: "2345", role: "Operador de Caixa" },
+    { name: "Ana Costa", pin: "3456", role: "Operador de Caixa" },
+    { name: "Carlos Lima", pin: "4567", role: "Fiscal de Caixa" },
+  ];
+
+  const [operatorsList, setOperatorsList] = useState<any[]>(OPERATORS);
+  const [selectedTerminal, setSelectedTerminal] = useState<CashierSession | null>(null);
+  const [configuredTerminalNum, setConfiguredTerminalNum] = useState<string | null>(null);
+  const [isChangingTerminal, setIsChangingTerminal] = useState(false);
+  const [selectedOperator, setSelectedOperator] = useState(OPERATORS[0].name);
+  const [operatorPin, setOperatorPin] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [pausedMap, setPausedMap] = useState<Record<string, any>>({});
   const time = useClock();
   const [host, setHost] = useState("");
 
-  useEffect(() => {
-    setHost(window.location.hostname);
-  }, []);
+  // Estado de Ativação Online do Terminal por Código
+  const [terminalConfig, setTerminalConfig] = useState<{
+    id?: string;
+    code?: string;
+    name?: string;
+    cashierNumber?: number;
+    companyName?: string;
+    storeName?: string;
+    token?: string;
+  } | null>(null);
+  const [activationCodeInput, setActivationCodeInput] = useState("");
+  const [isActivating, setIsActivating] = useState(false);
+  const [activationError, setActivationError] = useState("");
+  const [showManualSelection, setShowManualSelection] = useState(false);
 
   useEffect(() => {
-    if (autoCaixa) {
-      const cx = cashiers.find(c => c.number.toString() === autoCaixa);
-      if (cx) setSelected(cx);
+    setHost(window.location.hostname);
+    try {
+      const saved = localStorage.getItem("EMPORIO_PAUSED_SESSIONS");
+      if (saved) setPausedMap(JSON.parse(saved));
+    } catch { }
+
+    // Carrega operadores reais cadastrados na nuvem para este cliente
+    getPdvOperators().then(res => {
+      if (res.operators && res.operators.length > 0) {
+        setOperatorsList(res.operators);
+        setSelectedOperator(res.operators[0].name);
+        try {
+          localStorage.setItem("CYBERTECH_PDV_OPERATORS", JSON.stringify(res.operators));
+        } catch {}
+      } else {
+        const cached = localStorage.getItem("CYBERTECH_PDV_OPERATORS");
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            if (parsed.length > 0) {
+              setOperatorsList(parsed);
+              setSelectedOperator(parsed[0].name);
+            }
+          } catch {}
+        }
+      }
+    }).catch(() => {
+      const cached = localStorage.getItem("CYBERTECH_PDV_OPERATORS");
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          if (parsed.length > 0) {
+            setOperatorsList(parsed);
+            setSelectedOperator(parsed[0].name);
+          }
+        } catch {}
+      }
+    });
+
+    // 1. Tenta carregar ativação oficial por código
+    try {
+      const savedConfig = localStorage.getItem("CYBERTECH_TERMINAL_CONFIG");
+      if (savedConfig) {
+        const parsed = JSON.parse(savedConfig);
+        setTerminalConfig(parsed);
+        syncOfflineCatalog(parsed.companyId);
+        const cxNum = String(parsed.cashierNumber || 1);
+        setConfiguredTerminalNum(cxNum);
+        const cx = cashiers.find(c => c.number.toString() === cxNum) || {
+          id: `cx-${cxNum}`,
+          number: parsed.cashierNumber || 1,
+          operator: OPERATORS[0].name,
+          openedAt: new Date(),
+          initialBalance: 200,
+          sales: [],
+          withdrawals: [],
+          supplements: []
+        };
+        setSelectedTerminal(cx);
+        return;
+      }
+    } catch { }
+
+    // 2. Se houver parâmetro na URL ou número fixo antigo
+    const initialCaixa = autoCaixa || (typeof window !== "undefined" ? localStorage.getItem("EMPORIO_TERMINAL_CAIXA") : null);
+    if (initialCaixa) {
+      setConfiguredTerminalNum(initialCaixa);
+      try {
+        localStorage.setItem("EMPORIO_TERMINAL_CAIXA", initialCaixa);
+      } catch { }
+      const cx = cashiers.find(c => c.number.toString() === initialCaixa);
+      if (cx) setSelectedTerminal(cx);
     }
   }, [autoCaixa, cashiers]);
 
-  const handleSelectCashier = (cx: CashierSession) => {
-    onSelect(cx);
+  const handleActivationSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activationCodeInput.trim()) return;
+    setIsActivating(true);
+    setActivationError("");
+
+    const res = await activateTerminalOnline(activationCodeInput.trim());
+    setIsActivating(false);
+
+    if (res.success && res.terminal) {
+      setTerminalConfig(res.terminal);
+      const cxNum = String(res.terminal.cashierNumber || 1);
+      setConfiguredTerminalNum(cxNum);
+      try {
+        localStorage.setItem("CYBERTECH_TERMINAL_CONFIG", JSON.stringify(res.terminal));
+        localStorage.setItem("EMPORIO_TERMINAL_CAIXA", cxNum);
+      } catch {}
+
+      // Baixa catálogo completo para permitir vendas 100% offline no caixa
+      syncOfflineCatalog(res.terminal.companyId);
+
+      const cx = cashiers.find(c => c.number.toString() === cxNum) || {
+        id: `cx-${cxNum}`,
+        number: res.terminal.cashierNumber || 1,
+        operator: OPERATORS[0].name,
+        openedAt: new Date(),
+        initialBalance: 200,
+        sales: [],
+        withdrawals: [],
+        supplements: []
+      };
+      setSelectedTerminal(cx);
+      setIsChangingTerminal(false);
+    } else {
+      setActivationError(res.error || "Código de ativação inválido.");
+    }
   };
 
-  const handlePinSubmit = (e: React.FormEvent) => {
+  const handleUnlinkTerminal = () => {
+    if (confirm("Deseja realmente desvincular este terminal? O caixa precisará de um novo código de ativação para operar.")) {
+      try {
+        localStorage.removeItem("CYBERTECH_TERMINAL_CONFIG");
+        localStorage.removeItem("EMPORIO_TERMINAL_CAIXA");
+      } catch {}
+      setTerminalConfig(null);
+      setSelectedTerminal(null);
+      setConfiguredTerminalNum(null);
+      setIsChangingTerminal(false);
+      setActivationCodeInput("");
+      setActivationError("");
+    }
+  };
+
+  const handleSelectCashier = (cx: CashierSession) => {
+    setSelectedTerminal(cx);
+    setConfiguredTerminalNum(cx.number.toString());
+    try {
+      localStorage.setItem("EMPORIO_TERMINAL_CAIXA", cx.number.toString());
+    } catch { }
+    setIsChangingTerminal(false);
+    setOperatorPin("");
+    setLoginError("");
+  };
+
+  const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (pin.length < 4) { setError("Digite 4 dígitos"); return; }
-    if (selected) onSelect(selected);
+    if (!selectedTerminal) return;
+    if (operatorPin.length < 4) {
+      setLoginError("Digite o PIN de 4 dígitos");
+      return;
+    }
+
+    setLoginError("");
+    const verifyRes = await verifyPdvPin({ userName: selectedOperator, pin: operatorPin });
+    if (!verifyRes.success) {
+      setLoginError(verifyRes.error || "PIN incorreto");
+      return;
+    }
+
+    const paused = pausedMap[selectedOperator];
+    if (paused) {
+      const updated = { ...pausedMap };
+      delete updated[selectedOperator];
+      setPausedMap(updated);
+      try {
+        localStorage.setItem("EMPORIO_PAUSED_SESSIONS", JSON.stringify(updated));
+      } catch { }
+    }
+
+    onSelect({
+      ...selectedTerminal,
+      operator: selectedOperator,
+      sales: paused?.session?.sales || selectedTerminal.sales,
+      initialBalance: paused?.session?.initialBalance || (selectedTerminal.initialBalance || 200)
+    }, paused);
   };
 
   const downloadShortcut = (cx: CashierSession, e: React.MouseEvent) => {
@@ -365,96 +605,280 @@ function SelectCashierScreen({ onSelect, autoCaixa }: { onSelect: (session: Cash
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--bg-base)] text-white overflow-hidden relative">
-      {/* Background overlay if global bg image exists */}
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-md z-0"></div>
+    <div className="min-h-screen flex flex-col bg-[#dce7f7] text-gray-800 overflow-hidden relative select-none">
 
       {/* Top bar */}
-      <div className="relative z-10 bg-[#111528]/80 backdrop-blur-xl border-b border-indigo-500/10 px-8 py-5 flex justify-between items-center shadow-lg">
+      <div className="relative z-10 bg-white border-b border-gray-200 px-8 py-4 flex justify-between items-center shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="text-[var(--accent)] text-3xl font-black tracking-tight flex items-center gap-2">
-            <ShoppingCart size={28} /> PDV
-          </div>
-          <div className="text-slate-400 text-sm border-l border-indigo-500/20 pl-4">Abertura de Turno</div>
+          <CybertechBrand size="md" />
+          <span className="text-gray-400 text-sm border-l border-gray-200 pl-3 font-medium">Abertura de Turno / Caixa</span>
         </div>
         <div className="text-right">
-          <div className="text-white text-2xl font-bold tracking-tight" suppressHydrationWarning>
+          <div className="text-gray-800 text-2xl font-black tracking-tight" suppressHydrationWarning>
             {time.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
           </div>
-          <div className="text-slate-400 text-xs" suppressHydrationWarning>{time.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" })}</div>
-        </div>
-      </div>
-
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-8">
-        <div className="w-full max-w-5xl">
-          <h1 className="text-center text-white text-3xl font-bold tracking-tight mb-2">Selecione o seu Caixa</h1>
-          <p className="text-center text-slate-400 text-sm mb-12">Escolha o terminal que você irá operar neste turno.</p>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            {cashiers.map(cx => (
-              <button
-                key={cx.id}
-                onClick={() => handleSelectCashier(cx)}
-                className={`relative overflow-hidden border p-6 rounded-2xl transition-all text-left group shadow-lg ${
-                  selected?.id === cx.id
-                    ? "border-[var(--accent)] bg-[var(--accent)]/10 shadow-[var(--accent)]/20"
-                    : cx.operator === "Livre"
-                    ? "border-slate-800 bg-[#0c0f1a]/80 hover:border-slate-600"
-                    : "border-indigo-500/20 bg-[#111528]/80 hover:border-indigo-500/50"
-                }`}
-              >
-                {/* Decorative background glow */}
-                <div className="absolute -top-10 -right-10 w-32 h-32 bg-[var(--accent)]/10 blur-3xl rounded-full"></div>
-
-                <div className="flex items-start justify-between mb-4 relative z-10">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold ${selected?.id === cx.id ? "bg-[var(--accent)] text-white shadow-lg shadow-[var(--accent)]/30" : "bg-slate-800 text-slate-300 group-hover:bg-slate-700"}`}>
-                      {String(cx.number).padStart(2, "0")}
-                    </div>
-                    <div>
-                      <div className="text-xs text-slate-400 font-medium">TERMINAL</div>
-                      <div className="text-white font-bold text-lg">Caixa {String(cx.number).padStart(2, "0")}</div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex flex-col items-end gap-2">
-                    <div className={`text-[10px] font-bold px-2.5 py-1 rounded-full border ${cx.operator === "Livre" ? "border-slate-700 text-slate-400 bg-slate-800/50" : "border-emerald-500/30 text-emerald-400 bg-emerald-500/10"}`}>
-                      {cx.operator === "Livre" ? "LIVRE" : "OCUPADO"}
-                    </div>
-                    <div 
-                      onClick={(e) => downloadShortcut(cx, e)}
-                      className="text-slate-500 hover:text-indigo-400 p-1 rounded-full hover:bg-indigo-500/10 transition-colors"
-                      title="Baixar Atalho para este Caixa"
-                    >
-                      <Download size={14} />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 relative z-10">
-                  <User size={16} className={cx.operator === "Livre" ? "text-slate-600" : "text-indigo-400"} />
-                  <span className={`text-sm font-semibold ${cx.operator === "Livre" ? "text-slate-500" : "text-slate-200"}`}>{cx.operator}</span>
-                </div>
-                {cx.operator !== "Livre" && (
-                  <div className="mt-3 text-xs text-slate-400 flex justify-between relative z-10">
-                    <span>Fundo: <strong className="text-white">R$ {fmt(cx.initialBalance)}</strong></span>
-                    <span>Vendas: <strong className="text-white">{cx.sales.length}</strong></span>
-                  </div>
-                )}
-                
-                {host && (
-                  <div className="mt-4 relative z-10 pt-3 border-t border-indigo-500/10" onClick={(e) => e.stopPropagation()}>
-                    <div className="text-[10px] text-slate-500 mb-1 font-semibold uppercase tracking-wider">Acesso Direto (Link)</div>
-                    <div className="text-xs font-mono text-indigo-300 bg-black/40 border border-indigo-500/20 px-2 py-1.5 rounded select-all cursor-pointer hover:bg-indigo-500/10 transition-colors w-full overflow-hidden text-ellipsis whitespace-nowrap" title="Clique para selecionar e copiar">
-                      http://{host}:3000/pdv?caixa={cx.number}
-                    </div>
-                  </div>
-                )}
-                </button>
-            ))}
+          <div className="text-gray-400 text-xs font-semibold capitalize" suppressHydrationWarning>
+            {time.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" })}
           </div>
         </div>
       </div>
+
+      {/* DEDICATED DIRECT LOGIN SCREEN (When terminal is configured) */}
+      {selectedTerminal && !isChangingTerminal ? (
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6 animate-in fade-in duration-200">
+          <div className="bg-white border border-gray-200 rounded-3xl p-8 shadow-2xl max-w-lg w-full text-gray-800 space-y-6">
+
+            {/* Header info */}
+            <div className="text-center space-y-2 pb-4 border-b border-gray-100">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-200 text-blue-700 text-xs font-extrabold uppercase tracking-widest shadow-2xs">
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-600 animate-pulse"></span>
+                Terminal Caixa {String(selectedTerminal.number).padStart(2, "0")} Vinculado
+                {terminalConfig?.companyName ? ` — ${terminalConfig.companyName}` : ""}
+              </div>
+              <h2 className="text-2xl font-black text-gray-900 tracking-tight">Identificação do Operador</h2>
+              <p className="text-xs text-gray-500">Selecione seu usuário e digite o PIN para abrir as vendas.</p>
+            </div>
+
+            <form onSubmit={handleLoginSubmit} className="space-y-5">
+              <div>
+                <label className="block text-xs font-black text-gray-700 uppercase tracking-wider mb-2">
+                  Selecione o Operador de Caixa
+                </label>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {operatorsList.map(op => {
+                    const hasPaused = !!pausedMap[op.name];
+                    return (
+                      <button
+                        key={op.name}
+                        type="button"
+                        onClick={() => {
+                          setSelectedOperator(op.name);
+                          setOperatorPin("");
+                          setLoginError("");
+                        }}
+                        className={`p-3 rounded-2xl border text-left transition-all cursor-pointer relative ${selectedOperator === op.name
+                            ? "border-blue-600 bg-blue-50/70 text-blue-900 shadow-sm ring-2 ring-blue-500/20"
+                            : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300"
+                          }`}
+                      >
+                        {hasPaused && (
+                          <span className="absolute -top-1.5 -right-1 bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-xs">
+                            Pausado
+                          </span>
+                        )}
+                        <div className="font-extrabold text-sm">{op.name}</div>
+                        <div className="text-[11px] text-gray-500 font-medium">{op.role}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {pausedMap[selectedOperator] && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 text-xs text-amber-900 flex items-center gap-3">
+                  <span className="text-xl">🔄</span>
+                  <div>
+                    <strong className="font-bold">Turno pausado detectado!</strong>
+                    <p className="text-[11px] text-amber-800">
+                      Seu carrinho ({pausedMap[selectedOperator].cart?.length || 0} itens) e sessão anterior serão restaurados.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-black text-gray-700 uppercase tracking-wider mb-1.5">
+                  Senha / PIN de Acesso (4 dígitos)
+                </label>
+                <input
+                  type="password"
+                  maxLength={4}
+                  value={operatorPin}
+                  onChange={e => setOperatorPin(e.target.value)}
+                  placeholder="••••"
+                  autoFocus
+                  className="w-full text-center tracking-[0.8em] text-3xl font-mono font-black py-3 bg-gray-50 border-2 border-gray-300 focus:border-blue-600 focus:bg-white rounded-2xl outline-none shadow-2xs transition-all"
+                />
+                {loginError && (
+                  <p className="text-xs font-bold text-rose-600 mt-1.5 text-center">{loginError}</p>
+                )}
+                <p className="text-[11px] text-gray-400 text-center mt-1">Dica de teste: use o PIN padrão 1234</p>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm uppercase tracking-wider rounded-2xl transition-all shadow-md shadow-blue-500/20 cursor-pointer flex items-center justify-center gap-2"
+              >
+                <Check size={18} /> Entrar no Caixa {String(selectedTerminal.number).padStart(2, "0")}
+              </button>
+            </form>
+
+            <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs font-bold text-gray-500">
+              <button
+                type="button"
+                onClick={handleUnlinkTerminal}
+                className="hover:text-red-600 transition-colors cursor-pointer flex items-center gap-1.5"
+                title="Desvincular esta máquina do cliente"
+              >
+                <span>Desvincular Máquina</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsChangingTerminal(true)}
+                className="hover:text-blue-600 transition-colors cursor-pointer flex items-center gap-1.5"
+              >
+                <Settings size={14} />
+                <span>Trocar Código / Terminal</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : !showManualSelection ? (
+        /* TELA DE ATIVAÇÃO ONLINE DO TERMINAL POR CÓDIGO */
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6 animate-in fade-in duration-200">
+          <div className="bg-white border border-gray-200 rounded-3xl p-8 shadow-2xl max-w-md w-full text-center space-y-6">
+            <div className="w-16 h-16 rounded-2xl bg-blue-50 border-2 border-blue-200 text-blue-600 flex items-center justify-center mx-auto text-2xl font-black shadow-xs">
+              <Key size={30} className="text-blue-600" />
+            </div>
+
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-blue-700 bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
+                Ativação de Terminal PDV
+              </span>
+              <h2 className="text-2xl font-black text-gray-900 mt-2">Vincular Caixa à Nuvem</h2>
+              <p className="text-xs text-gray-500 mt-1">
+                Digite o Código de Ativação gerado na sua Central em Nuvem. O número do caixa e a loja serão baixados automaticamente pela internet.
+              </p>
+            </div>
+
+            <form onSubmit={handleActivationSubmit} className="space-y-4">
+              <div>
+                <input
+                  type="text"
+                  value={activationCodeInput}
+                  onChange={e => {
+                    setActivationCodeInput(e.target.value.toUpperCase());
+                    setActivationError("");
+                  }}
+                  placeholder="EX: CYBER-7419"
+                  autoFocus
+                  className="w-full text-center tracking-widest text-2xl font-mono font-black py-3 bg-gray-50 border-2 border-blue-400 focus:border-blue-600 focus:bg-white rounded-2xl outline-none shadow-inner uppercase"
+                />
+                {activationError && (
+                  <p className="text-xs font-bold text-rose-600 mt-2">{activationError}</p>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                disabled={isActivating || !activationCodeInput.trim()}
+                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-extrabold text-xs uppercase tracking-wider rounded-2xl transition-all shadow-md shadow-blue-500/20 cursor-pointer flex items-center justify-center gap-2"
+              >
+                {isActivating ? (
+                  <>
+                    <RefreshCw size={14} className="animate-spin" />
+                    <span>Conectando à Nuvem...</span>
+                  </>
+                ) : (
+                  <>
+                    <Wifi size={14} />
+                    <span>Ativar e Sincronizar Caixa ➔</span>
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
+              {selectedTerminal && (
+                <button
+                  type="button"
+                  onClick={() => setIsChangingTerminal(false)}
+                  className="font-bold text-gray-500 hover:text-gray-700 cursor-pointer"
+                >
+                  ← Voltar
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowManualSelection(true)}
+                className="font-bold text-blue-600 hover:underline cursor-pointer ml-auto"
+              >
+                Modo Demonstração / Seleção Manual
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* TERMINAL CONFIGURATION / SELECTION GRID MANUAL */
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-8 animate-in fade-in duration-150">
+          <div className="w-full max-w-5xl">
+            <div className="text-center mb-8">
+              <span className="text-xs font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
+                Seleção Manual de Terminal
+              </span>
+              <h1 className="text-gray-900 text-3xl font-black tracking-tight mt-2 mb-1">Qual é o número deste Caixa?</h1>
+              <p className="text-gray-500 text-sm">
+                Selecione um número de caixa ou volte para ativar via Código de Nuvem.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowManualSelection(false)}
+                className="mt-2 text-xs font-bold text-blue-600 hover:underline cursor-pointer"
+              >
+                ← Voltar para Ativação por Código
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              {cashiers.map(cx => (
+                <button
+                  key={cx.id}
+                  onClick={() => handleSelectCashier(cx)}
+                  className={`relative overflow-hidden border-2 p-6 rounded-2xl transition-all text-left group shadow-sm bg-white cursor-pointer hover:border-blue-500 hover:shadow-lg ${configuredTerminalNum === cx.number.toString()
+                      ? "border-blue-600 ring-2 ring-blue-100 shadow-md"
+                      : "border-gray-200"
+                    }`}
+                >
+                  <div className="flex items-start justify-between mb-4 relative z-10">
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl font-black bg-blue-600 text-white shadow-md shadow-blue-500/20">
+                        {String(cx.number).padStart(2, "0")}
+                      </div>
+                      <div>
+                        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">TERMINAL</div>
+                        <div className="text-gray-900 font-black text-lg">Caixa {String(cx.number).padStart(2, "0")}</div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-end gap-1.5">
+                      <span className="text-xs font-bold text-blue-600 group-hover:translate-x-1 transition-transform">
+                        Fixar nesta máquina ➔
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 relative z-10 pt-2 border-t border-gray-100">
+                    <User size={15} className="text-gray-400" />
+                    <span className="text-xs font-semibold text-gray-600">Padrão: {cx.operator}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {selectedTerminal && isChangingTerminal && (
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={() => setIsChangingTerminal(false)}
+                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold text-xs rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancelar e voltar para Caixa {String(selectedTerminal.number).padStart(2, "0")}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -467,6 +891,9 @@ function PDVContainer() {
   const router = useRouter();
   const initialOrderId = searchParams.get("orderId");
   const autoCaixa = searchParams.get("caixa");
+
+  // Splash Screen desativada para carregamento instantâneo do PDV
+  const [showSplash, setShowSplash] = useState(false);
 
   // Session
   const [session, setSession] = useState<CashierSession | null>(null);
@@ -487,20 +914,208 @@ function PDVContainer() {
   const [onlineLookup, setOnlineLookup] = useState<{ name: string; source: string; barcode: string; imageUrl?: string } | null>(null);
   const [lookingOnline, setLookingOnline] = useState(false);
 
-  // Modals
-  const [modal, setModal] = useState<"" | "payment" | "success" | "order" | "closing" | "withdrawal" | "pricecheck" | "cpf" | "hotkeys">(""); 
+  // Category quick filter & Sample products
+  const [selectedCategory, setSelectedCategory] = useState("Todos");
+  const [categoryProducts, setCategoryProducts] = useState<any[]>([]);
+  const [loadingCategoryProducts, setLoadingCategoryProducts] = useState(false);
+  const [viewMode, setViewMode] = useState<"cart" | "catalog">("cart");
+
+  // Pause PDV & Multi-operator shift switching
+  const [isPaused, setIsPaused] = useState(false);
+  const [pausePin, setPausePin] = useState("");
+  const [pauseError, setPauseError] = useState("");
+  const [pausedSessions, setPausedSessions] = useState<Record<string, any>>({});
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("EMPORIO_PAUSED_SESSIONS");
+      if (saved) setPausedSessions(JSON.parse(saved));
+    } catch { }
+  }, []);
+
+  const handlePausePDV = () => {
+    setIsPaused(true);
+    setPausePin("");
+    setPauseError("");
+  };
+
+  const handleResumePDV = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (pausePin.length >= 4) {
+      setIsPaused(false);
+      setPausePin("");
+      setPauseError("");
+    } else {
+      setPauseError("Digite o PIN de 4 dígitos para destravar");
+    }
+  };
+
+  const handleSwitchOperator = () => {
+    if (!session) return;
+    const updated = {
+      ...pausedSessions,
+      [session.operator]: {
+        session,
+        cart,
+        discountInput,
+        linkedOrderId,
+        pausedAt: new Date().toISOString()
+      }
+    };
+    setPausedSessions(updated);
+    try {
+      localStorage.setItem("EMPORIO_PAUSED_SESSIONS", JSON.stringify(updated));
+    } catch { }
+
+    setSession(null);
+    setCart([]);
+    setIsPaused(false);
+    setPausePin("");
+  };
+
+  useEffect(() => {
+    seedSampleCategoryProducts().catch(() => { });
+  }, []);
+
+  // Sincronização automática de vendas offline quando a conexão com a nuvem é restabelecida
+  useEffect(() => {
+    const handleSyncOfflineSales = async () => {
+      try {
+        const raw = localStorage.getItem("CYBERTECH_OFFLINE_SALES_QUEUE");
+        if (!raw) return;
+        const queue: any[] = JSON.parse(raw);
+        if (!Array.isArray(queue) || queue.length === 0) return;
+
+        console.log(`[CyberSync] Sincronizando ${queue.length} vendas da contingência offline com a nuvem...`);
+        const remaining: any[] = [];
+        for (const item of queue) {
+          try {
+            const res = await createSale({
+              items: item.items,
+              paymentMethod: item.paymentMethod,
+              discount: item.discount,
+              customerCpf: item.customerCpf
+            });
+            if (!res.success) {
+              remaining.push(item);
+            }
+          } catch {
+            remaining.push(item);
+          }
+        }
+        localStorage.setItem("CYBERTECH_OFFLINE_SALES_QUEUE", JSON.stringify(remaining));
+      } catch {}
+    };
+
+    window.addEventListener("online", handleSyncOfflineSales);
+    handleSyncOfflineSales();
+    const interval = setInterval(handleSyncOfflineSales, 60000);
+    return () => {
+      window.removeEventListener("online", handleSyncOfflineSales);
+      clearInterval(interval);
+    };
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    async function loadCategory() {
+      setLoadingCategoryProducts(true);
+      const res = await getProductsByCategory(selectedCategory);
+      if (active) {
+        setCategoryProducts(res.products || []);
+        setLoadingCategoryProducts(false);
+      }
+    }
+    loadCategory();
+    return () => { active = false; };
+  }, [selectedCategory]);
+
+  // Modals & Config
+  const [modal, setModal] = useState<"" | "payment" | "success" | "order" | "closing" | "withdrawal" | "pricecheck" | "cpf" | "hotkeys" | "quantity">("");
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [quantityPromptInput, setQuantityPromptInput] = useState("1");
   const [ordersList, setOrdersList] = useState<OrderListItem[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
+
+  // Fullscreen helper
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => setIsFullscreen(true)).catch(() => { });
+    } else {
+      document.exitFullscreen().then(() => setIsFullscreen(false)).catch(() => { });
+    }
+  };
+
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener("fullscreenchange", handleFsChange);
+    return () => document.removeEventListener("fullscreenchange", handleFsChange);
+  }, []);
+
+  // Bloqueio de fechamento/recarregamento com venda aberta
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (cart.length > 0) {
+        e.preventDefault();
+        e.returnValue = "Há uma venda com itens em andamento no caixa. Deseja realmente sair?";
+        return e.returnValue;
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [cart.length]);
 
   // Hotkeys
   const { hotkeys, saveHotkeys, isLoaded } = useHotkeys();
   const [tempHotkeys, setTempHotkeys] = useState<PDVHotkeys | null>(null);
   const [capturingKey, setCapturingKey] = useState<keyof PDVHotkeys | null>(null);
 
-  // Payment
+  // Payment & POS Card Metadata (Configurável por Cliente)
+  const [pdvPayConfig, setPdvPayConfig] = useState<PdvPaymentConfig>(DEFAULT_PDV_PAYMENT_CONFIG);
+  const [showPosConfig, setShowPosConfig] = useState(false);
+  const [newAcquirerInput, setNewAcquirerInput] = useState("");
+  const [newBrandInput, setNewBrandInput] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("MONEY");
   const [amountGiven, setAmountGiven] = useState("");
   const [lastSaleId, setLastSaleId] = useState("");
+  const troco = paymentMethod === "MONEY" && parseFloat(amountGiven) >= total
+    ? parseFloat(amountGiven) - total
+    : 0;
+  const [posStep, setPosStep] = useState<"ACQUIRER" | "BRAND" | "AUTH">("ACQUIRER");
+  const [posAcquirer, setPosAcquirer] = useState("Stone");
+  const [posBrand, setPosBrand] = useState("Visa");
+  const [posAuthCode, setPosAuthCode] = useState("");
+  const [posInstallments, setPosInstallments] = useState("1");
+
+  const getInitialPosStep = (cfg: PdvPaymentConfig = pdvPayConfig): "ACQUIRER" | "BRAND" | "AUTH" => {
+    if (cfg.askAcquirer) return "ACQUIRER";
+    if (cfg.askBrand) return "BRAND";
+    return "AUTH";
+  };
+
+  useEffect(() => {
+    const syncConfig = () => {
+      const cfg = loadPdvPaymentConfig();
+      setPdvPayConfig(cfg);
+      if (cfg.acquirers.length > 0 && !cfg.acquirers.includes(posAcquirer)) {
+        setPosAcquirer(cfg.acquirers[0]);
+      }
+      if (cfg.brands.length > 0 && !cfg.brands.includes(posBrand)) {
+        setPosBrand(cfg.brands[0]);
+      }
+    };
+    syncConfig();
+    window.addEventListener("pdv-payment-config-updated", syncConfig);
+    return () => window.removeEventListener("pdv-payment-config-updated", syncConfig);
+  }, []);
+
+  const updateClientPayConfig = (next: PdvPaymentConfig) => {
+    setPdvPayConfig(next);
+    savePdvPaymentConfig(next);
+  };
 
   // Cash closing (Blind)
   const [closingCounted, setClosingCounted] = useState("");
@@ -552,7 +1167,7 @@ function PDVContainer() {
     const resetIdleTimers = () => {
       setIsIdle(false);
       setPriceCheckIdle(false);
-      
+
       clearTimeout(idleTimer);
       clearTimeout(priceCheckTimer);
 
@@ -569,7 +1184,7 @@ function PDVContainer() {
     window.addEventListener("mousemove", resetIdleTimers);
     window.addEventListener("keydown", resetIdleTimers);
     window.addEventListener("click", resetIdleTimers);
-    
+
     resetIdleTimers();
 
     return () => {
@@ -626,12 +1241,12 @@ function PDVContainer() {
   ) => {
     const fmtBRL = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const now = new Date();
-    const dateStr = `${String(now.getDate()).padStart(2,'0')}/${String(now.getMonth()+1).padStart(2,'0')}/${now.getFullYear()}`;
-    const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
-    const payLabels: Record<string,string> = { MONEY:'Dinheiro', PIX:'PIX', CREDIT_CARD:'Cartão Crédito', DEBIT_CARD:'Cartão Débito', VOUCHER:'Voucher' };
+    const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+    const payLabels: Record<string, string> = { MONEY: 'Dinheiro', PIX: 'PIX', CREDIT_CARD: 'Cartão Crédito', DEBIT_CARD: 'Cartão Débito', VOUCHER: 'Voucher' };
     const itemRows = cartItems.map(i => {
-      const n = i.name.length > 24 ? i.name.substring(0,24) : i.name;
-      return `<tr><td>${n}</td><td style="text-align:center">${i.quantity}</td><td style="text-align:right">${fmtBRL(i.price)}</td><td style="text-align:right">${fmtBRL(i.quantity*i.price)}</td></tr>`;
+      const n = i.name.length > 24 ? i.name.substring(0, 24) : i.name;
+      return `<tr><td>${n}</td><td style="text-align:center">${i.quantity}</td><td style="text-align:right">${fmtBRL(i.price)}</td><td style="text-align:right">${fmtBRL(i.quantity * i.price)}</td></tr>`;
     }).join('');
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Cupom</title>
@@ -641,8 +1256,8 @@ function PDVContainer() {
 <div class="sep"></div>
 <div class="center bold">CUPOM NÃO FISCAL</div>
 <div>Data: ${dateStr} ${timeStr}</div>
-<div>Caixa: ${String(session?.number || 1).padStart(2,'0')} | Op: ${session?.operator || 'Operador'}</div>
-<div>Venda: ${saleId.slice(0,12).toUpperCase()}</div>
+<div>Caixa: ${String(session?.number || 1).padStart(2, '0')} | Op: ${session?.operator || 'Operador'}</div>
+<div>Venda: ${saleId.slice(0, 12).toUpperCase()}</div>
 <div class="sep"></div>
 <table><thead><tr><th style="text-align:left">DESCRIÇÃO</th><th>QTD</th><th style="text-align:right">UNIT</th><th style="text-align:right">TOTAL</th></tr></thead><tbody>${itemRows}</tbody></table>
 <div class="sep"></div>
@@ -651,6 +1266,7 @@ ${saleDiscount > 0 ? `<tr><td>Desconto</td><td style="text-align:right">-${fmtBR
 <tr class="total-row"><td>TOTAL</td><td style="text-align:right">R$ ${fmtBRL(saleTotal)}</td></tr></table>
 <div class="sep"></div>
 <div>Forma Pgto: ${payLabels[salePay] || salePay}</div>
+${(salePay === 'CREDIT_CARD' || salePay === 'DEBIT_CARD' || salePay === 'VOUCHER') ? `<div>Adm POS: ${posAcquirer} | Bandeira: ${posBrand}</div><div>Aut/NSU: ${posAuthCode || 'N/I'}${salePay === 'CREDIT_CARD' ? ` | Parc: ${posInstallments}x` : ''}</div>` : ''}
 ${salePay === 'MONEY' ? `<div>Recebido: R$ ${fmtBRL(saleGiven)}</div><div class="bold">Troco: R$ ${fmtBRL(saleChange)}</div>` : ''}
 ${cpfInput ? `<div class="sep"></div><div>CPF na Nota: ${cpfInput}</div>` : ''}
 ${cashbackEarned > 0 ? `<div class="sep"></div><div class="center bold">FIDELIDADE CRM</div><div class="center bold" style="font-size:14px;color:#000;">CASHBACK CREDITADO: R$ ${fmtBRL(cashbackEarned)}</div>` : ''}
@@ -662,15 +1278,24 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
 `).join('') : ''}
 <div class="sep"></div>
 <div class="center footer"><div>Obrigado pela preferência!</div><div>Volte sempre!</div><div style="margin-top:6px">Cybertech RP PDV v2.0</div></div>
-<div style="height:20mm"></div>
+<div style="height:10mm"></div>
 </body></html>`;
 
     const iframe = receiptFrameRef.current;
     if (iframe) {
       const doc = iframe.contentDocument || iframe.contentWindow?.document;
       if (doc) {
-        doc.open(); doc.write(html); doc.close();
-        setTimeout(() => { iframe.contentWindow?.print(); }, 400);
+        doc.open();
+        doc.write(html);
+        doc.close();
+        setTimeout(() => {
+          try {
+            iframe.contentWindow?.focus();
+            iframe.contentWindow?.print();
+          } catch (e) {
+            console.error("Erro na impressão do cupom:", e);
+          }
+        }, 200);
       }
     }
   }, [session, cpfInput]);
@@ -692,7 +1317,7 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
   useEffect(() => {
     if (!session) return;
     const interval = setInterval(() => {
-      if (modal !== "" ) return;
+      if (modal !== "") return;
       if (document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA") {
         inputRef.current?.focus();
       }
@@ -700,18 +1325,161 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
     return () => clearInterval(interval);
   }, [modal, session]);
 
-  // Keyboard shortcuts
+  // Gerenciador Centralizado de Teclado e Atalhos do PDV
   useEffect(() => {
     if (!session || !isLoaded) return;
-    const handler = (e: KeyboardEvent) => {
-      if (capturingKey) {
+
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const isInputActive =
+        document.activeElement?.tagName === "INPUT" ||
+        document.activeElement?.tagName === "TEXTAREA" ||
+        (document.activeElement as HTMLElement)?.isContentEditable;
+
+      // Se modal de configuração estiver aberto, permite que ele capture teclas sem interferência
+      if (isConfigOpen) return;
+
+      // ── 1. PROTEÇÕES DE SISTEMA / NAVEGADOR NO PDV ──
+      // F1: Bloquear Ajuda do Navegador
+      if (e.key === "F1") {
         e.preventDefault();
-        setTempHotkeys(prev => prev ? { ...prev, [capturingKey]: e.key === " " ? "Space" : e.key } : null);
-        setCapturingKey(null);
         return;
       }
-      
-      if (e.key === hotkeys.multiply) {
+
+      // F5: Prevenir recarregamento acidental com venda em andamento
+      if (e.key === "F5") {
+        if (cart.length > 0) {
+          e.preventDefault();
+          if (confirm("Há uma venda em andamento no caixa. Deseja realmente atualizar a página e cancelar a venda?")) {
+            window.location.reload();
+          }
+          return;
+        }
+      }
+
+      // F11: Tela Cheia / Kiosk
+      if (e.key === "F11") {
+        e.preventDefault();
+        toggleFullscreen();
+        return;
+      }
+
+      // F12: Bloquear DevTools no ambiente de PDV
+      if (e.key === "F12") {
+        e.preventDefault();
+        return;
+      }
+
+      // Se modal estiver aberto (exceto para atalhos de saída)
+      if (modal !== "") {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          setModal("");
+          setTimeout(() => inputRef.current?.focus(), 50);
+          return;
+        }
+        if (e.key === "Enter" && modal === "cpf") {
+          e.preventDefault();
+          setModal("");
+          setTimeout(() => inputRef.current?.focus(), 50);
+          return;
+        }
+        return;
+      }
+
+      const keyUpper = e.key.toUpperCase();
+      const match = (hk?: string) => String(hk || "").toUpperCase() === keyUpper;
+
+      // ── 2. ATALHOS PRINCIPAIS DO PDV ──
+      // F2: Buscar produto (foca input principal de busca)
+      if (match(hotkeys.search) || e.key === "F2") {
+        e.preventDefault();
+        inputRef.current?.focus();
+        inputRef.current?.select();
+        return;
+      }
+
+      // F3: Quantidade (Abre modal ou foca multiplicador)
+      if (match(hotkeys.quantity) || e.key === "F3") {
+        e.preventDefault();
+        setQuantityPromptInput(String(multiplier > 1 ? multiplier : 1));
+        setModal("quantity");
+        return;
+      }
+
+      // F4: Consultar preço (Price check)
+      if (match(hotkeys.priceCheck) || e.key === "F4") {
+        e.preventDefault();
+        setPriceCheckQuery("");
+        setPriceCheckResult(null);
+        setModal("pricecheck");
+        return;
+      }
+
+      // F6: Desconto
+      if (match(hotkeys.discount) || e.key === "F6") {
+        e.preventDefault();
+        discountInputRef.current?.focus();
+        discountInputRef.current?.select();
+        return;
+      }
+
+      // F7: Imprimir cupom
+      if (match(hotkeys.printReceipt) || e.key === "F7") {
+        e.preventDefault();
+        printReceipt(
+          lastSaleId || "preview",
+          cart,
+          total,
+          subtotal,
+          parseFloat(discountInput) || 0,
+          paymentMethod,
+          parseFloat(amountGiven) || 0,
+          troco
+        );
+        return;
+      }
+
+      // F8: Cliente (CPF/CNPJ)
+      if (match(hotkeys.customer) || match(hotkeys.cpf) || e.key === "F8") {
+        e.preventDefault();
+        setModal("cpf");
+        return;
+      }
+
+      // F9: Consultar produto / Catálogo
+      if (match(hotkeys.consultProduct) || e.key === "F9") {
+        e.preventDefault();
+        setViewMode(prev => (prev === "catalog" ? "cart" : "catalog"));
+        return;
+      }
+
+      // F10: Pagamento / Finalizar Venda
+      if (match(hotkeys.payment) || e.key === "F10") {
+        e.preventDefault();
+        if (cart.length > 0) {
+          setModal("payment");
+        }
+        return;
+      }
+
+      // ESC: Cancelar cupom atual
+      if (e.key === "Escape" || match(hotkeys.cancel)) {
+        e.preventDefault();
+        if (cart.length > 0) {
+          if (confirm("Deseja realmente cancelar a venda atual e limpar todos os itens?")) {
+            setCart([]);
+            setDiscountInput("0");
+            setMultiplier(1);
+            setLinkedOrderId(null);
+            setBarcodeInput("");
+            setTimeout(() => inputRef.current?.focus(), 50);
+          }
+        }
+        return;
+      }
+
+      // Multiplicação rápida por '*' no campo de busca de produto
+      if (e.key === "*" && isInputActive && document.activeElement === inputRef.current) {
         const val = parseInt(barcodeInput);
         if (!isNaN(val) && val > 0) {
           e.preventDefault();
@@ -720,39 +1488,27 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
         }
         return;
       }
-
-      if (e.key === hotkeys.discount) {
-        e.preventDefault();
-        discountInputRef.current?.focus();
-        discountInputRef.current?.select();
-        return;
-      }
-      
-      if (modal !== "") {
-        if (e.key === "Escape") { e.preventDefault(); setModal(""); setCapturingKey(null); }
-        return;
-      }
-      if (e.key === hotkeys.payment) { e.preventDefault(); if (cart.length > 0) setModal("payment"); }
-      if (e.key === hotkeys.closing)  { e.preventDefault(); setModal("closing"); }
-      if (e.key === hotkeys.importOrder)  { e.preventDefault(); openOrderModal(); }
-      if (e.key === hotkeys.withdrawal)  { e.preventDefault(); setWithdrawalType("withdrawal"); setModal("withdrawal"); }
-      if (e.key === hotkeys.supplement)  { e.preventDefault(); setWithdrawalType("supplement"); setModal("withdrawal"); }
-      if (e.key === hotkeys.priceCheck)  { e.preventDefault(); setPriceCheckQuery(""); setPriceCheckResult(null); setModal("pricecheck"); }
-      if (e.key === hotkeys.cpf)  { e.preventDefault(); setCpfInput(""); setModal("cpf"); }
-      if (e.key === hotkeys.cancelItem) {
-        e.preventDefault();
-        if (cart.length > 0 && confirm("Cancelar item selecionado?")) {
-          setCart(prev => prev.slice(0, -1));
-        }
-      }
-      if (e.key === "Escape") {
-        e.preventDefault();
-        if (cart.length > 0 && confirm("Cancelar cupom atual?")) clearSale();
-      }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [modal, cart, session, isLoaded, hotkeys, capturingKey]);
+
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [
+    session,
+    isLoaded,
+    hotkeys,
+    modal,
+    cart,
+    barcodeInput,
+    multiplier,
+    total,
+    subtotal,
+    discountInput,
+    paymentMethod,
+    amountGiven,
+    troco,
+    lastSaleId,
+    isConfigOpen,
+  ]);
 
   // ── Actions ──────────────────────────────────
   const handleProductSubmit = async (e: React.FormEvent) => {
@@ -780,15 +1536,36 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
       scaleValue = parseFloat(query.substring(7, 12)) / 100;
     }
 
-    // 1. Banco local por código de barras exato
+    // 1. Banco de dados por código de barras exato (online ou offline)
     const lookupCode = isScaleBarcode ? scaleCode : query;
-    let { product } = await getProductByBarcode(lookupCode);
+    let product: any = null;
+    try {
+      const res = await getProductByBarcode(lookupCode);
+      product = res.product;
+    } catch {
+      product = findInOfflineCatalog(lookupCode).product;
+    }
+
+    if (!product) {
+      // Fallback para o catálogo offline armazenado localmente
+      const off = findInOfflineCatalog(lookupCode);
+      if (off.product) {
+        product = off.product;
+      }
+    }
 
     if (!product && isScaleBarcode) {
       // Find product by matching code directly (short codes)
-      const { products } = await searchProducts(scaleCode);
-      if (products && products.length > 0) {
-        product = products[0];
+      try {
+        const { products } = await searchProducts(scaleCode);
+        if (products && products.length > 0) {
+          product = products[0];
+        }
+      } catch {
+        const offScale = findInOfflineCatalog(scaleCode);
+        if (offScale.products && offScale.products.length > 0) {
+          product = offScale.products[0];
+        }
       }
     }
 
@@ -802,11 +1579,22 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
       return;
     }
 
-    // 2. Banco local por nome
-    const { products } = await searchProducts(query);
-    if (products && products.length > 0) {
-      if (products.length === 1) { addToCart(products[0], inlineQty); setBarcodeInput(""); }
-      else { setSearchResults(products); setShowSearchResults(true); }
+    // 2. Banco de dados por nome (com suporte a busca offline)
+    let productsList: any[] = [];
+    try {
+      const res = await searchProducts(query);
+      productsList = res.products || [];
+    } catch {
+      productsList = findInOfflineCatalog(query).products;
+    }
+
+    if (productsList.length === 0) {
+      productsList = findInOfflineCatalog(query).products;
+    }
+
+    if (productsList.length > 0) {
+      if (productsList.length === 1) { addToCart(productsList[0], inlineQty); setBarcodeInput(""); }
+      else { setSearchResults(productsList); setShowSearchResults(true); }
       return;
     }
 
@@ -826,6 +1614,7 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
   };
 
   const addToCart = (product: any, qty?: number) => {
+    playScannerBeep();
     const quantityToAdd = qty || multiplier;
     setCart(prev => {
       const existing = prev.find(i => i.id === product.id);
@@ -834,6 +1623,9 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
     });
     setMultiplier(1);
     setSearchResults([]); setShowSearchResults(false);
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 50);
   };
 
   const updateQty = (id: string, delta: number) => {
@@ -845,7 +1637,10 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
   const clearSale = useCallback(() => {
     setCart([]); setDiscountInput("0"); setLinkedOrderId(null);
     setBarcodeInput(""); setErrorMessage(""); setAmountGiven("");
-    router.replace("/pdv");
+    if (typeof window !== "undefined" && window.location.search) {
+      router.replace("/pdv");
+    }
+    setTimeout(() => inputRef.current?.focus(), 150);
   }, [router]);
 
   const openOrderModal = async () => {
@@ -866,12 +1661,28 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
 
   const handleFinalizeSale = async () => {
     if (cart.length === 0) return;
+    const isPosCard = paymentMethod === "CREDIT_CARD" || paymentMethod === "DEBIT_CARD" || paymentMethod === "VOUCHER";
+    if (isPosCard && pdvPayConfig.posModeEnabled) {
+      if (posStep === "ACQUIRER") {
+        setPosStep(pdvPayConfig.askBrand ? "BRAND" : "AUTH");
+        return;
+      }
+      if (posStep === "BRAND") {
+        setPosStep("AUTH");
+        return;
+      }
+      if (pdvPayConfig.requireAuthCode && !posAuthCode.trim()) {
+        alert("Por favor, digite o Código de Autenticação (NSU / DOC) impresso no comprovante da maquineta POS.");
+        return;
+      }
+    }
     const disc = parseFloat(discountInput) || 0;
     const saleGiven = parseFloat(amountGiven) || 0;
     const saleChange = paymentMethod === "MONEY" && saleGiven >= total ? saleGiven - total : 0;
-    
+
     let res: any;
-    if (isOfflineMode) {
+    const isActuallyOffline = isOfflineMode || (typeof navigator !== "undefined" && !navigator.onLine);
+    if (isActuallyOffline) {
       const mockSaleId = `OFF-${Date.now()}`;
       res = {
         success: true,
@@ -886,21 +1697,63 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
         discount: disc,
         at: new Date()
       }]);
+      try {
+        const queue = JSON.parse(localStorage.getItem("CYBERTECH_OFFLINE_SALES_QUEUE") || "[]");
+        queue.push({
+          saleId: mockSaleId,
+          items: cart.map(i => ({ productId: i.id, quantity: i.quantity, unitPrice: i.price })),
+          paymentMethod,
+          discount: disc,
+          customerCpf: cpfInput || undefined,
+          at: new Date().toISOString()
+        });
+        localStorage.setItem("CYBERTECH_OFFLINE_SALES_QUEUE", JSON.stringify(queue));
+      } catch {}
     } else {
-      res = await createSale({
-        items: cart.map(i => ({ productId: i.id, quantity: i.quantity, unitPrice: i.price })),
-        paymentMethod,
-        discount: disc,
-        orderId: linkedOrderId || undefined,
-        customerCpf: cpfInput || undefined
-      });
+      try {
+        res = await createSale({
+          items: cart.map(i => ({ productId: i.id, quantity: i.quantity, unitPrice: i.price })),
+          paymentMethod,
+          discount: disc,
+          orderId: linkedOrderId || undefined,
+          customerCpf: cpfInput || undefined
+        });
+      } catch {
+        // Fallback instantâneo para contingência offline caso caia a rede na finalização
+        const mockSaleId = `OFF-${Date.now()}`;
+        res = {
+          success: true,
+          saleId: mockSaleId,
+          cashbackEarned: 0,
+          generatedCoupons: []
+        };
+        setContingencySales(prev => [...prev, {
+          saleId: mockSaleId,
+          items: cart.map(i => ({ productId: i.id, quantity: i.quantity, unitPrice: i.price })),
+          paymentMethod,
+          discount: disc,
+          at: new Date()
+        }]);
+        try {
+          const queue = JSON.parse(localStorage.getItem("CYBERTECH_OFFLINE_SALES_QUEUE") || "[]");
+          queue.push({
+            saleId: mockSaleId,
+            items: cart.map(i => ({ productId: i.id, quantity: i.quantity, unitPrice: i.price })),
+            paymentMethod,
+            discount: disc,
+            customerCpf: cpfInput || undefined,
+            at: new Date().toISOString()
+          });
+          localStorage.setItem("CYBERTECH_OFFLINE_SALES_QUEUE", JSON.stringify(queue));
+        } catch {}
+      }
     }
 
     if (res.success && res.saleId) {
       if (session) {
         setSession(prev => prev ? { ...prev, sales: [...prev.sales, { id: res.saleId, total, paymentMethod, at: new Date() }] } : prev);
       }
-      
+
       const cashback = res.cashbackEarned || 0;
       const finalDiscount = disc + (res.promoDiscountApplied || 0);
       const finalTotal = Math.max(0, subtotal - finalDiscount);
@@ -919,9 +1772,43 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
         res.generatedCoupons || []
       );
 
+      // Se for venda POS Cartão/Voucher, registra internamente
+      if (isPosCard && pdvPayConfig.posModeEnabled) {
+        try {
+          const rate = paymentMethod === "DEBIT_CARD" ? 0.85 : 1.98;
+          const feeValue = Number(((finalTotal * rate) / 100).toFixed(2));
+          const netValue = Number((finalTotal - feeValue).toFixed(2));
+
+          const existing = JSON.parse(localStorage.getItem("EMPORIO_POS_CARD_SALES") || "[]");
+          existing.unshift({
+            id: `pos-${Date.now()}`,
+            saleId: res.saleId,
+            date: new Date().toLocaleDateString("pt-BR"),
+            acquirer: posAcquirer,
+            bank: posAcquirer,
+            brand: posBrand,
+            modality: paymentMethod === "DEBIT_CARD" ? "DEBITO" : "CREDITO",
+            authCode: posAuthCode.trim() || "S/N",
+            installments: paymentMethod === "CREDIT_CARD" ? parseInt(posInstallments) || 1 : 1,
+            grossAmount: finalTotal,
+            rate,
+            feeAmount: feeValue,
+            netAmount: netValue,
+          });
+          localStorage.setItem("EMPORIO_POS_CARD_SALES", JSON.stringify(existing.slice(0, 50)));
+        } catch { }
+      }
+
       setLastSaleId(res.saleId);
-      setModal("");
-      clearSale();
+      setModal("success");
+      setCart([]);
+      setDiscountInput("0");
+      setLinkedOrderId(null);
+      setBarcodeInput("");
+      setErrorMessage("");
+      setAmountGiven("");
+      setPosAuthCode("");
+      setPosInstallments("1");
     } else {
       alert("Erro ao finalizar: " + (res.error || "Desconhecido"));
     }
@@ -945,13 +1832,34 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
 
   const handlePriceCheck = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!priceCheckQuery.trim()) return;
+    const query = priceCheckQuery.trim();
+    if (!query) return;
     setPriceCheckLoading(true); setPriceCheckResult(null);
-    const { product } = await getProductByBarcode(priceCheckQuery.trim());
-    if (product) { setPriceCheckResult(product); }
-    else {
-      const { products } = await searchProducts(priceCheckQuery.trim());
-      if (products && products.length > 0) setPriceCheckResult(products[0]);
+    let product: any = null;
+    try {
+      const res = await getProductByBarcode(query);
+      product = res?.product;
+    } catch {
+      product = findInOfflineCatalog(query).product;
+    }
+    if (!product) {
+      product = findInOfflineCatalog(query).product;
+    }
+
+    if (product) {
+      setPriceCheckResult(product);
+    } else {
+      let prods: any[] = [];
+      try {
+        const res = await searchProducts(query);
+        prods = res?.products || [];
+      } catch {
+        prods = findInOfflineCatalog(query).products;
+      }
+      if (prods.length === 0) {
+        prods = findInOfflineCatalog(query).products;
+      }
+      if (prods && prods.length > 0) setPriceCheckResult(prods[0]);
       else setPriceCheckResult({ name: "Produto não encontrado", price: null });
     }
     setPriceCheckLoading(false);
@@ -972,31 +1880,47 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
 
   const expectedCash = session
     ? session.initialBalance
-      + session.sales.filter(s => s.paymentMethod === "MONEY").reduce((a, s) => a + s.total, 0)
-      + (session.supplements.reduce((a, s) => a + s.amount, 0))
-      - (session.withdrawals.reduce((a, w) => a + w.amount, 0))
+    + session.sales.filter(s => s.paymentMethod === "MONEY").reduce((a, s) => a + s.total, 0)
+    + (session.supplements.reduce((a, s) => a + s.amount, 0))
+    - (session.withdrawals.reduce((a, w) => a + w.amount, 0))
     : 0;
 
-  const troco = paymentMethod === "MONEY" && parseFloat(amountGiven) >= total
-    ? parseFloat(amountGiven) - total
-    : 0;
+  // ── Render: Splash Screen de Inicialização ─────
+  if (showSplash) {
+    return <PdvSplashScreen onFinish={() => setShowSplash(false)} />;
+  }
 
   // ── Render: Select screen ─────────────────────
-  if (!session) return <SelectCashierScreen onSelect={setSession} autoCaixa={autoCaixa} />;
+  if (!session) {
+    return (
+      <SelectCashierScreen
+        onSelect={(sess, pausedData) => {
+          setSession(sess);
+          if (pausedData?.cart) {
+            setCart(pausedData.cart);
+            if (pausedData.discountInput) setDiscountInput(pausedData.discountInput);
+            if (pausedData.linkedOrderId) setLinkedOrderId(pausedData.linkedOrderId);
+          }
+          setViewMode("cart");
+        }}
+        autoCaixa={autoCaixa}
+      />
+    );
+  }
 
   // ── Render: PDV ───────────────────────────────
   if (isIdle && cart.length === 0 && promotionalAds.length > 0) {
     const currentAd = promotionalAds[activeAdIndex] || promotionalAds[0];
     const adImg = currentAd.imageUrl || (
       currentAd.title.includes("HEINEKEN") ? "https://images.unsplash.com/photo-1600788886242-5c96aabe3757?q=80&w=600" :
-      currentAd.title.includes("HORTIFRÚTI") ? "https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=600" :
-      currentAd.title.includes("CPF") ? "https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?q=80&w=600" :
-      currentAd.title.includes("LEITE") || currentAd.title.includes("RELÂMPAGO") ? "https://images.unsplash.com/photo-1550583724-b2692b85b150?q=80&w=600" :
-      "https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=600"
+        currentAd.title.includes("HORTIFRÚTI") ? "https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=600" :
+          currentAd.title.includes("CPF") ? "https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?q=80&w=600" :
+            currentAd.title.includes("LEITE") || currentAd.title.includes("RELÂMPAGO") ? "https://images.unsplash.com/photo-1550583724-b2692b85b150?q=80&w=600" :
+              "https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=600"
     );
 
     return (
-      <div 
+      <div
         className="h-screen w-full flex flex-col justify-center items-center bg-[#070a1e] text-white p-12 relative overflow-hidden select-none cursor-pointer"
         onClick={() => setIsIdle(false)}
         onMouseMove={() => setIsIdle(false)}
@@ -1004,17 +1928,17 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
         {/* Eye-catching semi-clear backdrop with slow motion animation */}
         {adImg && (
           <div className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-hidden">
-            <img 
-              src={adImg} 
-              alt="Backdrop" 
-              className="w-full h-full object-cover blur-[5px] scale-110 opacity-[0.55] transition-all duration-1000 ease-in-out animate-pulse" 
+            <img
+              src={adImg}
+              alt="Backdrop"
+              className="w-full h-full object-cover blur-[5px] scale-110 opacity-[0.55] transition-all duration-1000 ease-in-out animate-pulse"
               style={{ animationDuration: '6s' }}
             />
             {/* Elegant vignette and darkness overlay for text legibility */}
             <div className="absolute inset-0 bg-gradient-to-b from-[#070a1e]/40 via-[#070a1e]/85 to-[#070a1e]" />
           </div>
         )}
-        
+
         <div className="absolute top-0 left-0 w-full h-full bg-indigo-500/[0.03] blur-[120px] pointer-events-none z-0" />
         <div className={`w-full max-w-2xl bg-gradient-to-r ${currentAd.color} border border-white/10 rounded-3xl p-12 shadow-2xl relative overflow-hidden text-center space-y-6 animate-in zoom-in-95 duration-500 z-10 hover:scale-[1.01] transition-transform`}>
           <span className="absolute top-6 right-6 text-[10px] bg-white/20 border border-white/10 font-black uppercase tracking-widest px-3.5 py-1.5 rounded-full">{currentAd.badge}</span>
@@ -1036,323 +1960,563 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
 
   return (
 
+    <div className="h-screen w-full flex flex-col bg-[#dce7f7] overflow-hidden select-none">
 
-    <div className="h-screen w-full flex flex-col bg-[#0c0f1a] text-white overflow-hidden select-none">
-      
-      {/* ── HEADER ── */}
-      <div className="bg-[#111528] border-b border-indigo-500/10 px-6 py-3 flex justify-between items-center shrink-0 shadow-sm z-10 relative">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-[var(--accent)] flex items-center justify-center text-white font-bold shadow-lg shadow-[var(--accent)]/30">
-              E
-            </div>
-            <span className="text-white font-bold text-lg tracking-tight ml-1">PDV</span>
-          </div>
-          <div className="h-6 w-px bg-slate-800"></div>
-          <div className="flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1.5 rounded-lg">
-            <span className="text-indigo-200 text-xs font-bold tracking-wide">CAIXA {String(session.number).padStart(2, "0")}</span>
-          </div>
-          <button 
-            type="button"
-            onClick={() => {
-              if (isOfflineMode) {
-                alert(`Conexão reestabelecida! Transmitindo ${contingencySales.length} NFC-e emitidas em contingência offline para a SEFAZ...`);
-                setContingencySales([]);
-              }
-              setIsOfflineMode(prev => !prev);
-            }}
-            className={`flex items-center gap-2 border px-3 py-1.5 rounded-lg text-xs font-bold transition-all active:scale-95 ${
-              isOfflineMode 
-                ? "bg-rose-500/20 border-rose-500/35 text-rose-400" 
-                : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400"
-            }`}
-          >
-            <span className={`w-2 h-2 rounded-full ${isOfflineMode ? "bg-rose-500 animate-pulse shadow-[0_0_8px_#ef4444]" : "bg-emerald-500 shadow-[0_0_8px_#10b981]"}`}></span>
-            <span>{isOfflineMode ? `Contingência Offline (${contingencySales.length})` : "Online (SEFAZ)"}</span>
-          </button>
+      {/* ── MAIN (Sem a coluna lateral / Sidebar removida) ── */}
+      <div className="flex-1 flex flex-col overflow-hidden">
 
-          <div className="flex items-center gap-1.5 text-slate-400 text-xs font-medium">
-            <User size={14} />
-            <span>{session.operator}</span>
-          </div>
-          {linkedOrderId && (
-            <div className="flex items-center gap-2 text-amber-400 text-xs font-bold border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 rounded-lg shadow-sm">
-              <FileText size={14} />
-              PEDIDO #{linkedOrderId.slice(0,8).toUpperCase()}
-              <button onClick={() => setLinkedOrderId(null)} className="hover:text-amber-300 ml-1"><X size={12} /></button>
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-6">
-          {/* Shortcuts */}
-          <div className="flex gap-1.5">
-            {[
-              { key: hotkeys.cancelItem, label: "Cancela" },
-              { key: hotkeys.cpf, label: "CPF" },
-              { key: hotkeys.withdrawal, label: "Sangria" },
-              { key: hotkeys.supplement, label: "Supri" },
-              { key: hotkeys.priceCheck, label: "Preço" },
-              { key: hotkeys.importOrder, label: "Pedido" },
-              { key: hotkeys.closing, label: "Fechar" },
-              { key: hotkeys.payment, label: "Pagar", primary: true },
-            ].map((s, i) => (
-              <div key={i} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border transition-colors ${s.primary ? "bg-[var(--accent)]/10 border-[var(--accent)]/30 text-[var(--accent)]" : "bg-[#0c0f1a] border-slate-800 text-slate-400"}`}>
-                <div className={`text-[10px] font-bold px-1 rounded ${s.primary ? "bg-[var(--accent)] text-white" : "bg-slate-800 text-slate-300"}`}>{s.key}</div>
-                <div className="text-[10px] font-semibold whitespace-nowrap">{s.label}</div>
+        {/* ── HEADER ── */}
+        <div className="bg-white border-b border-gray-200 px-5 py-3 flex justify-between items-center shrink-0 shadow-sm z-10 relative overflow-hidden">
+          {/* Blue diagonal accent */}
+          <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-blue-600 to-blue-400 skew-x-[-12deg] translate-x-8 pointer-events-none opacity-90" />
+
+          <div className="flex items-center gap-4 relative z-10">
+            <CybertechBrand size="md" />
+
+            {/* Online status */}
+            <button
+              type="button"
+              onClick={() => {
+                if (isOfflineMode) {
+                  alert(`Conexão reestabelecida! Transmitindo ${contingencySales.length} NFC-e emitidas em contingência offline para a SEFAZ...`);
+                  setContingencySales([]);
+                }
+                setIsOfflineMode(prev => !prev);
+              }}
+              className={`flex items-center gap-1.5 border px-3 py-1.5 rounded-full text-xs font-bold transition-all active:scale-95 ${isOfflineMode
+                ? "bg-red-50 border-red-300 text-red-600"
+                : "bg-green-50 border-green-300 text-green-600"
+                }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${isOfflineMode ? "bg-red-500 animate-pulse" : "bg-green-500"}`}></span>
+              {isOfflineMode ? `Contingência (${contingencySales.length})` : "Online (SEFAZ)"}
+            </button>
+
+            {linkedOrderId && (
+              <div className="flex items-center gap-2 text-amber-600 text-xs font-bold border border-amber-300 bg-amber-50 px-3 py-1.5 rounded-full">
+                <FileText size={12} />
+                PEDIDO #{linkedOrderId.slice(0, 8).toUpperCase()}
+                <button onClick={() => setLinkedOrderId(null)} className="hover:text-amber-800 ml-1"><X size={10} /></button>
               </div>
-            ))}
+            )}
           </div>
-          <button 
-            onClick={() => { setTempHotkeys(hotkeys); setModal("hotkeys"); }}
-            className="p-2 bg-slate-800/50 hover:bg-slate-700 rounded-lg text-slate-400 hover:text-white transition-colors"
-            title="Configurações de Atalhos"
-          >
-            <Settings size={18} />
-          </button>
-          <div className="text-white font-bold text-xl tabular-nums tracking-tight" suppressHydrationWarning>
-            {time.toLocaleTimeString("pt-BR")}
+
+          <div className="flex items-center gap-3 relative z-10">
+            {/* Pause Button */}
+            <button
+              type="button"
+              onClick={handlePausePDV}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs"
+              title="Pausar PDV / Bloquear tela do caixa"
+            >
+              <span>⏸️</span>
+              <span>Pausar Caixa</span>
+            </button>
+
+            <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl text-xs font-bold text-gray-800">
+              <User size={14} className="text-blue-600" />
+              <span>{session.operator}</span>
+            </div>
+
+            <div className="flex items-center gap-2 bg-white/80 border border-gray-200 rounded-xl px-3 py-1.5">
+              <Monitor size={14} className="text-gray-400" />
+              <div className="text-gray-800 font-bold text-sm tabular-nums" suppressHydrationWarning>
+                {time.toLocaleTimeString("pt-BR")}
+              </div>
+            </div>
+
+            {/* Modo Kiosk / Tela Cheia */}
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              className={`px-3 py-1.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold ${isFullscreen
+                  ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                  : "bg-white hover:bg-gray-100 text-gray-700 border-gray-200"
+                }`}
+              title={isFullscreen ? "Sair da Tela Cheia (F11)" : "Ativar Modo Kiosk / Tela Cheia (F11)"}
+            >
+              {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+              <span className="hidden md:inline">{isFullscreen ? "Kiosk Ativo" : "Tela Cheia"}</span>
+            </button>
+
+            {/* Central de Configurações Simplificada (5 Módulos) */}
+            <button
+              type="button"
+              onClick={() => setIsConfigOpen(true)}
+              className="p-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-gray-600 hover:text-gray-900 border border-gray-200 transition-colors cursor-pointer"
+              title="Central de Configurações do PDV (5 Módulos)"
+            >
+              <Settings size={17} />
+            </button>
           </div>
         </div>
-      </div>
 
-      {/* ── BODY ── */}
-      <div className="flex-1 flex overflow-hidden">
+        {/* ── BODY ── */}
+        <div className="flex-1 flex overflow-hidden">
 
-        {/* ── LEFT PANEL: Displays ── */}
-        <div className="w-[340px] flex flex-col bg-[#0c0f1a] border-r border-slate-800 p-5 gap-5 shrink-0 z-0">
-          
-          {/* Produto / Scanner */}
-          <div className="bg-[#111528] rounded-2xl border border-indigo-500/10 shadow-lg p-5 flex flex-col gap-4">
-            <div className="flex justify-between items-center">
-              <span className="text-slate-400 text-[10px] font-bold tracking-widest uppercase">Scanner / Pesquisa</span>
-              <Keyboard size={14} className="text-slate-500" />
-            </div>
-            <form onSubmit={handleProductSubmit}>
-              <div className="relative">
+          {/* ── CENTER: Search + Table + Totals ── */}
+          <div className="flex-1 flex flex-col bg-[#dce7f7] overflow-hidden">
+
+            {/* Search bar — Único campo principal */}
+            <div className="px-5 pt-4 pb-3 flex gap-2 items-center shrink-0">
+              <form onSubmit={handleProductSubmit} className="flex-1 relative">
                 {multiplier > 1 && (
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 bg-[var(--accent)] text-white text-[11px] font-black px-2 py-1 rounded shadow-lg animate-in zoom-in duration-200">
+                  <div className="absolute right-12 top-1/2 -translate-y-1/2 bg-blue-600 text-white text-[11px] font-black px-2.5 py-1 rounded-lg shadow-sm animate-in zoom-in duration-150">
                     {multiplier} x
                   </div>
                 )}
+                <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   ref={inputRef}
                   type="text"
                   value={barcodeInput}
                   onChange={e => setBarcodeInput(e.target.value)}
-                  placeholder="Passe o leitor ou digite..."
-                  className="w-full bg-[#0c0f1a] border border-indigo-500/20 focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] text-white text-sm font-semibold pl-10 pr-4 py-3.5 rounded-xl outline-none transition-all shadow-inner"
+                  placeholder="Digite o código, nome ou código de barras..."
+                  className="w-full bg-white border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-gray-800 text-sm pl-10 pr-12 py-3 rounded-2xl outline-none transition-all shadow-xs font-medium"
                   autoFocus
                 />
-                <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
-              </div>
-            </form>
-            
-            {/* Mensagem de erro */}
+                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 flex items-center pointer-events-none" title="Leitor de Código de Barras Pronto">
+                  <Barcode size={22} className="opacity-70" />
+                </div>
+              </form>
+            </div>
+
+            {/* Error message */}
             {errorMessage && (
-              <div className="text-red-400 text-xs font-semibold bg-red-500/10 border border-red-500/20 px-3 py-2.5 rounded-lg flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
-                <AlertCircle size={14} className="shrink-0" />
-                <span className="leading-snug">{errorMessage}</span>
+              <div className="mx-5 mb-2 text-red-600 text-xs font-semibold bg-red-50 border border-red-200 px-3 py-2 rounded-lg flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+                <AlertCircle size={13} className="shrink-0" />
+                <span>{errorMessage}</span>
               </div>
             )}
-          </div>
 
-          {/* Último Item Adicionado */}
-          <div className="bg-[#111528] rounded-2xl border border-indigo-500/10 shadow-lg p-5 flex-1 flex flex-col">
-            <span className="text-slate-400 text-[10px] font-bold tracking-widest uppercase mb-4">Último Item Registrado</span>
-            
-            <div className="flex-1 flex flex-col items-center justify-center text-center">
-              {cart.length > 0 ? (
-                <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-300">
-                  <div className="w-24 h-24 mx-auto bg-[#0c0f1a] rounded-2xl border border-slate-800 flex items-center justify-center mb-4 shadow-inner">
-                    <Package size={40} className="text-indigo-400" />
+            {/* Catálogo de Produtos / Categorias (Somente visível quando ativado via F9) */}
+            {viewMode === "catalog" && (
+              <div className="px-5 pb-3 flex gap-2 shrink-0 items-center overflow-x-auto animate-in fade-in">
+                {["Todos", "Bebidas", "Alimentos", "Higiene", "Limpeza", "Utilidades"].map((cat) => (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setSelectedCategory(cat)}
+                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all border cursor-pointer ${selectedCategory === cat
+                        ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+                        : "bg-white text-gray-700 border-gray-300 hover:border-blue-400 hover:text-blue-600"
+                      }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setViewMode("cart")}
+                  className="ml-auto text-xs font-bold text-gray-600 hover:text-blue-600 bg-white border border-gray-200 px-3 py-1.5 rounded-full cursor-pointer shadow-2xs"
+                >
+                  ✕ Voltar à Venda (ESC)
+                </button>
+              </div>
+            )}
+
+            {/* Product Table or Catalog Grid */}
+            <div className="flex-1 overflow-y-auto px-5 pb-4">
+              {viewMode === "cart" ? (
+                cart.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-gray-400 py-16 animate-in fade-in">
+                    <div className="w-28 h-28 rounded-full bg-blue-50/80 border-4 border-blue-100 flex items-center justify-center mb-5 shadow-inner">
+                      <ShoppingCart size={48} className="text-blue-500" />
+                    </div>
+                    <div className="text-2xl font-black text-gray-800 tracking-tight mb-2">
+                      Nenhum item na venda
+                    </div>
+                    <div className="text-sm text-gray-500 font-medium max-w-sm text-center">
+                      Digite um produto ou passe o código de barras
+                    </div>
                   </div>
-                  <h3 className="text-white font-bold text-lg leading-tight mb-1">{cart[cart.length - 1].name}</h3>
-                  <p className="text-slate-500 text-xs font-mono mb-6">{cart[cart.length - 1].barcode}</p>
-                  
-                  <div className="w-full bg-[#0c0f1a] rounded-xl border border-slate-800 p-4 space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-400 text-xs font-medium">Valor Unitário</span>
-                      <span className="text-white font-mono font-bold">R$ {fmt(cart[cart.length - 1].price)}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-slate-400 text-xs font-medium">Quantidade</span>
-                      <span className="text-white font-mono font-bold">x{cart[cart.length - 1].quantity}</span>
-                    </div>
-                    <div className="h-px w-full bg-slate-800"></div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-indigo-300 text-xs font-bold uppercase tracking-wider">Total do Item</span>
-                      <span className="text-[var(--accent)] font-mono font-black text-xl">R$ {fmt(cart[cart.length - 1].price * cart[cart.length - 1].quantity)}</span>
-                    </div>
+                ) : (
+                  <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xs">
+                    <table className="w-full text-left border-collapse">
+                      <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+                        <tr className="text-gray-600 text-[11px] font-bold tracking-widest uppercase">
+                          <th className="px-4 py-3 w-12 text-center">#</th>
+                          <th className="px-4 py-3">Produto</th>
+                          <th className="px-4 py-3 text-center">Código</th>
+                          <th className="px-4 py-3 text-center w-28">Qtd</th>
+                          <th className="px-4 py-3 text-right w-32">Valor Un.</th>
+                          <th className="px-4 py-3 text-right w-36">Valor Total</th>
+                          <th className="w-12" />
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {cart.map((item, i) => (
+                          <tr key={item.id} className="border-b border-gray-100 hover:bg-blue-50/40 transition-colors group">
+                            <td className="px-4 py-3 text-gray-400 font-medium text-xs text-center">{String(i + 1).padStart(3, "0")}</td>
+                            <td className="px-4 py-3">
+                              <div className="text-gray-800 font-semibold text-sm leading-tight">{item.name}</div>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className="text-gray-400 text-xs font-mono">{item.barcode}</span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center justify-center bg-gray-50 rounded-lg border border-gray-200 p-0.5 w-fit mx-auto">
+                                <button onClick={() => updateQty(item.id, -1)} className="w-6 h-6 rounded-md hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors">
+                                  <Minus size={11} />
+                                </button>
+                                <span className="w-8 text-center text-gray-800 font-bold text-sm">{item.quantity}</span>
+                                <button onClick={() => updateQty(item.id, 1)} className="w-6 h-6 rounded-md hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors">
+                                  <Plus size={11} />
+                                </button>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-right text-gray-500 font-mono text-sm">R$ {fmt(item.price)}</td>
+                            <td className="px-4 py-3 text-right text-gray-900 font-bold text-sm font-mono">R$ {fmt(item.price * item.quantity)}</td>
+                            <td className="px-3 py-3 text-center">
+                              <button onClick={() => removeItem(item.id)} className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all">
+                                <Trash2 size={15} />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                </div>
+                )
               ) : (
-                <div className="flex flex-col items-center text-slate-600 opacity-50">
-                  <ShoppingCart size={48} className="mb-4" />
-                  <p className="text-sm font-medium">Aguardando itens...</p>
+                <div className="h-full flex flex-col">
+                  <div className="flex items-center justify-between mb-3 px-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-gray-800 uppercase tracking-wider">
+                        Produtos: {selectedCategory}
+                      </span>
+                      <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                        {categoryProducts.length} itens com preço
+                      </span>
+                    </div>
+                    <span className="text-xs text-gray-500 font-medium">Toque ou clique no produto para adicionar ao carrinho</span>
+                  </div>
+
+                  {loadingCategoryProducts ? (
+                    <div className="flex-1 flex flex-col items-center justify-center text-gray-400 py-12">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mb-2"></div>
+                      <span className="text-xs font-semibold text-gray-600">Carregando catálogo...</span>
+                    </div>
+                  ) : categoryProducts.length === 0 ? (
+                    <div className="flex-1 flex flex-col items-center justify-center text-gray-400 py-12">
+                      <Package size={36} className="text-blue-200 mb-2" />
+                      <div className="text-sm font-bold text-gray-700">Nenhum produto cadastrado nesta categoria</div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 pb-4">
+                      {categoryProducts.map((p) => {
+                        const inCart = cart.find(c => c.id === p.id);
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              addToCart(p);
+                              setViewMode("cart");
+                            }}
+                            className="bg-white border border-gray-200 hover:border-blue-500 hover:shadow-md rounded-xl p-3 text-left flex flex-col justify-between transition-all group cursor-pointer relative"
+                          >
+                            {inCart && (
+                              <span className="absolute -top-2 -right-2 bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-xs">
+                                {inCart.quantity}x
+                              </span>
+                            )}
+                            <div>
+                              <div className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1 truncate">
+                                {p.category?.name || selectedCategory}
+                              </div>
+                              <div className="text-xs font-bold text-gray-800 line-clamp-2 leading-tight group-hover:text-blue-600 transition-colors">
+                                {p.name}
+                              </div>
+                              {p.barcode && (
+                                <div className="text-[10px] text-gray-400 mt-1 font-mono truncate">
+                                  {p.barcode}
+                                </div>
+                              )}
+                            </div>
+                            <div className="mt-3 pt-2 border-t border-gray-100 flex items-center justify-between">
+                              <span className="text-sm font-black text-emerald-600 font-mono">
+                                R$ {fmt(Number(p.price))}
+                              </span>
+                              <span className="w-6 h-6 rounded-lg bg-blue-50 group-hover:bg-blue-600 text-blue-600 group-hover:text-white flex items-center justify-center transition-colors">
+                                <Plus size={13} />
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           </div>
-        </div>
 
-        {/* ── MIDDLE PANEL: Product List ── */}
-        <div className="flex-1 flex flex-col relative bg-[#0c0f1a]">
-          
-          {/* Efeito de gradiente no topo da tabela */}
-          <div className="absolute top-0 inset-x-0 h-4 bg-gradient-to-b from-[#0c0f1a] to-transparent z-10 pointer-events-none"></div>
+          {/* ── RIGHT PANEL: Payment & Resumo ── */}
+          <div className="w-[280px] bg-white flex flex-col border-l border-gray-200 shrink-0 z-20 shadow-xl">
 
-          {/* Lista de itens */}
-          <div className="flex-1 overflow-y-auto px-6 py-4">
-            {cart.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-slate-500">
-                <div className="w-24 h-24 rounded-full bg-slate-800/50 flex items-center justify-center mb-6 border border-slate-700/50">
-                  <Package size={40} className="text-slate-600" />
+            {/* Total Block — Estilo Card Azul Profundo */}
+            <div className="p-4">
+              <div className="bg-gradient-to-br from-blue-700 via-blue-600 to-blue-500 rounded-2xl p-5 text-white text-center shadow-md">
+                <span className="text-blue-200 text-[10px] font-black tracking-widest uppercase block mb-1">
+                  TOTAL DA VENDA
+                </span>
+                <div className="font-black text-4xl font-mono tracking-tight leading-none">
+                  R$ {fmt(total)}
                 </div>
-                <div className="text-2xl font-bold text-white mb-2 tracking-tight">Caixa Livre</div>
-                <div className="text-sm text-slate-400">Passe um produto no leitor para iniciar a venda</div>
-              </div>
-            ) : (
-              <div className="bg-[#111528] border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
-                <table className="w-full text-left border-collapse">
-                  <thead className="bg-[#151a30] border-b border-slate-800 sticky top-0 z-10">
-                    <tr className="text-slate-400 text-[10px] font-bold tracking-widest uppercase">
-                      <th className="px-5 py-4 w-12 text-center">#</th>
-                      <th className="px-5 py-4">Produto</th>
-                      <th className="px-5 py-4 text-center w-32">Qtd</th>
-                      <th className="px-5 py-4 text-right w-32">Vlr Unit</th>
-                      <th className="px-5 py-4 text-right w-36">Total</th>
-                      <th className="w-12" />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {cart.map((item, i) => (
-                      <tr key={item.id} className="border-b border-slate-800/50 hover:bg-indigo-500/5 transition-colors group">
-                        <td className="px-5 py-4 text-slate-500 font-medium text-xs text-center">{String(i + 1).padStart(3, "0")}</td>
-                        <td className="px-5 py-4">
-                          <div className="text-white font-semibold text-sm leading-tight mb-0.5">{item.name}</div>
-                          <div className="text-slate-500 text-[10px] font-mono">{item.barcode}</div>
-                        </td>
-                        <td className="px-5 py-4">
-                          <div className="flex items-center justify-center bg-[#0c0f1a] rounded-lg border border-slate-700 p-1 w-fit mx-auto">
-                            <button onClick={() => updateQty(item.id, -1)} className="w-6 h-6 rounded hover:bg-slate-800 flex items-center justify-center text-slate-400 transition-colors">
-                              <Minus size={12} />
-                            </button>
-                            <span className="w-8 text-center text-white font-bold text-sm">{item.quantity}</span>
-                            <button onClick={() => updateQty(item.id, 1)} className="w-6 h-6 rounded hover:bg-slate-800 flex items-center justify-center text-slate-400 transition-colors">
-                              <Plus size={12} />
-                            </button>
-                          </div>
-                        </td>
-                        <td className="px-5 py-4 text-right text-slate-400 font-mono text-sm font-medium">R$ {fmt(item.price)}</td>
-                        <td className="px-5 py-4 text-right text-white font-black text-sm font-mono">R$ {fmt(item.price * item.quantity)}</td>
-                        <td className="px-3 py-4 text-center">
-                          <button onClick={() => removeItem(item.id)} className="p-2 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all">
-                            <Trash2 size={16} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-          {/* Linha de Totais Inferior */}
-          <div className="bg-[#111528] border-t border-slate-800 p-6 shrink-0 z-10 shadow-[0_-10px_30px_rgba(0,0,0,0.2)]">
-            <div className="grid grid-cols-3 gap-6 max-w-5xl mx-auto">
-              <div>
-                <span className="text-slate-400 text-[10px] font-bold tracking-widest uppercase block mb-1">Subtotal da Venda</span>
-                <div className="text-white text-3xl font-black font-mono tracking-tight">R$ {fmt(subtotal)}</div>
-              </div>
-              <div>
-                <span className="text-slate-400 text-[10px] font-bold tracking-widest uppercase block mb-1">Total Recebido</span>
-                <div className="relative">
-                  <span className="absolute left-0 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-xl">R$</span>
-                  <input
-                    type="number"
-                    value={amountGiven}
-                    onChange={e => setAmountGiven(e.target.value)}
-                    placeholder="0,00"
-                    className="w-full bg-transparent text-white text-3xl font-black font-mono pl-10 py-1 outline-none border-b-2 border-transparent focus:border-indigo-500 transition-colors"
-                  />
-                </div>
-              </div>
-              <div className="text-right">
-                <span className="text-slate-400 text-[10px] font-bold tracking-widest uppercase block mb-1">Troco a Devolver</span>
-                <div className="text-emerald-400 text-3xl font-black font-mono tracking-tight">R$ {fmt(troco)}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── RIGHT PANEL: Finalize Buttons ── */}
-        <div className="w-[300px] bg-[#111528] flex flex-col border-l border-slate-800 p-6 shrink-0 z-20 shadow-xl">
-          <div className="flex-1 space-y-6">
-            
-            {/* Total Block */}
-            <div className="bg-gradient-to-br from-indigo-600 to-[var(--accent)] rounded-2xl p-6 shadow-lg shadow-[var(--accent)]/20 text-white">
-              <span className="text-indigo-200 text-[10px] font-bold tracking-widest uppercase block mb-2">Total a Pagar</span>
-              <div className="font-black text-4xl font-mono tracking-tight leading-none mb-1">R$ {fmt(total)}</div>
-              <div className="text-indigo-200 text-xs mt-2 flex justify-between">
-                <span>Itens:</span>
-                <span className="font-bold">{cart.reduce((acc, i) => acc + i.quantity, 0)}</span>
               </div>
             </div>
 
-            {/* Configurações da Venda */}
-            <div className="space-y-4 pt-2">
-              <div className="space-y-1.5">
-                <label className="text-slate-400 text-xs font-semibold flex justify-between">
-                  <span>Desconto (R$)</span>
-                  <span className="text-[10px] bg-slate-800 px-1 rounded">[{hotkeys.discount}]</span>
-                </label>
+            {/* Form & Resumo — Sem duplicidades */}
+            <div className="flex-1 px-4 space-y-3.5 overflow-y-auto">
+              {/* Desconto (R$) — F6 */}
+              <div className="space-y-1.5 bg-gray-50/70 border border-gray-200/80 p-3 rounded-2xl">
+                <div className="flex items-center justify-between text-xs font-bold text-gray-700">
+                  <span className="flex items-center gap-1.5">
+                    <Tag size={14} className="text-blue-600" /> Desconto (R$)
+                  </span>
+                  <span className="text-[10px] text-gray-400 font-mono">F6</span>
+                </div>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <DollarSign size={14} className="text-slate-500" />
-                  </div>
                   <input
                     ref={discountInputRef}
                     type="number"
                     value={discountInput}
                     onChange={e => setDiscountInput(e.target.value)}
-                    className="w-full bg-[#0c0f1a] border border-slate-700 focus:border-indigo-500 text-white font-mono px-3 py-2.5 pl-9 rounded-xl outline-none text-sm transition-all shadow-inner"
-                    min="0" step="0.01"
+                    className="w-full bg-white border border-gray-200 focus:border-blue-500 text-gray-800 font-mono px-3 py-2 rounded-xl outline-none text-sm transition-all"
+                    min="0"
+                    step="0.01"
+                    placeholder="0,00"
                   />
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-slate-400 text-xs font-semibold">Cliente (CPF/CNPJ)</label>
-                <button 
+              {/* Cliente (CPF/CNPJ) — F8 */}
+              <div className="space-y-1.5 bg-gray-50/70 border border-gray-200/80 p-3 rounded-2xl">
+                <div className="flex items-center justify-between text-xs font-bold text-gray-700">
+                  <span className="flex items-center gap-1.5">
+                    <User size={14} className="text-blue-600" /> Cliente (CPF/CNPJ)
+                  </span>
+                  <span className="text-[10px] text-gray-400 font-mono">F8</span>
+                </div>
+                <button
+                  type="button"
                   onClick={() => setModal("cpf")}
-                  className="w-full bg-[#0c0f1a] border border-slate-700 hover:border-indigo-500 text-slate-300 font-mono px-4 py-2.5 rounded-xl outline-none text-sm transition-all flex justify-between items-center shadow-inner"
+                  className="w-full bg-white border border-gray-200 hover:border-blue-400 text-gray-600 px-3 py-2 rounded-xl outline-none text-xs transition-all flex justify-between items-center cursor-pointer shadow-2xs"
                 >
-                  {cpfInput ? cpfInput : <span className="text-slate-500">Não identificado</span>}
-                  <ChevronRight size={16} className="text-slate-600" />
+                  {cpfInput ? (
+                    <span className="font-mono font-bold text-blue-600 truncate">{cpfInput}</span>
+                  ) : (
+                    <span className="text-gray-400 text-xs">Não identificado</span>
+                  )}
+                  <ChevronRight size={14} className="text-gray-400 shrink-0" />
+                </button>
+              </div>
+            </div>
+
+            {/* Action Buttons — Operações Separadas e Enxutas */}
+            <div className="p-4 space-y-2 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => { if (cart.length > 0) setModal("payment"); }}
+                disabled={cart.length === 0}
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-extrabold py-3.5 rounded-2xl text-sm transition-all shadow-md shadow-blue-500/20 flex flex-col items-center justify-center cursor-pointer active:scale-[0.99]"
+              >
+                <span>Finalizar Venda</span>
+                <span className="text-[10px] font-mono text-blue-200 font-medium">F10</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => printReceipt(lastSaleId || "preview", cart, total, subtotal, parseFloat(discountInput) || 0, paymentMethod, parseFloat(amountGiven) || 0, troco)}
+                className="w-full bg-white hover:bg-blue-50/60 text-blue-700 font-bold py-2.5 rounded-2xl text-xs transition-all border border-blue-200 flex items-center justify-center gap-2 cursor-pointer shadow-2xs active:scale-[0.99]"
+              >
+                <FileText size={15} className="text-blue-600" />
+                <span>Imprimir Cupom</span>
+                <span className="text-[10px] font-mono text-gray-400 font-normal">F7</span>
+              </button>
+
+              <div className="pt-2 border-t border-gray-100 flex gap-2">
+                <button
+                  type="button"
+                  onClick={openOrderModal}
+                  className="flex-1 bg-gray-50 hover:bg-gray-100 text-gray-600 font-semibold py-1.5 rounded-xl text-[11px] transition-colors border border-gray-200 flex items-center justify-center gap-1 cursor-pointer"
+                  title="Importar Pedido"
+                >
+                  <Download size={12} /> Pedido
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModal("closing")}
+                  className="flex-1 bg-gray-50 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-300 text-gray-600 font-semibold py-1.5 rounded-xl text-[11px] transition-colors border border-gray-200 flex items-center justify-center gap-1 cursor-pointer"
+                  title="Fechar Turno de Caixa"
+                >
+                  <LogOut size={12} /> Fechar Caixa
                 </button>
               </div>
             </div>
           </div>
+        </div>
+      </div>
 
-          {/* Action Buttons */}
-          <div className="space-y-3 mt-6">
-            <button onClick={openOrderModal} className="w-full bg-slate-800/50 hover:bg-slate-800 text-slate-300 font-semibold py-3.5 rounded-xl text-xs tracking-wide transition-all flex items-center justify-center gap-2 border border-slate-700">
-              <FileText size={16} /> Importar Pedido [F8]
-            </button>
-            <button
-              onClick={() => setModal("closing")}
-              className="w-full bg-slate-800/50 hover:bg-amber-500/10 hover:text-amber-400 hover:border-amber-500/30 text-slate-300 font-semibold py-3.5 rounded-xl text-xs tracking-wide transition-all flex items-center justify-center gap-2 border border-slate-700"
-            >
-              <LogOut size={16} /> Fechar Caixa [F9]
-            </button>
-            <button
-              onClick={() => { if (cart.length > 0) setModal("payment"); }}
-              disabled={cart.length === 0}
-              className="w-full bg-[var(--accent)] text-white font-bold py-4 rounded-xl text-sm tracking-widest hover:opacity-90 active:scale-95 transition-all shadow-lg shadow-[var(--accent)]/30 disabled:opacity-50 disabled:shadow-none mt-2"
-            >
-              FINALIZAR [{hotkeys.payment}]
-            </button>
+      {/* ── RODAPÉ COM ATALHOS ESSENCIAIS (CYBERTECH RP) ── */}
+      <div className="bg-[#00245a] text-white px-5 py-2 flex items-center justify-between text-xs font-bold border-t border-blue-900 shrink-0 z-30 select-none">
+        <div className="flex items-center gap-3 overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => inputRef.current?.focus()}
+            className="flex items-center gap-1.5 hover:text-blue-200 transition-colors cursor-pointer shrink-0"
+          >
+            <span className="w-5 h-5 rounded bg-blue-500/30 border border-blue-400/50 flex items-center justify-center text-[10px] font-black">
+              F2
+            </span>
+            <span>Buscar</span>
+          </button>
+          <span className="text-blue-400/40">|</span>
+
+          <button
+            type="button"
+            onClick={() => setModal("quantity")}
+            className="flex items-center gap-1.5 hover:text-blue-200 transition-colors cursor-pointer shrink-0"
+          >
+            <span className="w-5 h-5 rounded bg-blue-500/30 border border-blue-400/50 flex items-center justify-center text-[10px] font-black">
+              F3
+            </span>
+            <span>Quantidade</span>
+          </button>
+          <span className="text-blue-400/40">|</span>
+
+          <button
+            type="button"
+            onClick={() => {
+              setPriceCheckQuery("");
+              setPriceCheckResult(null);
+              setModal("pricecheck");
+            }}
+            className="flex items-center gap-1.5 hover:text-blue-200 transition-colors cursor-pointer shrink-0"
+          >
+            <span className="w-5 h-5 rounded bg-blue-500/30 border border-blue-400/50 flex items-center justify-center text-[10px] font-black">
+              F4
+            </span>
+            <span>Consultar</span>
+          </button>
+          <span className="text-blue-400/40">|</span>
+
+          <button
+            type="button"
+            onClick={() => {
+              discountInputRef.current?.focus();
+              discountInputRef.current?.select();
+            }}
+            className="flex items-center gap-1.5 hover:text-blue-200 transition-colors cursor-pointer shrink-0"
+          >
+            <span className="w-5 h-5 rounded bg-blue-500/30 border border-blue-400/50 flex items-center justify-center text-[10px] font-black">
+              F6
+            </span>
+            <span>Desconto</span>
+          </button>
+          <span className="text-blue-400/40">|</span>
+
+          <button
+            type="button"
+            onClick={() =>
+              printReceipt(
+                lastSaleId || "preview",
+                cart,
+                total,
+                subtotal,
+                parseFloat(discountInput) || 0,
+                paymentMethod,
+                parseFloat(amountGiven) || 0,
+                troco
+              )
+            }
+            className="flex items-center gap-1.5 hover:text-blue-200 transition-colors cursor-pointer shrink-0"
+          >
+            <span className="w-5 h-5 rounded bg-blue-500/30 border border-blue-400/50 flex items-center justify-center text-[10px] font-black">
+              F7
+            </span>
+            <span>Imprimir Cupom</span>
+          </button>
+          <span className="text-blue-400/40">|</span>
+
+          <button
+            type="button"
+            onClick={() => setModal("cpf")}
+            className="flex items-center gap-1.5 hover:text-blue-200 transition-colors cursor-pointer shrink-0"
+          >
+            <span className="w-5 h-5 rounded bg-blue-500/30 border border-blue-400/50 flex items-center justify-center text-[10px] font-black">
+              F8
+            </span>
+            <span>Cliente</span>
+          </button>
+          <span className="text-blue-400/40">|</span>
+
+          <button
+            type="button"
+            onClick={() => setViewMode((v) => (v === "catalog" ? "cart" : "catalog"))}
+            className="flex items-center gap-1.5 hover:text-blue-200 transition-colors cursor-pointer shrink-0"
+          >
+            <span className="w-5 h-5 rounded bg-blue-500/30 border border-blue-400/50 flex items-center justify-center text-[10px] font-black">
+              F9
+            </span>
+            <span>{viewMode === "catalog" ? "Carrinho" : "Catálogo"}</span>
+          </button>
+          <span className="text-blue-400/40">|</span>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (cart.length > 0) setModal("payment");
+            }}
+            className="flex items-center gap-1.5 hover:text-blue-200 transition-colors cursor-pointer shrink-0"
+          >
+            <span className="w-5 h-5 rounded bg-blue-500/30 border border-blue-400/50 flex items-center justify-center text-[10px] font-black">
+              F10
+            </span>
+            <span>Pagamento</span>
+          </button>
+          <span className="text-blue-400/40">|</span>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (cart.length > 0 && confirm("Cancelar cupom atual e limpar itens?")) {
+                setCart([]);
+                setDiscountInput("0");
+                setMultiplier(1);
+                setBarcodeInput("");
+                setTimeout(() => inputRef.current?.focus(), 50);
+              }
+            }}
+            className="flex items-center gap-1.5 hover:text-rose-300 text-rose-200 transition-colors cursor-pointer shrink-0"
+          >
+            <span className="w-5 h-5 rounded bg-rose-500/30 border border-rose-400/50 flex items-center justify-center text-[10px] font-black">
+              ESC
+            </span>
+            <span>Cancelar</span>
+          </button>
+        </div>
+
+        <div className="flex items-center gap-3 text-blue-200 text-xs shrink-0 pl-3">
+          <div
+            className="flex items-center gap-1.5 bg-blue-950/60 px-2 py-0.5 rounded-md border border-blue-800/60"
+            title="Conexão com a Nuvem e Catálogo Local"
+          >
+            <Wifi size={13} className={isOfflineMode ? "text-amber-400" : "text-emerald-400"} />
+            <span className="text-[11px] font-medium">
+              {isOfflineMode ? "Offline (Local)" : "Nuvem Conectada"}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5" title="Bip do Leitor Ativo">
+            <Volume2 size={14} className="text-blue-300" />
+          </div>
+          <div className="flex items-center gap-1.5" title="Alimentação / Bateria">
+            <Battery size={14} className="text-emerald-400" />
+            <span className="text-[11px] font-mono">100%</span>
+          </div>
+          <div className="text-[11px] font-mono text-white/90 hidden sm:inline">
+            {new Date().toLocaleDateString("pt-BR")}
           </div>
         </div>
       </div>
@@ -1363,76 +2527,456 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
 
       {/* ── Payment Modal ── */}
       {modal === "payment" && (
-        <ModalWrapper title="Pagamento da Venda" icon={<CreditCard size={20} />} onClose={() => setModal("")}>
-          <form onSubmit={e => { e.preventDefault(); if (!(paymentMethod === "MONEY" && parseFloat(amountGiven) < total && amountGiven !== "")) handleFinalizeSale(); }} className="p-6 space-y-6">
-            <div className="bg-[#0c0f1a] border border-indigo-500/20 rounded-2xl p-6 text-center shadow-inner">
-              <div className="text-slate-400 text-[10px] font-bold tracking-widest uppercase mb-1">Valor Total</div>
-              <div className="text-[var(--accent)] font-black font-mono text-5xl tracking-tight">R$ {fmt(total)}</div>
-            </div>
-
-            <div>
-              <div className="text-slate-400 text-xs font-bold tracking-widest uppercase mb-3">Forma de Pagamento</div>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {[
-                  { key: "MONEY", label: "Dinheiro", icon: <Banknote size={24} /> },
-                  { key: "PIX", label: "PIX", icon: <QrCode size={24} /> },
-                  { key: "CREDIT_CARD", label: "Crédito", icon: <CreditCard size={24} /> },
-                  { key: "DEBIT_CARD", label: "Débito", icon: <CreditCard size={24} /> },
-                  { key: "VOUCHER", label: "Voucher", icon: <Zap size={24} /> },
-                ].map(p => (
-                  <button
-                    key={p.key}
-                    onClick={() => setPaymentMethod(p.key)}
-                    className={`flex flex-col items-center justify-center gap-2 py-4 px-2 rounded-xl border-2 transition-all font-bold ${
-                      paymentMethod === p.key
-                        ? "border-[var(--accent)] bg-[var(--accent)]/10 text-[var(--accent)] shadow-lg shadow-[var(--accent)]/10"
-                        : "border-slate-800 bg-[#0c0f1a] text-slate-400 hover:border-indigo-500/30 hover:bg-indigo-500/5"
-                    }`}
-                  >
-                    {p.icon}
-                    <span className="text-xs">{p.label}</span>
-                  </button>
-                ))}
+        <ModalWrapper title="Pagamento da Venda" icon={<CreditCard size={18} />} onClose={() => setModal("")}>
+          <form onSubmit={e => { e.preventDefault(); if (!(paymentMethod === "MONEY" && parseFloat(amountGiven) < total && amountGiven !== "")) handleFinalizeSale(); }} className="p-4 space-y-3.5">
+            {/* Total Banner */}
+            <div className="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 rounded-xl p-3.5 text-white shadow-md flex items-center justify-between">
+              <div>
+                <span className="text-blue-200 text-[10px] font-black tracking-widest uppercase">VALOR TOTAL DA VENDA</span>
+                <div className="text-white font-black font-mono text-3xl tracking-tight leading-none mt-1">R$ {fmt(total)}</div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-xs border border-white/20 rounded-xl px-3 py-1.5 text-right">
+                <span className="text-[10px] uppercase font-bold text-blue-100 block">ITENS</span>
+                <span className="text-xs font-black text-white">{cart.reduce((a, b) => a + b.quantity, 0)} un</span>
               </div>
             </div>
 
+            {/* Forma de Pagamento */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-gray-800 text-[11px] font-black uppercase tracking-wider">
+                  Forma de Pagamento
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowPosConfig(v => !v)}
+                  className={`text-[10px] font-bold px-2.5 py-1 rounded-lg border flex items-center gap-1 transition-colors cursor-pointer ${showPosConfig
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-200"
+                    }`}
+                >
+                  <Settings size={11} /> {showPosConfig ? "Fechar Config." : "Configurar POS / Cliente"}
+                </button>
+              </div>
+
+              {/* Painel Rápido de Configuração por Cliente (quando aberto) */}
+              {showPosConfig && (
+                <div className="mb-3 p-3.5 rounded-2xl bg-slate-50 border border-blue-200 space-y-3 text-xs animate-in fade-in duration-150">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                    <span className="font-black text-slate-800 uppercase text-[10px] tracking-wider">
+                      Configuração de Pagamento do Cliente
+                    </span>
+                    <label className="flex items-center gap-1.5 font-bold text-[11px] text-blue-700 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={pdvPayConfig.posModeEnabled}
+                        onChange={e =>
+                          updateClientPayConfig({ ...pdvPayConfig, posModeEnabled: e.target.checked })
+                        }
+                        className="rounded text-blue-600"
+                      />
+                      Usar Modo Maquineta POS em Cartões
+                    </label>
+                  </div>
+
+                  {/* Quais etapas pedir na Maquineta POS */}
+                  {pdvPayConfig.posModeEnabled && (
+                    <div className="grid grid-cols-2 gap-1.5 bg-white p-2.5 rounded-xl border border-slate-200">
+                      <label className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={pdvPayConfig.askAcquirer}
+                          onChange={e =>
+                            updateClientPayConfig({ ...pdvPayConfig, askAcquirer: e.target.checked })
+                          }
+                        />
+                        Pedir Administradora (POS)
+                      </label>
+                      <label className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={pdvPayConfig.askBrand}
+                          onChange={e =>
+                            updateClientPayConfig({ ...pdvPayConfig, askBrand: e.target.checked })
+                          }
+                        />
+                        Pedir Bandeira do Cartão
+                      </label>
+                      <label className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={pdvPayConfig.requireAuthCode}
+                          onChange={e =>
+                            updateClientPayConfig({ ...pdvPayConfig, requireAuthCode: e.target.checked })
+                          }
+                        />
+                        Exigir Código do Comprovante
+                      </label>
+                      <label className="flex items-center gap-1.5 text-[11px] font-semibold text-gray-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={pdvPayConfig.allowInstallments}
+                          onChange={e =>
+                            updateClientPayConfig({ ...pdvPayConfig, allowInstallments: e.target.checked })
+                          }
+                        />
+                        Permitir Parcelamento Crédito
+                      </label>
+                    </div>
+                  )}
+
+                  {/* Maquinetas que o cliente trabalha */}
+                  <div>
+                    <div className="text-[10px] font-black text-gray-500 uppercase mb-1">
+                      Maquinetas (Administradoras) deste Cliente:
+                    </div>
+                    <div className="flex flex-wrap gap-1 mb-1.5">
+                      {Array.from(new Set([...ALL_SUGGESTED_ACQUIRERS, ...pdvPayConfig.acquirers])).map(acq => {
+                        const active = pdvPayConfig.acquirers.includes(acq);
+                        return (
+                          <button
+                            key={acq}
+                            type="button"
+                            onClick={() => {
+                              const next = active
+                                ? pdvPayConfig.acquirers.filter(a => a !== acq)
+                                : [...pdvPayConfig.acquirers, acq];
+                              if (next.length > 0) {
+                                updateClientPayConfig({ ...pdvPayConfig, acquirers: next });
+                              }
+                            }}
+                            className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${active
+                                ? "bg-blue-600 text-white border-blue-600"
+                                : "bg-white text-gray-500 border-gray-200 hover:border-gray-300"
+                              }`}
+                          >
+                            {active ? "✓ " : "+ "}
+                            {acq}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <div className="flex gap-1">
+                      <input
+                        type="text"
+                        value={newAcquirerInput}
+                        onChange={e => setNewAcquirerInput(e.target.value)}
+                        placeholder="Outra maquineta do cliente..."
+                        className="flex-1 bg-white border border-gray-200 rounded-lg px-2 py-1 text-[11px] outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const v = newAcquirerInput.trim();
+                          if (v && !pdvPayConfig.acquirers.includes(v)) {
+                            updateClientPayConfig({
+                              ...pdvPayConfig,
+                              acquirers: [...pdvPayConfig.acquirers, v],
+                            });
+                            setNewAcquirerInput("");
+                          }
+                        }}
+                        className="px-2.5 py-1 bg-blue-600 text-white rounded-lg text-[10px] font-bold cursor-pointer"
+                      >
+                        Adicionar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="grid grid-cols-5 gap-1.5">
+                {[
+                  { key: "MONEY", label: "Dinheiro", icon: <Banknote size={18} /> },
+                  { key: "PIX", label: "PIX", icon: <QrCode size={18} /> },
+                  {
+                    key: "CREDIT_CARD",
+                    label: pdvPayConfig.posModeEnabled ? "Crédito POS" : "Crédito",
+                    icon: <CreditCard size={18} />,
+                  },
+                  {
+                    key: "DEBIT_CARD",
+                    label: pdvPayConfig.posModeEnabled ? "Débito POS" : "Débito",
+                    icon: <CreditCard size={18} />,
+                  },
+                  {
+                    key: "VOUCHER",
+                    label: pdvPayConfig.posModeEnabled ? "Voucher POS" : "Voucher",
+                    icon: <Zap size={18} />,
+                  },
+                ]
+                  .filter(p => pdvPayConfig.enabledMethods[p.key as keyof typeof pdvPayConfig.enabledMethods] !== false)
+                  .map(p => (
+                    <button
+                      key={p.key}
+                      type="button"
+                      onClick={() => {
+                        setPaymentMethod(p.key);
+                        if (p.key !== "MONEY") setAmountGiven(String(total));
+                        if (p.key === "CREDIT_CARD" || p.key === "DEBIT_CARD" || p.key === "VOUCHER") {
+                          setPosStep(getInitialPosStep());
+                        }
+                      }}
+                      className={`flex flex-col items-center justify-center gap-1 py-2.5 px-1 rounded-xl border-2 transition-all font-bold cursor-pointer ${paymentMethod === p.key
+                          ? "border-blue-600 bg-blue-600 text-white shadow-xs"
+                          : "border-gray-200 bg-white text-gray-700 hover:border-blue-300 hover:bg-gray-50"
+                        }`}
+                    >
+                      {p.icon}
+                      <span className="text-[11px] leading-tight">{p.label}</span>
+                    </button>
+                  ))}
+              </div>
+            </div>
+
+            {/* ── PAINEL MAQUINETA POS: UMA INFORMAÇÃO POR VEZ (PASSO A PASSO) ── */}
+            {(paymentMethod === "CREDIT_CARD" || paymentMethod === "DEBIT_CARD" || paymentMethod === "VOUCHER") &&
+              pdvPayConfig.posModeEnabled && (
+                <div className="bg-gray-50/80 border border-gray-200 rounded-2xl p-4 animate-in fade-in slide-in-from-top-1 duration-150">
+                  {/* ETAPA 1: SELECIONAR APENAS A ADMINISTRADORA (MAQUINETA POS) */}
+                  {posStep === "ACQUIRER" && pdvPayConfig.askAcquirer && (
+                    <div className="animate-in fade-in duration-150">
+                      <div className="flex items-center justify-between mb-2.5">
+                        <label className="text-gray-700 text-xs font-black uppercase tracking-wider">
+                          1. Selecione a Administradora (Maquineta POS)
+                        </label>
+                        <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                          Passo 1 de {1 + (pdvPayConfig.askBrand ? 1 : 0) + 1}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {pdvPayConfig.acquirers.map(acq => {
+                          const active = posAcquirer === acq;
+                          return (
+                            <button
+                              key={acq}
+                              type="button"
+                              onClick={() => {
+                                setPosAcquirer(acq);
+                                setPosStep(pdvPayConfig.askBrand ? "BRAND" : "AUTH");
+                              }}
+                              className={`py-3 px-3.5 rounded-xl border-2 text-sm font-black flex items-center justify-between transition-all cursor-pointer ${active
+                                  ? "border-blue-600 bg-blue-50 text-blue-700 shadow-xs"
+                                  : "border-gray-200 bg-white text-gray-800 hover:border-blue-400 hover:bg-blue-50/40"
+                                }`}
+                            >
+                              <span className="truncate">{acq}</span>
+                              <ChevronRight size={15} className="text-gray-400 shrink-0" />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ETAPA 2: SELECIONAR APENAS A BANDEIRA DO CARTÃO */}
+                  {posStep === "BRAND" && pdvPayConfig.askBrand && (
+                    <div className="animate-in fade-in duration-150">
+                      <div className="flex items-center justify-between mb-2.5">
+                        <div className="flex items-center gap-2">
+                          {pdvPayConfig.askAcquirer && (
+                            <button
+                              type="button"
+                              onClick={() => setPosStep("ACQUIRER")}
+                              className="text-[11px] font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1 rounded-lg transition-colors cursor-pointer"
+                            >
+                              ← {posAcquirer}
+                            </button>
+                          )}
+                          <label className="text-gray-700 text-xs font-black uppercase tracking-wider">
+                            Selecione a Bandeira do Cartão
+                          </label>
+                        </div>
+                        <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
+                          Passo {pdvPayConfig.askAcquirer ? 2 : 1} de{" "}
+                          {1 + (pdvPayConfig.askAcquirer ? 1 : 0) + 1}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {pdvPayConfig.brands.map(brand => {
+                          const active = posBrand === brand;
+                          return (
+                            <button
+                              key={brand}
+                              type="button"
+                              onClick={() => {
+                                setPosBrand(brand);
+                                setPosStep("AUTH");
+                              }}
+                              className={`py-3 px-3.5 rounded-xl border-2 text-sm font-black flex items-center justify-between transition-all cursor-pointer ${active
+                                  ? "border-blue-600 bg-blue-50 text-blue-700 shadow-xs"
+                                  : "border-gray-200 bg-white text-gray-800 hover:border-blue-400 hover:bg-blue-50/40"
+                                }`}
+                            >
+                              <span className="truncate">{brand}</span>
+                              <ChevronRight size={15} className="text-gray-400 shrink-0" />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ETAPA 3: DIGITAR APENAS O CÓDIGO DE AUTENTICAÇÃO / NSU (+ PARCELAS) */}
+                  {posStep === "AUTH" && (
+                    <div className="space-y-3 animate-in fade-in duration-150">
+                      {(pdvPayConfig.askAcquirer || pdvPayConfig.askBrand) && (
+                        <div className="flex items-center justify-between bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs">
+                          <div className="flex items-center gap-2 font-bold text-gray-700">
+                            {pdvPayConfig.askAcquirer && (
+                              <button
+                                type="button"
+                                onClick={() => setPosStep("ACQUIRER")}
+                                className="text-blue-700 hover:underline cursor-pointer"
+                              >
+                                {posAcquirer}
+                              </button>
+                            )}
+                            {pdvPayConfig.askAcquirer && pdvPayConfig.askBrand && (
+                              <span className="text-gray-300">•</span>
+                            )}
+                            {pdvPayConfig.askBrand && (
+                              <button
+                                type="button"
+                                onClick={() => setPosStep("BRAND")}
+                                className="text-blue-700 hover:underline cursor-pointer"
+                              >
+                                {posBrand}
+                              </button>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setPosStep(getInitialPosStep())}
+                            className="text-[11px] font-bold text-gray-500 hover:text-blue-600 cursor-pointer"
+                          >
+                            Trocar
+                          </button>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-12 gap-2">
+                        <div
+                          className={
+                            paymentMethod === "CREDIT_CARD" && pdvPayConfig.allowInstallments
+                              ? "col-span-8"
+                              : "col-span-12"
+                          }
+                        >
+                          <label className="text-gray-700 text-xs font-black uppercase tracking-wider mb-1.5 block">
+                            Código de Autenticação / NSU (Comprovante)
+                            {pdvPayConfig.requireAuthCode ? " *" : ""}
+                          </label>
+                          <input
+                            type="text"
+                            value={posAuthCode}
+                            onChange={e => setPosAuthCode(e.target.value.toUpperCase())}
+                            placeholder="Digite o código impresso no comprovante"
+                            autoFocus
+                            className="w-full bg-white border-2 border-blue-500 focus:border-blue-600 text-gray-900 font-mono font-bold text-base px-3.5 py-2.5 rounded-xl outline-none"
+                          />
+                        </div>
+
+                        {paymentMethod === "CREDIT_CARD" && pdvPayConfig.allowInstallments && (
+                          <div className="col-span-4">
+                            <label className="text-gray-700 text-xs font-black uppercase tracking-wider mb-1.5 block">
+                              Parcelas
+                            </label>
+                            <select
+                              value={posInstallments}
+                              onChange={e => setPosInstallments(e.target.value)}
+                              className="w-full bg-white border-2 border-gray-300 focus:border-blue-600 text-gray-900 font-bold text-xs px-2.5 py-3 rounded-xl outline-none"
+                            >
+                              <option value="1">1x À Vista</option>
+                              <option value="2">2x</option>
+                              <option value="3">3x</option>
+                              <option value="4">4x</option>
+                              <option value="5">5x</option>
+                              <option value="6">6x</option>
+                              <option value="10">10x</option>
+                              <option value="12">12x</option>
+                            </select>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+            {/* Dinheiro Input & Quick Values */}
             {paymentMethod === "MONEY" && (
-              <div className="animate-in fade-in slide-in-from-top-4 duration-200">
-                <div className="text-slate-400 text-xs font-bold tracking-widest uppercase mb-2">Valor Recebido do Cliente</div>
+              <div className="space-y-2 animate-in fade-in slide-in-from-top-2 duration-150">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-800 text-[11px] font-black uppercase tracking-wider">Valor Recebido</span>
+                  {parseFloat(amountGiven) >= total && total > 0 && (
+                    <span className="text-emerald-700 text-xs font-black font-mono">
+                      Troco: R$ {fmt(troco)}
+                    </span>
+                  )}
+                </div>
+
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-xl">R$</span>
+                  <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-500 font-bold text-base">R$</span>
                   <input
                     type="number"
                     value={amountGiven}
                     onChange={e => setAmountGiven(e.target.value)}
-                    className="w-full bg-[#0c0f1a] border-2 border-indigo-500/30 focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] text-white font-mono font-black text-3xl text-right pl-12 pr-4 py-4 rounded-xl outline-none shadow-inner transition-all"
+                    className="w-full bg-white border-2 border-gray-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 text-gray-900 font-mono font-black text-2xl text-right pl-10 pr-3 py-2 rounded-xl outline-none shadow-2xs transition-all"
                     placeholder="0,00"
                     autoFocus
                     step="0.01"
                   />
                 </div>
+
+                {/* Quick cash pills */}
+                <div className="flex gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setAmountGiven(String(total))}
+                    className="flex-1 py-1 px-1 bg-gray-100 hover:bg-gray-200 text-gray-800 text-[11px] font-bold rounded-lg border border-gray-200 transition-colors"
+                  >
+                    Exato
+                  </button>
+                  {[10, 20, 50, 100].map(val => (
+                    <button
+                      key={val}
+                      type="button"
+                      onClick={() => setAmountGiven(String(val))}
+                      className="flex-1 py-1 px-1 bg-gray-100 hover:bg-gray-200 text-gray-800 text-[11px] font-bold rounded-lg border border-gray-200 transition-colors"
+                    >
+                      R$ {val}
+                    </button>
+                  ))}
+                </div>
+
                 {parseFloat(amountGiven) >= total && total > 0 && (
-                  <>
-                    <div className="mt-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-4 flex justify-between items-center shadow-inner">
-                      <span className="text-emerald-400 text-sm font-bold uppercase tracking-wider">Troco</span>
-                      <span className="text-emerald-400 font-black text-3xl font-mono">R$ {fmt(troco)}</span>
+                  <div className="bg-emerald-50 border border-emerald-300 rounded-xl px-3.5 py-2 flex justify-between items-center shadow-2xs">
+                    <div className="flex items-center gap-2">
+                      <Banknote size={18} className="text-emerald-600 shrink-0" />
+                      <span className="text-emerald-900 text-xs font-black uppercase tracking-wider">Troco a Devolver</span>
                     </div>
-                    <ChangeVisual amount={troco} />
-                  </>
+                    <span className="text-emerald-700 font-black text-xl font-mono">R$ {fmt(troco)}</span>
+                  </div>
                 )}
               </div>
             )}
 
-            <div className="flex gap-4 pt-4 border-t border-slate-800">
-              <button onClick={() => setModal("")} className="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-bold py-3.5 rounded-xl text-sm transition-all">
-                VOLTAR
+            {/* Bottom Buttons */}
+            <div className="flex gap-2.5 pt-2.5 border-t border-gray-200">
+              <button
+                type="button"
+                onClick={() => setModal("")}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer"
+              >
+                Voltar (ESC)
               </button>
               <button
                 type="submit"
                 disabled={paymentMethod === "MONEY" && parseFloat(amountGiven) < total && amountGiven !== ""}
-                className="flex-[2] bg-[var(--accent)] text-white font-bold py-3.5 rounded-xl text-sm tracking-widest hover:opacity-90 active:scale-95 transition-all shadow-lg shadow-[var(--accent)]/30 disabled:opacity-50"
+                className="flex-[2] bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 rounded-xl text-xs uppercase tracking-widest transition-all shadow-md shadow-emerald-600/20 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
               >
-                CONFIRMAR VENDA
+                <Check size={16} /> Confirmar Venda (ENTER)
               </button>
             </div>
           </form>
@@ -1443,28 +2987,28 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
       {modal === "success" && (
         <ModalWrapper title="Venda Concluída" icon={<Check size={20} />} onClose={() => { setModal(""); clearSale(); }}>
           <div className="p-8 text-center space-y-6">
-            <div className="w-24 h-24 bg-emerald-500/10 border-4 border-emerald-500 rounded-full flex items-center justify-center mx-auto shadow-[0_0_40px_rgba(16,185,129,0.3)] animate-in zoom-in duration-300">
-              <Check size={48} className="text-emerald-400" />
+            <div className="w-24 h-24 bg-green-50 border-4 border-green-500 rounded-full flex items-center justify-center mx-auto shadow-md animate-in zoom-in duration-300">
+              <Check size={48} className="text-green-500" />
             </div>
             <div>
-              <div className="text-white text-2xl font-bold tracking-tight">CUPOM EMITIDO</div>
-              <div className="text-slate-400 text-sm mt-1">A venda foi registrada com sucesso no sistema.</div>
-              <div className="mt-4 inline-block bg-[#0c0f1a] border border-slate-700 text-indigo-300 font-mono text-xs px-4 py-2 rounded-lg font-bold">
+              <div className="text-gray-900 text-2xl font-black tracking-tight">CUPOM EMITIDO</div>
+              <div className="text-gray-500 text-sm mt-1">A venda foi registrada com sucesso no sistema.</div>
+              <div className="mt-4 inline-block bg-gray-100 border border-gray-200 text-gray-700 font-mono text-xs px-4 py-2 rounded-lg font-bold">
                 Cód: {lastSaleId.slice(0, 12).toUpperCase()}
               </div>
             </div>
-            
+
             {paymentMethod === "MONEY" && troco > 0 && (
-              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-5 shadow-inner">
-                <div className="text-emerald-400/80 text-[10px] font-bold uppercase tracking-widest mb-1">Troco a Devolver</div>
-                <div className="text-emerald-400 font-black text-4xl font-mono">R$ {fmt(troco)}</div>
+              <div className="bg-green-50 border border-green-200 rounded-2xl p-5 shadow-sm">
+                <div className="text-green-600 text-[10px] font-bold uppercase tracking-widest mb-1">Troco a Devolver</div>
+                <div className="text-green-700 font-black text-4xl font-mono">R$ {fmt(troco)}</div>
                 <ChangeVisual amount={troco} />
               </div>
             )}
-            
+
             <button
               onClick={() => { setModal(""); clearSale(); }}
-              className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-4 rounded-xl text-sm tracking-widest transition-all mt-4"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-sm tracking-widest transition-all shadow-md shadow-blue-500/20 mt-4"
             >
               INICIAR NOVA VENDA ↵
             </button>
@@ -1476,15 +3020,15 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
       {modal === "closing" && sessionStats && (
         <ModalWrapper title="Fechamento de Caixa (Cego)" icon={<LogOut size={20} />} onClose={() => { setModal(""); setClosingStep("input"); }} wide>
           <div className="p-6 space-y-6">
-            
+
             {closingStep === "input" ? (
               /* Phase 1: Blind Input */
               <div className="space-y-5">
-                <div className="p-4 bg-indigo-500/10 border border-indigo-500/15 rounded-2xl flex gap-3">
-                  <AlertCircle size={18} className="text-indigo-400 shrink-0 mt-0.5" />
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-2xl flex gap-3">
+                  <AlertCircle size={18} className="text-blue-600 shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="text-sm font-bold text-white">Fechamento às Cegas Ativo</h4>
-                    <p className="text-xs text-slate-400 mt-0.5">
+                    <h4 className="text-sm font-bold text-gray-900">Fechamento às Cegas Ativo</h4>
+                    <p className="text-xs text-gray-500 mt-0.5">
                       Conte fisicamente os valores na gaveta e insira-os abaixo. Os valores esperados pelo sistema só serão exibidos após você avançar.
                     </p>
                   </div>
@@ -1492,53 +3036,53 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                   <div className="space-y-2">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Contagem Física: Dinheiro (R$)</label>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest">Contagem Física: Dinheiro (R$)</label>
                     <input
                       type="number"
                       value={countedMoney}
                       onChange={e => setCountedMoney(e.target.value)}
                       placeholder="Total em Espécie"
-                      className="w-full bg-[#0c0f1a] border border-slate-700 focus:border-indigo-500 text-white font-mono text-lg text-right px-4 py-3 rounded-xl outline-none transition-all"
+                      className="w-full bg-white border border-gray-200 focus:border-blue-600 text-gray-900 font-mono text-lg text-right px-4 py-3 rounded-xl outline-none transition-all shadow-sm"
                       step="0.01"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Contagem Física: Cartão (R$)</label>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest">Contagem Física: Cartão (R$)</label>
                     <input
                       type="number"
                       value={countedCard}
                       onChange={e => setCountedCard(e.target.value)}
                       placeholder="Soma das vias de cartão"
-                      className="w-full bg-[#0c0f1a] border border-slate-700 focus:border-indigo-500 text-white font-mono text-lg text-right px-4 py-3 rounded-xl outline-none transition-all"
+                      className="w-full bg-white border border-gray-200 focus:border-blue-600 text-gray-900 font-mono text-lg text-right px-4 py-3 rounded-xl outline-none transition-all shadow-sm"
                       step="0.01"
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest">Contagem Física: PIX (R$)</label>
+                    <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest">Contagem Física: PIX (R$)</label>
                     <input
                       type="number"
                       value={countedPix}
                       onChange={e => setCountedPix(e.target.value)}
                       placeholder="Relatório de PIX recebidos"
-                      className="w-full bg-[#0c0f1a] border border-slate-700 focus:border-indigo-500 text-white font-mono text-lg text-right px-4 py-3 rounded-xl outline-none transition-all"
+                      className="w-full bg-white border border-gray-200 focus:border-blue-600 text-gray-900 font-mono text-lg text-right px-4 py-3 rounded-xl outline-none transition-all shadow-sm"
                       step="0.01"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">Observações do Fechamento</label>
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">Observações do Fechamento</label>
                   <textarea
                     value={closingNote}
                     onChange={e => setClosingNote(e.target.value)}
                     placeholder="Adicione qualquer observação ou detalhe sobre discrepâncias..."
-                    className="w-full bg-[#0c0f1a] border border-slate-700 focus:border-indigo-500 text-slate-300 px-4 py-3 rounded-xl outline-none text-xs resize-none transition-all"
+                    className="w-full bg-white border border-gray-200 focus:border-blue-600 text-gray-800 px-4 py-3 rounded-xl outline-none text-xs resize-none transition-all shadow-sm"
                     rows={3}
                   />
                 </div>
 
-                <div className="flex gap-4 pt-4 border-t border-slate-800">
-                  <button onClick={() => setModal("")} className="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-bold py-3.5 rounded-xl text-xs transition-all">
+                <div className="flex gap-4 pt-4 border-t border-gray-100">
+                  <button onClick={() => setModal("")} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3.5 rounded-xl text-xs transition-all">
                     CANCELAR
                   </button>
                   <button
@@ -1549,7 +3093,7 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
                       }
                       setClosingStep("result");
                     }}
-                    className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3.5 rounded-xl text-xs tracking-widest transition-all shadow-lg shadow-indigo-600/20"
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl text-xs tracking-widest transition-all shadow-md shadow-blue-500/20"
                   >
                     AVANÇAR PARA CONCILIAÇÃO
                   </button>
@@ -1558,31 +3102,31 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
             ) : (
               /* Phase 2: Conciliation Comparison */
               <div className="space-y-6">
-                
+
                 {/* General Stats summary */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="bg-[#0c0f1a] border border-slate-800 rounded-xl p-4">
-                    <div className="text-slate-500 text-[9px] uppercase font-bold tracking-widest mb-0.5">Fundo Inicial</div>
-                    <div className="text-white font-bold text-base font-mono">R$ {fmt(session.initialBalance)}</div>
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                    <div className="text-gray-400 text-[9px] uppercase font-bold tracking-widest mb-0.5">Fundo Inicial</div>
+                    <div className="text-gray-900 font-bold text-base font-mono">R$ {fmt(session.initialBalance)}</div>
                   </div>
-                  <div className="bg-[#0c0f1a] border border-slate-800 rounded-xl p-4">
-                    <div className="text-slate-500 text-[9px] uppercase font-bold tracking-widest mb-0.5">Total Vendas</div>
-                    <div className="text-white font-bold text-base font-mono">R$ {fmt(sessionStats.totalSales)}</div>
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                    <div className="text-gray-400 text-[9px] uppercase font-bold tracking-widest mb-0.5">Total Vendas</div>
+                    <div className="text-gray-900 font-bold text-base font-mono">R$ {fmt(sessionStats.totalSales)}</div>
                   </div>
-                  <div className="bg-[#0c0f1a] border border-slate-800 rounded-xl p-4">
-                    <div className="text-slate-500 text-[9px] uppercase font-bold tracking-widest mb-0.5">Sangrias</div>
-                    <div className="text-red-400 font-bold text-base font-mono">- R$ {fmt(sessionStats.totalWithdrawals)}</div>
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                    <div className="text-gray-400 text-[9px] uppercase font-bold tracking-widest mb-0.5">Sangrias</div>
+                    <div className="text-red-600 font-bold text-base font-mono">- R$ {fmt(sessionStats.totalWithdrawals)}</div>
                   </div>
-                  <div className="bg-[#0c0f1a] border border-slate-800 rounded-xl p-4">
-                    <div className="text-slate-500 text-[9px] uppercase font-bold tracking-widest mb-0.5">Suprimentos</div>
-                    <div className="text-emerald-400 font-bold text-base font-mono">+ R$ {fmt(sessionStats.totalSupplements)}</div>
+                  <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
+                    <div className="text-gray-400 text-[9px] uppercase font-bold tracking-widest mb-0.5">Suprimentos</div>
+                    <div className="text-green-600 font-bold text-base font-mono">+ R$ {fmt(sessionStats.totalSupplements)}</div>
                   </div>
                 </div>
 
                 {/* Discrepancies Table */}
-                <div className="border border-slate-800 rounded-xl overflow-hidden bg-[#0c0f1a]">
+                <div className="border border-gray-200 rounded-xl overflow-hidden bg-white">
                   <table className="w-full text-xs text-left">
-                    <thead className="bg-slate-800/40 text-slate-500 font-bold text-[10px] uppercase">
+                    <thead className="bg-gray-50 text-gray-500 font-bold text-[10px] uppercase border-b border-gray-200">
                       <tr>
                         <th className="px-5 py-3">Meio de Pagamento</th>
                         <th className="px-5 py-3 text-right">Esperado pelo Sistema</th>
@@ -1590,7 +3134,7 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
                         <th className="px-5 py-3 text-right">Diferença (Sobra/Falta)</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/50">
+                    <tbody className="divide-y divide-gray-100">
                       {(() => {
                         const expectedMoney = expectedCash;
                         const expectedCard = session.sales
@@ -1609,17 +3153,16 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
                         return fields.map((f, idx) => {
                           const diff = f.counted - f.expected;
                           return (
-                            <tr key={idx} className="hover:bg-slate-900/30">
-                              <td className="px-5 py-3.5 font-bold text-white">{f.label}</td>
-                              <td className="px-5 py-3.5 text-right font-mono text-slate-400">R$ {fmt(f.expected)}</td>
-                              <td className="px-5 py-3.5 text-right font-mono text-slate-400">R$ {fmt(f.counted)}</td>
-                              <td className={`px-5 py-3.5 text-right font-mono font-black ${
-                                Math.abs(diff) < 0.05 
-                                  ? "text-emerald-400" 
-                                  : diff > 0 
-                                    ? "text-blue-400" 
-                                    : "text-red-400"
-                              }`}>
+                            <tr key={idx} className="hover:bg-gray-50">
+                              <td className="px-5 py-3.5 font-bold text-gray-900">{f.label}</td>
+                              <td className="px-5 py-3.5 text-right font-mono text-gray-600">R$ {fmt(f.expected)}</td>
+                              <td className="px-5 py-3.5 text-right font-mono text-gray-600">R$ {fmt(f.counted)}</td>
+                              <td className={`px-5 py-3.5 text-right font-mono font-black ${Math.abs(diff) < 0.05
+                                ? "text-green-600"
+                                : diff > 0
+                                  ? "text-blue-600"
+                                  : "text-red-600"
+                                }`}>
                                 {diff > 0 ? "+" : ""}R$ {fmt(diff)}
                               </td>
                             </tr>
@@ -1630,23 +3173,65 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
                   </table>
                 </div>
 
-                <div className="flex gap-4 pt-4 border-t border-slate-800">
-                  <button onClick={() => setClosingStep("input")} className="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-bold py-3.5 rounded-xl text-xs transition-all">
+                <div className="flex gap-4 pt-4 border-t border-gray-100">
+                  <button onClick={() => setClosingStep("input")} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3.5 rounded-xl text-xs transition-all">
                     CORRIGIR CONTAGEM
                   </button>
                   <button
-                    onClick={() => {
-                      alert("Caixa fechado às cegas com sucesso! Relatório de conciliação fiscal e financeira consolidado.");
+                    onClick={async () => {
+                      const expectedMoney = expectedCash;
+                      const expectedCard = session.sales
+                        .filter(s => s.paymentMethod === "CREDIT_CARD" || s.paymentMethod === "DEBIT_CARD")
+                        .reduce((a, s) => a + s.total, 0);
+                      const expectedPix = session.sales
+                        .filter(s => s.paymentMethod === "PIX")
+                        .reduce((a, s) => a + s.total, 0);
+
+                      const cMoney = parseFloat(countedMoney) || 0;
+                      const cCard = parseFloat(countedCard) || 0;
+                      const cPix = parseFloat(countedPix) || 0;
+
+                      const totExp = expectedMoney + expectedCard + expectedPix;
+                      const totCnt = cMoney + cCard + cPix;
+                      const totDiff = totCnt - totExp;
+
+                      await saveCashClosing({
+                        cashierNumber: session.number,
+                        operator: session.operator,
+                        openedAt: session.openedAt,
+                        closedAt: new Date().toISOString(),
+                        initialBalance: session.initialBalance,
+                        totalSales: sessionStats.totalSales,
+                        totalWithdrawals: sessionStats.totalWithdrawals,
+                        totalSupplements: sessionStats.totalSupplements,
+                        expectedMoney,
+                        countedMoney: cMoney,
+                        diffMoney: cMoney - expectedMoney,
+                        expectedCard,
+                        countedCard: cCard,
+                        diffCard: cCard - expectedCard,
+                        expectedPix,
+                        countedPix: cPix,
+                        diffPix: cPix - expectedPix,
+                        totalExpected: totExp,
+                        totalCounted: totCnt,
+                        totalDiff: totDiff,
+                        closingNote,
+                        status: Math.abs(totDiff) > 0.05 ? "DIVERGENT" : "PENDING"
+                      });
+
+                      alert("Caixa fechado com sucesso! Relatório transmitido para conferência e homologação da Tesouraria.");
                       setSession(null);
                       setModal("");
                       setClosingStep("input");
                       setCountedMoney("");
                       setCountedCard("");
                       setCountedPix("");
+                      setClosingNote("");
                     }}
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 rounded-xl text-xs tracking-widest transition-all shadow-lg shadow-emerald-600/20"
+                    className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-xl text-xs tracking-widest transition-all shadow-md shadow-green-600/20 cursor-pointer"
                   >
-                    CONFIRMAR & FECHAR CAIXA
+                    CONFIRMAR &amp; FECHAR CAIXA
                   </button>
                 </div>
               </div>
@@ -1658,7 +3243,6 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
 
 
       {/* ── Withdrawal / Supplement Modal ── */}
-      {/* ... (Omitted for brevity in this snippet but fully functional in standard impl) ... */}
       {modal === "withdrawal" && (
         <ModalWrapper
           title={withdrawalType === "withdrawal" ? "Sangria de Caixa" : "Suprimento de Caixa"}
@@ -1666,47 +3250,45 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
           onClose={() => setModal("")}
         >
           <div className="p-6 space-y-5">
-            <div className={`text-center py-3 rounded-xl border text-sm font-bold tracking-widest uppercase ${
-              withdrawalType === "withdrawal"
-                ? "border-red-500/30 bg-red-500/10 text-red-400"
-                : "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
-            }`}>
+            <div className={`text-center py-3 rounded-xl border text-sm font-bold tracking-widest uppercase ${withdrawalType === "withdrawal"
+              ? "border-red-200 bg-red-50 text-red-600"
+              : "border-green-200 bg-green-50 text-green-700"
+              }`}>
               {withdrawalType === "withdrawal" ? "Retirada de Dinheiro" : "Adição de Dinheiro"}
             </div>
             <div>
-              <label className="text-slate-400 text-xs font-bold uppercase tracking-widest block mb-2">Valor (R$)</label>
+              <label className="text-gray-500 text-xs font-bold uppercase tracking-widest block mb-2">Valor (R$)</label>
               <input
                 type="number"
                 value={withdrawalAmount}
                 onChange={e => setWithdrawalAmount(e.target.value)}
                 autoFocus
-                className="w-full bg-[#0c0f1a] border border-slate-700 focus:border-indigo-500 text-white font-black text-3xl text-right px-4 py-4 rounded-xl outline-none font-mono shadow-inner transition-all"
+                className="w-full bg-white border border-gray-200 focus:border-blue-600 text-gray-900 font-black text-3xl text-right px-4 py-4 rounded-xl outline-none font-mono shadow-sm transition-all"
                 placeholder="0,00"
                 step="0.01"
               />
             </div>
             <div>
-              <label className="text-slate-400 text-xs font-bold uppercase tracking-widest block mb-2">Motivo / Observação</label>
+              <label className="text-gray-500 text-xs font-bold uppercase tracking-widest block mb-2">Motivo / Observação</label>
               <input
                 type="text"
                 value={withdrawalReason}
                 onChange={e => setWithdrawalReason(e.target.value)}
-                className="w-full bg-[#0c0f1a] border border-slate-700 focus:border-indigo-500 text-slate-200 px-4 py-3 rounded-xl outline-none text-sm shadow-inner transition-all"
+                className="w-full bg-white border border-gray-200 focus:border-blue-600 text-gray-800 px-4 py-3 rounded-xl outline-none text-sm shadow-sm transition-all"
                 placeholder="Ex: Pagamento de fornecedor, troco..."
               />
             </div>
-            <div className="flex gap-4 pt-4 border-t border-slate-800">
-              <button onClick={() => setModal("")} className="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-bold py-3.5 rounded-xl text-sm transition-all">
+            <div className="flex gap-4 pt-4 border-t border-gray-100">
+              <button onClick={() => setModal("")} className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3.5 rounded-xl text-sm transition-all">
                 CANCELAR
               </button>
               <button
                 onClick={handleWithdrawal}
                 disabled={!withdrawalAmount || parseFloat(withdrawalAmount) <= 0}
-                className={`flex-1 font-bold py-3.5 rounded-xl text-sm tracking-widest transition-all disabled:opacity-40 text-white ${
-                  withdrawalType === "withdrawal"
-                    ? "bg-red-500 hover:bg-red-400 shadow-lg shadow-red-500/20"
-                    : "bg-emerald-500 hover:bg-emerald-400 shadow-lg shadow-emerald-500/20"
-                }`}
+                className={`flex-1 font-bold py-3.5 rounded-xl text-sm tracking-widest transition-all disabled:opacity-40 text-white ${withdrawalType === "withdrawal"
+                  ? "bg-red-500 hover:bg-red-600 shadow-md shadow-red-500/20"
+                  : "bg-green-600 hover:bg-green-700 shadow-md shadow-green-600/20"
+                  }`}
               >
                 CONFIRMAR
               </button>
@@ -1719,42 +3301,31 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
       {modal === "pricecheck" && (
         <ModalWrapper title="Consulta de Preços" icon={<Package size={20} />} onClose={() => { setModal(""); setPriceCheckIdle(false); }}>
           <div className="p-6 space-y-6">
-            
+
             {priceCheckIdle && promotionalAds.length > 0 ? (
-              /* Idle screen inside Price Check Modal */
               (() => {
                 const currentAd = promotionalAds[activeAdIndex] || promotionalAds[0];
-                const adImg = currentAd.imageUrl || (
-                  currentAd.title.includes("HEINEKEN") ? "https://images.unsplash.com/photo-1600788886242-5c96aabe3757?q=80&w=600" :
-                  currentAd.title.includes("HORTIFRÚTI") ? "https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=600" :
-                  currentAd.title.includes("CPF") ? "https://images.unsplash.com/photo-1579621970563-ebec7560ff3e?q=80&w=600" :
-                  currentAd.title.includes("LEITE") || currentAd.title.includes("RELÂMPAGO") ? "https://images.unsplash.com/photo-1550583724-b2692b85b150?q=80&w=600" :
-                  "https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=600"
-                );
+                const adImg = currentAd.imageUrl || "https://images.unsplash.com/photo-1542838132-92c53300491e?q=80&w=600";
 
                 return (
-                  <div 
+                  <div
                     className={`w-full bg-gradient-to-r ${currentAd.color} border border-white/10 rounded-2xl p-8 text-center space-y-4 cursor-pointer transition-all duration-500 shadow-xl relative overflow-hidden`}
                     onClick={() => setPriceCheckIdle(false)}
                   >
-                    {/* Blurred product image background for modal */}
                     {adImg && (
                       <div className="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-hidden">
                         <img src={adImg} alt="Backdrop" className="w-full h-full object-cover blur-[5px] scale-105 opacity-[0.45]" />
                         <div className="absolute inset-0 bg-black/60" />
                       </div>
                     )}
-                    
-                    <div className="relative z-10">
+
+                    <div className="relative z-10 text-white">
                       <div className="inline-block text-[9px] bg-white/20 font-black uppercase tracking-widest px-3 py-1 rounded-full mb-1">
                         {currentAd.badge}
                       </div>
-                      {adImg && (
-                        <img src={adImg} alt="Anúncio" className="max-h-[110px] object-cover mx-auto rounded-xl shadow border border-white/10 mb-2 bg-white/5" />
-                      )}
-                      <h4 className="text-xl font-black uppercase text-white leading-tight">{currentAd.title}</h4>
+                      <h4 className="text-xl font-black uppercase leading-tight">{currentAd.title}</h4>
                       <p className="text-xs text-white/90 font-bold max-w-md mx-auto">{currentAd.desc}</p>
-                      <div className="text-[9px] text-white/50 font-bold uppercase tracking-widest pt-4 border-t border-white/10 mt-3">
+                      <div className="text-[9px] text-white/60 font-bold uppercase tracking-widest pt-4 border-t border-white/10 mt-3">
                         Escaneie o código de barras ou digite para pesquisar o preço
                       </div>
                     </div>
@@ -1762,47 +3333,43 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
                 );
               })()
             ) : (
-
-
-
-              /* Standard search screen */
               <>
                 <form onSubmit={handlePriceCheck} className="flex gap-3">
                   <div className="relative flex-1">
-                    <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
                       type="text"
                       value={priceCheckQuery}
                       onChange={e => setPriceCheckQuery(e.target.value)}
                       autoFocus
                       placeholder="Código de barras ou nome do produto..."
-                      className="w-full bg-[#0c0f1a] border border-slate-700 focus:border-indigo-500 text-white font-mono px-4 py-3 pl-11 rounded-xl outline-none text-sm shadow-inner transition-all"
+                      className="w-full bg-white border border-gray-200 focus:border-blue-600 text-gray-800 font-mono px-4 py-3 pl-11 rounded-xl outline-none text-sm shadow-sm transition-all"
                     />
                   </div>
-                  <button type="submit" className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-6 py-3 rounded-xl text-xs tracking-widest transition-all shadow-lg shadow-indigo-600/20">
+                  <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-xl text-xs tracking-widest transition-all shadow-md shadow-blue-500/20">
                     BUSCAR
                   </button>
                 </form>
-                
-                {priceCheckLoading && <div className="text-center text-slate-400 py-8 animate-pulse font-medium">Buscando produto...</div>}
-                
+
+                {priceCheckLoading && <div className="text-center text-gray-400 py-8 animate-pulse font-medium">Buscando produto...</div>}
+
                 {priceCheckResult && (
-                  <div className={`border rounded-2xl p-8 text-center shadow-inner ${priceCheckResult.price ? "border-indigo-500/30 bg-[#0c0f1a]" : "border-red-500/30 bg-red-500/5"}`}>
-                    <div className="text-slate-400 text-xs font-bold tracking-widest uppercase mb-3">Resultado da Busca</div>
-                    <div className="text-white font-bold text-xl uppercase mb-6 leading-tight">{priceCheckResult.name}</div>
-                    
+                  <div className={`border rounded-2xl p-8 text-center shadow-sm ${priceCheckResult.price ? "border-blue-200 bg-blue-50/40" : "border-red-200 bg-red-50/40"}`}>
+                    <div className="text-gray-400 text-xs font-bold tracking-widest uppercase mb-2">Resultado da Busca</div>
+                    <div className="text-gray-900 font-bold text-xl uppercase mb-4 leading-tight">{priceCheckResult.name}</div>
+
                     {priceCheckResult.price !== null ? (
                       <>
-                        <div className="text-indigo-400 text-xs font-bold tracking-widest uppercase mb-1">Preço Atual</div>
-                        <div className="text-[var(--accent)] font-black font-mono text-5xl tracking-tight mb-6">
+                        <div className="text-blue-600 text-xs font-bold tracking-widest uppercase mb-1">Preço Atual</div>
+                        <div className="text-blue-600 font-black font-mono text-5xl tracking-tight mb-6">
                           R$ {fmt(Number(priceCheckResult.price))}
                         </div>
-                        <button onClick={() => { addToCart(priceCheckResult); setModal(""); }} className="w-full bg-indigo-500/10 border border-indigo-500/30 hover:bg-indigo-500/20 text-indigo-300 font-bold px-6 py-3.5 rounded-xl text-sm tracking-wide transition-all">
+                        <button onClick={() => { addToCart(priceCheckResult); setModal(""); }} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3.5 rounded-xl text-sm tracking-wide transition-all shadow-md shadow-blue-500/20">
                           + ADICIONAR AO CARRINHO
                         </button>
                       </>
                     ) : (
-                      <div className="text-red-400 font-medium py-4">Este produto não possui preço cadastrado ou não foi encontrado.</div>
+                      <div className="text-red-500 font-medium py-4">Este produto não possui preço cadastrado ou não foi encontrado.</div>
                     )}
                   </div>
                 )}
@@ -1819,21 +3386,21 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
         <ModalWrapper title="Importar Pedido de Televenda" icon={<FileText size={20} />} onClose={() => setModal("")} wide>
           <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
             {loadingOrders ? (
-              <div className="text-center text-slate-400 py-8 animate-pulse">Carregando pedidos...</div>
+              <div className="text-center text-gray-400 py-8 animate-pulse">Carregando pedidos...</div>
             ) : ordersList.length === 0 ? (
-              <div className="text-center text-slate-500 py-8">Nenhum pedido pendente encontrado.</div>
+              <div className="text-center text-gray-400 py-8">Nenhum pedido pendente encontrado.</div>
             ) : (
               <div className="grid grid-cols-1 gap-3">
                 {ordersList.map((o: any) => (
-                  <div key={o.id} className="bg-[#0c0f1a] border border-slate-800 p-4 rounded-xl flex justify-between items-center hover:border-indigo-500 transition-colors">
+                  <div key={o.id} className="bg-gray-50 border border-gray-200 p-4 rounded-xl flex justify-between items-center hover:border-blue-400 transition-colors">
                     <div>
-                      <div className="text-white font-bold text-sm">Pedido #{o.id.slice(0, 8).toUpperCase()}</div>
-                      <div className="text-slate-400 text-xs mt-0.5">Cliente: {o.customer?.name || "Não identificado"}</div>
-                      <div className="text-indigo-400 font-mono font-bold text-xs mt-1">Total: R$ {Number(o.total || 0).toFixed(2)}</div>
+                      <div className="text-gray-900 font-bold text-sm">Pedido #{o.id.slice(0, 8).toUpperCase()}</div>
+                      <div className="text-gray-500 text-xs mt-0.5">Cliente: {o.customer?.name || "Não identificado"}</div>
+                      <div className="text-blue-600 font-mono font-bold text-xs mt-1">Total: R$ {Number(o.total || 0).toFixed(2)}</div>
                     </div>
                     <button
                       onClick={() => handleImportOrder(o.id)}
-                      className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors"
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors shadow-sm"
                     >
                       IMPORTAR
                     </button>
@@ -1854,7 +3421,7 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
               value={cpfInput}
               onChange={e => setCpfInput(e.target.value)}
               placeholder="Digite o CPF ou CNPJ do cliente..."
-              className="w-full bg-[#0c0f1a] border border-slate-700 focus:border-indigo-500 text-white font-mono text-lg px-4 py-3 rounded-xl outline-none shadow-inner transition-all text-center"
+              className="w-full bg-white border border-gray-200 focus:border-blue-600 text-gray-900 font-mono text-lg px-4 py-3 rounded-xl outline-none shadow-sm transition-all text-center"
               autoFocus
               onKeyDown={e => {
                 if (e.key === "Enter") {
@@ -1865,7 +3432,7 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
             />
             <button
               onClick={() => setModal("")}
-              className="w-full bg-[var(--accent)] hover:opacity-90 text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow-lg"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow-md shadow-blue-500/20"
             >
               CONFIRMAR
             </button>
@@ -1873,57 +3440,166 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
         </ModalWrapper>
       )}
 
-      {/* ── Hotkeys Modal ── */}
-      {modal === "hotkeys" && (
-        <ModalWrapper title="Configurações de Teclas" icon={<Settings size={20} />} onClose={() => { setModal(""); setCapturingKey(null); setTempHotkeys(null); }}>
-          <div className="p-6">
-            <p className="text-slate-400 text-sm mb-6">
-              Clique em um botão de atalho abaixo e pressione a nova tecla que deseja configurar.
-            </p>
-            <div className="grid grid-cols-2 gap-3 max-h-[75vh] overflow-y-auto custom-scrollbar pr-2">
-              {tempHotkeys && (Object.keys(hotkeyLabels) as Array<keyof PDVHotkeys>).map((key) => (
-                <div key={key as string} className="flex justify-between items-center bg-[#0c0f1a] border border-indigo-500/20 p-3 rounded-xl">
-                  <span className="font-semibold text-slate-300 text-sm truncate mr-2">{hotkeyLabels[key]}</span>
-                  <button
-                    onClick={() => setCapturingKey(capturingKey === key ? null : key)}
-                    className={`min-w-20 py-2 px-3 rounded-lg font-mono font-bold text-xs transition-all border shrink-0 ${
-                      capturingKey === key
-                        ? "bg-amber-500/20 text-amber-400 border-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.2)] animate-pulse"
-                        : "bg-slate-800 text-slate-300 border-slate-700 hover:border-indigo-500 hover:text-white"
-                    }`}
-                  >
-                    {capturingKey === key ? "Aguardando..." : String(tempHotkeys[key] || defaultHotkeys[key] || "")}
-                  </button>
-                </div>
+      {/* ── Quantity Modal (F3) ── */}
+      {modal === "quantity" && (
+        <ModalWrapper
+          title="Definir Quantidade (F3)"
+          icon={<Package size={20} />}
+          onClose={() => {
+            setModal("");
+            setTimeout(() => inputRef.current?.focus(), 50);
+          }}
+        >
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const q = parseInt(quantityPromptInput);
+              if (!isNaN(q) && q > 0) {
+                setMultiplier(q);
+              }
+              setModal("");
+              setTimeout(() => inputRef.current?.focus(), 50);
+            }}
+            className="p-6 space-y-5 text-center"
+          >
+            <div className="text-xs text-gray-500 font-medium">
+              Digite a quantidade multiplicadora para os próximos itens registrados no PDV:
+            </div>
+            <input
+              type="number"
+              min={1}
+              max={999}
+              value={quantityPromptInput}
+              onChange={(e) => setQuantityPromptInput(e.target.value)}
+              autoFocus
+              className="w-full text-center text-4xl font-black font-mono py-3 bg-gray-50 border-2 border-blue-500 focus:border-blue-600 rounded-2xl outline-none shadow-inner"
+            />
+            <div className="grid grid-cols-4 gap-2">
+              {[2, 3, 5, 10].map((num) => (
+                <button
+                  key={num}
+                  type="button"
+                  onClick={() => {
+                    setMultiplier(num);
+                    setModal("");
+                    setTimeout(() => inputRef.current?.focus(), 50);
+                  }}
+                  className="py-2.5 rounded-xl bg-gray-100 hover:bg-blue-50 hover:text-blue-600 font-black text-sm transition-colors border border-gray-200 cursor-pointer"
+                >
+                  {num}x
+                </button>
               ))}
             </div>
-            
-            <div className="flex gap-4 mt-8 pt-6 border-t border-indigo-500/20">
-              <button 
-                onClick={() => { setModal(""); setCapturingKey(null); setTempHotkeys(null); }}
-                className="flex-1 py-3 bg-slate-800 hover:bg-slate-700 rounded-xl font-bold transition-colors"
+            <button
+              type="submit"
+              className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-sm transition-all shadow-md shadow-blue-500/20 cursor-pointer uppercase tracking-wider"
+            >
+              Confirmar Quantidade (ENTER)
+            </button>
+          </form>
+        </ModalWrapper>
+      )}
+
+      {/* ── Central de Configurações do PDV (5 Módulos Oficiais) ── */}
+      <PdvConfigModal
+        isOpen={isConfigOpen}
+        onClose={() => {
+          setIsConfigOpen(false);
+          setTimeout(() => inputRef.current?.focus(), 50);
+        }}
+        currentHotkeys={hotkeys}
+        onSaveHotkeys={saveHotkeys}
+        onTriggerTestPrint={() => {
+          printReceipt(
+            "TEST-PRINT",
+            [{ id: "test", name: "TESTE DE IMPRESSÃO ESC/POS", price: 1.0, quantity: 1, barcode: "7890000000001" }],
+            1.0,
+            1.0,
+            0,
+            "MONEY",
+            1.0,
+            0
+          );
+        }}
+      />
+
+      {/* ── Pause / Lock Overlay ── */}
+      {isPaused && (
+        <div className="fixed inset-0 bg-[#0a1226]/85 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-200 text-white select-none">
+          <div className="bg-white text-gray-800 border border-gray-200 rounded-3xl p-8 shadow-2xl max-w-md w-full text-center space-y-6 animate-in zoom-in-95 duration-150">
+            <div className="w-16 h-16 rounded-2xl bg-amber-50 border-2 border-amber-200 text-amber-600 flex items-center justify-center mx-auto text-2xl font-black shadow-xs">
+              ⏸️
+            </div>
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+                Turno em Pausa
+              </span>
+              <h2 className="text-2xl font-black text-gray-900 mt-2">Caixa Bloqueado</h2>
+              <p className="text-xs text-gray-500 mt-1">
+                Operador: <strong className="text-gray-900 font-bold">{session?.operator}</strong> (Caixa {String(session?.number).padStart(2, "0")})
+              </p>
+              {cart.length > 0 && (
+                <div className="mt-2 text-xs font-bold text-blue-700 bg-blue-50 py-1.5 px-3 rounded-xl border border-blue-200">
+                  🛒 Venda em andamento com {cart.length} itens preservada
+                </div>
+              )}
+            </div>
+
+            <form onSubmit={handleResumePDV} className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-extrabold uppercase text-gray-600 mb-1.5">
+                  Digite seu PIN para Destravar
+                </label>
+                <input
+                  type="password"
+                  maxLength={6}
+                  value={pausePin}
+                  onChange={e => setPausePin(e.target.value)}
+                  placeholder="••••"
+                  autoFocus
+                  className="w-full text-center tracking-[0.8em] text-3xl font-mono font-black py-2.5 bg-gray-50 border-2 border-gray-300 focus:border-blue-600 rounded-xl outline-none shadow-2xs"
+                />
+                {pauseError && (
+                  <p className="text-xs font-bold text-rose-600 mt-1.5">{pauseError}</p>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs uppercase tracking-widest rounded-xl transition-all shadow-md shadow-blue-500/20 cursor-pointer"
               >
-                Cancelar
+                🔓 Desbloquear Caixa
               </button>
-              <button 
-                onClick={() => {
-                  if (tempHotkeys) saveHotkeys(tempHotkeys);
-                  setModal("");
-                  setCapturingKey(null);
-                }}
-                className="flex-1 py-3 bg-[var(--accent)] hover:bg-indigo-500 text-white rounded-xl font-bold transition-colors shadow-lg shadow-[var(--accent)]/20"
+            </form>
+
+            <div className="pt-4 border-t border-gray-100 space-y-2">
+              <p className="text-[11px] text-gray-500">Outro operador precisa assumir este terminal?</p>
+              <button
+                type="button"
+                onClick={handleSwitchOperator}
+                className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-xs rounded-xl transition-all border border-gray-300 cursor-pointer flex items-center justify-center gap-2"
               >
-                Salvar Padrão
+                <Users size={14} /> Pausar Meu Turno e Trocar de Usuário
               </button>
             </div>
           </div>
-        </ModalWrapper>
+        </div>
       )}
 
       {/* Hidden iframe for receipt printing */}
       <iframe
         ref={receiptFrameRef}
-        style={{ position: 'fixed', top: '-9999px', left: '-9999px', width: '80mm', height: '0', border: 'none' }}
+        style={{
+          position: 'fixed',
+          bottom: '0',
+          right: '0',
+          width: '1px',
+          height: '1px',
+          opacity: 0.01,
+          pointerEvents: 'none',
+          border: 'none',
+          zIndex: -1
+        }}
         title="receipt-printer"
       />
     </div>
@@ -1937,17 +3613,19 @@ function ModalWrapper({ title, icon, onClose, children, wide }: {
   title: string; icon: React.ReactNode; onClose: () => void; children: React.ReactNode; wide?: boolean;
 }) {
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className={`bg-[#111528] border border-indigo-500/20 rounded-3xl shadow-2xl w-full overflow-hidden flex flex-col ${wide ? "max-w-3xl" : "max-w-lg"}`}>
-        <div className="bg-[#151a30] border-b border-slate-800 px-6 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3 text-white font-bold text-base tracking-wide">
-            <div className="text-indigo-400">{icon}</div> {title}
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-3 animate-in fade-in duration-150">
+      <div className={`bg-white border border-gray-200 rounded-2xl shadow-2xl w-full max-h-[92vh] flex flex-col text-gray-800 ${wide ? "max-w-3xl" : "max-w-lg"}`}>
+        <div className="bg-gray-50 border-b border-gray-200 px-5 py-3.5 flex justify-between items-center shrink-0">
+          <div className="flex items-center gap-2.5 text-gray-900 font-extrabold text-sm tracking-wide">
+            <div className="text-blue-600">{icon}</div> {title}
           </div>
-          <button onClick={onClose} className="text-slate-500 hover:text-white bg-slate-800/50 hover:bg-slate-700 p-1.5 rounded-full transition-colors">
-            <X size={18} />
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 bg-white hover:bg-gray-100 border border-gray-200 p-1.5 rounded-full transition-colors cursor-pointer shadow-2xs">
+            <X size={16} />
           </button>
         </div>
-        {children}
+        <div className="overflow-y-auto flex-1 min-h-0">
+          {children}
+        </div>
       </div>
     </div>
   );

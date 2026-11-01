@@ -55,14 +55,14 @@ export default function TaxGridPage() {
   };
 
   return (
-    <div className="space-y-5 text-slate-100">
+    <div className="space-y-5 text-slate-800">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-3">
-            <FileText className="text-indigo-400" size={28} />
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-3">
+            <FileText className="text-indigo-600" size={28} />
             Grade Tributária (Transição Reforma)
           </h1>
-          <p className="text-slate-400 text-sm mt-1">Configure regras de ICMS (Ex: Alagoas 19%) e novos impostos (IBS, CBS, IS).</p>
+          <p className="text-slate-500 text-sm mt-1">Configure regras de ICMS (Ex: Alagoas 19%) e novos impostos (IBS, CBS, IS).</p>
         </div>
         <button 
           onClick={() => setIsOpen(true)}
@@ -72,11 +72,11 @@ export default function TaxGridPage() {
         </button>
       </div>
 
-      <div className="bg-[#111528] rounded-2xl border border-indigo-500/[0.08] p-6 overflow-hidden shadow-xl">
-        <h2 className="text-lg font-bold text-white mb-4">Regras Cadastradas (Simples Nacional / Lucro Presumido)</h2>
+      <div className="bg-[#fbfdff] rounded-2xl border border-indigo-500/[0.08] p-6 overflow-hidden shadow-xl">
+        <h2 className="text-lg font-bold text-gray-900 mb-4">Regras Cadastradas (Simples Nacional / Lucro Presumido)</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="bg-[#0c0f1a]/60 border-b border-indigo-500/[0.08] text-slate-400 text-xs uppercase font-bold tracking-wider">
+            <thead className="bg-[#f3f7fe]/60 border-b border-indigo-500/[0.08] text-slate-500 text-xs uppercase font-bold tracking-wider">
               <tr>
                 <th className="px-4 py-4">NCM (Padrão)</th>
                 <th className="px-4 py-4">Origem</th>
@@ -84,25 +84,25 @@ export default function TaxGridPage() {
                 <th className="px-4 py-4">CST/CSOSN</th>
                 <th className="px-4 py-4 text-right">ICMS (%)</th>
                 <th className="px-4 py-4 text-right">PIS/COFINS (%)</th>
-                <th className="px-4 py-4 text-right text-indigo-300">IBS (%)</th>
-                <th className="px-4 py-4 text-right text-indigo-300">CBS (%)</th>
-                <th className="px-4 py-4 text-right text-indigo-300">IS (%)</th>
+                <th className="px-4 py-4 text-right text-indigo-700">IBS (%)</th>
+                <th className="px-4 py-4 text-right text-indigo-700">CBS (%)</th>
+                <th className="px-4 py-4 text-right text-indigo-700">IS (%)</th>
                 <th className="px-4 py-4 text-center">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-indigo-500/[0.06]">
               {rules.map(r => (
                 <tr key={r.id} className="hover:bg-indigo-500/[0.04] transition-colors">
-                  <td className="px-4 py-4 text-indigo-400 font-mono font-bold">{r.ncm}</td>
-                  <td className="px-4 py-4 text-slate-300 font-mono">{r.origin}</td>
-                  <td className="px-4 py-4 text-slate-300 font-mono">{r.dest}</td>
-                  <td className="px-4 py-4 text-white font-bold">{r.cst}</td>
-                  <td className="px-4 py-4 text-right font-mono text-emerald-400 font-bold">{r.icms}%</td>
+                  <td className="px-4 py-4 text-indigo-600 font-mono font-bold">{r.ncm}</td>
+                  <td className="px-4 py-4 text-slate-600 font-mono">{r.origin}</td>
+                  <td className="px-4 py-4 text-slate-600 font-mono">{r.dest}</td>
+                  <td className="px-4 py-4 text-gray-900 font-bold">{r.cst}</td>
+                  <td className="px-4 py-4 text-right font-mono text-emerald-600 font-bold">{r.icms}%</td>
                   <td className="px-4 py-4 text-right font-mono">{r.pis} / {r.cofins}</td>
-                  <td className="px-4 py-4 text-right font-mono text-indigo-300 font-bold">{r.ibs}%</td>
-                  <td className="px-4 py-4 text-right font-mono text-indigo-300 font-bold">{r.cbs}%</td>
-                  <td className="px-4 py-4 text-right font-mono text-indigo-300 font-bold">{r.is}%</td>
-                  <td className="px-4 py-4 text-center text-slate-500 hover:text-indigo-400 cursor-pointer">Editar</td>
+                  <td className="px-4 py-4 text-right font-mono text-indigo-700 font-bold">{r.ibs}%</td>
+                  <td className="px-4 py-4 text-right font-mono text-indigo-700 font-bold">{r.cbs}%</td>
+                  <td className="px-4 py-4 text-right font-mono text-indigo-700 font-bold">{r.is}%</td>
+                  <td className="px-4 py-4 text-center text-slate-500 hover:text-indigo-600 cursor-pointer">Editar</td>
                 </tr>
               ))}
             </tbody>
@@ -113,15 +113,15 @@ export default function TaxGridPage() {
       {/* MODAL: NEW RULE */}
       {isOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#111528] border border-indigo-500/[0.08] rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl">
-            <div className="p-6 border-b border-indigo-500/[0.08] flex justify-between items-center bg-[#0c0f1a]/60">
-              <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                <FileText className="text-indigo-400" />
+          <div className="bg-[#fbfdff] border border-indigo-500/[0.08] rounded-2xl w-full max-w-lg overflow-hidden shadow-2xl">
+            <div className="p-6 border-b border-indigo-500/[0.08] flex justify-between items-center bg-[#f3f7fe]/60">
+              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                <FileText className="text-indigo-600" />
                 Nova Regra Tributária
               </h3>
               <button 
                 onClick={() => setIsOpen(false)}
-                className="p-1 rounded-lg hover:bg-[#161b33] text-slate-400 hover:text-white transition-colors"
+                className="p-1 rounded-lg hover:bg-[#eaf1fc] text-slate-500 hover:text-gray-900 transition-colors"
               >
                 <X size={20} />
               </button>
@@ -130,23 +130,23 @@ export default function TaxGridPage() {
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-bold text-slate-300 mb-1">NCM (Filtro)</label>
+                  <label className="block text-sm font-bold text-slate-600 mb-1">NCM (Filtro)</label>
                   <input 
                     type="text" 
                     value={ncm}
                     onChange={(e) => setNcm(e.target.value)}
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-4 py-2.5 rounded-xl outline-none transition-all text-sm font-mono"
+                    className="w-full bg-[#f3f7fe] border border-indigo-500/[0.08] focus:border-indigo-500 text-gray-900 px-4 py-2.5 rounded-xl outline-none transition-all text-sm font-mono"
                     placeholder="Ex: 2203.00.00"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-slate-300 mb-1">CST / CSOSN</label>
+                  <label className="block text-sm font-bold text-slate-600 mb-1">CST / CSOSN</label>
                   <input 
                     type="text" 
                     value={cst}
                     onChange={(e) => setCst(e.target.value)}
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-4 py-2.5 rounded-xl outline-none transition-all text-sm font-mono"
+                    className="w-full bg-[#f3f7fe] border border-indigo-500/[0.08] focus:border-indigo-500 text-gray-900 px-4 py-2.5 rounded-xl outline-none transition-all text-sm font-mono"
                     placeholder="00"
                     required
                   />
@@ -155,23 +155,23 @@ export default function TaxGridPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-bold text-slate-300 mb-1">Origem (UF)</label>
+                  <label className="block text-sm font-bold text-slate-600 mb-1">Origem (UF)</label>
                   <input 
                     type="text" 
                     value={origin}
                     onChange={(e) => setOrigin(e.target.value)}
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-4 py-2.5 rounded-xl outline-none transition-all text-sm uppercase font-mono"
+                    className="w-full bg-[#f3f7fe] border border-indigo-500/[0.08] focus:border-indigo-500 text-gray-900 px-4 py-2.5 rounded-xl outline-none transition-all text-sm uppercase font-mono"
                     maxLength={2}
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-slate-300 mb-1">Destino (UF)</label>
+                  <label className="block text-sm font-bold text-slate-600 mb-1">Destino (UF)</label>
                   <input 
                     type="text" 
                     value={dest}
                     onChange={(e) => setDest(e.target.value)}
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-4 py-2.5 rounded-xl outline-none transition-all text-sm uppercase font-mono"
+                    className="w-full bg-[#f3f7fe] border border-indigo-500/[0.08] focus:border-indigo-500 text-gray-900 px-4 py-2.5 rounded-xl outline-none transition-all text-sm uppercase font-mono"
                     maxLength={2}
                     required
                   />
@@ -180,73 +180,73 @@ export default function TaxGridPage() {
 
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-sm font-bold text-slate-300 mb-1">ICMS (%)</label>
+                  <label className="block text-sm font-bold text-slate-600 mb-1">ICMS (%)</label>
                   <input 
                     type="number" 
                     step="0.01"
                     value={icms}
                     onChange={(e) => setIcms(e.target.value)}
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-3 py-2 rounded-xl outline-none text-sm font-mono"
+                    className="w-full bg-[#f3f7fe] border border-indigo-500/[0.08] focus:border-indigo-500 text-gray-900 px-3 py-2 rounded-xl outline-none text-sm font-mono"
                     placeholder="0.00"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-slate-300 mb-1">PIS (%)</label>
+                  <label className="block text-sm font-bold text-slate-600 mb-1">PIS (%)</label>
                   <input 
                     type="number" 
                     step="0.01"
                     value={pis}
                     onChange={(e) => setPis(e.target.value)}
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-3 py-2 rounded-xl outline-none text-sm font-mono"
+                    className="w-full bg-[#f3f7fe] border border-indigo-500/[0.08] focus:border-indigo-500 text-gray-900 px-3 py-2 rounded-xl outline-none text-sm font-mono"
                     placeholder="0.00"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-bold text-slate-300 mb-1">COFINS (%)</label>
+                  <label className="block text-sm font-bold text-slate-600 mb-1">COFINS (%)</label>
                   <input 
                     type="number" 
                     step="0.01"
                     value={cofins}
                     onChange={(e) => setCofins(e.target.value)}
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-3 py-2 rounded-xl outline-none text-sm font-mono"
+                    className="w-full bg-[#f3f7fe] border border-indigo-500/[0.08] focus:border-indigo-500 text-gray-900 px-3 py-2 rounded-xl outline-none text-sm font-mono"
                     placeholder="0.00"
                   />
                 </div>
               </div>
 
               <div className="border-t border-indigo-500/[0.08] pt-3">
-                <label className="block text-xs font-bold text-indigo-400 uppercase tracking-wider mb-2">Reforma Tributária (Transição)</label>
+                <label className="block text-xs font-bold text-indigo-600 uppercase tracking-wider mb-2">Reforma Tributária (Transição)</label>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">IBS (%)</label>
+                    <label className="block text-xs text-slate-500 mb-1">IBS (%)</label>
                     <input 
                       type="number" 
                       step="0.01"
                       value={ibs}
                       onChange={(e) => setIbs(e.target.value)}
-                      className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-2.5 py-2 rounded-xl outline-none text-xs font-mono"
+                      className="w-full bg-[#f3f7fe] border border-indigo-500/[0.08] focus:border-indigo-500 text-gray-900 px-2.5 py-2 rounded-xl outline-none text-xs font-mono"
                       placeholder="0.00"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">CBS (%)</label>
+                    <label className="block text-xs text-slate-500 mb-1">CBS (%)</label>
                     <input 
                       type="number" 
                       step="0.01"
                       value={cbs}
                       onChange={(e) => setCbs(e.target.value)}
-                      className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-2.5 py-2 rounded-xl outline-none text-xs font-mono"
+                      className="w-full bg-[#f3f7fe] border border-indigo-500/[0.08] focus:border-indigo-500 text-gray-900 px-2.5 py-2 rounded-xl outline-none text-xs font-mono"
                       placeholder="0.00"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs text-slate-400 mb-1">Seletivo (%)</label>
+                    <label className="block text-xs text-slate-500 mb-1">Seletivo (%)</label>
                     <input 
                       type="number" 
                       step="0.01"
                       value={isRate}
                       onChange={(e) => setIsRate(e.target.value)}
-                      className="w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-2.5 py-2 rounded-xl outline-none text-xs font-mono"
+                      className="w-full bg-[#f3f7fe] border border-indigo-500/[0.08] focus:border-indigo-500 text-gray-900 px-2.5 py-2 rounded-xl outline-none text-xs font-mono"
                       placeholder="0.00"
                     />
                   </div>
@@ -257,7 +257,7 @@ export default function TaxGridPage() {
                 <button 
                   type="button" 
                   onClick={() => setIsOpen(false)}
-                  className="flex-1 bg-[#0c0f1a] hover:bg-[#161b33] text-slate-300 font-bold py-3 rounded-xl border border-indigo-500/[0.08] text-sm transition-colors"
+                  className="flex-1 bg-[#f3f7fe] hover:bg-[#eaf1fc] text-slate-600 font-bold py-3 rounded-xl border border-indigo-500/[0.08] text-sm transition-colors"
                 >
                   Voltar
                 </button>

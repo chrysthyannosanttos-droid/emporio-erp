@@ -2,18 +2,20 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Loader2, AlertCircle, Check, Search, Calculator } from "lucide-react";
+import { ArrowLeft, Save, Loader2, AlertCircle, Check, Search, Calculator, Scale, RefreshCw, Hash } from "lucide-react";
 import Link from "next/link";
 import { createProduct, getProductInfoByAiBarcode } from "@/actions/product";
 import { getMercadologico } from "@/actions/mercadologico";
 import { getOperationalCostConfig } from "@/actions/company";
 import { calculateProductPricing, formatBRL, formatPct } from "@/lib/product-pricing";
+import { DEFAULT_SCALE_SECTORS, detectScaleSector } from "@/lib/scaleConfig";
+import { getNextScaleCode } from "@/actions/scale";
 
 const inputClass =
-  "w-full bg-[#0c0f1a] border border-indigo-500/[0.08] focus:border-indigo-500 text-white px-3 py-2 text-sm rounded outline-none";
+  "w-full bg-white border border-gray-300 focus:border-blue-600 focus:ring-1 focus:ring-blue-600 text-gray-900 px-3 py-2 text-sm rounded-xl outline-none font-semibold transition-all placeholder:text-gray-500 shadow-2xs";
 const inputMonoClass = inputClass + " font-mono";
-const labelClass = "block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1";
-const sectionTitleClass = "text-[10px] font-black uppercase tracking-widest text-indigo-400 mb-3 pb-1.5 border-b border-indigo-500/10";
+const labelClass = "block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1";
+const sectionTitleClass = "text-[11px] font-black uppercase tracking-widest text-blue-600 mb-3 pb-1.5 border-b border-gray-200";
 
 const ORIGIN_OPTIONS = [
   { value: "0", label: "0 – Nacional" },
@@ -31,7 +33,7 @@ export default function NewProductPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  
+
   // AI states
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSuccess, setAiSuccess] = useState("");
@@ -48,6 +50,55 @@ export default function NewProductPage() {
   const [isSelfProduced, setIsSelfProduced] = useState(false);
   const [internalCode, setInternalCode] = useState("");
   const [manualMode, setManualMode] = useState(false);
+
+  // Estados para Balança Toledo MGV6
+  const [sendToScale, setSendToScale] = useState(false);
+  const [scaleSector, setScaleSector] = useState("carnes");
+  const [scaleDigits, setScaleDigits] = useState<4 | 5>(5);
+  const [scaleDays, setScaleDays] = useState("3");
+  const [scaleDept, setScaleDept] = useState("1");
+  const [generatingScaleCode, setGeneratingScaleCode] = useState(false);
+
+  async function handleGenerateScaleCode(sectorId = scaleSector, digits = scaleDigits) {
+    setGeneratingScaleCode(true);
+    const res = await getNextScaleCode(sectorId, digits);
+    if (res.success && res.code) {
+      setInternalCode(res.code);
+      setScaleDept(String(res.deptCode));
+    }
+    setGeneratingScaleCode(false);
+  }
+
+  async function handleToggleSendToScale(enabled: boolean) {
+    setSendToScale(enabled);
+    if (enabled) {
+      if (unitSale !== "KG" && unitSale !== "UN") {
+        setUnitSale("KG");
+      }
+      if (!internalCode) {
+        const detected = detectScaleSector(name);
+        setScaleSector(detected.id);
+        setScaleDays(String(detected.defaultDays));
+        setScaleDept(String(detected.deptCode));
+        await handleGenerateScaleCode(detected.id, scaleDigits);
+      }
+    }
+  }
+
+  async function handleSectorChange(newSectorId: string) {
+    setScaleSector(newSectorId);
+    const sectorObj = DEFAULT_SCALE_SECTORS.find((s) => s.id === newSectorId);
+    if (sectorObj) {
+      setScaleDays(String(sectorObj.defaultDays));
+      setScaleDept(String(sectorObj.deptCode));
+    }
+    await handleGenerateScaleCode(newSectorId, scaleDigits);
+  }
+
+  async function handleDigitsChange(newDigits: 4 | 5) {
+    setScaleDigits(newDigits);
+    await handleGenerateScaleCode(scaleSector, newDigits);
+  }
 
   // Dados Fiscais Base
   const [ncm, setNcm] = useState("");
@@ -198,7 +249,7 @@ export default function NewProductPage() {
   // Auto-lookup with debounce
   useEffect(() => {
     if (manualMode || !barcode.trim() || barcode.trim().length < 8) return;
-    
+
     const handler = setTimeout(() => {
       handleAutoLookup(barcode.trim());
     }, 800);
@@ -241,7 +292,7 @@ export default function NewProductPage() {
       if (res.ibsRate !== undefined) setIbsRate(String(res.ibsRate));
       if (res.cbsRate !== undefined) setCbsRate(String(res.cbsRate));
       if (res.isRate !== undefined) setIsRate(String(res.isRate));
-      
+
       // Auto-identificar o Grupo Mercadológico correspondente
       if (categoriesList.length > 0) {
         const nameLower = res.name.toLowerCase();
@@ -306,7 +357,11 @@ export default function NewProductPage() {
     formData.append("cstIpiIn", cstIpiIn);
     formData.append("ipiRateIn", ipiRateIn);
     formData.append("isSelfProduced", String(isSelfProduced));
+    formData.append("sendToScale", String(sendToScale));
+    formData.append("scaleDays", scaleDays);
+    formData.append("scaleDept", scaleDept);
     formData.append("internalCode", internalCode);
+    formData.append("unit", unitSale);
 
     // Campos Multissetoriais (Distribuição / Indústria / Logística)
     formData.append("sku", sku);
@@ -341,34 +396,36 @@ export default function NewProductPage() {
   }
 
   return (
-    <div className="max-w-full mx-auto h-full flex flex-col gap-5">
+    <div className="max-w-full mx-auto w-full flex flex-col gap-5 select-none pb-16">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/stock" className="p-2 bg-[#161b33] border border-indigo-500/15 rounded-lg hover:bg-[#161b33] transition-colors">
-            <ArrowLeft size={20} className="text-slate-300" />
+          <Link href="/stock" className="p-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 text-gray-700 shadow-sm transition-colors">
+            <ArrowLeft size={18} />
           </Link>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Novo Produto</h1>
+          <div>
+            <h1 className="text-2xl font-black text-gray-900 tracking-tight">Novo Produto</h1>
+            <p className="text-xs text-gray-500 mt-0.5">Cadastre um novo item no estoque com inteligência artificial e tributação automatizada.</p>
+          </div>
         </div>
       </div>
 
-      <div className="bg-[#111528] rounded-xl border border-indigo-500/[0.08] shadow-xl overflow-hidden">
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
         {/* Abas de Navegação Estilo Agenda */}
-        <div className="flex border-b border-indigo-500/10 bg-[#0c0f1a]/20">
+        <div className="flex border-b border-gray-200 bg-gray-50/80">
           {[
             { key: "general", label: "Produto ou Serviço" },
             { key: "logistics", label: "Logística & Indústria" },
-            { key: "fiscal",  label: "Dados Fiscais" },
-            { key: "rates",   label: "Reforma Tributária" },
+            { key: "fiscal", label: "Dados Fiscais" },
+            { key: "rates", label: "Reforma Tributária" },
           ].map((tab) => (
             <button
               key={tab.key}
               type="button"
               onClick={() => setActiveTab(tab.key as typeof activeTab)}
-              className={`px-6 py-4 text-xs uppercase tracking-wider font-bold border-b-2 transition-all ${
-                activeTab === tab.key
-                  ? "border-indigo-500 text-indigo-400 bg-indigo-500/5"
-                  : "border-transparent text-slate-400 hover:text-slate-100"
-              }`}
+              className={`px-6 py-3.5 text-xs uppercase tracking-wider font-bold border-b-2 transition-all ${activeTab === tab.key
+                  ? "border-blue-600 text-blue-600 bg-white"
+                  : "border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-100/50"
+                }`}
             >
               {tab.label}
             </button>
@@ -377,22 +434,22 @@ export default function NewProductPage() {
 
         <div className="p-6">
           {error && (
-            <div className="mb-6 text-red-400 text-xs font-semibold flex items-center gap-1.5 border-b border-red-500/20 pb-3">
-              <AlertCircle size={14} />
+            <div className="mb-6 text-red-600 text-xs font-semibold flex items-center gap-1.5 border-b border-red-200 pb-3 bg-red-50 p-3 rounded-xl">
+              <AlertCircle size={16} />
               {error}
             </div>
           )}
 
           {aiError && (
-            <div className="mb-6 text-red-400 text-xs font-semibold flex items-center gap-1.5 border-b border-red-500/20 pb-3">
-              <AlertCircle size={14} />
+            <div className="mb-6 text-red-600 text-xs font-semibold flex items-center gap-1.5 border-b border-red-200 pb-3 bg-red-50 p-3 rounded-xl">
+              <AlertCircle size={16} />
               {aiError}
             </div>
           )}
 
           {aiSuccess && (
-            <div className="mb-6 text-emerald-400 text-xs font-semibold flex items-center gap-1.5 border-b border-emerald-500/20 pb-3">
-              <Check size={14} />
+            <div className="mb-6 text-emerald-700 text-xs font-semibold flex items-center gap-1.5 border-b border-emerald-200 pb-3 bg-emerald-50 p-3 rounded-xl">
+              <Check size={16} />
               {aiSuccess}
             </div>
           )}
@@ -405,7 +462,7 @@ export default function NewProductPage() {
                     <div className="flex items-center justify-between mb-1">
                       <label className={labelClass}>Código de Barras (EAN)</label>
                       {sourceFound && (
-                        <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+                        <span className="text-[10px] font-bold text-emerald-600 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
                           Identificado via {sourceFound}
                         </span>
                       )}
@@ -430,7 +487,7 @@ export default function NewProductPage() {
                           if (barcode.trim()) handleAutoLookup(barcode.trim());
                         }}
                         disabled={aiLoading || !barcode.trim()}
-                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white text-xs font-bold rounded flex items-center gap-1.5 transition-colors shadow-md shadow-indigo-600/20 shrink-0"
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors shadow-md shadow-blue-500/20 shrink-0"
                       >
                         {aiLoading ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />}
                         <span>Buscar EAN</span>
@@ -438,50 +495,184 @@ export default function NewProductPage() {
                     </div>
 
                     {imageUrl && (
-                      <div className="mt-2.5 p-2 bg-[#0c0f1a] rounded border border-indigo-500/15 flex items-center gap-3">
-                        <img src={imageUrl} alt="Foto do produto" className="w-12 h-12 object-contain bg-white/5 rounded p-1 shrink-0" />
+                      <div className="mt-2.5 p-2 bg-gray-50 rounded-xl border border-gray-200 flex items-center gap-3">
+                        <img src={imageUrl} alt="Foto do produto" className="w-12 h-12 object-contain bg-white rounded p-1 shrink-0 border border-gray-100" />
                         <div className="text-xs">
-                          <p className="text-white font-bold truncate">{name}</p>
-                          <p className="text-slate-500 text-[10px]">Imagem e metadados obtidos da base pública</p>
+                          <p className="text-gray-900 font-bold truncate">{name}</p>
+                          <p className="text-gray-500 text-[10px]">Imagem e metadados obtidos da base pública</p>
                         </div>
                       </div>
                     )}
 
                     {aiLoading && (
-                      <div className="flex items-center gap-1.5 text-xs text-indigo-400 mt-1.5">
+                      <div className="flex items-center gap-1.5 text-xs text-blue-600 mt-1.5 font-medium">
                         <Loader2 size={12} className="animate-spin" /> Buscando dados do produto nas bases públicas...
                       </div>
                     )}
-                    <div className="flex items-center gap-4 mt-2">
+                    <div className="flex items-center gap-4 mt-2 flex-wrap">
                       <label className="flex items-center gap-2 cursor-pointer w-fit">
                         <input type="checkbox" checked={manualMode} onChange={(e) => setManualMode(e.target.checked)}
-                          className="rounded bg-[#0c0f1a] border-indigo-500/20 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-0" />
-                        <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Digitar Manualmente</span>
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
+                        <span className="text-[10px] text-gray-600 font-bold uppercase tracking-wider">Digitar Manualmente</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer w-fit">
+                        <input type="checkbox" checked={sendToScale} onChange={(e) => handleToggleSendToScale(e.target.checked)}
+                          className="rounded border-amber-400 text-amber-600 focus:ring-amber-500" />
+                        <span className="text-[10px] text-amber-800 font-black uppercase tracking-wider flex items-center gap-1">
+                          <Scale size={13} className="text-amber-600" /> Produto de Balança (MGV6 / Toledo Prix)
+                        </span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer w-fit">
                         <input type="checkbox" checked={isSelfProduced} onChange={(e) => setIsSelfProduced(e.target.checked)}
-                          className="rounded bg-[#0c0f1a] border-indigo-500/20 text-indigo-500 focus:ring-indigo-500 focus:ring-offset-0" />
-                        <span className="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">Produção Própria (Balança Prix)</span>
+                          className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
+                        <span className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider">Fabricação Própria</span>
                       </label>
                     </div>
+
+                    {sendToScale && (
+                      <div className="mt-3 bg-amber-50/70 border-2 border-amber-300/80 rounded-2xl p-4 space-y-3.5 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="flex items-center justify-between flex-wrap gap-2 pb-2 border-b border-amber-200/80">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center shadow-xs">
+                              <Scale size={15} />
+                            </div>
+                            <div>
+                              <h4 className="text-xs font-black uppercase tracking-wider text-amber-950">
+                                Carga de Balança Toledo MGV6
+                              </h4>
+                              <p className="text-[10px] text-amber-800">
+                                O código de balança segue sequência por setor (Ex: Carnes inicia com 5, Horti com 6).
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-bold text-amber-900">Formato Toledo:</span>
+                            <div className="inline-flex rounded-lg border border-amber-300 bg-white p-0.5 shadow-2xs">
+                              <button
+                                type="button"
+                                onClick={() => handleDigitsChange(4)}
+                                className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all ${scaleDigits === 4 ? "bg-amber-500 text-white shadow-xs" : "text-amber-800 hover:bg-amber-50"
+                                  }`}
+                              >
+                                4 Dígitos (ex: 5001)
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDigitsChange(5)}
+                                className={`px-2.5 py-1 text-[11px] font-bold rounded-md transition-all ${scaleDigits === 5 ? "bg-amber-500 text-white shadow-xs" : "text-amber-800 hover:bg-amber-50"
+                                  }`}
+                              >
+                                5 Dígitos (Padrão Prix: 50001)
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-amber-900 uppercase tracking-wider mb-1">
+                              Setor da Balança
+                            </label>
+                            <select
+                              value={scaleSector}
+                              onChange={(e) => handleSectorChange(e.target.value)}
+                              className="w-full bg-white border border-amber-300 text-gray-900 px-3 py-2 text-xs rounded-xl outline-none font-bold focus:ring-2 focus:ring-amber-500 shadow-2xs"
+                            >
+                              {DEFAULT_SCALE_SECTORS.map((s) => (
+                                <option key={s.id} value={s.id}>
+                                  {s.name} (Prefixo {s.prefix})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="block text-[10px] font-bold text-amber-900 uppercase tracking-wider">
+                                Cód. Balança (PLU) *
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => handleGenerateScaleCode(scaleSector, scaleDigits)}
+                                disabled={generatingScaleCode}
+                                className="text-[10px] text-amber-800 hover:text-amber-950 font-bold flex items-center gap-1"
+                                title="Gerar próximo número livre na sequência do setor"
+                              >
+                                <RefreshCw size={10} className={generatingScaleCode ? "animate-spin" : ""} /> Próximo
+                              </button>
+                            </div>
+                            <div className="relative">
+                              <input
+                                type="text"
+                                required={sendToScale}
+                                value={internalCode}
+                                onChange={(e) => setInternalCode(e.target.value.replace(/\D/g, "").slice(0, scaleDigits))}
+                                placeholder={scaleDigits === 4 ? "Ex: 5001" : "Ex: 50001"}
+                                className="w-full bg-white border border-amber-300 text-gray-900 pl-8 pr-3 py-2 text-xs rounded-xl outline-none font-mono font-black tracking-wider focus:ring-2 focus:ring-amber-500 shadow-2xs"
+                              />
+                              <Hash size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-amber-600" />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-amber-900 uppercase tracking-wider mb-1">
+                              Validade Etiqueta (Dias)
+                            </label>
+                            <input
+                              type="number"
+                              min="0"
+                              max="999"
+                              value={scaleDays}
+                              onChange={(e) => setScaleDays(e.target.value)}
+                              className="w-full bg-white border border-amber-300 text-gray-900 px-3 py-2 text-xs rounded-xl outline-none font-mono font-bold focus:ring-2 focus:ring-amber-500 shadow-2xs"
+                              placeholder="Ex: 3"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-[10px] font-bold text-amber-900 uppercase tracking-wider mb-1">
+                              Tipo na Balança
+                            </label>
+                            <select
+                              value={unitSale}
+                              onChange={(e) => {
+                                setUnitSale(e.target.value);
+                                setUnitPurchase(e.target.value);
+                              }}
+                              className="w-full bg-white border border-amber-300 text-gray-900 px-3 py-2 text-xs rounded-xl outline-none font-bold focus:ring-2 focus:ring-amber-500 shadow-2xs"
+                            >
+                              <option value="KG">Pesável por Quilo (KG)</option>
+                              <option value="UN">Unitário na Balança (UN)</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div>
-                    <label className={labelClass}>Cód. Interno / Toledo</label>
+                    <label className={labelClass}>Cód. Balança / Toledo (PLU)</label>
                     <input type="text" value={internalCode} onChange={(e) => setInternalCode(e.target.value)}
-                      disabled={isSelfProduced && !internalCode}
-                      className={`${inputClass} placeholder:text-slate-600 disabled:text-slate-500`}
-                      placeholder={isSelfProduced ? "Automático (5 dígitos)" : "Ex: 00123"} />
+                      disabled={sendToScale}
+                      className={`${inputClass} placeholder:text-slate-600 disabled:text-slate-700 disabled:bg-gray-100 font-mono font-bold`}
+                      placeholder={sendToScale ? "Definido no card de Balança" : "Ex: 50001"} />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="md:col-span-2">
                     <label className={labelClass}>Nome do Produto *</label>
-                    <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className={inputClass} placeholder="Ex: Cerveja Heineken 350ml" />
+                    <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className={inputClass} placeholder="Ex: Picanha Bovina Fatiada" />
                   </div>
                   <div>
                     <label className={labelClass}>Unidade de Medida</label>
-                    <select className={inputClass}>
+                    <select
+                      value={unitSale}
+                      onChange={(e) => {
+                        setUnitSale(e.target.value);
+                        setUnitPurchase(e.target.value);
+                      }}
+                      className={inputClass}
+                    >
                       <option value="UN">Unidade (UN)</option>
                       <option value="KG">Quilo (KG)</option>
                       <option value="LT">Litro (LT)</option>
@@ -492,12 +683,12 @@ export default function NewProductPage() {
                 <div>
                   <label className={labelClass}>
                     Grupo Mercadológico / Categoria
-                    {categoryId && <span className="ml-2 text-[10px] text-emerald-400 font-bold">(Sugerido via IA / Automático)</span>}
+                    {categoryId && <span className="ml-2 text-[10px] text-emerald-600 font-bold">(Sugerido via IA / Automático)</span>}
                   </label>
                   <select
                     value={categoryId}
                     onChange={(e) => setCategoryId(e.target.value)}
-                    className={`${inputClass} font-semibold text-indigo-300`}
+                    className={`${inputClass} font-semibold text-indigo-700`}
                   >
                     <option value="">-- Selecione a Categoria Mercadológica --</option>
                     {categoriesList.map((cat: any) => (
@@ -528,9 +719,9 @@ export default function NewProductPage() {
                       placeholder="0.00"
                     />
                   </div>
-                  <div className="bg-[#0c0f1a] border border-indigo-500/10 rounded px-3 py-2 flex flex-col justify-center h-[38px]">
+                  <div className="bg-[#f3f7fe] border border-[#c4d5ee] rounded px-3 py-2 flex flex-col justify-center h-[38px]">
                     <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block leading-none">Markup sobre custo real</span>
-                    <span className="text-sm font-black font-mono text-emerald-400 mt-1">
+                    <span className="text-sm font-black font-mono text-emerald-600 mt-1">
                       {computedMargin ? `${computedMargin}%` : "---"}
                     </span>
                   </div>
@@ -540,11 +731,11 @@ export default function NewProductPage() {
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-indigo-500/15 bg-indigo-500/[0.04] p-4 space-y-4">
+                <div className="rounded-xl border border-[#c4d5ee] bg-indigo-500/[0.04] p-4 space-y-4">
                   <div className="flex items-center justify-between gap-3 flex-wrap">
                     <div className="flex items-center gap-2">
-                      <Calculator size={16} className="text-indigo-400" />
-                      <p className="text-xs font-black uppercase tracking-widest text-indigo-300">Custo real e preço sugerido</p>
+                      <Calculator size={16} className="text-indigo-600" />
+                      <p className="text-xs font-black uppercase tracking-widest text-indigo-700">Custo real e preço sugerido</p>
                     </div>
                     <p className="text-[10px] text-slate-500">
                       Usa impostos de entrada, saída, reforma, frete, operacional e margem.
@@ -567,28 +758,28 @@ export default function NewProductPage() {
                   </div>
 
                   {pricing.error ? (
-                    <p className="text-xs text-red-400 font-semibold">{pricing.error}</p>
+                    <p className="text-xs text-red-600 font-semibold">{pricing.error}</p>
                   ) : (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <div className="bg-[#0c0f1a] border border-indigo-500/10 rounded-lg px-3 py-2.5">
+                      <div className="bg-[#f3f7fe] border border-[#c4d5ee] rounded-lg px-3 py-2.5">
                         <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Impostos de entrada</span>
-                        <span className="text-sm font-mono font-bold text-amber-300">{formatBRL(pricing.inboundTaxAmount)}</span>
+                        <span className="text-sm font-mono font-bold text-amber-700">{formatBRL(pricing.inboundTaxAmount)}</span>
                         <span className="text-[10px] text-slate-500 block">{formatPct(pricing.inboundTaxRate)}</span>
                       </div>
-                      <div className="bg-[#0c0f1a] border border-indigo-500/10 rounded-lg px-3 py-2.5">
-                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Custo real</span>
-                        <span className="text-sm font-mono font-bold text-white">{formatBRL(pricing.totalCost)}</span>
-                        <span className="text-[10px] text-slate-500 block">compra + tributos + frete</span>
+                      <div className="bg-white border border-gray-200 rounded-lg px-3 py-2.5 shadow-2xs">
+                        <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider block">Custo real</span>
+                        <span className="text-sm font-mono font-bold text-gray-900">{formatBRL(pricing.totalCost)}</span>
+                        <span className="text-[10px] text-gray-500 block">compra + tributos + frete</span>
                       </div>
-                      <div className="bg-[#0c0f1a] border border-indigo-500/10 rounded-lg px-3 py-2.5">
-                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Carga de saída</span>
-                        <span className="text-sm font-mono font-bold text-rose-300">{formatPct(pricing.outboundTaxRate)}</span>
-                        <span className="text-[10px] text-slate-500 block">ICMS, PIS, COFINS, IPI, IBS, CBS, IS</span>
+                      <div className="bg-white border border-gray-200 rounded-lg px-3 py-2.5 shadow-2xs">
+                        <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider block">Carga de saída</span>
+                        <span className="text-sm font-mono font-bold text-rose-600">{formatPct(pricing.outboundTaxRate)}</span>
+                        <span className="text-[10px] text-gray-500 block">ICMS, PIS, COFINS, IPI, IBS, CBS, IS</span>
                       </div>
-                      <div className="bg-[#0c0f1a] border border-emerald-500/20 rounded-lg px-3 py-2.5">
-                        <span className="text-[10px] text-emerald-500/80 font-bold uppercase tracking-wider block">Preço sugerido</span>
-                        <span className="text-lg font-mono font-black text-emerald-400 leading-tight">{formatBRL(pricing.suggestedPrice)}</span>
-                        <span className="text-[10px] text-slate-500 block">lucro est. {formatBRL(pricing.estimatedProfit)}</span>
+                      <div className="bg-emerald-50/70 border border-emerald-200 rounded-lg px-3 py-2.5 shadow-2xs">
+                        <span className="text-[10px] text-emerald-800 font-bold uppercase tracking-wider block">Preço sugerido</span>
+                        <span className="text-lg font-mono font-black text-emerald-700 leading-tight">{formatBRL(pricing.suggestedPrice)}</span>
+                        <span className="text-[10px] text-emerald-600 block">lucro est. {formatBRL(pricing.estimatedProfit)}</span>
                       </div>
                     </div>
                   )}
@@ -602,7 +793,7 @@ export default function NewProductPage() {
                       type="button"
                       onClick={applySuggestedPrice}
                       disabled={pricing.suggestedPrice <= 0 || !!pricing.error}
-                      className="px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider bg-emerald-600/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-600/30 disabled:opacity-40"
+                      className="px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-wider bg-emerald-600/20 text-emerald-700 border border-emerald-500/30 hover:bg-emerald-600/30 disabled:opacity-40"
                     >
                       Usar preço sugerido
                     </button>
@@ -705,17 +896,17 @@ export default function NewProductPage() {
                 <div>
                   <p className={sectionTitleClass}>Classificação Industrial & Parâmetros de Estoque</p>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <label className="flex items-center gap-2 cursor-pointer bg-[#0c0f1a] p-3 rounded border border-indigo-500/10">
-                      <input type="checkbox" checked={isRawMaterial} onChange={(e) => setIsRawMaterial(e.target.checked)} className="rounded text-indigo-500" />
-                      <span className="text-xs font-bold text-slate-300">Matéria-Prima / Insumo</span>
+                    <label className="flex items-center gap-2 cursor-pointer bg-white p-3 rounded-xl border border-gray-200 hover:border-blue-400 shadow-2xs transition-colors">
+                      <input type="checkbox" checked={isRawMaterial} onChange={(e) => setIsRawMaterial(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-500" />
+                      <span className="text-xs font-bold text-gray-800">Matéria-Prima / Insumo</span>
                     </label>
-                    <label className="flex items-center gap-2 cursor-pointer bg-[#0c0f1a] p-3 rounded border border-indigo-500/10">
-                      <input type="checkbox" checked={isFinishedGood} onChange={(e) => setIsFinishedGood(e.target.checked)} className="rounded text-indigo-500" />
-                      <span className="text-xs font-bold text-slate-300">Produto Acabado (Fabricação)</span>
+                    <label className="flex items-center gap-2 cursor-pointer bg-white p-3 rounded-xl border border-gray-200 hover:border-blue-400 shadow-2xs transition-colors">
+                      <input type="checkbox" checked={isFinishedGood} onChange={(e) => setIsFinishedGood(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-500" />
+                      <span className="text-xs font-bold text-gray-800">Produto Acabado (Fabricação)</span>
                     </label>
-                    <label className="flex items-center gap-2 cursor-pointer bg-[#0c0f1a] p-3 rounded border border-indigo-500/10">
-                      <input type="checkbox" checked={isPackaging} onChange={(e) => setIsPackaging(e.target.checked)} className="rounded text-indigo-500" />
-                      <span className="text-xs font-bold text-slate-300">Embalagem / Consumível</span>
+                    <label className="flex items-center gap-2 cursor-pointer bg-white p-3 rounded-xl border border-gray-200 hover:border-blue-400 shadow-2xs transition-colors">
+                      <input type="checkbox" checked={isPackaging} onChange={(e) => setIsPackaging(e.target.checked)} className="rounded text-blue-600 focus:ring-blue-500" />
+                      <span className="text-xs font-bold text-gray-800">Embalagem / Consumível</span>
                     </label>
                   </div>
 
@@ -765,22 +956,21 @@ export default function NewProductPage() {
                 </div>
 
                 {/* Sub-abas Entrada / Saída */}
-                <div className="flex gap-1 border-b border-indigo-500/10 mb-0">
+                <div className="flex gap-1 border-b border-gray-200 mb-0">
                   {[
-                    { key: "saida", label: "🔼 Saída (Emissão NF-e de Venda)", color: "emerald" },
+                    { key: "saida", label: "🔼 Saída (Emissão NF-e de Venda)", color: "blue" },
                     { key: "entrada", label: "🔽 Entrada (Recebimento de Compra)", color: "amber" },
                   ].map((sub) => (
                     <button
                       key={sub.key}
                       type="button"
                       onClick={() => setFiscalSubTab(sub.key as typeof fiscalSubTab)}
-                      className={`px-4 py-2.5 text-xs font-bold rounded-t-lg border-b-2 transition-all ${
-                        fiscalSubTab === sub.key
+                      className={`px-4 py-2.5 text-xs font-bold rounded-t-lg border-b-2 transition-all cursor-pointer ${fiscalSubTab === sub.key
                           ? sub.key === "saida"
-                            ? "border-emerald-500 text-emerald-400 bg-emerald-500/5"
-                            : "border-amber-500 text-amber-400 bg-amber-500/5"
-                          : "border-transparent text-slate-500 hover:text-slate-300"
-                      }`}
+                            ? "border-blue-600 text-blue-700 bg-blue-50/70"
+                            : "border-amber-600 text-amber-800 bg-amber-50/70"
+                          : "border-transparent text-gray-500 hover:text-gray-800 hover:bg-gray-50"
+                        }`}
                     >
                       {sub.label}
                     </button>
@@ -867,8 +1057,8 @@ export default function NewProductPage() {
                 {/* ─── ABA ENTRADA ─── */}
                 {fiscalSubTab === "entrada" && (
                   <div className="space-y-5 pt-2">
-                    <div className="p-3 bg-amber-500/5 border border-amber-500/15 rounded-xl text-xs text-amber-300">
-                      <strong>Impostos de Entrada</strong> são usados no cálculo do custo real de compra e na somatória tributária do Pedido de Compra. CFOP de Entrada: 1xxx (compras estaduais), 2xxx (interestaduais), 3xxx (exterior).
+                    <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 leading-relaxed">
+                      <strong className="text-amber-950 font-bold">Impostos de Entrada</strong> são usados no cálculo do custo real de compra e na somatória tributária do Pedido de Compra. CFOP de Entrada: 1xxx (compras estaduais), 2xxx (interestaduais), 3xxx (exterior).
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
@@ -950,8 +1140,8 @@ export default function NewProductPage() {
 
             {activeTab === "rates" && (
               <div className="space-y-4">
-                <p className="text-xs text-slate-500 border border-indigo-500/10 bg-indigo-500/5 rounded-lg px-4 py-3">
-                  Campos relativos à <span className="text-indigo-300 font-bold">Reforma Tributária (EC 132/2023)</span>. Preenchidos automaticamente pela grade tributária quando o NCM do produto estiver configurado.
+                <p className="text-xs text-slate-500 border border-[#c4d5ee] bg-indigo-500/5 rounded-lg px-4 py-3">
+                  Campos relativos à <span className="text-indigo-700 font-bold">Reforma Tributária (EC 132/2023)</span>. Preenchidos automaticamente pela grade tributária quando o NCM do produto estiver configurado.
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
@@ -973,14 +1163,14 @@ export default function NewProductPage() {
               </div>
             )}
 
-            <div className="pt-6 border-t border-indigo-500/10 flex justify-end gap-3">
-              <Link href="/stock" className="px-5 py-2.5 rounded-lg font-bold text-slate-300 bg-[#161b33] border border-indigo-500/15 hover:bg-[#161b33] transition-colors text-sm">
+            <div className="pt-6 border-t border-gray-100 flex justify-end gap-3">
+              <Link href="/stock" className="px-5 py-2.5 rounded-xl font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 transition-colors text-sm">
                 Cancelar
               </Link>
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={loading}
-                className="px-5 py-2.5 rounded-lg font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors flex items-center gap-2 shadow-lg shadow-indigo-600/20 disabled:opacity-50 text-sm"
+                className="px-6 py-2.5 rounded-xl font-bold text-white bg-blue-600 hover:bg-blue-700 transition-all flex items-center gap-2 shadow-md shadow-blue-500/20 disabled:opacity-50 text-sm"
               >
                 <Save size={16} />
                 {loading ? "Salvando..." : "Salvar Produto"}

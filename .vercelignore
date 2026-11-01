@@ -1,0 +1,39 @@
+# Dependências
+node_modules/
+**/node_modules/
+
+# Banco de dados local
+pg_data/
+
+# Build outputs locais
+.next/
+dist/
+build/
+out/
+
+# Apps que não são o frontend web
+apps/api/
+apps/collector/
+apps/pdv/
+
+# Cache e logs
+.turbo/
+*.log
+npm-debug.log*
+
+# Arquivos grandes desnecessários
+apps/web/public/downloads/
+*.exe
+*.exe.blockmap
+
+# Env secrets
+.env
+.env.local
+.env.*.local
+.env.vercel.prod.tmp
+.env.vercel.tmp
+
+# Dev files
+*.db
+*.db-journal
+

@@ -739,7 +739,7 @@ export default function RestaurantPdvPage() {
   });
 
   return (
-    <div className="h-full flex flex-col bg-[#070914] text-white overflow-hidden animate-in fade-in duration-200 relative">
+    <div className="h-full flex flex-col bg-[#e8f0fc] text-gray-900 overflow-hidden animate-in fade-in duration-200 relative">
       
       {/* ── Toast Notification Banner ────────────────────────────────────────── */}
       {toastMessage && (
@@ -751,24 +751,24 @@ export default function RestaurantPdvPage() {
       )}
 
       {/* ── Header Principal do PDV Touch ──────────────────────────────────────── */}
-      <header className="px-6 py-3 bg-[#0f1324] border-b border-indigo-500/15 flex items-center justify-between shrink-0 shadow-lg z-20">
+      <header className="px-6 py-3 bg-[#fbfdff] border-b border-[#c4d5ee] flex items-center justify-between shrink-0 shadow-lg z-20">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25">
             <Utensils size={20} />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-black tracking-tight text-white">PDV Restaurante & Gastronomia</h1>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/15 text-indigo-400 border border-indigo-500/20 uppercase tracking-widest">
+              <h1 className="text-xl font-black tracking-tight text-gray-900">PDV Restaurante & Gastronomia</h1>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/15 text-indigo-600 border border-indigo-200 uppercase tracking-widest">
                 Touch ERP
               </span>
             </div>
-            <p className="text-xs text-slate-400">Gestão de mesas, comandas, KDS, balcão e delivery integrado.</p>
+            <p className="text-xs text-slate-500">Gestão de mesas, comandas, KDS, balcão e delivery integrado.</p>
           </div>
         </div>
 
         {/* Seleção de Modos de Operação */}
-        <div className="flex bg-[#070914] p-1 rounded-2xl border border-indigo-500/20 gap-1">
+        <div className="flex bg-[#e8f0fc] p-1 rounded-2xl border border-indigo-200 gap-1">
           {[
             { key: "TABLES", label: "Mapa de Mesas", icon: <Store size={15} /> },
             { key: "COMMANDS", label: "Comandas", icon: <Tag size={15} /> },
@@ -788,7 +788,7 @@ export default function RestaurantPdvPage() {
               className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
                 mode === item.key
                   ? "bg-indigo-600 text-white shadow-lg shadow-indigo-600/30"
-                  : "text-slate-400 hover:text-white hover:bg-indigo-500/10"
+                  : "text-slate-500 hover:text-gray-900 hover:bg-indigo-500/10"
               }`}
             >
               {item.icon} {item.label}
@@ -798,16 +798,16 @@ export default function RestaurantPdvPage() {
 
         {/* Status de Garçom Selecionado */}
         <div className="flex items-center gap-3">
-          <div className="bg-[#111528] border border-indigo-500/15 px-3 py-1.5 rounded-xl flex items-center gap-2">
-            <Users size={14} className="text-indigo-400" />
+          <div className="bg-[#fbfdff] border border-[#c4d5ee] px-3 py-1.5 rounded-xl flex items-center gap-2">
+            <Users size={14} className="text-indigo-600" />
             <div className="text-left">
               <span className="text-[9px] font-bold text-slate-500 uppercase block leading-none">Garçom Ativo</span>
               <select
                 value={selectedWaiter}
                 onChange={e => setSelectedWaiter(e.target.value)}
-                className="bg-transparent border-none text-xs font-bold text-white outline-none cursor-pointer"
+                className="bg-transparent border-none text-xs font-bold text-gray-900 outline-none cursor-pointer"
               >
-                {MOCK_WAITERS.map(w => <option key={w} value={w} className="bg-[#111528] text-white">{w}</option>)}
+                {MOCK_WAITERS.map(w => <option key={w} value={w} className="bg-[#fbfdff] text-gray-900">{w}</option>)}
               </select>
             </div>
           </div>
@@ -818,17 +818,17 @@ export default function RestaurantPdvPage() {
       <div className="flex-1 grid grid-cols-12 min-h-0 overflow-hidden">
         
         {/* ── Coluna Esquerda: Visão de Operação / Produtos Touch (8 Colunas) ────── */}
-        <div className="col-span-12 lg:col-span-8 flex flex-col min-h-0 border-r border-indigo-500/10 p-5 space-y-4 overflow-hidden">
+        <div className="col-span-12 lg:col-span-8 flex flex-col min-h-0 border-r border-[#c4d5ee] p-5 space-y-4 overflow-hidden">
           
           {/* MODO 1: MAPA DE MESAS */}
           {mode === "TABLES" && !selectedTable && (
             <div className="flex-1 flex flex-col min-h-0 space-y-4">
               <div className="flex justify-between items-center shrink-0">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-extrabold text-white tracking-wider uppercase flex items-center gap-2">
-                    <Store size={16} className="text-indigo-400" /> Selecione uma Mesa
+                  <h3 className="text-sm font-extrabold text-gray-900 tracking-wider uppercase flex items-center gap-2">
+                    <Store size={16} className="text-indigo-600" /> Selecione uma Mesa
                   </h3>
-                  <span className="text-xs text-slate-400">({tables.filter(t => t.status === "OCCUPIED").length} ocupadas)</span>
+                  <span className="text-xs text-slate-500">({tables.filter(t => t.status === "OCCUPIED").length} ocupadas)</span>
                 </div>
                 
                 <div className="flex gap-1.5">
@@ -844,7 +844,7 @@ export default function RestaurantPdvPage() {
                       className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
                         tableFilter === f.key
                           ? "bg-indigo-600 border-indigo-500 text-white shadow-md"
-                          : "bg-[#111528] border-indigo-500/10 text-slate-400 hover:text-white"
+                          : "bg-[#fbfdff] border-[#c4d5ee] text-slate-500 hover:text-gray-900"
                       }`}
                     >
                       {f.label}
@@ -872,24 +872,24 @@ export default function RestaurantPdvPage() {
                       }}
                       className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between h-36 relative overflow-hidden shadow-lg group hover:scale-[1.02] ${
                         t.status === "FREE"
-                          ? "bg-[#091512]/60 border-emerald-500/30 hover:border-emerald-500/60"
+                          ? "bg-emerald-50/60 border-emerald-500/30 hover:border-emerald-500/60"
                           : t.status === "OCCUPIED"
-                          ? "bg-[#0d1730]/80 border-indigo-500/40 hover:border-indigo-500/70"
+                          ? "bg-[#eaf1fc]/80 border-indigo-500/40 hover:border-indigo-500/70"
                           : t.status === "BILL_REQUESTED"
-                          ? "bg-[#241a08]/80 border-amber-500/40 hover:border-amber-500/70 animate-pulse"
-                          : "bg-[#1d1228]/80 border-purple-500/30 hover:border-purple-500/60"
+                          ? "bg-amber-50/80 border-amber-500/40 hover:border-amber-500/70 animate-pulse"
+                          : "bg-purple-50/80 border-purple-500/30 hover:border-purple-500/60"
                       }`}
                     >
                       <div className="flex justify-between items-start">
                         <div>
-                          <span className="text-lg font-black text-white">{t.name}</span>
-                          <span className="text-[10px] text-slate-400 block font-medium">Capacidade: {t.capacity} p.</span>
+                          <span className="text-lg font-black text-gray-900">{t.name}</span>
+                          <span className="text-[10px] text-slate-500 block font-medium">Capacidade: {t.capacity} p.</span>
                         </div>
                         <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border ${
-                          t.status === "FREE" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
-                          t.status === "OCCUPIED" ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20" :
-                          t.status === "BILL_REQUESTED" ? "bg-amber-500/15 text-amber-300 border-amber-500/30" :
-                          "bg-purple-500/10 text-purple-400 border-purple-500/20"
+                          t.status === "FREE" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" :
+                          t.status === "OCCUPIED" ? "bg-indigo-500/10 text-indigo-600 border-indigo-200" :
+                          t.status === "BILL_REQUESTED" ? "bg-amber-500/15 text-amber-700 border-amber-500/30" :
+                          "bg-purple-500/10 text-purple-600 border-purple-500/20"
                         }`}>
                           {t.status === "FREE" ? "LIVRE" : t.status === "OCCUPIED" ? "OCUPADA" : t.status === "BILL_REQUESTED" ? "CONTA" : "RESERVADA"}
                         </span>
@@ -898,14 +898,14 @@ export default function RestaurantPdvPage() {
                       {t.status !== "FREE" ? (
                         <div className="space-y-1">
                           <div className="flex justify-between items-center text-xs">
-                            <span className="text-slate-400 flex items-center gap-1"><Users size={11}/> {t.peopleCount} p.</span>
-                            <span className="text-indigo-400 font-mono font-bold text-sm">R$ {fmt(totalMesa)}</span>
+                            <span className="text-slate-500 flex items-center gap-1"><Users size={11}/> {t.peopleCount} p.</span>
+                            <span className="text-indigo-600 font-mono font-bold text-sm">R$ {fmt(totalMesa)}</span>
                           </div>
                           <p className="text-[10px] text-slate-500 truncate">Garçom: {t.waiter || "—"}</p>
                         </div>
                       ) : (
                         <div className="text-center py-2">
-                          <span className="text-xs text-emerald-400 font-bold flex items-center justify-center gap-1 group-hover:scale-105 transition-transform">
+                          <span className="text-xs text-emerald-600 font-bold flex items-center justify-center gap-1 group-hover:scale-105 transition-transform">
                             <Plus size={14} /> Abrir Mesa
                           </span>
                         </div>
@@ -922,10 +922,10 @@ export default function RestaurantPdvPage() {
             <div className="flex-1 flex flex-col min-h-0 space-y-4">
               <div className="flex justify-between items-center shrink-0">
                 <div>
-                  <h3 className="text-sm font-extrabold text-white tracking-wider uppercase flex items-center gap-2">
-                    <Tag size={16} className="text-amber-400" /> Comandas Individuais
+                  <h3 className="text-sm font-extrabold text-gray-900 tracking-wider uppercase flex items-center gap-2">
+                    <Tag size={16} className="text-amber-600" /> Comandas Individuais
                   </h3>
-                  <p className="text-xs text-slate-400">Gerencie comandas por cartão ou nome de cliente.</p>
+                  <p className="text-xs text-slate-500">Gerencie comandas por cartão ou nome de cliente.</p>
                 </div>
 
                 <button
@@ -948,27 +948,27 @@ export default function RestaurantPdvPage() {
                         setSelectedTable(null);
                         setSelectedDelivery(null);
                       }}
-                      className="p-4 rounded-2xl bg-[#0f1324] border border-amber-500/20 hover:border-amber-500/60 cursor-pointer flex flex-col justify-between h-40 transition-all shadow-lg hover:scale-[1.02] group"
+                      className="p-4 rounded-2xl bg-[#fbfdff] border border-amber-500/20 hover:border-amber-500/60 cursor-pointer flex flex-col justify-between h-40 transition-all shadow-lg hover:scale-[1.02] group"
                     >
                       <div className="flex justify-between items-start">
                         <div className="flex items-center gap-2">
-                          <span className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-mono font-black text-sm">
+                          <span className="w-8 h-8 rounded-xl bg-amber-500/20 text-amber-600 flex items-center justify-center font-mono font-black text-sm">
                             #{cmd.code}
                           </span>
                           <div>
-                            <h4 className="text-sm font-bold text-white group-hover:text-amber-300 transition-colors">{cmd.customerName}</h4>
-                            <p className="text-[10px] text-slate-400">{cmd.phone || "Sem telefone"}</p>
+                            <h4 className="text-sm font-bold text-gray-900 group-hover:text-amber-700 transition-colors">{cmd.customerName}</h4>
+                            <p className="text-[10px] text-slate-500">{cmd.phone || "Sem telefone"}</p>
                           </div>
                         </div>
-                        <span className="text-[9px] font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                        <span className="text-[9px] font-bold text-amber-600 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
                           {cmd.status === "OPEN" ? "ABERTA" : "PAGAMENTO"}
                         </span>
                       </div>
 
                       <div className="space-y-1.5 border-t border-amber-500/10 pt-2.5">
                         <div className="flex justify-between text-xs">
-                          <span className="text-slate-400">{cmd.items.length} item(s)</span>
-                          <span className="font-mono font-black text-emerald-400 text-sm">R$ {fmt(cmdTotal)}</span>
+                          <span className="text-slate-500">{cmd.items.length} item(s)</span>
+                          <span className="font-mono font-black text-emerald-600 text-sm">R$ {fmt(cmdTotal)}</span>
                         </div>
                         <p className="text-[10px] text-slate-500 flex justify-between">
                           <span>Garçom: {cmd.waiter}</span>
@@ -981,7 +981,7 @@ export default function RestaurantPdvPage() {
 
                 {!filteredCommands.length && (
                   <div className="col-span-3 text-center py-20 text-slate-500 space-y-2">
-                    <Tag size={36} className="mx-auto opacity-30 text-amber-400" />
+                    <Tag size={36} className="mx-auto opacity-30 text-amber-600" />
                     <p className="text-xs">Nenhuma comanda aberta no momento.</p>
                   </div>
                 )}
@@ -994,10 +994,10 @@ export default function RestaurantPdvPage() {
             <div className="flex-1 flex flex-col min-h-0 space-y-4">
               <div className="flex justify-between items-center shrink-0">
                 <div>
-                  <h3 className="text-sm font-extrabold text-white tracking-wider uppercase flex items-center gap-2">
-                    <Bike size={16} className="text-cyan-400" /> Painel de Pedidos & Delivery
+                  <h3 className="text-sm font-extrabold text-gray-900 tracking-wider uppercase flex items-center gap-2">
+                    <Bike size={16} className="text-cyan-600" /> Painel de Pedidos & Delivery
                   </h3>
-                  <p className="text-xs text-slate-400">Acompanhamento e expedição de pedidos para entrega.</p>
+                  <p className="text-xs text-slate-500">Acompanhamento e expedição de pedidos para entrega.</p>
                 </div>
 
                 <button
@@ -1020,18 +1020,18 @@ export default function RestaurantPdvPage() {
                         setSelectedTable(null);
                         setSelectedCommand(null);
                       }}
-                      className="p-4 rounded-2xl bg-[#0f1324] border border-cyan-500/20 hover:border-cyan-500/50 cursor-pointer flex justify-between items-center transition-all shadow-lg hover:scale-[1.01]"
+                      className="p-4 rounded-2xl bg-[#fbfdff] border border-cyan-500/20 hover:border-cyan-500/50 cursor-pointer flex justify-between items-center transition-all shadow-lg hover:scale-[1.01]"
                     >
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 flex items-center justify-center font-mono font-black text-sm">
+                        <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 text-cyan-600 border border-cyan-500/20 flex items-center justify-center font-mono font-black text-sm">
                           {del.code}
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <h4 className="text-sm font-bold text-white">{del.customerName}</h4>
-                            <span className="text-[10px] text-cyan-300 font-mono">({del.customerPhone})</span>
+                            <h4 className="text-sm font-bold text-gray-900">{del.customerName}</h4>
+                            <span className="text-[10px] text-cyan-700 font-mono">({del.customerPhone})</span>
                           </div>
-                          <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
+                          <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
                             <MapPin size={12} className="text-slate-500" /> {del.address} - {del.neighborhood}
                           </p>
                         </div>
@@ -1039,15 +1039,15 @@ export default function RestaurantPdvPage() {
 
                       <div className="flex items-center gap-6">
                         <div className="text-right">
-                          <span className="text-[10px] text-slate-400 block">Total c/ Taxa</span>
-                          <span className="font-mono font-black text-emerald-400 text-base">R$ {fmt(delTotal)}</span>
+                          <span className="text-[10px] text-slate-500 block">Total c/ Taxa</span>
+                          <span className="font-mono font-black text-emerald-600 text-base">R$ {fmt(delTotal)}</span>
                         </div>
 
                         <span className={`px-3 py-1 rounded-xl text-xs font-bold uppercase tracking-wider border ${
-                          del.status === "RECEIVED" ? "bg-amber-500/10 text-amber-300 border-amber-500/20" :
-                          del.status === "PREPARING" ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20" :
-                          del.status === "OUT_FOR_DELIVERY" ? "bg-cyan-500/15 text-cyan-300 border-cyan-500/30 animate-pulse" :
-                          "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                          del.status === "RECEIVED" ? "bg-amber-500/10 text-amber-700 border-amber-500/20" :
+                          del.status === "PREPARING" ? "bg-indigo-500/10 text-indigo-600 border-indigo-200" :
+                          del.status === "OUT_FOR_DELIVERY" ? "bg-cyan-500/15 text-cyan-700 border-cyan-500/30 animate-pulse" :
+                          "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
                         }`}>
                           {del.status === "RECEIVED" ? "RECEBIDO" : del.status === "PREPARING" ? "EM PREPARO" : del.status === "OUT_FOR_DELIVERY" ? "EM ROTA" : "ENTREGUE"}
                         </span>
@@ -1064,7 +1064,7 @@ export default function RestaurantPdvPage() {
             <div className="flex-1 flex flex-col min-h-0 space-y-4">
               
               {/* Header Contextual da Ordem Ativa */}
-              <div className="bg-[#111528] p-3 rounded-2xl border border-indigo-500/15 flex items-center justify-between shrink-0">
+              <div className="bg-[#fbfdff] p-3 rounded-2xl border border-[#c4d5ee] flex items-center justify-between shrink-0">
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => {
@@ -1072,12 +1072,12 @@ export default function RestaurantPdvPage() {
                       setSelectedCommand(null);
                       setSelectedDelivery(null);
                     }}
-                    className="p-2 bg-[#070914] text-slate-400 hover:text-white rounded-xl border border-indigo-500/15 transition-all text-xs font-bold flex items-center gap-1"
+                    className="p-2 bg-[#e8f0fc] text-slate-500 hover:text-gray-900 rounded-xl border border-[#c4d5ee] transition-all text-xs font-bold flex items-center gap-1"
                   >
                     ← Voltar à Lista
                   </button>
                   <div>
-                    <h2 className="text-base font-black text-white flex items-center gap-2">
+                    <h2 className="text-base font-black text-gray-900 flex items-center gap-2">
                       {selectedTable ? selectedTable.name : selectedCommand ? `Comanda #${selectedCommand.code} (${selectedCommand.customerName})` : selectedDelivery ? `Delivery ${selectedDelivery.code}` : "Venda Direta / Balcão"}
                     </h2>
                   </div>
@@ -1088,13 +1088,13 @@ export default function RestaurantPdvPage() {
                     <>
                       <button
                         onClick={() => setIsTransferOpen(true)}
-                        className="px-3 py-1.5 bg-[#070914] hover:bg-indigo-600/20 text-indigo-300 border border-indigo-500/20 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                        className="px-3 py-1.5 bg-[#e8f0fc] hover:bg-indigo-600/20 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
                       >
                         <ArrowLeftRight size={13} /> Transferir Mesa
                       </button>
                       <button
                         onClick={() => setIsSplitBillOpen(true)}
-                        className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/20 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
+                        className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 border border-amber-500/20 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
                       >
                         <Users size={13} /> Dividir Conta
                       </button>
@@ -1118,7 +1118,7 @@ export default function RestaurantPdvPage() {
                     className={`px-4 py-2.5 rounded-2xl text-xs font-bold shrink-0 transition-all flex items-center gap-2 border ${
                       selectedCategory === cat.id
                         ? "bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-600/25"
-                        : "bg-[#111528] text-slate-400 border-indigo-500/10 hover:text-white hover:bg-indigo-500/10"
+                        : "bg-[#fbfdff] text-slate-500 border-[#c4d5ee] hover:text-gray-900 hover:bg-indigo-500/10"
                     }`}
                   >
                     {cat.icon} {cat.name}
@@ -1134,7 +1134,7 @@ export default function RestaurantPdvPage() {
                   value={productSearch}
                   onChange={e => setProductSearch(e.target.value)}
                   placeholder="Buscar prato, bebida ou pizza..."
-                  className="w-full bg-[#111528] border border-indigo-500/15 text-white pl-10 pr-4 py-2.5 rounded-2xl outline-none text-xs focus:border-indigo-500 font-semibold transition-all"
+                  className="w-full bg-[#fbfdff] border border-[#c4d5ee] text-gray-900 pl-10 pr-4 py-2.5 rounded-2xl outline-none text-xs focus:border-indigo-500 font-semibold transition-all"
                 />
               </div>
 
@@ -1144,15 +1144,15 @@ export default function RestaurantPdvPage() {
                   <div
                     key={p.id}
                     onClick={() => handleAddProductClick(p)}
-                    className="bg-[#111528] border border-indigo-500/10 hover:border-indigo-500/40 rounded-2xl p-3.5 cursor-pointer flex flex-col justify-between transition-all group hover:scale-[1.02] shadow-md"
+                    className="bg-[#fbfdff] border border-[#c4d5ee] hover:border-indigo-500/40 rounded-2xl p-3.5 cursor-pointer flex flex-col justify-between transition-all group hover:scale-[1.02] shadow-md"
                   >
                     <div>
                       <div className="flex justify-between items-start mb-1">
-                        <span className="text-xs font-black text-white group-hover:text-indigo-300 transition-colors leading-tight">
+                        <span className="text-xs font-black text-gray-900 group-hover:text-indigo-700 transition-colors leading-tight">
                           {p.name}
                         </span>
                         {p.isPizza && (
-                          <span className="text-[9px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 px-1.5 py-0.5 rounded-md shrink-0">
+                          <span className="text-[9px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20 px-1.5 py-0.5 rounded-md shrink-0">
                             PIZZA
                           </span>
                         )}
@@ -1162,11 +1162,11 @@ export default function RestaurantPdvPage() {
                       </span>
                     </div>
 
-                    <div className="flex justify-between items-center mt-3 pt-2 border-t border-indigo-500/10">
-                      <span className="text-emerald-400 font-mono font-black text-sm">
+                    <div className="flex justify-between items-center mt-3 pt-2 border-t border-[#c4d5ee]">
+                      <span className="text-emerald-600 font-mono font-black text-sm">
                         R$ {fmt(p.price)}
                       </span>
-                      <span className="w-7 h-7 rounded-xl bg-indigo-600/20 text-indigo-400 group-hover:bg-indigo-600 group-hover:text-white flex items-center justify-center transition-all">
+                      <span className="w-7 h-7 rounded-xl bg-indigo-600/20 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-gray-900 flex items-center justify-center transition-all">
                         <Plus size={14} />
                       </span>
                     </div>
@@ -1178,17 +1178,17 @@ export default function RestaurantPdvPage() {
         </div>
 
         {/* ── Coluna Direita: Comanda / Carrinho / Resumo Financeiro (4 Colunas) ──── */}
-        <div className="col-span-12 lg:col-span-4 flex flex-col min-h-0 bg-[#0f1324] p-5 space-y-4 shadow-2xl">
-          <div className="flex justify-between items-center border-b border-indigo-500/10 pb-3 shrink-0">
+        <div className="col-span-12 lg:col-span-4 flex flex-col min-h-0 bg-[#fbfdff] p-5 space-y-4 shadow-2xl">
+          <div className="flex justify-between items-center border-b border-[#c4d5ee] pb-3 shrink-0">
             <div>
-              <h3 className="text-sm font-black text-white flex items-center gap-2">
-                <Receipt className="text-indigo-400" size={16} /> Extrato de Comanda
+              <h3 className="text-sm font-black text-gray-900 flex items-center gap-2">
+                <Receipt className="text-indigo-600" size={16} /> Extrato de Comanda
               </h3>
-              <p className="text-[10px] text-slate-400 mt-0.5">
+              <p className="text-[10px] text-slate-500 mt-0.5">
                 {selectedTable ? `Mesa: ${selectedTable.name}` : selectedCommand ? `Comanda #${selectedCommand.code}` : selectedDelivery ? `Delivery ${selectedDelivery.code}` : "Venda Rápida / Balcão"}
               </p>
             </div>
-            <span className="text-xs font-mono font-bold text-indigo-400 bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 rounded-xl">
+            <span className="text-xs font-mono font-bold text-indigo-600 bg-indigo-500/10 border border-indigo-200 px-2.5 py-1 rounded-xl">
               {currentItems.length} item(s)
             </span>
           </div>
@@ -1196,37 +1196,37 @@ export default function RestaurantPdvPage() {
           {/* Lista de Itens Lançados */}
           <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
             {currentItems.map((item, idx) => (
-              <div key={idx} className="p-3 bg-[#070914] rounded-2xl border border-indigo-500/10 flex justify-between items-start gap-2 shadow-md">
+              <div key={idx} className="p-3 bg-[#e8f0fc] rounded-2xl border border-[#c4d5ee] flex justify-between items-start gap-2 shadow-md">
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start">
-                    <p className="text-xs font-bold text-white truncate">{item.name}</p>
+                    <p className="text-xs font-bold text-gray-900 truncate">{item.name}</p>
                     <button
                       onClick={() => handleRemoveOrderItem(item.id)}
-                      className="text-slate-500 hover:text-red-400 p-0.5 transition-colors shrink-0"
+                      className="text-slate-500 hover:text-red-600 p-0.5 transition-colors shrink-0"
                     >
                       <Trash2 size={13} />
                     </button>
                   </div>
 
                   {item.notes && (
-                    <p className="text-[10px] text-amber-300/80 italic mt-0.5">Obs: {item.notes}</p>
+                    <p className="text-[10px] text-amber-700/80 italic mt-0.5">Obs: {item.notes}</p>
                   )}
 
                   {item.selectedAdditions && item.selectedAdditions.length > 0 && (
-                    <div className="text-[10px] text-indigo-300/80 mt-0.5">
+                    <div className="text-[10px] text-indigo-700/80 mt-0.5">
                       + {item.selectedAdditions.map(a => a.name).join(", ")}
                     </div>
                   )}
 
                   <div className="flex justify-between items-center mt-2 text-[11px]">
-                    <span className="text-slate-400 font-mono">{item.quantity}x R$ {fmt(item.unitPrice)}</span>
+                    <span className="text-slate-500 font-mono">{item.quantity}x R$ {fmt(item.unitPrice)}</span>
                     <div className="flex items-center gap-2">
                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase ${
-                        item.status === "DRAFT" ? "bg-amber-500/10 text-amber-400 border-amber-500/20" : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20"
+                        item.status === "DRAFT" ? "bg-amber-500/10 text-amber-600 border-amber-500/20" : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
                       }`}>
                         {item.status === "DRAFT" ? "Pendente" : "Enviado"}
                       </span>
-                      <span className="text-emerald-400 font-mono font-bold">R$ {fmt(item.totalPrice)}</span>
+                      <span className="text-emerald-600 font-mono font-bold">R$ {fmt(item.totalPrice)}</span>
                     </div>
                   </div>
                 </div>
@@ -1243,38 +1243,38 @@ export default function RestaurantPdvPage() {
           </div>
 
           {/* Resumo de Totais e Botões de Fechamento */}
-          <div className="border-t border-indigo-500/10 pt-4 space-y-3 shrink-0">
+          <div className="border-t border-[#c4d5ee] pt-4 space-y-3 shrink-0">
             <div className="space-y-1.5 text-xs">
-              <div className="flex justify-between text-slate-400">
+              <div className="flex justify-between text-slate-500">
                 <span>Subtotal</span>
-                <span className="font-mono font-semibold text-slate-200">R$ {fmt(subtotal)}</span>
+                <span className="font-mono font-semibold text-slate-700">R$ {fmt(subtotal)}</span>
               </div>
 
               {mode === "TABLES" && (
-                <div className="flex justify-between text-slate-400 items-center">
+                <div className="flex justify-between text-slate-500 items-center">
                   <label className="flex items-center gap-1.5 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={includeServiceFee}
                       onChange={e => setIncludeServiceFee(e.target.checked)}
-                      className="rounded text-indigo-600 bg-[#070914] border-indigo-500/20"
+                      className="rounded text-indigo-600 bg-[#e8f0fc] border-indigo-200"
                     />
                     <span>Taxa de Serviço (10%)</span>
                   </label>
-                  <span className="font-mono font-semibold text-amber-400">R$ {fmt(serviceFee)}</span>
+                  <span className="font-mono font-semibold text-amber-600">R$ {fmt(serviceFee)}</span>
                 </div>
               )}
 
               {selectedDelivery && (
-                <div className="flex justify-between text-slate-400">
+                <div className="flex justify-between text-slate-500">
                   <span>Taxa de Entrega</span>
-                  <span className="font-mono font-semibold text-cyan-400">R$ {fmt(deliveryExtra)}</span>
+                  <span className="font-mono font-semibold text-cyan-600">R$ {fmt(deliveryExtra)}</span>
                 </div>
               )}
 
-              <div className="flex justify-between text-base font-black text-white pt-2 border-t border-indigo-500/10">
+              <div className="flex justify-between text-base font-black text-gray-900 pt-2 border-t border-[#c4d5ee]">
                 <span>Total Geral</span>
-                <span className="font-mono text-emerald-400 text-lg">R$ {fmt(grandTotal)}</span>
+                <span className="font-mono text-emerald-600 text-lg">R$ {fmt(grandTotal)}</span>
               </div>
             </div>
 
@@ -1282,7 +1282,7 @@ export default function RestaurantPdvPage() {
               <button
                 onClick={handleSendToKdsProduction}
                 disabled={!currentItems.length || !currentItems.some(i => i.status === "DRAFT")}
-                className="bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-500/30 text-indigo-300 hover:text-white disabled:opacity-30 font-bold py-3 rounded-2xl text-xs flex items-center justify-center gap-2 transition-all"
+                className="bg-indigo-600/20 hover:bg-indigo-600 border border-indigo-200 text-indigo-700 hover:text-gray-900 disabled:opacity-30 font-bold py-3 rounded-2xl text-xs flex items-center justify-center gap-2 transition-all"
               >
                 <Send size={15} /> KDS Cozinha
               </button>
@@ -1302,27 +1302,27 @@ export default function RestaurantPdvPage() {
       {/* ── MODAL: CUSTOMIZAÇÃO DO PRODUTO ──────────────────────────────────── */}
       {modalProduct && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#111528] border border-indigo-500/20 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div className="p-5 border-b border-indigo-500/10 flex justify-between items-center bg-[#0c0f1a]/50">
+          <div className="bg-[#fbfdff] border border-indigo-200 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-5 border-b border-[#c4d5ee] flex justify-between items-center bg-[#f3f7fe]/50">
               <div>
-                <h3 className="text-md font-bold text-white flex items-center gap-2">
-                  <ChefHat className="text-indigo-400" size={18} /> {modalProduct.name}
+                <h3 className="text-md font-bold text-gray-900 flex items-center gap-2">
+                  <ChefHat className="text-indigo-600" size={18} /> {modalProduct.name}
                 </h3>
-                <p className="text-[10px] text-slate-400">Setor: <strong className="text-indigo-300">{modalProduct.sector}</strong></p>
+                <p className="text-[10px] text-slate-500">Setor: <strong className="text-indigo-700">{modalProduct.sector}</strong></p>
               </div>
-              <button onClick={() => setModalProduct(null)} className="p-1 text-slate-500 hover:text-white"><X size={18}/></button>
+              <button onClick={() => setModalProduct(null)} className="p-1 text-slate-500 hover:text-gray-900"><X size={18}/></button>
             </div>
 
             <div className="p-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
               {modalProduct.isPizza && (
                 <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-2xl space-y-2">
-                  <label className="block text-[10px] font-extrabold text-amber-400 uppercase tracking-wider">
+                  <label className="block text-[10px] font-extrabold text-amber-600 uppercase tracking-wider">
                     🍕 Combinar 2º Sabor (Meio a Meio)
                   </label>
                   <select
                     value={pizzaSecondaryFlavor}
                     onChange={e => setPizzaSecondaryFlavor(e.target.value)}
-                    className="w-full bg-[#070914] border border-amber-500/30 text-white px-3 py-2 rounded-xl text-xs outline-none font-semibold"
+                    className="w-full bg-[#e8f0fc] border border-amber-500/30 text-gray-900 px-3 py-2 rounded-xl text-xs outline-none font-semibold"
                   >
                     <option value="">Apenas Sabor Inteiro ({modalProduct.name})</option>
                     {PRODUCTS.filter(p => p.isPizza && p.id !== modalProduct.id).map(p => (
@@ -1334,7 +1334,7 @@ export default function RestaurantPdvPage() {
 
               {modalProduct.additionGroups?.map((group, gIdx) => (
                 <div key={gIdx} className="space-y-2">
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
                     {group.name}
                   </label>
                   <div className="space-y-1.5">
@@ -1344,7 +1344,7 @@ export default function RestaurantPdvPage() {
                         <label
                           key={add.id}
                           className={`flex items-center justify-between p-3 rounded-xl border text-xs font-semibold cursor-pointer transition-all ${
-                            isSelected ? "bg-indigo-600/20 text-indigo-300 border-indigo-500/40" : "bg-[#070914] text-slate-300 border-indigo-500/10"
+                            isSelected ? "bg-indigo-600/20 text-indigo-700 border-indigo-500/40" : "bg-[#e8f0fc] text-slate-600 border-[#c4d5ee]"
                           }`}
                         >
                           <div className="flex items-center gap-2">
@@ -1358,11 +1358,11 @@ export default function RestaurantPdvPage() {
                                   setSelectedAdditions(prev => [...prev, add]);
                                 }
                               }}
-                              className="rounded text-indigo-600 bg-[#070914]"
+                              className="rounded text-indigo-600 bg-[#e8f0fc]"
                             />
                             <span>{add.name}</span>
                           </div>
-                          <span className="font-mono text-emerald-400">+ R$ {fmt(add.price)}</span>
+                          <span className="font-mono text-emerald-600">+ R$ {fmt(add.price)}</span>
                         </label>
                       );
                     })}
@@ -1371,7 +1371,7 @@ export default function RestaurantPdvPage() {
               ))}
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">
                   Observações para a Cozinha / Bar
                 </label>
                 <input
@@ -1379,13 +1379,13 @@ export default function RestaurantPdvPage() {
                   value={itemNotes}
                   onChange={e => setItemNotes(e.target.value)}
                   placeholder="Ex: Sem pimenta, carne bem passada, molho à parte..."
-                  className="w-full bg-[#070914] border border-indigo-500/20 text-white px-3.5 py-2.5 rounded-xl text-xs outline-none focus:border-indigo-500 font-medium"
+                  className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3.5 py-2.5 rounded-xl text-xs outline-none focus:border-indigo-500 font-medium"
                 />
               </div>
             </div>
 
-            <div className="p-4 border-t border-indigo-500/10 bg-[#0c0f1a]/50 flex justify-end gap-2 shrink-0">
-              <button onClick={() => setModalProduct(null)} className="px-4 py-2 bg-[#070914] text-slate-400 rounded-xl text-xs font-semibold">
+            <div className="p-4 border-t border-[#c4d5ee] bg-[#f3f7fe]/50 flex justify-end gap-2 shrink-0">
+              <button onClick={() => setModalProduct(null)} className="px-4 py-2 bg-[#e8f0fc] text-slate-500 rounded-xl text-xs font-semibold">
                 Cancelar
               </button>
               <button onClick={handleConfirmAddProductModal} className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs shadow-lg shadow-indigo-600/25 flex items-center gap-1.5">
@@ -1399,34 +1399,34 @@ export default function RestaurantPdvPage() {
       {/* ── MODAL: ABRIR MESA ────────────────────────────────────────────────── */}
       {isOpenTableModalOpen && targetTableToOpen && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#111528] border border-indigo-500/20 rounded-3xl w-full max-w-md shadow-2xl p-6 space-y-4">
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <Store className="text-emerald-400" size={18} /> Abrir {targetTableToOpen.name}
+          <div className="bg-[#fbfdff] border border-indigo-200 rounded-3xl w-full max-w-md shadow-2xl p-6 space-y-4">
+            <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+              <Store className="text-emerald-600" size={18} /> Abrir {targetTableToOpen.name}
             </h3>
             <form onSubmit={handleOpenTableSubmit} className="space-y-4">
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Quantidade de Pessoas</label>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Quantidade de Pessoas</label>
                 <input
                   type="number"
                   min="1"
                   max="20"
                   value={openTablePeople}
                   onChange={e => setOpenTablePeople(parseInt(e.target.value) || 1)}
-                  className="w-full bg-[#070914] border border-indigo-500/20 text-white px-3 py-2.5 rounded-xl text-xs font-bold text-center font-mono"
+                  className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3 py-2.5 rounded-xl text-xs font-bold text-center font-mono"
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Garçom Atendente</label>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Garçom Atendente</label>
                 <select
                   value={selectedWaiter}
                   onChange={e => setSelectedWaiter(e.target.value)}
-                  className="w-full bg-[#070914] border border-indigo-500/20 text-white px-3 py-2.5 rounded-xl text-xs font-bold"
+                  className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3 py-2.5 rounded-xl text-xs font-bold"
                 >
                   {MOCK_WAITERS.map(w => <option key={w} value={w}>{w}</option>)}
                 </select>
               </div>
               <div className="flex gap-2 pt-2">
-                <button type="button" onClick={() => setIsOpenTableModalOpen(false)} className="flex-1 bg-[#070914] text-slate-400 py-2.5 rounded-xl text-xs font-bold">Cancelar</button>
+                <button type="button" onClick={() => setIsOpenTableModalOpen(false)} className="flex-1 bg-[#e8f0fc] text-slate-500 py-2.5 rounded-xl text-xs font-bold">Cancelar</button>
                 <button type="submit" className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-xl text-xs font-bold shadow-lg shadow-emerald-600/20">Confirmar & Abrir Mesa</button>
               </div>
             </form>
@@ -1437,45 +1437,45 @@ export default function RestaurantPdvPage() {
       {/* ── MODAL: ABRIR NOVA COMANDA ────────────────────────────────────────── */}
       {isOpenCommandModalOpen && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#111528] border border-amber-500/20 rounded-3xl w-full max-w-md shadow-2xl p-6 space-y-4">
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <Tag className="text-amber-400" size={18} /> Abrir Nova Comanda
+          <div className="bg-[#fbfdff] border border-amber-500/20 rounded-3xl w-full max-w-md shadow-2xl p-6 space-y-4">
+            <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+              <Tag className="text-amber-600" size={18} /> Abrir Nova Comanda
             </h3>
             <form onSubmit={handleOpenCommandSubmit} className="space-y-4">
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Número da Comanda / Cartão *</label>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Número da Comanda / Cartão *</label>
                 <input
                   type="text"
                   required
                   placeholder="Ex: 104"
                   value={newCommandCode}
                   onChange={e => setNewCommandCode(e.target.value)}
-                  className="w-full bg-[#070914] border border-indigo-500/20 text-white px-3.5 py-2.5 rounded-xl text-xs font-bold font-mono"
+                  className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3.5 py-2.5 rounded-xl text-xs font-bold font-mono"
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Nome do Cliente *</label>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nome do Cliente *</label>
                 <input
                   type="text"
                   required
                   placeholder="Ex: João Pereira"
                   value={newCommandCustomer}
                   onChange={e => setNewCommandCustomer(e.target.value)}
-                  className="w-full bg-[#070914] border border-indigo-500/20 text-white px-3.5 py-2.5 rounded-xl text-xs font-bold"
+                  className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3.5 py-2.5 rounded-xl text-xs font-bold"
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Telefone (Opcional)</label>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Telefone (Opcional)</label>
                 <input
                   type="text"
                   placeholder="(11) 90000-0000"
                   value={newCommandPhone}
                   onChange={e => setNewCommandPhone(e.target.value)}
-                  className="w-full bg-[#070914] border border-indigo-500/20 text-white px-3.5 py-2.5 rounded-xl text-xs font-medium"
+                  className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3.5 py-2.5 rounded-xl text-xs font-medium"
                 />
               </div>
               <div className="flex gap-2 pt-2">
-                <button type="button" onClick={() => setIsOpenCommandModalOpen(false)} className="flex-1 bg-[#070914] text-slate-400 py-2.5 rounded-xl text-xs font-bold">Cancelar</button>
+                <button type="button" onClick={() => setIsOpenCommandModalOpen(false)} className="flex-1 bg-[#e8f0fc] text-slate-500 py-2.5 rounded-xl text-xs font-bold">Cancelar</button>
                 <button type="submit" className="flex-1 bg-amber-500 hover:bg-amber-400 text-black py-2.5 rounded-xl text-xs font-bold shadow-lg">Criar Comanda</button>
               </div>
             </form>
@@ -1486,67 +1486,67 @@ export default function RestaurantPdvPage() {
       {/* ── MODAL: NOVO PEDIDO DELIVERY ──────────────────────────────────────── */}
       {isNewDeliveryModalOpen && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#111528] border border-cyan-500/20 rounded-3xl w-full max-w-md shadow-2xl p-6 space-y-4">
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <Bike className="text-cyan-400" size={18} /> Novo Pedido de Delivery
+          <div className="bg-[#fbfdff] border border-cyan-500/20 rounded-3xl w-full max-w-md shadow-2xl p-6 space-y-4">
+            <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
+              <Bike className="text-cyan-600" size={18} /> Novo Pedido de Delivery
             </h3>
             <form onSubmit={handleNewDeliverySubmit} className="space-y-3">
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Nome do Cliente *</label>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nome do Cliente *</label>
                 <input
                   type="text"
                   required
                   placeholder="Ex: Beatriz Souza"
                   value={newDeliveryName}
                   onChange={e => setNewDeliveryName(e.target.value)}
-                  className="w-full bg-[#070914] border border-indigo-500/20 text-white px-3 py-2 rounded-xl text-xs font-bold"
+                  className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3 py-2 rounded-xl text-xs font-bold"
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Telefone WhatsApp</label>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Telefone WhatsApp</label>
                 <input
                   type="text"
                   placeholder="(11) 98888-7777"
                   value={newDeliveryPhone}
                   onChange={e => setNewDeliveryPhone(e.target.value)}
-                  className="w-full bg-[#070914] border border-indigo-500/20 text-white px-3 py-2 rounded-xl text-xs font-medium"
+                  className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3 py-2 rounded-xl text-xs font-medium"
                 />
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Endereço de Entrega *</label>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Endereço de Entrega *</label>
                 <input
                   type="text"
                   required
                   placeholder="Rua, número e complemento"
                   value={newDeliveryAddress}
                   onChange={e => setNewDeliveryAddress(e.target.value)}
-                  className="w-full bg-[#070914] border border-indigo-500/20 text-white px-3 py-2 rounded-xl text-xs font-medium"
+                  className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3 py-2 rounded-xl text-xs font-medium"
                 />
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Bairro</label>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Bairro</label>
                   <input
                     type="text"
                     placeholder="Bairro"
                     value={newDeliveryBairro}
                     onChange={e => setNewDeliveryBairro(e.target.value)}
-                    className="w-full bg-[#070914] border border-indigo-500/20 text-white px-3 py-2 rounded-xl text-xs font-medium"
+                    className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3 py-2 rounded-xl text-xs font-medium"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Taxa Entrega (R$)</label>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Taxa Entrega (R$)</label>
                   <input
                     type="number"
                     step="0.50"
                     value={newDeliveryFee}
                     onChange={e => setNewDeliveryFee(parseFloat(e.target.value) || 0)}
-                    className="w-full bg-[#070914] border border-indigo-500/20 text-white px-3 py-2 rounded-xl text-xs font-bold font-mono"
+                    className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3 py-2 rounded-xl text-xs font-bold font-mono"
                   />
                 </div>
               </div>
               <div className="flex gap-2 pt-2">
-                <button type="button" onClick={() => setIsNewDeliveryModalOpen(false)} className="flex-1 bg-[#070914] text-slate-400 py-2.5 rounded-xl text-xs font-bold">Cancelar</button>
+                <button type="button" onClick={() => setIsNewDeliveryModalOpen(false)} className="flex-1 bg-[#e8f0fc] text-slate-500 py-2.5 rounded-xl text-xs font-bold">Cancelar</button>
                 <button type="submit" className="flex-1 bg-cyan-500 hover:bg-cyan-400 text-black py-2.5 rounded-xl text-xs font-bold shadow-lg">Cadastrar Delivery</button>
               </div>
             </form>
@@ -1557,27 +1557,27 @@ export default function RestaurantPdvPage() {
       {/* ── MODAL: FECHAR CONTA & CHECKOUT ───────────────────────────────────── */}
       {isCheckoutOpen && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#111528] border border-indigo-500/20 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden">
-            <div className="p-5 border-b border-indigo-500/10 flex justify-between items-center bg-[#0c0f1a]/50">
-              <h3 className="text-md font-bold text-white flex items-center gap-2">
-                <Receipt className="text-emerald-400" size={18} /> Fechamento de Conta & Pagamento
+          <div className="bg-[#fbfdff] border border-indigo-200 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden">
+            <div className="p-5 border-b border-[#c4d5ee] flex justify-between items-center bg-[#f3f7fe]/50">
+              <h3 className="text-md font-bold text-gray-900 flex items-center gap-2">
+                <Receipt className="text-emerald-600" size={18} /> Fechamento de Conta & Pagamento
               </h3>
-              <button onClick={() => setIsCheckoutOpen(false)} className="p-1 text-slate-500 hover:text-white"><X size={18}/></button>
+              <button onClick={() => setIsCheckoutOpen(false)} className="p-1 text-slate-500 hover:text-gray-900"><X size={18}/></button>
             </div>
 
             <div className="p-5 space-y-4">
-              <div className="bg-[#070914] p-4 rounded-2xl border border-indigo-500/10 space-y-2">
-                <div className="flex justify-between text-xs text-slate-400"><span>Subtotal</span><span className="font-mono">R$ {fmt(subtotal)}</span></div>
-                {mode === "TABLES" && <div className="flex justify-between text-xs text-slate-400"><span>Taxa de Serviço (10%)</span><span className="font-mono text-amber-400">R$ {fmt(serviceFee)}</span></div>}
-                {selectedDelivery && <div className="flex justify-between text-xs text-slate-400"><span>Taxa de Entrega</span><span className="font-mono text-cyan-400">R$ {fmt(deliveryExtra)}</span></div>}
-                <div className="flex justify-between text-base font-black text-white pt-2 border-t border-indigo-500/10">
+              <div className="bg-[#e8f0fc] p-4 rounded-2xl border border-[#c4d5ee] space-y-2">
+                <div className="flex justify-between text-xs text-slate-500"><span>Subtotal</span><span className="font-mono">R$ {fmt(subtotal)}</span></div>
+                {mode === "TABLES" && <div className="flex justify-between text-xs text-slate-500"><span>Taxa de Serviço (10%)</span><span className="font-mono text-amber-600">R$ {fmt(serviceFee)}</span></div>}
+                {selectedDelivery && <div className="flex justify-between text-xs text-slate-500"><span>Taxa de Entrega</span><span className="font-mono text-cyan-600">R$ {fmt(deliveryExtra)}</span></div>}
+                <div className="flex justify-between text-base font-black text-gray-900 pt-2 border-t border-[#c4d5ee]">
                   <span>Total Final a Pagar</span>
-                  <span className="font-mono text-emerald-400 text-xl">R$ {fmt(grandTotal)}</span>
+                  <span className="font-mono text-emerald-600 text-xl">R$ {fmt(grandTotal)}</span>
                 </div>
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Forma de Pagamento</label>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Forma de Pagamento</label>
                 <div className="grid grid-cols-3 gap-2">
                   {[
                     { key: "CARTAO_CREDITO", label: "Crédito" },
@@ -1592,7 +1592,7 @@ export default function RestaurantPdvPage() {
                       className={`p-3 rounded-xl border text-xs font-bold transition-all ${
                         paymentMethod === m.key
                           ? "bg-indigo-600 text-white border-indigo-500 shadow-md"
-                          : "bg-[#070914] text-slate-400 border-indigo-500/10"
+                          : "bg-[#e8f0fc] text-slate-500 border-[#c4d5ee]"
                       }`}
                     >
                       {m.label}
@@ -1602,7 +1602,7 @@ export default function RestaurantPdvPage() {
               </div>
 
               <div className="flex gap-2 pt-2">
-                <button onClick={() => setIsCheckoutOpen(false)} className="flex-1 bg-[#070914] text-slate-400 py-3 rounded-xl text-xs font-bold border border-indigo-500/10">Cancelar</button>
+                <button onClick={() => setIsCheckoutOpen(false)} className="flex-1 bg-[#e8f0fc] text-slate-500 py-3 rounded-xl text-xs font-bold border border-[#c4d5ee]">Cancelar</button>
                 <button onClick={handleCheckoutCloseTable} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl text-xs font-bold shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-1.5">
                   <CheckCircle2 size={15} /> Confirmar & Emitir Cupom
                 </button>
@@ -1615,22 +1615,22 @@ export default function RestaurantPdvPage() {
       {/* ── MODAL: DIVIDIR CONTA ─────────────────────────────────────────────── */}
       {isSplitBillOpen && selectedTable && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#111528] border border-indigo-500/20 rounded-3xl w-full max-w-md shadow-2xl p-6 space-y-4">
-            <h3 className="text-md font-bold text-white flex items-center gap-2">
-              <Users className="text-amber-400" size={18} /> Dividir Conta — {selectedTable.name}
+          <div className="bg-[#fbfdff] border border-indigo-200 rounded-3xl w-full max-w-md shadow-2xl p-6 space-y-4">
+            <h3 className="text-md font-bold text-gray-900 flex items-center gap-2">
+              <Users className="text-amber-600" size={18} /> Dividir Conta — {selectedTable.name}
             </h3>
-            <div className="bg-[#070914] p-4 rounded-2xl border border-indigo-500/10 space-y-2 text-xs">
-              <div className="flex justify-between text-slate-400"><span>Total da Mesa</span><span className="font-mono font-bold text-white">R$ {fmt(grandTotal)}</span></div>
-              <div className="flex justify-between text-slate-400"><span>Número de Pessoas</span>
+            <div className="bg-[#e8f0fc] p-4 rounded-2xl border border-[#c4d5ee] space-y-2 text-xs">
+              <div className="flex justify-between text-slate-500"><span>Total da Mesa</span><span className="font-mono font-bold text-gray-900">R$ {fmt(grandTotal)}</span></div>
+              <div className="flex justify-between text-slate-500"><span>Número de Pessoas</span>
                 <input
                   type="number"
                   min="1"
                   value={splitPeopleCount}
                   onChange={e => setSplitPeopleCount(parseInt(e.target.value) || 1)}
-                  className="w-16 bg-[#111528] border border-indigo-500/20 text-white text-center font-mono font-bold py-1 rounded-lg"
+                  className="w-16 bg-[#fbfdff] border border-indigo-200 text-gray-900 text-center font-mono font-bold py-1 rounded-lg"
                 />
               </div>
-              <div className="flex justify-between text-sm font-black text-emerald-400 pt-2 border-t border-indigo-500/10">
+              <div className="flex justify-between text-sm font-black text-emerald-600 pt-2 border-t border-[#c4d5ee]">
                 <span>Valor por Pessoa</span>
                 <span className="font-mono">R$ {fmt(grandTotal / Math.max(1, splitPeopleCount))}</span>
               </div>
@@ -1645,16 +1645,16 @@ export default function RestaurantPdvPage() {
       {/* ── MODAL: TRANSFERIR MESA ───────────────────────────────────────────── */}
       {isTransferOpen && selectedTable && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#111528] border border-indigo-500/20 rounded-3xl w-full max-w-md shadow-2xl p-6 space-y-4">
-            <h3 className="text-md font-bold text-white flex items-center gap-2">
-              <ArrowLeftRight className="text-indigo-400" size={18} /> Transferir Itens da {selectedTable.name}
+          <div className="bg-[#fbfdff] border border-indigo-200 rounded-3xl w-full max-w-md shadow-2xl p-6 space-y-4">
+            <h3 className="text-md font-bold text-gray-900 flex items-center gap-2">
+              <ArrowLeftRight className="text-indigo-600" size={18} /> Transferir Itens da {selectedTable.name}
             </h3>
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5">Mesa de Destino</label>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1.5">Mesa de Destino</label>
               <select
                 value={transferTargetTableId}
                 onChange={e => setTransferTargetTableId(parseInt(e.target.value))}
-                className="w-full bg-[#070914] border border-indigo-500/20 text-white px-3 py-2.5 rounded-xl text-xs font-bold outline-none"
+                className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3 py-2.5 rounded-xl text-xs font-bold outline-none"
               >
                 {tables.filter(t => t.id !== selectedTable.id).map(t => (
                   <option key={t.id} value={t.id}>{t.name} ({t.status === "FREE" ? "LIVRE" : "OCUPADA"})</option>
@@ -1662,7 +1662,7 @@ export default function RestaurantPdvPage() {
               </select>
             </div>
             <div className="flex gap-2 pt-2">
-              <button onClick={() => setIsTransferOpen(false)} className="flex-1 bg-[#070914] text-slate-400 py-2.5 rounded-xl text-xs font-bold">Cancelar</button>
+              <button onClick={() => setIsTransferOpen(false)} className="flex-1 bg-[#e8f0fc] text-slate-500 py-2.5 rounded-xl text-xs font-bold">Cancelar</button>
               <button onClick={handleTransferTableSubmit} className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-xl text-xs font-bold shadow-lg">Confirmar Transferência</button>
             </div>
           </div>
@@ -1703,7 +1703,7 @@ export default function RestaurantPdvPage() {
               <div className="mt-3 flex gap-2">
                 <button
                   onClick={() => setIsReceiptModalOpen(false)}
-                  className="flex-1 bg-gray-900 text-white font-sans text-xs py-2.5 rounded-xl font-bold hover:bg-black transition-all flex items-center justify-center gap-1"
+                  className="flex-1 bg-[#fbfdff] text-gray-900 font-sans text-xs py-2.5 rounded-xl font-bold hover:bg-black transition-all flex items-center justify-center gap-1"
                 >
                   <Printer size={14} /> Imprimir Cupom
                 </button>

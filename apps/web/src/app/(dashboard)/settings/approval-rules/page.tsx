@@ -26,11 +26,11 @@ const OPERATIONS_LIST = [
 ];
 
 const ROLE_STYLE: Record<string, string> = {
-  ADMIN:      "text-violet-400 bg-violet-500/15 border-violet-500/25",
-  MANAGER:    "text-indigo-400 bg-indigo-500/15 border-indigo-500/25",
-  SUPERVISOR: "text-amber-400  bg-amber-500/15  border-amber-500/25",
-  OPERATOR:   "text-emerald-400 bg-emerald-500/15 border-emerald-500/25",
-  VIEWER:     "text-sky-400    bg-sky-500/15    border-sky-500/25",
+  ADMIN:      "text-violet-600 bg-violet-500/15 border-violet-500/25",
+  MANAGER:    "text-indigo-600 bg-indigo-500/15 border-indigo-200",
+  SUPERVISOR: "text-amber-600  bg-amber-500/15  border-amber-500/25",
+  OPERATOR:   "text-emerald-600 bg-emerald-500/15 border-emerald-500/25",
+  VIEWER:     "text-sky-600    bg-sky-500/15    border-sky-500/25",
 };
 
 export default function ApprovalRulesPage() {
@@ -178,12 +178,12 @@ export default function ApprovalRulesPage() {
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shrink-0">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-amber-600/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+          <div className="w-9 h-9 rounded-xl bg-amber-600/10 border border-amber-500/20 flex items-center justify-center text-amber-600">
             <ShieldAlert size={18} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Regras de Liberação & Alçadas</h1>
-            <p className="text-slate-400 text-xs mt-0.5">Defina limites e alçadas por cargo para cada operação crítica do sistema.</p>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Regras de Liberação & Alçadas</h1>
+            <p className="text-slate-500 text-xs mt-0.5">Defina limites e alçadas por cargo para cada operação crítica do sistema.</p>
           </div>
         </div>
 
@@ -191,7 +191,7 @@ export default function ApprovalRulesPage() {
           {/* Botão Novo Cargo */}
           <button
             onClick={() => { setIsRoleModalOpen(true); setRoleError(null); }}
-            className="bg-[#14192d] hover:bg-violet-600/20 text-violet-300 border border-violet-500/25 px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
+            className="bg-[#fbfdff] hover:bg-violet-600/20 text-violet-700 border border-violet-500/25 px-3.5 py-2 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer"
           >
             <UserPlus size={14} />
             <span>Novo Cargo</span>
@@ -210,13 +210,13 @@ export default function ApprovalRulesPage() {
 
       {/* ── Cargos cadastrados ── */}
       <div className="shrink-0">
-        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2.5 flex items-center gap-2">
-          <Shield size={13} className="text-indigo-400" />
+        <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2.5 flex items-center gap-2">
+          <Shield size={13} className="text-indigo-600" />
           Cargos / Perfis da Hierarquia ({roles.length})
         </p>
         <div className="flex flex-wrap gap-2">
           {roles.map(r => {
-            const cls = ROLE_STYLE[r.key] || "text-slate-300 bg-slate-800/60 border-slate-700";
+            const cls = ROLE_STYLE[r.key] || "text-slate-600 bg-[#eaf1fc]/60 border-[#c4d5ee]";
             return (
               <span key={r.id} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[11px] font-semibold ${cls}`}>
                 <Shield size={11} />
@@ -227,7 +227,7 @@ export default function ApprovalRulesPage() {
           })}
           <button
             onClick={() => { setIsRoleModalOpen(true); setRoleError(null); }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-violet-500/30 text-[11px] font-semibold text-violet-400 hover:bg-violet-500/10 transition-all cursor-pointer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-violet-500/30 text-[11px] font-semibold text-violet-600 hover:bg-violet-500/10 transition-all cursor-pointer"
           >
             <Plus size={11} />
             Adicionar Cargo
@@ -236,7 +236,7 @@ export default function ApprovalRulesPage() {
       </div>
 
       {/* ── Box explicativo ── */}
-      <div className="bg-gradient-to-r from-[#14192d] to-[#101426] border border-indigo-500/15 rounded-2xl p-4 text-xs text-slate-300 flex items-center gap-3 shrink-0">
+      <div className="bg-gradient-to-r from-[#fbfdff] to-[#fbfdff] border border-[#c4d5ee] rounded-2xl p-4 text-xs text-slate-300 flex items-center gap-3 shrink-0">
         <Sparkles size={20} className="text-amber-400 shrink-0" />
         <div>
           <strong className="text-white block">Hierarquia de Autorização Automática</strong>
@@ -247,11 +247,11 @@ export default function ApprovalRulesPage() {
       </div>
 
       {/* ── Lista de Regras por Operação ── */}
-      <div className="bg-[#101426] rounded-2xl border border-indigo-500/10 flex-1 flex flex-col min-h-0 overflow-hidden shadow-xl p-4">
+      <div className="bg-[#fbfdff] rounded-2xl border border-[#c4d5ee] flex-1 flex flex-col min-h-0 overflow-hidden shadow-xl p-4">
         <div className="flex-1 overflow-auto min-h-0 space-y-4">
           {loading ? (
             <div className="flex flex-col items-center justify-center h-full p-8 text-slate-500 gap-3">
-              <Loader2 className="animate-spin text-amber-400" size={32} />
+              <Loader2 className="animate-spin text-amber-600" size={32} />
               <p className="text-xs">Carregando regras de alçada...</p>
             </div>
           ) : rules.length === 0 ? (
@@ -266,8 +266,8 @@ export default function ApprovalRulesPage() {
               const unit   = opDef?.unit || "R$";
 
               return (
-                <div key={operationCode} className="bg-[#0c0f1a] border border-indigo-500/10 rounded-2xl p-4">
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2 mb-3">
+                <div key={operationCode} className="bg-[#f3f7fe] border border-[#c4d5ee] rounded-2xl p-4">
+                  <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2 mb-3">
                     <span className="w-2 h-2 rounded-full bg-amber-400" />
                     {opName}
                     <span className="text-[10px] text-slate-500 font-mono">({operationCode})</span>
@@ -277,27 +277,27 @@ export default function ApprovalRulesPage() {
                     {opRules.map(rule => {
                       const roleObj = roles.find(r => r.key === rule.minRole);
                       const roleLabel = roleObj?.name || rule.minRole;
-                      const roleCls = ROLE_STYLE[rule.minRole] || "text-slate-300 bg-slate-800 border-slate-700";
+                      const roleCls = ROLE_STYLE[rule.minRole] || "text-slate-600 bg-[#eaf1fc] border-[#c4d5ee]";
 
                       return (
                         <div
                           key={rule.id}
                           className={`p-3.5 rounded-2xl border transition-all flex flex-col justify-between ${
                             rule.active
-                              ? "bg-[#101426] border-indigo-500/20 shadow-sm"
-                              : "bg-[#0a0d18] border-indigo-500/5 opacity-50"
+                              ? "bg-[#fbfdff] border-indigo-200 shadow-sm"
+                              : "bg-[#e8f0fc] border-[#c4d5ee] opacity-50"
                           }`}
                         >
                           <div>
                             {/* Nome + Status */}
                             <div className="flex items-center justify-between mb-2">
-                              <span className="text-xs font-bold text-white leading-tight">{rule.name}</span>
+                              <span className="text-xs font-bold text-gray-900 leading-tight">{rule.name}</span>
                               <button
                                 onClick={() => handleToggle(rule.id, rule.active)}
                                 className={`text-[9px] px-2 py-0.5 rounded-full font-bold border transition-all cursor-pointer ${
                                   rule.active
-                                    ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/20"
-                                    : "bg-slate-800 text-slate-500 border-slate-700"
+                                    ? "bg-emerald-500/15 text-emerald-600 border-emerald-500/20"
+                                    : "bg-[#eaf1fc] text-slate-500 border-[#c4d5ee]"
                                 }`}
                               >
                                 {rule.active ? "Ativa" : "Inativa"}
@@ -305,16 +305,16 @@ export default function ApprovalRulesPage() {
                             </div>
 
                             {/* Faixa de Valor */}
-                            <div className="bg-[#0c0f1a] p-2.5 rounded-xl border border-indigo-500/10 mb-3 text-xs flex items-center justify-between">
-                              <span className="text-slate-400 text-[11px]">Faixa:</span>
-                              <span className="font-bold text-amber-300 font-mono text-[11px]">
+                            <div className="bg-[#f3f7fe] p-2.5 rounded-xl border border-[#c4d5ee] mb-3 text-xs flex items-center justify-between">
+                              <span className="text-slate-500 text-[11px]">Faixa:</span>
+                              <span className="font-bold text-amber-700 font-mono text-[11px]">
                                 {unit} {Number(rule.minValue).toFixed(2)} → {rule.maxValue !== null ? `${unit} ${Number(rule.maxValue).toFixed(2)}` : "∞"}
                               </span>
                             </div>
 
                             {/* Cargo mínimo */}
                             <div className="flex items-center justify-between text-xs mb-1">
-                              <span className="text-slate-400 text-[11px]">Cargo Mínimo:</span>
+                              <span className="text-slate-500 text-[11px]">Cargo Mínimo:</span>
                               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-lg border ${roleCls}`}>
                                 {roleLabel}
                               </span>
@@ -328,7 +328,7 @@ export default function ApprovalRulesPage() {
                             )}
 
                             {rule.requiresPin && (
-                              <div className="flex items-center gap-1.5 text-[10px] text-amber-400 mt-2">
+                              <div className="flex items-center gap-1.5 text-[10px] text-amber-600 mt-2">
                                 <Key size={11} />
                                 <span>Exige PIN do autorizador</span>
                               </div>
@@ -336,16 +336,16 @@ export default function ApprovalRulesPage() {
                           </div>
 
                           {/* Ações */}
-                          <div className="flex items-center justify-end gap-2 pt-3 mt-2 border-t border-indigo-500/10">
+                          <div className="flex items-center justify-end gap-2 pt-3 mt-2 border-t border-[#c4d5ee]">
                             <button
                               onClick={() => openEditRule(rule)}
-                              className="p-1.5 text-slate-400 hover:text-white hover:bg-white/5 rounded-lg transition-all cursor-pointer"
+                              className="p-1.5 text-slate-500 hover:text-gray-900 hover:bg-[#e8f0fc] rounded-lg transition-all cursor-pointer"
                             >
                               <Edit2 size={13} />
                             </button>
                             <button
                               onClick={() => handleDelete(rule.id)}
-                              className="p-1.5 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-all cursor-pointer"
+                              className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-500/10 rounded-lg transition-all cursor-pointer"
                             >
                               <Trash2 size={13} />
                             </button>
@@ -364,13 +364,13 @@ export default function ApprovalRulesPage() {
       {/* ══════════════ MODAL – Nova / Editar Regra ══════════════ */}
       {isRuleModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#101426] border border-indigo-500/20 rounded-3xl w-full max-w-md shadow-2xl p-5 space-y-4">
-            <div className="flex justify-between items-center border-b border-indigo-500/10 pb-3">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <ShieldAlert size={16} className="text-amber-400" />
+          <div className="bg-[#fbfdff] border border-indigo-200 rounded-3xl w-full max-w-md shadow-2xl p-5 space-y-4">
+            <div className="flex justify-between items-center border-b border-[#c4d5ee] pb-3">
+              <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                <ShieldAlert size={16} className="text-amber-600" />
                 {editingRule ? "Editar Regra de Alçada" : "Nova Regra de Alçada"}
               </h3>
-              <button onClick={() => setIsRuleModalOpen(false)} className="text-slate-400 hover:text-white cursor-pointer">
+              <button onClick={() => setIsRuleModalOpen(false)} className="text-slate-500 hover:text-gray-900 cursor-pointer">
                 <X size={16} />
               </button>
             </div>
@@ -378,7 +378,7 @@ export default function ApprovalRulesPage() {
             <form onSubmit={handleSaveRule} className="space-y-3">
               {/* Operação */}
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Tipo de Operação</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Tipo de Operação</label>
                 <select
                   value={formOp}
                   onChange={e => {
@@ -388,7 +388,7 @@ export default function ApprovalRulesPage() {
                       if (op) setFormName(`${op.name} — Alçada`);
                     }
                   }}
-                  className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-xl text-xs outline-none"
+                  className="w-full bg-[#f3f7fe] border border-[#c4d5ee] text-gray-900 px-3 py-2 rounded-xl text-xs outline-none"
                 >
                   {OPERATIONS_LIST.map(o => (
                     <option key={o.code} value={o.code}>{o.name}</option>
@@ -398,31 +398,31 @@ export default function ApprovalRulesPage() {
 
               {/* Nome da regra */}
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Nome / Descrição da Regra</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Nome / Descrição da Regra</label>
                 <input
                   type="text"
                   required
                   value={formName}
                   onChange={e => setFormName(e.target.value)}
                   placeholder="Ex: Cancelamento de Venda até R$ 200"
-                  className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-xl text-xs outline-none"
+                  className="w-full bg-[#f3f7fe] border border-[#c4d5ee] text-gray-900 px-3 py-2 rounded-xl text-xs outline-none"
                 />
               </div>
 
               {/* Faixas de Valor */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
                     Valor Mín. ({OPERATIONS_LIST.find(o => o.code === formOp)?.unit || "R$"})
                   </label>
                   <input
                     type="number" step="0.01" required
                     value={formMinVal} onChange={e => setFormMinVal(e.target.value)}
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-xl text-xs font-mono outline-none"
+                    className="w-full bg-[#f3f7fe] border border-[#c4d5ee] text-gray-900 px-3 py-2 rounded-xl text-xs font-mono outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1 flex items-center justify-between">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center justify-between">
                     <span>Valor Máx.</span>
                     <span className="text-[10px] text-slate-500">vazio = ∞</span>
                   </label>
@@ -430,18 +430,18 @@ export default function ApprovalRulesPage() {
                     type="number" step="0.01"
                     value={formMaxVal} onChange={e => setFormMaxVal(e.target.value)}
                     placeholder="Sem limite"
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-xl text-xs font-mono outline-none"
+                    className="w-full bg-[#f3f7fe] border border-[#c4d5ee] text-gray-900 px-3 py-2 rounded-xl text-xs font-mono outline-none"
                   />
                 </div>
               </div>
 
               {/* Cargo Mínimo — dinâmico */}
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Cargo Mínimo para Autorizar</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Cargo Mínimo para Autorizar</label>
                 <select
                   value={formMinRole}
                   onChange={e => setFormMinRole(e.target.value)}
-                  className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-xl text-xs outline-none"
+                  className="w-full bg-[#f3f7fe] border border-[#c4d5ee] text-gray-900 px-3 py-2 rounded-xl text-xs outline-none"
                 >
                   {roles.map(r => (
                     <option key={r.id} value={r.key}>{r.name}</option>
@@ -452,13 +452,13 @@ export default function ApprovalRulesPage() {
               {/* Loja Específica (Opcional) */}
               {stores.length > 0 && (
                 <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
+                  <label className="block text-xs font-semibold text-slate-600 mb-1">
                     Loja Específica <span className="text-slate-500 font-normal">(opcional – deixe vazio para global)</span>
                   </label>
                   <select
                     value={formStoreId}
                     onChange={e => setFormStoreId(e.target.value)}
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/15 text-white px-3 py-2 rounded-xl text-xs outline-none"
+                    className="w-full bg-[#f3f7fe] border border-[#c4d5ee] text-gray-900 px-3 py-2 rounded-xl text-xs outline-none"
                   >
                     <option value="">Todas as Lojas (Global)</option>
                     {stores.map(s => (
@@ -474,14 +474,14 @@ export default function ApprovalRulesPage() {
                   type="checkbox"
                   checked={formRequiresPin}
                   onChange={e => setFormRequiresPin(e.target.checked)}
-                  className="rounded border-slate-700 text-amber-500 focus:ring-amber-500 w-4 h-4"
+                  className="rounded border-[#c4d5ee] text-amber-500 focus:ring-amber-500 w-4 h-4"
                 />
-                <span className="text-xs text-slate-300 font-medium">Exigir PIN numérico ou senha do autorizador</span>
+                <span className="text-xs text-slate-600 font-medium">Exigir PIN numérico ou senha do autorizador</span>
               </label>
 
               <div className="flex gap-2 pt-3">
                 <button type="button" onClick={() => setIsRuleModalOpen(false)}
-                  className="flex-1 py-2.5 bg-[#14192d] text-slate-300 text-xs rounded-xl font-semibold cursor-pointer">
+                  className="flex-1 py-2.5 bg-[#fbfdff] text-slate-600 text-xs rounded-xl font-semibold cursor-pointer">
                   Cancelar
                 </button>
                 <button type="submit" disabled={savingRule}
@@ -498,69 +498,69 @@ export default function ApprovalRulesPage() {
       {/* ══════════════ MODAL – Novo Cargo ══════════════ */}
       {isRoleModalOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#101426] border border-violet-500/20 rounded-3xl w-full max-w-md shadow-2xl p-5 space-y-4">
+          <div className="bg-[#fbfdff] border border-violet-500/20 rounded-3xl w-full max-w-md shadow-2xl p-5 space-y-4">
             <div className="flex justify-between items-center border-b border-violet-500/10 pb-3">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <UserPlus size={16} className="text-violet-400" />
+              <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                <UserPlus size={16} className="text-violet-600" />
                 Cadastrar Novo Cargo / Perfil
               </h3>
-              <button onClick={() => setIsRoleModalOpen(false)} className="text-slate-400 hover:text-white cursor-pointer">
+              <button onClick={() => setIsRoleModalOpen(false)} className="text-slate-500 hover:text-gray-900 cursor-pointer">
                 <X size={16} />
               </button>
             </div>
 
             {roleError && (
-              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-300">
+              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-700">
                 {roleError}
               </div>
             )}
 
             <form onSubmit={handleCreateRole} className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Código Único (identificador) <span className="text-red-400">*</span>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  Código Único (identificador) <span className="text-red-600">*</span>
                 </label>
                 <input
                   type="text" required
                   value={newRoleKey}
                   onChange={e => setNewRoleKey(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, ""))}
                   placeholder="Ex: LIDER_ESTOQUE, CAIXA_SENIOR, FISCAL"
-                  className="w-full bg-[#0c0f1a] border border-violet-500/15 text-white px-3 py-2 rounded-xl text-xs font-mono uppercase outline-none"
+                  className="w-full bg-[#f3f7fe] border border-violet-500/15 text-gray-900 px-3 py-2 rounded-xl text-xs font-mono uppercase outline-none"
                 />
                 <p className="text-[10px] text-slate-500 mt-1">Apenas letras maiúsculas, números e underscore. Não pode ser alterado depois.</p>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">
-                  Nome de Exibição <span className="text-red-400">*</span>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">
+                  Nome de Exibição <span className="text-red-600">*</span>
                 </label>
                 <input
                   type="text" required
                   value={newRoleName}
                   onChange={e => setNewRoleName(e.target.value)}
                   placeholder="Ex: Líder de Almoxarifado, Caixa Sênior"
-                  className="w-full bg-[#0c0f1a] border border-violet-500/15 text-white px-3 py-2 rounded-xl text-xs outline-none"
+                  className="w-full bg-[#f3f7fe] border border-violet-500/15 text-gray-900 px-3 py-2 rounded-xl text-xs outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1">Descrição (Opcional)</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Descrição (Opcional)</label>
                 <textarea
                   rows={2}
                   value={newRoleDesc}
                   onChange={e => setNewRoleDesc(e.target.value)}
                   placeholder="Responsabilidades e atribuições deste cargo..."
-                  className="w-full bg-[#0c0f1a] border border-violet-500/15 text-white px-3 py-2 rounded-xl text-xs resize-none outline-none"
+                  className="w-full bg-[#f3f7fe] border border-violet-500/15 text-gray-900 px-3 py-2 rounded-xl text-xs resize-none outline-none"
                 />
               </div>
 
-              <div className="p-3 bg-violet-500/5 border border-violet-500/15 rounded-xl text-[11px] text-slate-400">
-                💡 Após criar o cargo, acesse a tela de <strong className="text-violet-300">Perfis &amp; Permissões</strong> para configurar as permissões detalhadas deste novo cargo.
+              <div className="p-3 bg-violet-500/5 border border-violet-500/15 rounded-xl text-[11px] text-slate-500">
+                💡 Após criar o cargo, acesse a tela de <strong className="text-violet-700">Perfis &amp; Permissões</strong> para configurar as permissões detalhadas deste novo cargo.
               </div>
 
               <div className="flex gap-2 pt-2">
                 <button type="button" onClick={() => setIsRoleModalOpen(false)}
-                  className="flex-1 py-2.5 bg-[#14192d] text-slate-300 text-xs rounded-xl font-semibold cursor-pointer">
+                  className="flex-1 py-2.5 bg-[#fbfdff] text-slate-600 text-xs rounded-xl font-semibold cursor-pointer">
                   Cancelar
                 </button>
                 <button type="submit" disabled={savingRole}

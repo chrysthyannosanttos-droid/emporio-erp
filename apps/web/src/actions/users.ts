@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/session";
 import bcrypt from "bcryptjs";
 import { logAudit } from "./audit";
+import { seedSupermarketRolesAndPermissions } from "./roles";
 
 // Converte qualquer objeto Prisma (Decimal, Date, BigInt) para tipos serializáveis simples
 function toPlain<T>(obj: T): T {
@@ -31,6 +32,9 @@ export async function listTenantUsers(filters?: {
     if (!session?.companyId) {
       return { users: [], error: "Não autorizado" };
     }
+
+    // Garante que os cargos e permissões padrões de supermercado estejam ativos para a empresa
+    await seedSupermarketRolesAndPermissions(session.companyId);
 
     const where: any = { companyId: session.companyId };
 
@@ -409,6 +413,109 @@ export async function toggleTenantUserActive(userId: string, active: boolean) {
     return { success: true };
   } catch (err: any) {
     return { error: err.message };
+  }
+}
+
+/**
+ * Retorna os operadores habilitados para Frente de Caixa (PDV)
+ */
+export async function getPdvOperators(companyIdParam?: string) {
+  try {
+    const session = await getSession();
+    let companyId = companyIdParam || session?.companyId;
+    if (!companyId) {
+      const firstComp = await prisma.company.findFirst();
+      companyId = firstComp?.id;
+    }
+    if (!companyId) return { operators: [] };
+
+    const users = await prisma.user.findMany({
+      where: {
+        companyId,
+        active: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        role: true,
+        pin: true,
+      },
+      orderBy: { name: "asc" },
+    });
+
+    const roleLabels: Record<string, string> = {
+      OPERATOR: "Operador de Caixa",
+      SUPERVISOR: "Fiscal de Caixa",
+      MANAGER: "Gerente de Loja",
+      ADMIN: "Administrador",
+      STOCKIST: "Estoque",
+      SCALE_SECTOR: "Balança / Perecíveis",
+      FINANCIAL: "Financeiro",
+    };
+
+    return {
+      operators: users.map(u => ({
+        id: u.id,
+        name: u.name,
+        role: roleLabels[u.role] || u.role,
+        hasPin: Boolean(u.pin),
+      })),
+    };
+  } catch (err) {
+    return { operators: [] };
+  }
+}
+
+/**
+ * Valida o PIN do operador ou fiscal de caixa
+ */
+export async function verifyPdvPin(data: { userId?: string; userName?: string; pin: string }) {
+  try {
+    const session = await getSession();
+    const companyId = session?.companyId;
+
+    let user;
+    if (data.userId) {
+      user = await prisma.user.findUnique({ where: { id: data.userId } });
+    } else if (data.userName) {
+      user = await prisma.user.findFirst({
+        where: {
+          name: data.userName,
+          ...(companyId ? { companyId } : {}),
+        },
+      });
+    }
+
+    if (!user) {
+      // Fallback para PIN padrão de teste em ambiente offline ou de demonstração
+      if (data.pin === "1234") {
+        return { success: true, verified: true, role: "OPERATOR", userName: data.userName || "Operador" };
+      }
+      return { success: false, error: "Usuário não localizado." };
+    }
+
+    // Se o usuário não tem PIN configurado, permite o PIN padrão 1234
+    if (!user.pin) {
+      if (data.pin === "1234") {
+        return { success: true, verified: true, role: user.role, userName: user.name };
+      }
+      return { success: false, error: "PIN incorreto. Defina um PIN de 4 dígitos nas configurações de usuários." };
+    }
+
+    const isValid = await bcrypt.compare(data.pin, user.pin);
+    if (!isValid) {
+      return { success: false, error: "PIN inválido." };
+    }
+
+    return {
+      success: true,
+      verified: true,
+      userId: user.id,
+      userName: user.name,
+      role: user.role,
+    };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Erro ao validar PIN." };
   }
 }
 

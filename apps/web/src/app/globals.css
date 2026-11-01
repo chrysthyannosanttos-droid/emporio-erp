@@ -1,30 +1,30 @@
 @import "tailwindcss";
 
-/* ─── Emporio ERP Design System ─────────────────── */
+/* ─── Emporio ERP Design System — Light Theme ───── */
 
 :root {
-  /* Base backgrounds */
-  --bg-base: #0c0f1a;
-  --bg-surface: #111528;
-  --bg-surface-hover: #161b33;
-  --bg-elevated: #1a2040;
-  --bg-inset: #090c15;
+  /* Base backgrounds — Soft Ice-Blue Comfort Theme (Anti-Glare) */
+  --bg-base: #dce7f7;
+  --bg-surface: #f2f7ff;
+  --bg-surface-hover: #e8f0fc;
+  --bg-elevated: #f5f9ff;
+  --bg-inset: #e3ecf9;
 
   /* Borders */
-  --border-default: rgba(99, 102, 241, 0.10);
-  --border-hover: rgba(99, 102, 241, 0.22);
-  --border-active: rgba(99, 102, 241, 0.40);
+  --border-default: #c4d5ee;
+  --border-hover: #9fbbe5;
+  --border-active: #2563eb;
 
   /* Text */
-  --text-primary: #f1f5f9;
-  --text-secondary: #94a3b8;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
   --text-muted: #64748b;
-  --text-faint: #475569;
+  --text-faint: #94a3b8;
 
   /* Accent */
-  --accent: #6366f1;
-  --accent-hover: #818cf8;
-  --accent-muted: rgba(99, 102, 241, 0.15);
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-muted: rgba(37, 99, 235, 0.12);
 
   /* Semantic */
   --success: #10b981;
@@ -40,6 +40,10 @@
 @theme inline {
   --color-background: var(--bg-base);
   --color-foreground: var(--text-primary);
+  --color-white: #f2f7ff;
+  --color-gray-50: #e8f0fc;
+  --color-gray-100: #dce7f7;
+  --color-gray-200: #c3d4ee;
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
 }
@@ -47,16 +51,11 @@
 /* ─── Global Resets ─────────────────────────────── */
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {
   background-color: var(--bg-base);
-  background-image: url('/bg-dashboard.png');
-  background-size: cover;
-  background-position: center center;
-  background-repeat: no-repeat;
-  background-attachment: fixed;
   color: var(--text-primary);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -64,35 +63,35 @@ body {
   overflow: hidden;
 }
 
-/* ─── Scrollbar (for internal scroll areas only) ── */
+/* ─── Scrollbar (Visible and intuitive for all browsers) ── */
 
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: #f1f5f9;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.15);
+  background: #cbd5e1;
   border-radius: 999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(99, 102, 241, 0.30);
+  background: #94a3b8;
 }
 
 /* Firefox */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(99, 102, 241, 0.15) transparent;
+  scrollbar-color: #cbd5e1 #f1f5f9;
 }
 
 /* ─── Selection ────────────────────────────────── */
 
 ::selection {
-  background: rgba(99, 102, 241, 0.30);
-  color: #f1f5f9;
+  background: rgba(37, 99, 235, 0.20);
+  color: #111827;
 }

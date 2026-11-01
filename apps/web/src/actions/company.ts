@@ -50,19 +50,26 @@ export async function updateTenantCompanyInfo(formData: FormData) {
       },
     });
 
-    // Se houver fiscalConfig, atualizar nome fantasia nela também
-    if (tradeName) {
-      await prisma.fiscalConfig.upsert({
-        where: { companyId: session.companyId },
-        update: { tradeName, companyName: name, cnpj: document },
-        create: {
-          companyId: session.companyId,
-          tradeName,
-          companyName: name,
-          cnpj: document,
-        },
-      });
+    // Se houver fiscalConfig, atualizar nome fantasia, razão social e certificado nela também
+    const certPassword = formData.get("certPassword") as string;
+    const updateData: any = { companyName: name, cnpj: document };
+    if (tradeName) updateData.tradeName = tradeName;
+    if (certPassword) {
+      updateData.certPassword = certPassword;
+      updateData.certUploaded = true;
     }
+
+    await prisma.fiscalConfig.upsert({
+      where: { companyId: session.companyId },
+      update: updateData,
+      create: {
+        companyId: session.companyId,
+        tradeName: tradeName || null,
+        companyName: name,
+        cnpj: document,
+        ...(certPassword ? { certPassword, certUploaded: true } : {}),
+      },
+    });
 
     revalidatePath("/settings");
     return { success: true, company };

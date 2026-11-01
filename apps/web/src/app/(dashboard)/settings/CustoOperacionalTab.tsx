@@ -167,8 +167,8 @@ export function CustoOperacionalTab() {
 
   if (loading) {
     return (
-      <div className="py-20 flex flex-col items-center justify-center text-slate-400 gap-3">
-        <Loader2 className="animate-spin text-indigo-400" size={32} />
+      <div className="py-20 flex flex-col items-center justify-center text-slate-500 gap-3">
+        <Loader2 className="animate-spin text-indigo-600" size={32} />
         <p className="text-sm font-medium">Carregando configurações de custo operacional...</p>
       </div>
     );
@@ -177,15 +177,15 @@ export function CustoOperacionalTab() {
   return (
     <form onSubmit={handleSave} className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-indigo-500/10 pb-5">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#c4d5ee] pb-5">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400">
+            <div className="p-2 rounded-xl bg-indigo-500/10 border border-indigo-200 text-indigo-600">
               <Calculator size={22} />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white tracking-tight">Custo Operacional & Precificação</h2>
-              <p className="text-slate-400 text-xs sm:text-sm mt-0.5">
+              <h2 className="text-xl font-bold text-gray-900 tracking-tight">Custo Operacional & Precificação</h2>
+              <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
                 Defina a alíquota padrão de despesas fixas para cálculo de markup e formação de preço de venda.
               </p>
             </div>
@@ -203,13 +203,13 @@ export function CustoOperacionalTab() {
       </div>
 
       {saved && (
-        <div className="flex items-center gap-2 text-emerald-400 text-sm font-bold bg-emerald-500/10 border border-emerald-500/30 px-4 py-3 rounded-xl animate-in fade-in">
+        <div className="flex items-center gap-2 text-emerald-600 text-sm font-bold bg-emerald-500/10 border border-emerald-500/30 px-4 py-3 rounded-xl animate-in fade-in">
           <CheckCircle2 size={18} /> Configurações de custo operacional salvas com sucesso! Novos produtos usarão essas taxas.
         </div>
       )}
 
       {errorMsg && (
-        <div className="flex items-center gap-2 text-red-400 text-sm font-bold bg-red-500/10 border border-red-500/30 px-4 py-3 rounded-xl">
+        <div className="flex items-center gap-2 text-red-600 text-sm font-bold bg-red-500/10 border border-red-500/30 px-4 py-3 rounded-xl">
           <AlertTriangle size={18} /> {errorMsg}
         </div>
       )}
@@ -217,12 +217,12 @@ export function CustoOperacionalTab() {
       {/* Grid de Principais Parâmetros */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Card 1: Custo Operacional */}
-        <div className="p-5 rounded-2xl bg-[#161b33] border border-indigo-500/20 relative overflow-hidden group hover:border-indigo-500/40 transition-all">
+        <div className="p-5 rounded-2xl bg-[#eaf1fc] border border-indigo-200 relative overflow-hidden group hover:border-indigo-500/40 transition-all">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Building2 size={14} className="text-indigo-400" /> Custo Operacional Padrão
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+              <Building2 size={14} className="text-indigo-600" /> Custo Operacional Padrão
             </span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-semibold border border-indigo-500/30">
+            <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-700 font-semibold border border-indigo-200">
               Taxa Geral
             </span>
           </div>
@@ -234,22 +234,22 @@ export function CustoOperacionalTab() {
               max="99"
               value={operationalRate}
               onChange={(e) => setOperationalRate(parseFloat(e.target.value) || 0)}
-              className="text-3xl font-black text-white bg-[#0c0f1a] border border-indigo-500/25 rounded-xl px-3 py-2 w-32 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 font-mono"
+              className="text-3xl font-black text-gray-900 bg-[#f3f7fe] border border-indigo-200 rounded-xl px-3 py-2 w-32 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 font-mono"
             />
-            <span className="text-2xl font-bold text-indigo-400">%</span>
+            <span className="text-2xl font-bold text-indigo-600">%</span>
           </div>
-          <p className="text-xs text-slate-400 mt-2.5">
+          <p className="text-xs text-slate-500 mt-2.5">
             Cobre despesas operacionais da empresa (folha, aluguel, energia, impostos administrativos).
           </p>
         </div>
 
         {/* Card 2: Margem Desejada */}
-        <div className="p-5 rounded-2xl bg-[#161b33] border border-indigo-500/20 relative overflow-hidden group hover:border-indigo-500/40 transition-all">
+        <div className="p-5 rounded-2xl bg-[#eaf1fc] border border-indigo-200 relative overflow-hidden group hover:border-indigo-500/40 transition-all">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-              <TrendingUp size={14} className="text-emerald-400" /> Margem de Lucro Alvo
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+              <TrendingUp size={14} className="text-emerald-600" /> Margem de Lucro Alvo
             </span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-semibold border border-emerald-500/30">
+            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-700 font-semibold border border-emerald-500/30">
               Lucro Líquido
             </span>
           </div>
@@ -261,22 +261,22 @@ export function CustoOperacionalTab() {
               max="99"
               value={desiredMargin}
               onChange={(e) => setDesiredMargin(parseFloat(e.target.value) || 0)}
-              className="text-3xl font-black text-white bg-[#0c0f1a] border border-indigo-500/25 rounded-xl px-3 py-2 w-32 focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 font-mono"
+              className="text-3xl font-black text-gray-900 bg-[#f3f7fe] border border-indigo-200 rounded-xl px-3 py-2 w-32 focus:outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400 font-mono"
             />
-            <span className="text-2xl font-bold text-emerald-400">%</span>
+            <span className="text-2xl font-bold text-emerald-600">%</span>
           </div>
-          <p className="text-xs text-slate-400 mt-2.5">
+          <p className="text-xs text-slate-500 mt-2.5">
             Lucro líquido desejado sobre o preço final de venda de cada mercadoria.
           </p>
         </div>
 
         {/* Card 3: Frete & Adicionais */}
-        <div className="p-5 rounded-2xl bg-[#161b33] border border-indigo-500/20 relative overflow-hidden group hover:border-indigo-500/40 transition-all">
+        <div className="p-5 rounded-2xl bg-[#eaf1fc] border border-indigo-200 relative overflow-hidden group hover:border-indigo-500/40 transition-all">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Package size={14} className="text-amber-400" /> Frete / Outras Despesas
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+              <Package size={14} className="text-amber-600" /> Frete / Outras Despesas
             </span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 font-semibold border border-amber-500/30">
+            <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-700 font-semibold border border-amber-500/30">
               Sobre Custo
             </span>
           </div>
@@ -288,36 +288,36 @@ export function CustoOperacionalTab() {
               max="99"
               value={freightOther}
               onChange={(e) => setFreightOther(parseFloat(e.target.value) || 0)}
-              className="text-3xl font-black text-white bg-[#0c0f1a] border border-indigo-500/25 rounded-xl px-3 py-2 w-32 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 font-mono"
+              className="text-3xl font-black text-gray-900 bg-[#f3f7fe] border border-indigo-200 rounded-xl px-3 py-2 w-32 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 font-mono"
             />
-            <span className="text-2xl font-bold text-amber-400">%</span>
+            <span className="text-2xl font-bold text-amber-600">%</span>
           </div>
-          <p className="text-xs text-slate-400 mt-2.5">
+          <p className="text-xs text-slate-500 mt-2.5">
             Acréscimo percentual médio de frete, seguro e descarregamento na compra.
           </p>
         </div>
       </div>
 
       {/* Tabs / Modos: Alíquota Direta vs Composição Detalhada */}
-      <div className="bg-[#161b33] p-5 rounded-2xl border border-indigo-500/15 space-y-5">
-        <div className="flex items-center justify-between flex-wrap gap-3 pb-3 border-b border-indigo-500/10">
+      <div className="bg-[#eaf1fc] p-5 rounded-2xl border border-[#c4d5ee] space-y-5">
+        <div className="flex items-center justify-between flex-wrap gap-3 pb-3 border-b border-[#c4d5ee]">
           <div>
-            <h3 className="text-white font-bold text-base flex items-center gap-2">
-              <Layers size={18} className="text-indigo-400" /> Como deseja definir seu Custo Operacional?
+            <h3 className="text-gray-900 font-bold text-base flex items-center gap-2">
+              <Layers size={18} className="text-indigo-600" /> Como deseja definir seu Custo Operacional?
             </h3>
-            <p className="text-slate-400 text-xs mt-0.5">
+            <p className="text-slate-500 text-xs mt-0.5">
               Você pode usar uma alíquota única direta ou somar os centros de custos da sua empresa.
             </p>
           </div>
 
-          <div className="flex gap-1.5 p-1 bg-[#0c0f1a] rounded-xl border border-indigo-500/15">
+          <div className="flex gap-1.5 p-1 bg-[#f3f7fe] rounded-xl border border-[#c4d5ee]">
             <button
               type="button"
               onClick={() => setMode("direto")}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 mode === "direto"
                   ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                  : "text-slate-400 hover:text-white"
+                  : "text-slate-500 hover:text-gray-900"
               }`}
             >
               Alíquota Direta (Fixa)
@@ -328,7 +328,7 @@ export function CustoOperacionalTab() {
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                 mode === "detalhado"
                   ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
-                  : "text-slate-400 hover:text-white"
+                  : "text-slate-500 hover:text-gray-900"
               }`}
             >
               Calculadora Detalhada (Centros de Custo)
@@ -337,22 +337,22 @@ export function CustoOperacionalTab() {
         </div>
 
         {mode === "direto" ? (
-          <div className="p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/15 flex items-start gap-3">
-            <Info className="text-indigo-400 shrink-0 mt-0.5" size={18} />
-            <div className="text-xs sm:text-sm text-slate-300 space-y-1">
+          <div className="p-4 rounded-xl bg-indigo-500/5 border border-[#c4d5ee] flex items-start gap-3">
+            <Info className="text-indigo-600 shrink-0 mt-0.5" size={18} />
+            <div className="text-xs sm:text-sm text-slate-600 space-y-1">
               <p>
                 O modo <strong>Alíquota Direta</strong> utiliza o percentual de{" "}
-                <strong className="text-indigo-300">{operationalRate.toFixed(2)}%</strong> configurado no card acima como
+                <strong className="text-indigo-700">{operationalRate.toFixed(2)}%</strong> configurado no card acima como
                 a taxa padrão em todos os cálculos do sistema (novos cadastros de produtos, markup e sugestão de preço).
               </p>
-              <p className="text-slate-400 text-xs">
+              <p className="text-slate-500 text-xs">
                 Se desejar discriminar despesas como folha, aluguel, energia e maquininhas de cartão para apurar a alíquota exata, selecione a aba <strong>Calculadora Detalhada</strong>.
               </p>
             </div>
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-300 flex items-center justify-between gap-3">
+            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-700 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 <Sparkles size={16} className="shrink-0" />
                 <span>
@@ -360,11 +360,11 @@ export function CustoOperacionalTab() {
                 </span>
               </div>
               <div className="flex items-center gap-2 shrink-0">
-                <span className="font-bold text-white">Soma: {detailedSum.toFixed(2)}%</span>
+                <span className="font-bold text-gray-900">Soma: {detailedSum.toFixed(2)}%</span>
                 <button
                   type="button"
                   onClick={handleApplyDetailedSum}
-                  className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 border border-amber-500/30 px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5"
+                  className="bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 border border-amber-500/30 px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5"
                 >
                   <ArrowRight size={13} /> Aplicar {detailedSum.toFixed(2)}%
                 </button>
@@ -374,7 +374,7 @@ export function CustoOperacionalTab() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {/* Folha */}
               <DetailField
-                icon={<ShoppingBag size={16} className="text-blue-400" />}
+                icon={<ShoppingBag size={16} className="text-blue-600" />}
                 title="Folha & Encargos (%)"
                 desc="Salários, FGTS, INSS, benefícios e pró-labore"
                 value={details.payroll ?? 0}
@@ -382,7 +382,7 @@ export function CustoOperacionalTab() {
               />
               {/* Ocupação */}
               <DetailField
-                icon={<Building2 size={16} className="text-purple-400" />}
+                icon={<Building2 size={16} className="text-purple-600" />}
                 title="Aluguel & Ocupação (%)"
                 desc="Aluguel do imóvel/galpão, IPTU, condomínio"
                 value={details.rent ?? 0}
@@ -390,7 +390,7 @@ export function CustoOperacionalTab() {
               />
               {/* Energia & Água */}
               <DetailField
-                icon={<Zap size={16} className="text-amber-400" />}
+                icon={<Zap size={16} className="text-amber-600" />}
                 title="Energia, Água & Conectividade (%)"
                 desc="Luz, água, gás, internet e telefonia"
                 value={details.utilities ?? 0}
@@ -398,7 +398,7 @@ export function CustoOperacionalTab() {
               />
               {/* Taxas de Cartão */}
               <DetailField
-                icon={<CreditCard size={16} className="text-emerald-400" />}
+                icon={<CreditCard size={16} className="text-emerald-600" />}
                 title="Taxas de Cartão & Financeiras (%)"
                 desc="Débito, crédito, antecipações e PIX com taxa"
                 value={details.cardFees ?? 0}
@@ -406,7 +406,7 @@ export function CustoOperacionalTab() {
               />
               {/* Perdas e Quebras */}
               <DetailField
-                icon={<Trash2 size={16} className="text-red-400" />}
+                icon={<Trash2 size={16} className="text-red-600" />}
                 title="Perdas, Quebras & Avarias (%)"
                 desc="Vencimentos, perdas em gôndola e quebras"
                 value={details.losses ?? 0}
@@ -414,7 +414,7 @@ export function CustoOperacionalTab() {
               />
               {/* Embalagens */}
               <DetailField
-                icon={<Package size={16} className="text-cyan-400" />}
+                icon={<Package size={16} className="text-cyan-600" />}
                 title="Embalagens & Descartáveis (%)"
                 desc="Sacolas, bandejas, filme PVC, caixas e fitas"
                 value={details.packaging ?? 0}
@@ -422,7 +422,7 @@ export function CustoOperacionalTab() {
               />
               {/* Admin e Marketing */}
               <DetailField
-                icon={<Cpu size={16} className="text-indigo-400" />}
+                icon={<Cpu size={16} className="text-indigo-600" />}
                 title="Sistemas, Contabilidade & MKT (%)"
                 desc="Software ERP, contabilidade, marketing e escritório"
                 value={details.adminMarketing ?? 0}
@@ -434,13 +434,13 @@ export function CustoOperacionalTab() {
       </div>
 
       {/* Simulador de Formação de Preço em Tempo Real */}
-      <div className="bg-[#161b33] p-5 rounded-2xl border border-indigo-500/15 space-y-4">
+      <div className="bg-[#eaf1fc] p-5 rounded-2xl border border-[#c4d5ee] space-y-4">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
-            <h3 className="text-white font-bold text-base flex items-center gap-2">
-              <DollarSign size={18} className="text-emerald-400" /> Simulador de Formação de Preço (Demonstrativo)
+            <h3 className="text-gray-900 font-bold text-base flex items-center gap-2">
+              <DollarSign size={18} className="text-emerald-600" /> Simulador de Formação de Preço (Demonstrativo)
             </h3>
-            <p className="text-slate-400 text-xs">
+            <p className="text-slate-500 text-xs">
               Teste um produto modelo para ver como as configurações afetam o preço sugerido e sua margem líquida real.
             </p>
           </div>
@@ -448,10 +448,10 @@ export function CustoOperacionalTab() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Inputs do teste */}
-          <div className="p-4 bg-[#0c0f1a] rounded-xl border border-indigo-500/15 space-y-3.5">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Dados do Produto Modelo</span>
+          <div className="p-4 bg-[#f3f7fe] rounded-xl border border-[#c4d5ee] space-y-3.5">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Dados do Produto Modelo</span>
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">Custo de Compra (R$)</label>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Custo de Compra (R$)</label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">R$</span>
                 <input
@@ -460,13 +460,13 @@ export function CustoOperacionalTab() {
                   min="0.01"
                   value={simPurchaseCost}
                   onChange={(e) => setSimPurchaseCost(parseFloat(e.target.value) || 0)}
-                  className="w-full pl-10 pr-3 py-2 bg-[#161b33] border border-indigo-500/20 text-white rounded-lg font-mono text-sm outline-none focus:border-indigo-500"
+                  className="w-full pl-10 pr-3 py-2 bg-[#eaf1fc] border border-indigo-200 text-gray-900 rounded-lg font-mono text-sm outline-none focus:border-indigo-500"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-300 mb-1">
+              <label className="block text-xs font-medium text-slate-600 mb-1">
                 Alíquota Média de Impostos de Saída (%)
               </label>
               <div className="relative">
@@ -477,7 +477,7 @@ export function CustoOperacionalTab() {
                   max="99"
                   value={simTaxRate}
                   onChange={(e) => setSimTaxRate(parseFloat(e.target.value) || 0)}
-                  className="w-full px-3 py-2 bg-[#161b33] border border-indigo-500/20 text-white rounded-lg font-mono text-sm outline-none focus:border-indigo-500"
+                  className="w-full px-3 py-2 bg-[#eaf1fc] border border-indigo-200 text-gray-900 rounded-lg font-mono text-sm outline-none focus:border-indigo-500"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-sm">%</span>
               </div>
@@ -486,7 +486,7 @@ export function CustoOperacionalTab() {
           </div>
 
           {/* Resultado do Simulador */}
-          <div className="p-4 bg-gradient-to-br from-[#12162a] to-[#1a1f3d] rounded-xl border border-indigo-500/30 flex flex-col justify-between">
+          <div className="p-4 bg-gradient-to-br from-[#fbfdff] to-[#eaf1fc] rounded-xl border border-indigo-200 flex flex-col justify-between">
             {simulation.error ? (
               <div className="text-red-400 text-xs font-bold p-3 bg-red-500/10 rounded-lg border border-red-500/20">
                 {simulation.error}
@@ -504,7 +504,7 @@ export function CustoOperacionalTab() {
                     {simulation.suggestedPrice.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
                   </div>
 
-                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-indigo-500/15 text-xs">
+                  <div className="grid grid-cols-3 gap-2 pt-2 border-t border-[#c4d5ee] text-xs">
                     <div>
                       <p className="text-slate-500">Custo Op. ({operationalRate}%)</p>
                       <p className="font-mono font-bold text-slate-200">
@@ -527,8 +527,8 @@ export function CustoOperacionalTab() {
                 </div>
 
                 {/* Barra de composição */}
-                <div className="mt-4 pt-3 border-t border-indigo-500/15">
-                  <div className="h-3 w-full rounded-full bg-[#0c0f1a] overflow-hidden flex">
+                <div className="mt-4 pt-3 border-t border-[#c4d5ee]">
+                  <div className="h-3 w-full rounded-full bg-[#f3f7fe] overflow-hidden flex">
                     <div
                       style={{
                         width: `${Math.min(100, (simulation.landedCost / simulation.suggestedPrice) * 100)}%`,
@@ -574,26 +574,26 @@ export function CustoOperacionalTab() {
       </div>
 
       {/* Aplicação no Sistema */}
-      <div className="p-4 rounded-2xl bg-[#161b33] border border-indigo-500/15 flex items-center justify-between flex-wrap gap-3">
+      <div className="p-4 rounded-2xl bg-[#eaf1fc] border border-[#c4d5ee] flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+          <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/20">
             <CheckCircle2 size={18} />
           </div>
           <div>
-            <p className="text-white text-xs sm:text-sm font-bold">Onde essa alíquota é aplicada automaticamente?</p>
-            <p className="text-slate-400 text-xs">
+            <p className="text-gray-900 text-xs sm:text-sm font-bold">Onde essa alíquota é aplicada automaticamente?</p>
+            <p className="text-slate-500 text-xs">
               No cadastro de novos produtos no estoque, sugestões do módulo de precificação inteligente e cálculo de markup.
             </p>
           </div>
         </div>
         <div className="flex gap-2">
-          <span className="px-2.5 py-1 rounded-lg bg-[#0c0f1a] text-slate-300 text-xs font-semibold border border-indigo-500/15">
+          <span className="px-2.5 py-1 rounded-lg bg-[#f3f7fe] text-slate-600 text-xs font-semibold border border-[#c4d5ee]">
             Estoque
           </span>
-          <span className="px-2.5 py-1 rounded-lg bg-[#0c0f1a] text-slate-300 text-xs font-semibold border border-indigo-500/15">
+          <span className="px-2.5 py-1 rounded-lg bg-[#f3f7fe] text-slate-600 text-xs font-semibold border border-[#c4d5ee]">
             Precificação
           </span>
-          <span className="px-2.5 py-1 rounded-lg bg-[#0c0f1a] text-slate-300 text-xs font-semibold border border-indigo-500/15">
+          <span className="px-2.5 py-1 rounded-lg bg-[#f3f7fe] text-slate-600 text-xs font-semibold border border-[#c4d5ee]">
             PDV
           </span>
         </div>
@@ -628,12 +628,12 @@ function DetailField({
   onChange: (val: number) => void;
 }) {
   return (
-    <div className="p-3 bg-[#0c0f1a] rounded-xl border border-indigo-500/15 flex flex-col justify-between gap-2">
+    <div className="p-3 bg-[#f3f7fe] rounded-xl border border-[#c4d5ee] flex flex-col justify-between gap-2">
       <div className="flex items-center gap-2">
         {icon}
-        <span className="text-xs font-bold text-white leading-tight">{title}</span>
+        <span className="text-xs font-bold text-gray-900 leading-tight">{title}</span>
       </div>
-      <p className="text-[11px] text-slate-400 leading-snug line-clamp-1">{desc}</p>
+      <p className="text-[11px] text-slate-500 leading-snug line-clamp-1">{desc}</p>
       <div className="relative mt-1">
         <input
           type="number"
@@ -642,7 +642,7 @@ function DetailField({
           max="99"
           value={value}
           onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-          className="w-full px-3 py-1.5 bg-[#161b33] border border-indigo-500/20 text-white rounded-lg font-mono text-sm outline-none focus:border-indigo-400"
+          className="w-full px-3 py-1.5 bg-[#eaf1fc] border border-indigo-200 text-gray-900 rounded-lg font-mono text-sm outline-none focus:border-indigo-400"
         />
         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-xs">%</span>
       </div>

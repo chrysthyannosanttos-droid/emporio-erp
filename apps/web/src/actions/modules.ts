@@ -5,11 +5,18 @@ import { getSession } from "@/lib/session";
 import { revalidatePath } from "next/cache";
 import { SYSTEM_MODULES_CATALOG } from "@/lib/modules-catalog";
 
+const modulesConfigCache = new Map<string, { data: any; expiry: number }>();
+
 export async function getCompanyModulesConfig() {
   try {
     const session = await getSession();
     if (!session?.companyId) {
       return { error: "Não autorizado", operationTypes: ["RETAIL"], activeModules: [] };
+    }
+
+    const cached = modulesConfigCache.get(session.companyId);
+    if (cached && Date.now() < cached.expiry) {
+      return cached.data;
     }
 
     const company = await prisma.company.findUnique({
@@ -48,12 +55,14 @@ export async function getCompanyModulesConfig() {
         .map(m => m.key);
     }
 
-    return {
+    const result = {
       companyName: company.name,
       operationTypes,
       activeModules,
       allModules: SYSTEM_MODULES_CATALOG,
     };
+    modulesConfigCache.set(session.companyId, { data: result, expiry: Date.now() + 60000 });
+    return result;
   } catch (err: any) {
     return { error: err.message, operationTypes: ["RETAIL"], activeModules: [] };
   }
@@ -98,6 +107,7 @@ export async function updateCompanyModules(data: {
       });
     }
 
+    modulesConfigCache.delete(session.companyId);
     revalidatePath("/", "layout");
     return { success: true };
   } catch (err: any) {

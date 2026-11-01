@@ -95,11 +95,11 @@ export default function RoutesPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
-            <Truck className="text-indigo-400" />
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+            <Truck className="text-indigo-600" />
             Rotas & Roteirização de Entregas
           </h1>
-          <p className="text-slate-400 text-xs mt-1">
+          <p className="text-slate-500 text-xs mt-1">
             Gestão de veículos, motoristas e mapa de entregas por cliente.
           </p>
         </div>
@@ -114,8 +114,8 @@ export default function RoutesPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Painel Esquerdo: Lista de Rotas */}
-        <div className="bg-[#111528] border border-indigo-500/15 rounded-2xl p-4 flex flex-col gap-3">
-          <h2 className="text-xs font-black uppercase tracking-wider text-indigo-400 pb-2 border-b border-indigo-500/10">
+        <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl p-4 flex flex-col gap-3">
+          <h2 className="text-xs font-black uppercase tracking-wider text-indigo-600 pb-2 border-b border-[#c4d5ee]">
             Rotas Agendadas ({routes.length})
           </h2>
 
@@ -136,12 +136,12 @@ export default function RoutesPage() {
                     onClick={() => setSelectedRoute(r)}
                     className={`cursor-pointer rounded-xl p-3 border transition-all flex items-center justify-between ${
                       isSelected
-                        ? "bg-indigo-600/20 border-indigo-500 text-white font-semibold"
-                        : "bg-[#0c0f1a] border-indigo-500/10 text-slate-400 hover:text-slate-200"
+                        ? "bg-indigo-600/20 border-indigo-500 text-gray-900 font-semibold"
+                        : "bg-[#f3f7fe] border-[#c4d5ee] text-slate-500 hover:text-slate-700"
                     }`}
                   >
                     <div>
-                      <h3 className="text-xs font-bold text-white">{r.name}</h3>
+                      <h3 className="text-xs font-bold text-gray-900">{r.name}</h3>
                       <p className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-2">
                         <span>📅 {new Date(r.date).toLocaleDateString("pt-BR")}</span>
                         <span>• {deliveredCount}/{stopsCount} entregues</span>
@@ -150,7 +150,7 @@ export default function RoutesPage() {
 
                     <span
                       className={`text-[9px] font-bold px-2 py-0.5 rounded ${
-                        r.status === "COMPLETED" ? "bg-emerald-500/20 text-emerald-400" : "bg-blue-500/20 text-blue-400"
+                        r.status === "COMPLETED" ? "bg-emerald-500/20 text-emerald-600" : "bg-blue-500/20 text-blue-600"
                       }`}
                     >
                       {r.status === "COMPLETED" ? "Concluída" : "Em Rota"}
@@ -163,16 +163,16 @@ export default function RoutesPage() {
         </div>
 
         {/* Painel Direito: Sequência da Rota Selecionada */}
-        <div className="lg:col-span-3 bg-[#111528] border border-indigo-500/15 rounded-2xl p-5 flex flex-col gap-4">
+        <div className="lg:col-span-3 bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl p-5 flex flex-col gap-4">
           {selectedRoute ? (
             <>
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-indigo-500/10">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-[#c4d5ee]">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Rota Selecionada:</span>
-                    <h2 className="text-lg font-bold text-white">{selectedRoute.name}</h2>
+                    <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">Rota Selecionada:</span>
+                    <h2 className="text-lg font-bold text-gray-900">{selectedRoute.name}</h2>
                   </div>
-                  <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-3">
+                  <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-3">
                     <span>Motorista: {selectedRoute.driver?.name || "Não atribuído"}</span>
                     <span>• Veículo: {selectedRoute.vehicle?.model || "Não atribuído"}</span>
                   </p>
@@ -180,7 +180,7 @@ export default function RoutesPage() {
 
                 <button
                   onClick={() => setShowAddOrderModal(true)}
-                  className="flex items-center gap-1.5 bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white font-bold px-3 py-2 rounded-xl text-xs transition-all border border-indigo-500/30"
+                  className="flex items-center gap-1.5 bg-indigo-600/30 hover:bg-indigo-600 text-indigo-700 hover:text-gray-900 font-bold px-3 py-2 rounded-xl text-xs transition-all border border-indigo-200"
                 >
                   <Plus size={14} />
                   Incluir Pedido nesta Rota
@@ -197,37 +197,37 @@ export default function RoutesPage() {
                         key={stop.id}
                         className={`p-4 rounded-xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
                           isDelivered
-                            ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-300"
-                            : "bg-[#0c0f1a] border-indigo-500/10 text-white"
+                            ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-700"
+                            : "bg-[#f3f7fe] border-[#c4d5ee] text-gray-900"
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="w-7 h-7 rounded-lg bg-indigo-600/30 border border-indigo-500/30 flex items-center justify-center font-mono font-bold text-xs text-indigo-300 shrink-0">
+                          <div className="w-7 h-7 rounded-lg bg-indigo-600/30 border border-indigo-200 flex items-center justify-center font-mono font-bold text-xs text-indigo-700 shrink-0">
                             #{stop.sequence}
                           </div>
                           <div>
-                            <div className="font-bold text-sm text-white">
+                            <div className="font-bold text-sm text-gray-900">
                               {stop.order?.customer?.name || "Cliente Balcão"}
-                              <span className="ml-2 font-mono text-xs text-indigo-300">
+                              <span className="ml-2 font-mono text-xs text-indigo-700">
                                 ({stop.order?.orderNumber || `#${stop.order?.id?.substring(0, 8)}`})
                               </span>
                             </div>
-                            <div className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
-                              <MapPin size={12} className="text-indigo-400 shrink-0" />
+                            <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                              <MapPin size={12} className="text-indigo-600 shrink-0" />
                               {stop.order?.customer?.address || "Endereço principal do cadastrado"}
                             </div>
                           </div>
                         </div>
 
                         <div className="flex items-center gap-3 self-end sm:self-auto">
-                          <span className="font-mono font-bold text-xs text-emerald-400">
+                          <span className="font-mono font-bold text-xs text-emerald-600">
                             R$ {Number(stop.order?.total || 0).toFixed(2)}
                           </span>
 
                           <select
                             value={stop.status}
                             onChange={(e) => handleUpdateStop(stop.id, e.target.value)}
-                            className="bg-[#111528] border border-indigo-500/20 text-xs rounded px-2.5 py-1 text-slate-300 outline-none font-semibold"
+                            className="bg-[#fbfdff] border border-indigo-200 text-xs rounded px-2.5 py-1 text-slate-600 outline-none font-semibold"
                           >
                             <option value="PENDING">Em Rota</option>
                             <option value="DELIVERED">✅ Entregue</option>
@@ -256,39 +256,39 @@ export default function RoutesPage() {
       {/* Modal Criar Nova Rota */}
       {showModal && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#111528] border border-indigo-500/20 rounded-2xl p-6 max-w-md w-full shadow-2xl">
-            <h2 className="text-lg font-bold text-white mb-4">Nova Rota de Entrega</h2>
+          <div className="bg-[#fbfdff] border border-indigo-200 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Nova Rota de Entrega</h2>
             <form onSubmit={handleCreateRoute} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nome da Rota *</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome da Rota *</label>
                 <input
                   type="text"
                   required
                   value={routeName}
                   onChange={(e) => setRouteName(e.target.value)}
                   placeholder="Ex: Rota Zona Sul - Segunda"
-                  className="w-full bg-[#0c0f1a] border border-indigo-500/20 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500"
+                  className="w-full bg-[#f3f7fe] border border-indigo-200 rounded-xl px-3 py-2 text-xs text-gray-900 outline-none focus:border-indigo-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Data Agendada *</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Data Agendada *</label>
                 <input
                   type="date"
                   required
                   value={routeDate}
                   onChange={(e) => setRouteDate(e.target.value)}
-                  className="w-full bg-[#0c0f1a] border border-indigo-500/20 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500"
+                  className="w-full bg-[#f3f7fe] border border-indigo-200 rounded-xl px-3 py-2 text-xs text-gray-900 outline-none focus:border-indigo-500"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Motorista</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Motorista</label>
                   <select
                     value={driverId}
                     onChange={(e) => setDriverId(e.target.value)}
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/20 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500"
+                    className="w-full bg-[#f3f7fe] border border-indigo-200 rounded-xl px-3 py-2 text-xs text-gray-900 outline-none focus:border-indigo-500"
                   >
                     <option value="">-- Selecione --</option>
                     {drivers.map((d) => (
@@ -298,11 +298,11 @@ export default function RoutesPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Veículo / Placa</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Veículo / Placa</label>
                   <select
                     value={vehicleId}
                     onChange={(e) => setVehicleId(e.target.value)}
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/20 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500"
+                    className="w-full bg-[#f3f7fe] border border-indigo-200 rounded-xl px-3 py-2 text-xs text-gray-900 outline-none focus:border-indigo-500"
                   >
                     <option value="">-- Selecione --</option>
                     {vehicles.map((v) => (
@@ -316,7 +316,7 @@ export default function RoutesPage() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs text-slate-400 hover:text-white"
+                  className="px-4 py-2 rounded-xl text-xs text-slate-500 hover:text-gray-900"
                 >
                   Cancelar
                 </button>
@@ -335,15 +335,15 @@ export default function RoutesPage() {
       {/* Modal Adicionar Pedido na Rota */}
       {showAddOrderModal && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#111528] border border-indigo-500/20 rounded-2xl p-6 max-w-md w-full shadow-2xl">
-            <h2 className="text-lg font-bold text-white mb-4">Incluir Pedido na Rota</h2>
+          <div className="bg-[#fbfdff] border border-indigo-200 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Incluir Pedido na Rota</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Selecione o Pedido Elegível</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Selecione o Pedido Elegível</label>
                 <select
                   value={selectedOrderId}
                   onChange={(e) => setSelectedOrderId(e.target.value)}
-                  className="w-full bg-[#0c0f1a] border border-indigo-500/20 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500"
+                  className="w-full bg-[#f3f7fe] border border-indigo-200 rounded-xl px-3 py-2 text-xs text-gray-900 outline-none focus:border-indigo-500"
                 >
                   <option value="">-- Escolha um pedido --</option>
                   {availableOrders.map((o) => (
@@ -358,7 +358,7 @@ export default function RoutesPage() {
                 <button
                   type="button"
                   onClick={() => setShowAddOrderModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs text-slate-400 hover:text-white"
+                  className="px-4 py-2 rounded-xl text-xs text-slate-500 hover:text-gray-900"
                 >
                   Cancelar
                 </button>

@@ -176,11 +176,11 @@ export default function CrmPage() {
 
   const getCampaignBadgeColor = (type: string) => {
     switch (type) {
-      case "DISCOUNT": return "bg-rose-500/10 text-rose-400 border-rose-500/20";
-      case "CASHBACK": return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
-      case "BOGO": return "bg-amber-500/10 text-amber-400 border-amber-500/20";
-      case "RAFFLE": return "bg-indigo-500/10 text-indigo-400 border-indigo-500/20";
-      default: return "bg-slate-500/10 text-slate-400 border-slate-500/20";
+      case "DISCOUNT": return "bg-rose-500/10 text-rose-600 border-rose-500/20";
+      case "CASHBACK": return "bg-emerald-500/10 text-emerald-600 border-emerald-500/20";
+      case "BOGO": return "bg-amber-500/10 text-amber-600 border-amber-500/20";
+      case "RAFFLE": return "bg-indigo-500/10 text-indigo-600 border-indigo-200";
+      default: return "bg-slate-500/10 text-slate-500 border-slate-500/20";
     }
   };
 
@@ -246,7 +246,7 @@ export default function CrmPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">CRM, Promoções & Fidelidade</h1>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">CRM, Promoções & Fidelidade</h1>
           <p className="text-slate-500 text-sm mt-0.5">Painel único para gerenciar cashback de clientes, campanhas de fidelidade e ofertas do PDV.</p>
         </div>
         <button onClick={() => setIsOpen(true)} className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-indigo-600/20 text-sm active:scale-95">
@@ -257,18 +257,18 @@ export default function CrmPage() {
       {/* Stats Summary Grid */}
       <div className="grid grid-cols-4 gap-4 shrink-0">
         {[
-          { label: "Clientes Fidelizados", value: customers.length, sub: "Total na base", icon: <Users size={18} />, color: "text-blue-400" },
-          { label: "Promoções Ativas (PDV)", value: generalPromotionsList.filter(c => c.active).length, sub: "Válidas para todos", icon: <Tag size={18} />, color: "text-rose-400" },
-          { label: "Campanhas CRM Ativas", value: crmCampaignsList.filter(c => c.active).length, sub: "Requerem identificação (CPF)", icon: <Award size={18} />, color: "text-amber-400" },
-          { label: "Total em Cashback", value: `R$ ${customers.reduce((sum, c) => sum + c.cashbackBalance, 0).toFixed(2).replace(".", ",")}`, sub: "Saldo acumulado", icon: <Gift size={18} />, color: "text-emerald-400" },
+          { label: "Clientes Fidelizados", value: customers.length, sub: "Total na base", icon: <Users size={18} />, color: "text-blue-600" },
+          { label: "Promoções Ativas (PDV)", value: generalPromotionsList.filter(c => c.active).length, sub: "Válidas para todos", icon: <Tag size={18} />, color: "text-rose-600" },
+          { label: "Campanhas CRM Ativas", value: crmCampaignsList.filter(c => c.active).length, sub: "Requerem identificação (CPF)", icon: <Award size={18} />, color: "text-amber-600" },
+          { label: "Total em Cashback", value: `R$ ${customers.reduce((sum, c) => sum + c.cashbackBalance, 0).toFixed(2).replace(".", ",")}`, sub: "Saldo acumulado", icon: <Gift size={18} />, color: "text-emerald-600" },
         ].map(s => (
-          <div key={s.label} className="bg-[#111528] border border-indigo-500/10 rounded-2xl p-4 flex items-center justify-between">
+          <div key={s.label} className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl p-4 flex items-center justify-between">
             <div>
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">{s.label}</span>
               <span className={`text-xl font-bold ${s.color}`}>{s.value}</span>
               <p className="text-[9px] text-slate-600 mt-0.5">{s.sub}</p>
             </div>
-            <div className="w-9 h-9 rounded-xl bg-indigo-500/5 flex items-center justify-center border border-indigo-500/10 text-slate-400">
+            <div className="w-9 h-9 rounded-xl bg-indigo-500/5 flex items-center justify-center border border-[#c4d5ee] text-slate-500">
               {s.icon}
             </div>
           </div>
@@ -276,18 +276,18 @@ export default function CrmPage() {
       </div>
 
       {/* Tabs */}
-      <div className="bg-[#111528] rounded-2xl border border-indigo-500/10 flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div className="bg-[#fbfdff] rounded-2xl border border-[#c4d5ee] flex-1 flex flex-col min-h-0 overflow-hidden">
         <div className="flex gap-4 border-b border-indigo-500/[0.08] px-5 shrink-0">
-          <button onClick={() => setTab("customers")} className={`pb-3 pt-4 text-xs font-semibold border-b-2 px-1 transition-all ${tab === "customers" ? "border-indigo-500 text-indigo-400" : "border-transparent text-slate-500 hover:text-slate-300"}`}>
+          <button onClick={() => setTab("customers")} className={`pb-3 pt-4 text-xs font-semibold border-b-2 px-1 transition-all ${tab === "customers" ? "border-indigo-500 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-600"}`}>
             Base de Clientes ({filteredCustomers.length})
           </button>
-          <button onClick={() => setTab("promotions")} className={`pb-3 pt-4 text-xs font-semibold border-b-2 px-1 transition-all ${tab === "promotions" ? "border-indigo-500 text-indigo-400" : "border-transparent text-slate-500 hover:text-slate-300"}`}>
+          <button onClick={() => setTab("promotions")} className={`pb-3 pt-4 text-xs font-semibold border-b-2 px-1 transition-all ${tab === "promotions" ? "border-indigo-500 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-600"}`}>
             Promoções Gerais ({generalPromotionsList.length})
           </button>
-          <button onClick={() => setTab("crm_campaigns")} className={`pb-3 pt-4 text-xs font-semibold border-b-2 px-1 transition-all ${tab === "crm_campaigns" ? "border-indigo-500 text-indigo-400" : "border-transparent text-slate-500 hover:text-slate-300"}`}>
+          <button onClick={() => setTab("crm_campaigns")} className={`pb-3 pt-4 text-xs font-semibold border-b-2 px-1 transition-all ${tab === "crm_campaigns" ? "border-indigo-500 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-600"}`}>
             Campanhas CRM (Fidelidade) ({crmCampaignsList.length})
           </button>
-          <button onClick={() => setTab("media_ads")} className={`pb-3 pt-4 text-xs font-semibold border-b-2 px-1 transition-all ${tab === "media_ads" ? "border-indigo-500 text-indigo-400" : "border-transparent text-slate-500 hover:text-slate-300"}`}>
+          <button onClick={() => setTab("media_ads")} className={`pb-3 pt-4 text-xs font-semibold border-b-2 px-1 transition-all ${tab === "media_ads" ? "border-indigo-500 text-indigo-600" : "border-transparent text-slate-500 hover:text-slate-600"}`}>
             Anúncios & Mídias (PDV)
           </button>
         </div>
@@ -301,34 +301,34 @@ export default function CrmPage() {
         ) : tab === "customers" ? (
           <div className="flex-1 flex flex-col min-h-0">
             {/* Filter controls */}
-            <div className="p-4 border-b border-indigo-500/[0.08] bg-[#0c0f1a]/40 space-y-3 shrink-0">
+            <div className="p-4 border-b border-indigo-500/[0.08] bg-[#f3f7fe]/40 space-y-3 shrink-0">
               <div className="flex items-center gap-3">
                 <div className="relative flex-1 max-w-sm">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600" size={16} />
-                  <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-9 pr-4 py-2 bg-[#0c0f1a] border border-indigo-500/15 text-white rounded-lg outline-none focus:border-indigo-500 text-sm placeholder:text-slate-600" placeholder="Buscar cliente por nome ou CPF..." />
+                  <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-9 pr-4 py-2 bg-[#f3f7fe] border border-[#c4d5ee] text-gray-900 rounded-lg outline-none focus:border-indigo-500 text-sm placeholder:text-slate-600" placeholder="Buscar cliente por nome ou CPF..." />
                 </div>
-                <button onClick={() => setShowFilters(!showFilters)} className={`flex items-center gap-1.5 px-3 py-2 border rounded-lg text-xs font-bold transition-all ${showFilters ? "border-indigo-500 bg-indigo-500/10 text-indigo-400" : "border-indigo-500/15 text-slate-400 hover:bg-[#161b33]"}`}>
+                <button onClick={() => setShowFilters(!showFilters)} className={`flex items-center gap-1.5 px-3 py-2 border rounded-lg text-xs font-bold transition-all ${showFilters ? "border-indigo-500 bg-indigo-500/10 text-indigo-600" : "border-[#c4d5ee] text-slate-500 hover:bg-[#eaf1fc]"}`}>
                   <Filter size={12} /> Filtros de Segmentação
                 </button>
               </div>
 
               {showFilters && (
-                <div className="grid grid-cols-4 gap-4 p-4 bg-[#0c0f1a]/80 border border-indigo-500/10 rounded-xl animate-in fade-in duration-200">
+                <div className="grid grid-cols-4 gap-4 p-4 bg-[#f3f7fe]/80 border border-[#c4d5ee] rounded-xl animate-in fade-in duration-200">
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Gasto Acumulado Mínimo</label>
-                    <input type="number" placeholder="R$ 0,00" value={minSpent} onChange={e => setMinSpent(e.target.value)} className="w-full bg-[#080b13] border border-indigo-500/15 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-indigo-500" />
+                    <input type="number" placeholder="R$ 0,00" value={minSpent} onChange={e => setMinSpent(e.target.value)} className="w-full bg-[#e8f0fc] border border-[#c4d5ee] rounded-lg px-3 py-1.5 text-xs text-gray-900 outline-none focus:border-indigo-500" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Quantidade de Compras</label>
-                    <input type="number" placeholder="Ex: 5" value={minPurchases} onChange={e => setMinPurchases(e.target.value)} className="w-full bg-[#080b13] border border-indigo-500/15 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-indigo-500" />
+                    <input type="number" placeholder="Ex: 5" value={minPurchases} onChange={e => setMinPurchases(e.target.value)} className="w-full bg-[#e8f0fc] border border-[#c4d5ee] rounded-lg px-3 py-1.5 text-xs text-gray-900 outline-none focus:border-indigo-500" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Inativo há (dias)</label>
-                    <input type="number" placeholder="Ex: 30" value={inactiveDays} onChange={e => setInactiveDays(e.target.value)} className="w-full bg-[#080b13] border border-indigo-500/15 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-indigo-500" />
+                    <input type="number" placeholder="Ex: 30" value={inactiveDays} onChange={e => setInactiveDays(e.target.value)} className="w-full bg-[#e8f0fc] border border-[#c4d5ee] rounded-lg px-3 py-1.5 text-xs text-gray-900 outline-none focus:border-indigo-500" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Saldo Cashback Mínimo</label>
-                    <input type="number" placeholder="R$ 0,00" value={minCashback} onChange={e => setMinCashback(e.target.value)} className="w-full bg-[#080b13] border border-indigo-500/15 rounded-lg px-3 py-1.5 text-xs text-white outline-none focus:border-indigo-500" />
+                    <input type="number" placeholder="R$ 0,00" value={minCashback} onChange={e => setMinCashback(e.target.value)} className="w-full bg-[#e8f0fc] border border-[#c4d5ee] rounded-lg px-3 py-1.5 text-xs text-gray-900 outline-none focus:border-indigo-500" />
                   </div>
                 </div>
               )}
@@ -336,7 +336,7 @@ export default function CrmPage() {
 
             <div className="flex-1 overflow-auto min-h-0">
               <table className="w-full text-sm text-left">
-                <thead className="bg-[#0c0f1a]/60 text-slate-500 text-[10px] font-semibold uppercase sticky top-0 border-b border-indigo-500/[0.08] z-10">
+                <thead className="bg-[#f3f7fe]/60 text-slate-500 text-[10px] font-semibold uppercase sticky top-0 border-b border-indigo-500/[0.08] z-10">
                   <tr>
                     <th className="px-5 py-3">Cliente</th>
                     <th className="px-5 py-3">CPF</th>
@@ -356,11 +356,11 @@ export default function CrmPage() {
                   ) : (
                     filteredCustomers.map(c => (
                       <tr key={c.id} className="hover:bg-indigo-500/[0.04] transition-colors">
-                        <td className="px-5 py-3 font-semibold text-white">{c.name}</td>
+                        <td className="px-5 py-3 font-semibold text-gray-900">{c.name}</td>
                         <td className="px-5 py-3 text-slate-500 font-mono text-xs">{c.document || "—"}</td>
-                        <td className="px-5 py-3 text-right font-mono text-white text-xs">R$ {c.totalSpent.toFixed(2).replace(".", ",")}</td>
-                        <td className="px-5 py-3 text-right font-mono text-slate-400 text-xs">{c.salesCount}</td>
-                        <td className="px-5 py-3 text-right font-mono text-emerald-400 font-semibold text-xs">R$ {c.cashbackBalance.toFixed(2).replace(".", ",")}</td>
+                        <td className="px-5 py-3 text-right font-mono text-gray-900 text-xs">R$ {c.totalSpent.toFixed(2).replace(".", ",")}</td>
+                        <td className="px-5 py-3 text-right font-mono text-slate-500 text-xs">{c.salesCount}</td>
+                        <td className="px-5 py-3 text-right font-mono text-emerald-600 font-semibold text-xs">R$ {c.cashbackBalance.toFixed(2).replace(".", ",")}</td>
                         <td className="px-5 py-3 text-right font-mono text-slate-500 text-xs">
                           {c.lastPurchase ? new Date(c.lastPurchase).toLocaleDateString("pt-BR") : "Nunca comprou"}
                         </td>
@@ -380,21 +380,21 @@ export default function CrmPage() {
                 </div>
               ) : (
                 (tab === "crm_campaigns" ? crmCampaignsList : generalPromotionsList).map(camp => (
-                  <div key={camp.id} className={`bg-[#0c0f1a] border rounded-2xl p-5 flex flex-col justify-between transition-all ${camp.active ? "border-indigo-500/20" : "border-slate-800 opacity-60"}`}>
+                  <div key={camp.id} className={`bg-[#f3f7fe] border rounded-2xl p-5 flex flex-col justify-between transition-all ${camp.active ? "border-indigo-200" : "border-[#c4d5ee] opacity-60"}`}>
                     <div>
                       <div className="flex justify-between items-start mb-3">
                         <div>
                           <span className={`text-[9px] px-2 py-0.5 rounded border font-bold uppercase ${getCampaignBadgeColor(camp.type === "PROMO" ? JSON.parse(camp.rules || "{}").promoType : camp.type)}`}>
                             {camp.type === "PROMO" ? "Promoção Geral" : camp.type}
                           </span>
-                          <h3 className="text-white font-bold text-base mt-1.5">{camp.name}</h3>
+                          <h3 className="text-gray-900 font-bold text-base mt-1.5">{camp.name}</h3>
                         </div>
                         <button 
                           onClick={() => handleToggleStatus(camp.id, !camp.active)}
                           className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 ${
                             camp.active 
-                              ? "bg-rose-500/10 text-rose-400 border-rose-500/20 hover:bg-rose-500/20"
-                              : "bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20"
+                              ? "bg-rose-500/10 text-rose-600 border-rose-500/20 hover:bg-rose-500/20"
+                              : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 hover:bg-emerald-500/20"
                           }`}
                         >
                           {camp.active ? (
@@ -404,7 +404,7 @@ export default function CrmPage() {
                           )}
                         </button>
                       </div>
-                      <p className="text-slate-300 text-xs font-semibold mt-1 bg-[#111528] border border-indigo-500/5 p-3 rounded-lg leading-relaxed">
+                      <p className="text-slate-600 text-xs font-semibold mt-1 bg-[#fbfdff] border border-[#c4d5ee] p-3 rounded-lg leading-relaxed">
                         {formatRuleDescription(camp)}
                       </p>
                       {camp.description && (
@@ -431,32 +431,32 @@ export default function CrmPage() {
       {/* Unified Modal */}
       {isOpen && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-[#111528] border border-indigo-500/20 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-5 border-b border-indigo-500/[0.08] flex justify-between items-center bg-[#0c0f1a]/50">
-              <h3 className="text-lg font-bold text-white flex items-center gap-2"><Gift className="text-indigo-400" size={18} /> Criar Nova Regra</h3>
+          <div className="bg-[#fbfdff] border border-indigo-200 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-5 border-b border-indigo-500/[0.08] flex justify-between items-center bg-[#f3f7fe]/50">
+              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2"><Gift className="text-indigo-600" size={18} /> Criar Nova Regra</h3>
               <button onClick={() => setIsOpen(false)} className="p-1 rounded-lg hover:bg-indigo-500/10 text-slate-500 transition-colors"><X size={18} /></button>
             </div>
             
             <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto custom-scrollbar">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Público Alvo (Destino)</label>
-                  <select value={targetType} onChange={e => setTargetType(e.target.value)} className="w-full bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-white px-3 py-2 rounded-lg outline-none text-sm font-semibold transition-all">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Público Alvo (Destino)</label>
+                  <select value={targetType} onChange={e => setTargetType(e.target.value)} className="w-full bg-[#f3f7fe] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 px-3 py-2 rounded-lg outline-none text-sm font-semibold transition-all">
                     <option value="CRM">Clientes Fidelidade (CRM - Requer CPF)</option>
                     <option value="GENERAL">Todos os Clientes (Promoção Geral - No PDV)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Tipo do Benefício</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Tipo do Benefício</label>
                   {targetType === "CRM" ? (
-                    <select value={type} onChange={e => setType(e.target.value)} className="w-full bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-white px-3 py-2 rounded-lg outline-none text-sm font-semibold transition-all">
+                    <select value={type} onChange={e => setType(e.target.value)} className="w-full bg-[#f3f7fe] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 px-3 py-2 rounded-lg outline-none text-sm font-semibold transition-all">
                       <option value="DISCOUNT">Desconto Direto no Caixa</option>
                       <option value="CASHBACK">Cashback Fidelidade</option>
                       <option value="BOGO">Leve X Pague Y (BOGO)</option>
                       <option value="RAFFLE">Sorteio (Cupom da Sorte)</option>
                     </select>
                   ) : (
-                    <select value={type} onChange={e => setType(e.target.value)} className="w-full bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-white px-3 py-2 rounded-lg outline-none text-sm font-semibold transition-all">
+                    <select value={type} onChange={e => setType(e.target.value)} className="w-full bg-[#f3f7fe] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 px-3 py-2 rounded-lg outline-none text-sm font-semibold transition-all">
                       <option value="DISCOUNT_PERCENT">Desconto Percentual (%)</option>
                       <option value="DISCOUNT_FIXED">Desconto em Valor Fixo (R$)</option>
                       <option value="BOGO">Leve X Pague Y (BOGO)</option>
@@ -466,31 +466,31 @@ export default function CrmPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Nome Comercial</label>
-                <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-white px-3 py-2 rounded-lg outline-none text-sm font-semibold transition-all" placeholder="Ex: Festival de Aniversário - Cervejas" required />
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Nome Comercial</label>
+                <input type="text" value={name} onChange={e => setName(e.target.value)} className="w-full bg-[#f3f7fe] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 px-3 py-2 rounded-lg outline-none text-sm font-semibold transition-all" placeholder="Ex: Festival de Aniversário - Cervejas" required />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Data/Hora de Início</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Data/Hora de Início</label>
                   <div className="flex gap-2">
-                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="flex-1 bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-white px-3 py-2 rounded-lg outline-none text-sm font-semibold transition-all" required />
-                    <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-24 bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-white px-3 py-2 rounded-lg outline-none text-sm font-semibold transition-all" required />
+                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="flex-1 bg-[#f3f7fe] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 px-3 py-2 rounded-lg outline-none text-sm font-semibold transition-all" required />
+                    <input type="time" value={startTime} onChange={e => setStartTime(e.target.value)} className="w-24 bg-[#f3f7fe] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 px-3 py-2 rounded-lg outline-none text-sm font-semibold transition-all" required />
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Data/Hora de Término (Opcional)</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Data/Hora de Término (Opcional)</label>
                   <div className="flex gap-2">
-                    <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="flex-1 bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-white px-3 py-2 rounded-lg outline-none text-sm font-semibold transition-all" />
-                    <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-24 bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-white px-3 py-2 rounded-lg outline-none text-sm font-semibold transition-all" />
+                    <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="flex-1 bg-[#f3f7fe] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 px-3 py-2 rounded-lg outline-none text-sm font-semibold transition-all" />
+                    <input type="time" value={endTime} onChange={e => setEndTime(e.target.value)} className="w-24 bg-[#f3f7fe] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 px-3 py-2 rounded-lg outline-none text-sm font-semibold transition-all" />
                   </div>
                 </div>
               </div>
 
               {/* Advanced Product Selector */}
               <div className="grid grid-cols-1 gap-4">
-                <div className="bg-[#0c0f1a] border border-indigo-500/10 rounded-xl p-4 space-y-3">
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">Produtos Participantes da Campanha</label>
+                <div className="bg-[#f3f7fe] border border-[#c4d5ee] rounded-xl p-4 space-y-3">
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">Produtos Participantes da Campanha</label>
                   
                   <div className="flex gap-2">
                     <div className="relative flex-1">
@@ -500,7 +500,7 @@ export default function CrmPage() {
                         value={productSearchQuery} 
                         onChange={e => setProductSearchQuery(e.target.value)} 
                         placeholder="Buscar por nome, EAN ou código..." 
-                        className="w-full pl-9 pr-4 py-2.5 bg-[#111528] border border-indigo-500/15 text-white rounded-lg outline-none focus:border-indigo-500 text-xs font-semibold"
+                        className="w-full pl-9 pr-4 py-2.5 bg-[#fbfdff] border border-[#c4d5ee] text-gray-900 rounded-lg outline-none focus:border-indigo-500 text-xs font-semibold"
                       />
                     </div>
                     {productSearchQuery.trim().length >= 2 && (
@@ -527,14 +527,14 @@ export default function CrmPage() {
                   </div>
 
                   {/* Search results dropdown/list */}
-                  <div className="bg-[#111528] border border-indigo-500/15 rounded-lg max-h-36 overflow-y-auto divide-y divide-indigo-500/[0.06] custom-scrollbar">
+                  <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-lg max-h-36 overflow-y-auto divide-y divide-indigo-500/[0.06] custom-scrollbar">
                     {products.filter(p => {
                       if (!productSearchQuery.trim()) return true;
                       const q = productSearchQuery.toLowerCase();
                       return p.name.toLowerCase().includes(q) || p.barcode?.includes(q);
                     }).slice(0, 10).map(p => (
                       <div key={p.id} className="p-2 flex justify-between items-center text-xs">
-                        <span className="text-white truncate max-w-[70%] font-semibold">{p.name} (R$ {p.price.toFixed(2)})</span>
+                        <span className="text-gray-900 truncate max-w-[70%] font-semibold">{p.name} (R$ {p.price.toFixed(2)})</span>
                         <button 
                           type="button" 
                           onClick={() => {
@@ -543,7 +543,7 @@ export default function CrmPage() {
                             }
                             setProductSearchQuery("");
                           }}
-                          className="text-indigo-400 hover:underline font-bold"
+                          className="text-indigo-600 hover:underline font-bold"
                         >
                           + Adicionar
                         </button>
@@ -553,14 +553,14 @@ export default function CrmPage() {
 
                   {/* Selected products tags */}
                   {selectedProducts.length > 0 ? (
-                    <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto p-2 bg-[#111528]/50 rounded-lg border border-indigo-500/5">
+                    <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto p-2 bg-[#fbfdff]/50 rounded-lg border border-[#c4d5ee]">
                       {selectedProducts.map(p => (
-                        <div key={p.id} className="flex items-center gap-1 bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-[10px] font-bold px-2 py-1 rounded-md">
+                        <div key={p.id} className="flex items-center gap-1 bg-indigo-500/10 border border-indigo-200 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded-md">
                           <span className="truncate max-w-[150px]">{p.name}</span>
                           <button 
                             type="button" 
                             onClick={() => setSelectedProducts(prev => prev.filter(sp => sp.id !== p.id))}
-                            className="text-indigo-400 hover:text-rose-400"
+                            className="text-indigo-600 hover:text-rose-600"
                           >
                             <X size={10} />
                           </button>
@@ -574,16 +574,16 @@ export default function CrmPage() {
               </div>
 
               {/* Rules Engine */}
-              <div className="bg-[#0c0f1a] border border-indigo-500/10 rounded-xl p-4 space-y-3">
-                <h4 className="text-[10px] uppercase font-black text-indigo-400 tracking-wider">Regras de Ativação do Benefício</h4>
+              <div className="bg-[#f3f7fe] border border-[#c4d5ee] rounded-xl p-4 space-y-3">
+                <h4 className="text-[10px] uppercase font-black text-indigo-600 tracking-wider">Regras de Ativação do Benefício</h4>
                 
                 {type !== "BOGO" && (
                   <div className="flex gap-4 border-b border-indigo-500/[0.05] pb-2">
-                    <label className="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                    <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
                       <input type="radio" name="ruleType" checked={ruleType === "QTY"} onChange={() => setRuleType("QTY")} className="text-indigo-500" />
                       Por quantidade mínima de itens
                     </label>
-                    <label className="flex items-center gap-1.5 text-xs text-slate-300 cursor-pointer">
+                    <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
                       <input type="radio" name="ruleType" checked={ruleType === "AMT"} onChange={() => setRuleType("AMT")} className="text-indigo-500" />
                       Por valor mínimo acumulado
                     </label>
@@ -594,12 +594,12 @@ export default function CrmPage() {
                   ruleType === "QTY" ? (
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">A cada quantas unidades compradas?</label>
-                      <input type="number" min="1" value={minQty} onChange={e => setMinQty(e.target.value)} className="w-32 bg-[#111528] border border-indigo-500/15 rounded-lg px-3 py-2 text-sm text-white font-mono outline-none focus:border-indigo-500" />
+                      <input type="number" min="1" value={minQty} onChange={e => setMinQty(e.target.value)} className="w-32 bg-[#fbfdff] border border-[#c4d5ee] rounded-lg px-3 py-2 text-sm text-gray-900 font-mono outline-none focus:border-indigo-500" />
                     </div>
                   ) : (
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">A partir de qual valor acumulado?</label>
-                      <input type="number" step="0.01" value={minAmount} onChange={e => setMinAmount(e.target.value)} className="w-32 bg-[#111528] border border-indigo-500/15 rounded-lg px-3 py-2 text-sm text-white font-mono outline-none focus:border-indigo-500" />
+                      <input type="number" step="0.01" value={minAmount} onChange={e => setMinAmount(e.target.value)} className="w-32 bg-[#fbfdff] border border-[#c4d5ee] rounded-lg px-3 py-2 text-sm text-gray-900 font-mono outline-none focus:border-indigo-500" />
                     </div>
                   )
                 )}
@@ -608,21 +608,21 @@ export default function CrmPage() {
                 {(type === "DISCOUNT" || type === "DISCOUNT_FIXED") && (
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Valor do desconto (R$)</label>
-                    <input type="number" step="0.01" value={discountValue} onChange={e => setDiscountValue(e.target.value)} className="w-32 bg-[#111528] border border-indigo-500/15 rounded-lg px-3 py-2 text-sm text-rose-400 font-mono font-bold outline-none focus:border-indigo-500" />
+                    <input type="number" step="0.01" value={discountValue} onChange={e => setDiscountValue(e.target.value)} className="w-32 bg-[#fbfdff] border border-[#c4d5ee] rounded-lg px-3 py-2 text-sm text-rose-600 font-mono font-bold outline-none focus:border-indigo-500" />
                   </div>
                 )}
 
                 {type === "DISCOUNT_PERCENT" && (
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Porcentagem do desconto (%)</label>
-                    <input type="number" step="0.1" value={discountPercent} onChange={e => setDiscountPercent(e.target.value)} className="w-32 bg-[#111528] border border-indigo-500/15 rounded-lg px-3 py-2 text-sm text-rose-400 font-mono font-bold outline-none focus:border-indigo-500" />
+                    <input type="number" step="0.1" value={discountPercent} onChange={e => setDiscountPercent(e.target.value)} className="w-32 bg-[#fbfdff] border border-[#c4d5ee] rounded-lg px-3 py-2 text-sm text-rose-600 font-mono font-bold outline-none focus:border-indigo-500" />
                   </div>
                 )}
 
                 {type === "CASHBACK" && (
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Porcentagem de cashback (%)</label>
-                    <input type="number" step="0.1" value={cashbackPercent} onChange={e => setCashbackPercent(e.target.value)} className="w-32 bg-[#111528] border border-indigo-500/15 rounded-lg px-3 py-2 text-sm text-emerald-400 font-mono font-bold outline-none focus:border-indigo-500" />
+                    <input type="number" step="0.1" value={cashbackPercent} onChange={e => setCashbackPercent(e.target.value)} className="w-32 bg-[#fbfdff] border border-[#c4d5ee] rounded-lg px-3 py-2 text-sm text-emerald-600 font-mono font-bold outline-none focus:border-indigo-500" />
                   </div>
                 )}
 
@@ -630,29 +630,29 @@ export default function CrmPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Leve (Quantidade total)</label>
-                      <input type="number" min="1" value={buyQty} onChange={e => setBuyQty(e.target.value)} className="w-full bg-[#111528] border border-indigo-500/15 rounded-lg px-3 py-2 text-sm text-white font-mono outline-none focus:border-indigo-500" />
+                      <input type="number" min="1" value={buyQty} onChange={e => setBuyQty(e.target.value)} className="w-full bg-[#fbfdff] border border-[#c4d5ee] rounded-lg px-3 py-2 text-sm text-gray-900 font-mono outline-none focus:border-indigo-500" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Pague (Quantidade cobrada)</label>
-                      <input type="number" min="1" value={payQty} onChange={e => setPayQty(e.target.value)} className="w-full bg-[#111528] border border-indigo-500/15 rounded-lg px-3 py-2 text-sm text-white font-mono outline-none focus:border-indigo-500" />
+                      <input type="number" min="1" value={payQty} onChange={e => setPayQty(e.target.value)} className="w-full bg-[#fbfdff] border border-[#c4d5ee] rounded-lg px-3 py-2 text-sm text-gray-900 font-mono outline-none focus:border-indigo-500" />
                     </div>
                   </div>
                 )}
 
                 {type === "RAFFLE" && (
-                  <div className="text-[10px] text-indigo-300 font-medium italic">
+                  <div className="text-[10px] text-indigo-700 font-medium italic">
                     Ao atingir a regra configurada, o PDV imprimirá automaticamente um Cupom da Sorte contendo um código QR e um número aleatório único de sorteio para o cliente participante.
                   </div>
                 )}
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">Descrição Interna (Opcional)</label>
-                <textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-white px-3 py-2 rounded-lg outline-none text-sm h-16 resize-none transition-all" placeholder="Informações internas do regulamento..." />
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Descrição Interna (Opcional)</label>
+                <textarea value={description} onChange={e => setDescription(e.target.value)} className="w-full bg-[#f3f7fe] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 px-3 py-2 rounded-lg outline-none text-sm h-16 resize-none transition-all" placeholder="Informações internas do regulamento..." />
               </div>
 
               <div className="flex gap-3 pt-3">
-                <button type="button" onClick={() => setIsOpen(false)} className="flex-1 bg-[#0c0f1a] hover:bg-[#161b33] text-slate-400 font-bold py-3 rounded-xl border border-indigo-500/10 text-sm transition-all active:scale-95">Voltar</button>
+                <button type="button" onClick={() => setIsOpen(false)} className="flex-1 bg-[#f3f7fe] hover:bg-[#eaf1fc] text-slate-500 font-bold py-3 rounded-xl border border-[#c4d5ee] text-sm transition-all active:scale-95">Voltar</button>
                 <button type="submit" disabled={savingCampaign} className="flex-grow flex items-center justify-center gap-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl shadow-lg shadow-indigo-600/20 text-sm transition-all active:scale-95 disabled:opacity-50">
                   {savingCampaign ? (
                     <><Loader2 className="animate-spin" size={14} /> Salvando...</>
@@ -774,25 +774,25 @@ function MediaAdsTab() {
     <div className="flex-1 overflow-auto min-h-0 p-5 space-y-6">
       
       {/* Settings Row */}
-      <div className="bg-[#0c0f1a] border border-indigo-500/10 p-5 rounded-2xl grid grid-cols-1 md:grid-cols-3 gap-5 items-end">
+      <div className="bg-[#f3f7fe] border border-[#c4d5ee] p-5 rounded-2xl grid grid-cols-1 md:grid-cols-3 gap-5 items-end">
         <div>
-          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Tempo de Rotação dos Anúncios (Segundos)</label>
+          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Tempo de Rotação dos Anúncios (Segundos)</label>
           <input 
             type="number" 
             min="2" 
             value={speed} 
             onChange={e => setSpeed(e.target.value)} 
-            className="w-full bg-[#111528] border border-indigo-500/15 focus:border-indigo-500 text-white font-mono px-3 py-2 rounded-lg text-sm outline-none transition-all"
+            className="w-full bg-[#fbfdff] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 font-mono px-3 py-2 rounded-lg text-sm outline-none transition-all"
           />
         </div>
         <div>
-          <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Inatividade para Ativar (Segundos)</label>
+          <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Inatividade para Ativar (Segundos)</label>
           <input 
             type="number" 
             min="5" 
             value={idle} 
             onChange={e => setIdle(e.target.value)} 
-            className="w-full bg-[#111528] border border-indigo-500/15 focus:border-indigo-500 text-white font-mono px-3 py-2 rounded-lg text-sm outline-none transition-all"
+            className="w-full bg-[#fbfdff] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 font-mono px-3 py-2 rounded-lg text-sm outline-none transition-all"
           />
         </div>
         <div className="flex gap-2">
@@ -814,42 +814,42 @@ function MediaAdsTab() {
       {/* Ads Cards list */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {ads.map(ad => (
-          <div key={ad.id} className={`bg-[#0c0f1a] border rounded-2xl p-5 flex flex-col justify-between transition-all ${ad.active ? "border-indigo-500/20" : "border-slate-800 opacity-50"}`}>
+          <div key={ad.id} className={`bg-[#f3f7fe] border rounded-2xl p-5 flex flex-col justify-between transition-all ${ad.active ? "border-indigo-200" : "border-[#c4d5ee] opacity-50"}`}>
             <div className="flex gap-4">
               {ad.imageUrl && (
-                <img src={ad.imageUrl} alt="preview" className="w-16 h-16 rounded-xl object-cover border border-indigo-500/10 shrink-0" />
+                <img src={ad.imageUrl} alt="preview" className="w-16 h-16 rounded-xl object-cover border border-[#c4d5ee] shrink-0" />
               )}
               <div className="flex-1 min-w-0">
                 <div className="flex justify-between items-start">
                   <div>
-                    <span className="text-[8px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/15 font-black uppercase tracking-widest px-2 py-0.5 rounded">
+                    <span className="text-[8px] bg-indigo-500/10 text-indigo-600 border border-[#c4d5ee] font-black uppercase tracking-widest px-2 py-0.5 rounded">
                       {ad.badge || "ANÚNCIO"}
                     </span>
-                    <h4 className="text-white font-bold text-sm mt-1.5 truncate">{ad.title}</h4>
+                    <h4 className="text-gray-900 font-bold text-sm mt-1.5 truncate">{ad.title}</h4>
                   </div>
                   <div className="flex gap-2 shrink-0">
                     <button 
                       onClick={() => handleToggleAd(ad.id)}
                       className={`px-2.5 py-1 rounded-md text-[9px] font-bold border transition-colors ${
                         ad.active 
-                          ? "bg-rose-500/10 border-rose-500/20 text-rose-400 hover:bg-rose-500/20" 
-                          : "bg-emerald-500/10 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/20"
+                          ? "bg-rose-500/10 border-rose-500/20 text-rose-600 hover:bg-rose-500/20" 
+                          : "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20"
                       }`}
                     >
                       {ad.active ? "Pausar" : "Ativar"}
                     </button>
                     <button 
                       onClick={() => handleDeleteAd(ad.id)}
-                      className="px-2 py-1 rounded-md text-[9px] font-bold bg-slate-500/5 hover:bg-red-500/10 text-slate-400 hover:text-red-400 border border-slate-800 transition-colors"
+                      className="px-2 py-1 rounded-md text-[9px] font-bold bg-slate-500/5 hover:bg-red-500/10 text-slate-500 hover:text-red-600 border border-[#c4d5ee] transition-colors"
                     >
                       Remover
                     </button>
                   </div>
                 </div>
-                <p className="text-slate-400 text-xs mt-2 leading-relaxed">{ad.desc}</p>
+                <p className="text-slate-500 text-xs mt-2 leading-relaxed">{ad.desc}</p>
                 <div className="mt-3 flex items-center gap-2">
                   <span className="text-[9px] text-slate-500 font-semibold uppercase">Gradiente:</span>
-                  <div className={`h-3 w-12 rounded bg-gradient-to-r ${ad.color} border border-white/10`} />
+                  <div className={`h-3 w-12 rounded bg-gradient-to-r ${ad.color} border border-[#c4d5ee]`} />
                 </div>
               </div>
             </div>
@@ -860,46 +860,46 @@ function MediaAdsTab() {
       {/* Create Ad modal Form */}
       {isOpenForm && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className="bg-[#111528] border border-indigo-500/20 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-            <div className="p-5 border-b border-indigo-500/[0.08] flex justify-between items-center bg-[#0c0f1a]/50">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <FileText className="text-indigo-400" size={16} /> Novo Anúncio do PDV
+          <div className="bg-[#fbfdff] border border-indigo-200 rounded-2xl w-full max-w-md shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-5 border-b border-indigo-500/[0.08] flex justify-between items-center bg-[#f3f7fe]/50">
+              <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                <FileText className="text-indigo-600" size={16} /> Novo Anúncio do PDV
               </h3>
               <button onClick={() => setIsOpenForm(false)} className="p-1 rounded-lg hover:bg-indigo-500/10 text-slate-500"><X size={16} /></button>
             </div>
             
             <form onSubmit={handleCreateAd} className="p-5 space-y-4">
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Título da Promoção (Chamada Principal)</label>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Título da Promoção (Chamada Principal)</label>
                 <input 
                   type="text" required value={title} onChange={e => setTitle(e.target.value)}
                   placeholder="EX: LEVE 3 PAGUE 2 COCA-COLA" 
-                  className="w-full bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-white px-3 py-2.5 rounded-lg outline-none text-xs font-semibold"
+                  className="w-full bg-[#f3f7fe] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 px-3 py-2.5 rounded-lg outline-none text-xs font-semibold"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Regra / Descrição do Anúncio</label>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Regra / Descrição do Anúncio</label>
                 <textarea 
                   required value={desc} onChange={e => setDesc(e.target.value)}
                   placeholder="Descreva o benefício e as condições da oferta..."
                   rows={2}
-                  className="w-full bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-white px-3 py-2.5 rounded-lg outline-none text-xs resize-none"
+                  className="w-full bg-[#f3f7fe] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 px-3 py-2.5 rounded-lg outline-none text-xs resize-none"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Tag / Selo</label>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Tag / Selo</label>
                   <input 
                     type="text" value={badge} onChange={e => setBadge(e.target.value)}
                     placeholder="EX: CLUBE FIDELIDADE" 
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-white px-3 py-2.5 rounded-lg outline-none text-xs font-semibold"
+                    className="w-full bg-[#f3f7fe] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 px-3 py-2.5 rounded-lg outline-none text-xs font-semibold"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Estilo / Cor Visual</label>
-                  <select value={color} onChange={e => setColor(e.target.value)} className="w-full bg-[#0c0f1a] border border-indigo-500/15 focus:border-indigo-500 text-white px-3 py-2 rounded-lg outline-none text-xs font-semibold">
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Estilo / Cor Visual</label>
+                  <select value={color} onChange={e => setColor(e.target.value)} className="w-full bg-[#f3f7fe] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 px-3 py-2 rounded-lg outline-none text-xs font-semibold">
                     {BG_COLORS.map(c => (
                       <option key={c.value} value={c.value}>{c.label}</option>
                     ))}
@@ -908,7 +908,7 @@ function MediaAdsTab() {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Imagem da Promoção</label>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5">Imagem da Promoção</label>
                 <div className="flex gap-3 items-center">
                   <input 
                     type="file" accept="image/*" onChange={handleImageUpload} 
@@ -916,18 +916,18 @@ function MediaAdsTab() {
                   />
                   <label 
                     htmlFor="ad-image-file"
-                    className="cursor-pointer bg-[#0c0f1a] hover:bg-[#161b33] text-indigo-400 hover:text-indigo-300 border border-indigo-500/15 border-dashed rounded-xl px-4 py-3 text-xs font-bold transition-all text-center flex-1"
+                    className="cursor-pointer bg-[#f3f7fe] hover:bg-[#eaf1fc] text-indigo-600 hover:text-indigo-700 border border-[#c4d5ee] border-dashed rounded-xl px-4 py-3 text-xs font-bold transition-all text-center flex-1"
                   >
                     {imageUrl ? "✓ Imagem Carregada" : "Selecionar Imagem..."}
                   </label>
                   {imageUrl && (
-                    <img src={imageUrl} alt="Preview" className="w-10 h-10 object-cover rounded-lg border border-indigo-500/20" />
+                    <img src={imageUrl} alt="Preview" className="w-10 h-10 object-cover rounded-lg border border-indigo-200" />
                   )}
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-3 border-t border-slate-800">
-                <button type="button" onClick={() => setIsOpenForm(false)} className="flex-1 bg-[#0c0f1a] hover:bg-[#161b33] text-slate-400 font-bold py-2.5 rounded-xl border border-indigo-500/10 text-xs">Voltar</button>
+              <div className="flex gap-3 pt-3 border-t border-[#c4d5ee]">
+                <button type="button" onClick={() => setIsOpenForm(false)} className="flex-1 bg-[#f3f7fe] hover:bg-[#eaf1fc] text-slate-500 font-bold py-2.5 rounded-xl border border-[#c4d5ee] text-xs">Voltar</button>
                 <button type="submit" className="flex-grow bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-xs shadow-lg">Cadastrar Anúncio</button>
               </div>
             </form>

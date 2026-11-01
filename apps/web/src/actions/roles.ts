@@ -4,6 +4,10 @@ import { prisma } from "@emporio/database";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/session";
 import { logAudit } from "./audit";
+import {
+  SUPERMARKET_PERMISSIONS,
+  SUPERMARKET_DEFAULT_ROLES
+} from "@/lib/supermarketRoles";
 
 function toPlain<T>(obj: T): T {
   return JSON.parse(
@@ -17,7 +21,83 @@ function toPlain<T>(obj: T): T {
   );
 }
 
+// As matrizes e perfis padrões de supermercado foram centralizados em '@/lib/supermarketRoles'
+// para conformidade com Server Actions do Next.js Turbopack.
 
+/**
+ * Garante que a matriz de permissões e os grupos padrões de supermercado
+ * estejam criados no banco para a empresa.
+ */
+export async function seedSupermarketRolesAndPermissions(companyId: string) {
+  try {
+    // 1. Upsert de todas as permissões globais
+    const dbPermissions: Record<string, string> = {};
+    for (const p of SUPERMARKET_PERMISSIONS) {
+      const perm = await prisma.permission.upsert({
+        where: { code: p.code },
+        update: {
+          name: p.name,
+          module: p.module,
+          description: p.description,
+        },
+        create: {
+          code: p.code,
+          name: p.name,
+          module: p.module,
+          description: p.description,
+        }
+      });
+      dbPermissions[p.code] = perm.id;
+    }
+
+    // 2. Criação dos grupos/setores padrões de supermercado para a empresa
+    for (const r of SUPERMARKET_DEFAULT_ROLES) {
+      let role = await prisma.role.findFirst({
+        where: {
+          key: r.key,
+          OR: [{ companyId }, { companyId: null, isSystem: true }]
+        },
+        include: { permissions: true }
+      });
+
+      if (!role) {
+        role = await prisma.role.create({
+          data: {
+            companyId,
+            key: r.key,
+            name: r.name,
+            description: `${r.sector} — ${r.description}`,
+            isSystem: r.isSystem,
+          },
+          include: { permissions: true }
+        });
+      }
+
+      // Se o perfil ainda não tem permissões vinculadas, vincula os padrões de supermercado
+      if (role.permissions.length === 0) {
+        const codesToLink = r.permissionCodes === "ALL"
+          ? SUPERMARKET_PERMISSIONS.map(p => p.code)
+          : r.permissionCodes;
+
+        const permIds = codesToLink
+          .map(code => dbPermissions[code])
+          .filter(Boolean);
+
+        if (permIds.length > 0) {
+          await prisma.rolePermission.createMany({
+            data: permIds.map(permissionId => ({
+              roleId: role!.id,
+              permissionId,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Notice ao semear permissões de supermercado:", err);
+  }
+}
 
 export async function listRolesWithPermissions() {
   try {
@@ -25,6 +105,9 @@ export async function listRolesWithPermissions() {
     if (!session?.companyId) {
       return { roles: [], permissions: [], error: "Não autorizado" };
     }
+
+    // Garante que a empresa tenha a matriz completa de supermercado
+    await seedSupermarketRolesAndPermissions(session.companyId);
 
     const [roles, permissions] = await Promise.all([
       prisma.role.findMany({
@@ -34,7 +117,7 @@ export async function listRolesWithPermissions() {
             { companyId: null, isSystem: true }
           ]
         },
-        orderBy: { createdAt: "asc" },
+        orderBy: [{ isSystem: "desc" }, { createdAt: "asc" }],
         include: {
           permissions: {
             include: { permission: true }
@@ -58,8 +141,8 @@ export async function listRolesWithPermissions() {
 export async function updateRolePermissions(roleId: string, permissionIds: string[]) {
   try {
     const session = await getSession();
-    if (!session?.companyId || session.role !== "ADMIN") {
-      return { error: "Apenas administradores podem alterar permissões de perfis." };
+    if (!session?.companyId || (session.role !== "ADMIN" && session.role !== "MANAGER")) {
+      return { error: "Apenas administradores e gerentes podem alterar permissões de perfis." };
     }
 
     const role = await prisma.role.findFirst({
@@ -70,7 +153,6 @@ export async function updateRolePermissions(roleId: string, permissionIds: strin
       return { error: "Perfil não encontrado." };
     }
 
-    // Se o perfil for de sistema e ainda não for clonado para a empresa, podemos atualizar ou criar relação
     await prisma.$transaction(async (tx) => {
       // Limpar permissões anteriores
       await tx.rolePermission.deleteMany({
@@ -114,7 +196,7 @@ export async function createCustomRole(data: {
 }) {
   try {
     const session = await getSession();
-    if (!session?.companyId || session.role !== "ADMIN") {
+    if (!session?.companyId || (session.role !== "ADMIN" && session.role !== "MANAGER")) {
       return { error: "Não autorizado." };
     }
 
@@ -123,6 +205,18 @@ export async function createCustomRole(data: {
 
     if (!key || !name) {
       return { error: "Código e Nome do perfil são obrigatórios." };
+    }
+
+    // Verifica se já existe um perfil com esse código na empresa
+    const existing = await prisma.role.findFirst({
+      where: {
+        key,
+        companyId: session.companyId,
+      }
+    });
+
+    if (existing) {
+      return { error: `Já existe um grupo de setor com o código "${key}".` };
     }
 
     const role = await prisma.role.create({
@@ -135,6 +229,14 @@ export async function createCustomRole(data: {
         permissions: {
           create: data.permissionIds.map(permissionId => ({ permissionId }))
         }
+      },
+      include: {
+        permissions: {
+          include: { permission: true }
+        },
+        _count: {
+          select: { users: true }
+        }
       }
     });
 
@@ -144,13 +246,91 @@ export async function createCustomRole(data: {
       entity: "Role",
       entityId: role.id,
       newValue: JSON.stringify({ key, name }),
-      reason: "Criação de novo perfil customizado",
+      reason: "Criação de novo grupo de setor de supermercado",
     });
 
     revalidatePath("/settings/roles");
+    revalidatePath("/settings/users");
     return { success: true, role: toPlain(role) };
   } catch (err: any) {
-    return { error: err.message || "Erro ao criar perfil." };
+    return { error: err.message || "Erro ao criar grupo de setor." };
   }
 }
 
+export async function resetRoleToSupermarketDefaults(roleId: string) {
+  try {
+    const session = await getSession();
+    if (!session?.companyId || session.role !== "ADMIN") {
+      return { error: "Apenas administradores podem restaurar permissões padrões." };
+    }
+
+    const role = await prisma.role.findFirst({
+      where: { id: roleId }
+    });
+
+    if (!role) {
+      return { error: "Perfil não encontrado." };
+    }
+
+    const defaultRole = SUPERMARKET_DEFAULT_ROLES.find(r => r.key === role.key);
+    if (!defaultRole) {
+      return { error: "Não há padrão de supermercado predefinido para este cargo customizado." };
+    }
+
+    const allPerms = await prisma.permission.findMany();
+    const permMap = new Map(allPerms.map(p => [p.code, p.id]));
+
+    const targetCodes = defaultRole.permissionCodes === "ALL"
+      ? SUPERMARKET_PERMISSIONS.map(p => p.code)
+      : defaultRole.permissionCodes;
+
+    const targetIds = targetCodes.map(c => permMap.get(c)).filter(Boolean) as string[];
+
+    await prisma.$transaction(async (tx) => {
+      await tx.rolePermission.deleteMany({ where: { roleId } });
+      await tx.rolePermission.createMany({
+        data: targetIds.map(permissionId => ({ roleId, permissionId }))
+      });
+    });
+
+    revalidatePath("/settings/roles");
+    revalidatePath("/settings/users");
+    return { success: true, count: targetIds.length };
+  } catch (err: any) {
+    return { error: err.message || "Erro ao restaurar padrões." };
+  }
+}
+
+export async function deleteCustomRole(roleId: string) {
+  try {
+    const session = await getSession();
+    if (!session?.companyId || session.role !== "ADMIN") {
+      return { error: "Não autorizado." };
+    }
+
+    const role = await prisma.role.findFirst({
+      where: { id: roleId, companyId: session.companyId },
+      include: { _count: { select: { users: true } } }
+    });
+
+    if (!role) {
+      return { error: "Perfil não encontrado ou é um perfil fixo de sistema." };
+    }
+
+    if (role.isSystem) {
+      return { error: "Perfis essenciais do sistema não podem ser excluídos." };
+    }
+
+    if (role._count.users > 0) {
+      return { error: `Existem ${role._count.users} usuário(s) vinculado(s) a este perfil. Reatribua-os antes de excluir.` };
+    }
+
+    await prisma.role.delete({ where: { id: roleId } });
+
+    revalidatePath("/settings/roles");
+    revalidatePath("/settings/users");
+    return { success: true };
+  } catch (err: any) {
+    return { error: err.message || "Erro ao excluir perfil." };
+  }
+}

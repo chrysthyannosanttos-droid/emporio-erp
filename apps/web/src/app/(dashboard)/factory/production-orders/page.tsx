@@ -6,10 +6,10 @@ import Link from "next/link";
 import { getProductionOrders, createProductionOrder, finishProductionOrder } from "@/actions/productionOrder";
 
 const STATUS_MAP: Record<string, { label: string; color: string }> = {
-  PLANNED: { label: "Planejada", color: "bg-blue-500/20 text-blue-400 border-blue-500/30" },
-  IN_PROGRESS: { label: "Em Produção", color: "bg-amber-500/20 text-amber-400 border-amber-500/30" },
-  FINISHED: { label: "Finalizada", color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" },
-  CANCELED: { label: "Cancelada", color: "bg-rose-500/20 text-rose-400 border-rose-500/30" },
+  PLANNED: { label: "Planejada", color: "bg-blue-500/20 text-blue-600 border-blue-500/30" },
+  IN_PROGRESS: { label: "Em Produção", color: "bg-amber-500/20 text-amber-600 border-amber-500/30" },
+  FINISHED: { label: "Finalizada", color: "bg-emerald-500/20 text-emerald-600 border-emerald-500/30" },
+  CANCELED: { label: "Cancelada", color: "bg-rose-500/20 text-rose-600 border-rose-500/30" },
 };
 
 export default function ProductionOrdersPage() {
@@ -93,18 +93,18 @@ export default function ProductionOrdersPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
-            <Hammer className="text-indigo-400" />
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+            <Hammer className="text-indigo-600" />
             Ordens de Produção (OP) Industriais
           </h1>
-          <p className="text-slate-400 text-xs mt-1">
+          <p className="text-slate-500 text-xs mt-1">
             Planejamento fabril, baixa de matérias-primas e formação de lote de produtos acabados.
           </p>
         </div>
         <div className="flex items-center gap-3">
           <Link
             href="/restaurant/recipes"
-            className="flex items-center gap-1.5 bg-[#111528] border border-indigo-500/20 text-slate-300 hover:text-white px-4 py-2.5 rounded-xl font-bold text-xs transition-colors"
+            className="flex items-center gap-1.5 bg-[#fbfdff] border border-indigo-200 text-slate-600 hover:text-gray-900 px-4 py-2.5 rounded-xl font-bold text-xs transition-colors"
           >
             <BookOpen size={15} /> Fichas Técnicas
           </Link>
@@ -119,15 +119,15 @@ export default function ProductionOrdersPage() {
       </div>
 
       {/* Tabela de Ordens de Produção */}
-      <div className="bg-[#111528] border border-indigo-500/15 rounded-2xl overflow-hidden shadow-xl">
-        <div className="p-4 border-b border-indigo-500/10 flex justify-between items-center">
-          <h2 className="text-sm font-bold text-white">Ordens Registradas ({orders.length})</h2>
+      <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl overflow-hidden shadow-xl">
+        <div className="p-4 border-b border-[#c4d5ee] flex justify-between items-center">
+          <h2 className="text-sm font-bold text-gray-900">Ordens Registradas ({orders.length})</h2>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="text-indigo-400/60 uppercase tracking-wider border-b border-indigo-500/10 text-[10px] bg-[#0c0f1a]/40">
+              <tr className="text-indigo-600/60 uppercase tracking-wider border-b border-[#c4d5ee] text-[10px] bg-[#f3f7fe]/40">
                 <th className="py-3 px-4">Nº OP</th>
                 <th className="py-3 px-4">Produto Fabricado</th>
                 <th className="py-3 px-4 text-right">Qtd Planejada</th>
@@ -152,23 +152,23 @@ export default function ProductionOrdersPage() {
                 </tr>
               ) : (
                 orders.map((op) => {
-                  const badge = STATUS_MAP[op.status] || { label: op.status, color: "bg-slate-500/20 text-slate-400" };
+                  const badge = STATUS_MAP[op.status] || { label: op.status, color: "bg-slate-500/20 text-slate-500" };
                   return (
                     <tr key={op.id} className="hover:bg-indigo-500/[0.03]">
-                      <td className="py-3.5 px-4 font-mono font-bold text-indigo-300">{op.number}</td>
-                      <td className="py-3.5 px-4 font-semibold text-white">
+                      <td className="py-3.5 px-4 font-mono font-bold text-indigo-700">{op.number}</td>
+                      <td className="py-3.5 px-4 font-semibold text-gray-900">
                         {op.recipe?.product?.name || "Produto não identificado"}
                       </td>
-                      <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-300">
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-600">
                         {op.plannedQty} {op.recipe?.product?.unit || "UN"}
                       </td>
-                      <td className="py-3.5 px-4 text-right font-mono font-bold text-emerald-400">
+                      <td className="py-3.5 px-4 text-right font-mono font-bold text-emerald-600">
                         {op.producedQty > 0 ? `${op.producedQty} ${op.recipe?.product?.unit || "UN"}` : "---"}
                       </td>
-                      <td className="py-3.5 px-4 text-slate-400 font-mono text-[11px]">
+                      <td className="py-3.5 px-4 text-slate-500 font-mono text-[11px]">
                         <div>{op.batchNumber || "---"}</div>
                         {op.expirationDate && (
-                          <div className="text-[10px] text-amber-400">
+                          <div className="text-[10px] text-amber-600">
                             Val: {new Date(op.expirationDate).toLocaleDateString("pt-BR")}
                           </div>
                         )}
@@ -185,7 +185,7 @@ export default function ProductionOrdersPage() {
                               setSelectedOpToFinish(op);
                               setProducedQty(String(op.plannedQty));
                             }}
-                            className="bg-emerald-600/20 hover:bg-emerald-600 text-emerald-300 hover:text-white px-3 py-1 rounded text-[11px] font-bold transition-all border border-emerald-500/30"
+                            className="bg-emerald-600/20 hover:bg-emerald-600 text-emerald-700 hover:text-gray-900 px-3 py-1 rounded text-[11px] font-bold transition-all border border-emerald-500/30"
                           >
                             Finalizar Produção
                           </button>
@@ -205,16 +205,16 @@ export default function ProductionOrdersPage() {
       {/* Modal Criar Nova OP */}
       {showModal && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#111528] border border-indigo-500/20 rounded-2xl p-6 max-w-md w-full shadow-2xl">
-            <h2 className="text-lg font-bold text-white mb-4">Nova Ordem de Produção (OP)</h2>
+          <div className="bg-[#fbfdff] border border-indigo-200 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Nova Ordem de Produção (OP)</h2>
             <form onSubmit={handleCreateOP} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Selecione a Ficha Técnica *</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Selecione a Ficha Técnica *</label>
                 <select
                   required
                   value={recipeId}
                   onChange={(e) => setRecipeId(e.target.value)}
-                  className="w-full bg-[#0c0f1a] border border-indigo-500/20 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500"
+                  className="w-full bg-[#f3f7fe] border border-indigo-200 rounded-xl px-3 py-2 text-xs text-gray-900 outline-none focus:border-indigo-500"
                 >
                   <option value="">-- Escolha o Produto a Fabricar --</option>
                   {recipes.map((r) => (
@@ -226,7 +226,7 @@ export default function ProductionOrdersPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Quantidade Planejada *</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Quantidade Planejada *</label>
                 <input
                   type="number"
                   step="0.01"
@@ -234,29 +234,29 @@ export default function ProductionOrdersPage() {
                   value={plannedQty}
                   onChange={(e) => setPlannedQty(e.target.value)}
                   placeholder="Ex: 500"
-                  className="w-full bg-[#0c0f1a] border border-indigo-500/20 rounded-xl px-3 py-2 text-xs text-white font-mono outline-none focus:border-indigo-500"
+                  className="w-full bg-[#f3f7fe] border border-indigo-200 rounded-xl px-3 py-2 text-xs text-gray-900 font-mono outline-none focus:border-indigo-500"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Número do Lote</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Número do Lote</label>
                   <input
                     type="text"
                     value={batchNumber}
                     onChange={(e) => setBatchNumber(e.target.value)}
                     placeholder="Gerado auto..."
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/20 rounded-xl px-3 py-2 text-xs text-white font-mono outline-none"
+                    className="w-full bg-[#f3f7fe] border border-indigo-200 rounded-xl px-3 py-2 text-xs text-gray-900 font-mono outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Data de Validade</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Data de Validade</label>
                   <input
                     type="date"
                     value={expirationDate}
                     onChange={(e) => setExpirationDate(e.target.value)}
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/20 rounded-xl px-3 py-2 text-xs text-white outline-none"
+                    className="w-full bg-[#f3f7fe] border border-indigo-200 rounded-xl px-3 py-2 text-xs text-gray-900 outline-none"
                   />
                 </div>
               </div>
@@ -265,7 +265,7 @@ export default function ProductionOrdersPage() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs text-slate-400 hover:text-white"
+                  className="px-4 py-2 rounded-xl text-xs text-slate-500 hover:text-gray-900"
                 >
                   Cancelar
                 </button>
@@ -285,46 +285,46 @@ export default function ProductionOrdersPage() {
       {/* Modal Finalizar OP */}
       {selectedOpToFinish && (
         <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#111528] border border-indigo-500/20 rounded-2xl p-6 max-w-md w-full shadow-2xl">
-            <h2 className="text-lg font-bold text-white mb-2">Finalizar Produção ({selectedOpToFinish.number})</h2>
-            <p className="text-xs text-slate-400 mb-4">
+          <div className="bg-[#fbfdff] border border-indigo-200 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <h2 className="text-lg font-bold text-gray-900 mb-2">Finalizar Produção ({selectedOpToFinish.number})</h2>
+            <p className="text-xs text-slate-500 mb-4">
               Ao confirmar, o sistema baixará automaticamente o estoque dos insumos e adicionará {producedQty} {selectedOpToFinish.recipe?.product?.unit} ao estoque de produtos acabados.
             </p>
 
             <form onSubmit={handleFinishOP} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Quantidade Efetivamente Produzida *</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Quantidade Efetivamente Produzida *</label>
                 <input
                   type="number"
                   step="0.01"
                   required
                   value={producedQty}
                   onChange={(e) => setProducedQty(e.target.value)}
-                  className="w-full bg-[#0c0f1a] border border-indigo-500/20 rounded-xl px-3 py-2 text-xs text-white font-mono font-bold outline-none text-emerald-400"
+                  className="w-full bg-[#f3f7fe] border border-indigo-200 rounded-xl px-3 py-2 text-xs text-gray-900 font-mono font-bold outline-none text-emerald-600"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Quantidade Rejeitada / Perda</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Quantidade Rejeitada / Perda</label>
                   <input
                     type="number"
                     step="0.01"
                     value={rejectedQty}
                     onChange={(e) => setRejectedQty(e.target.value)}
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/20 rounded-xl px-3 py-2 text-xs text-white font-mono outline-none"
+                    className="w-full bg-[#f3f7fe] border border-indigo-200 rounded-xl px-3 py-2 text-xs text-gray-900 font-mono outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Mão de Obra Total (R$)</label>
+                  <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Mão de Obra Total (R$)</label>
                   <input
                     type="number"
                     step="0.01"
                     value={actualLaborCost}
                     onChange={(e) => setActualLaborCost(e.target.value)}
                     placeholder="0.00"
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/20 rounded-xl px-3 py-2 text-xs text-white font-mono outline-none"
+                    className="w-full bg-[#f3f7fe] border border-indigo-200 rounded-xl px-3 py-2 text-xs text-gray-900 font-mono outline-none"
                   />
                 </div>
               </div>
@@ -333,7 +333,7 @@ export default function ProductionOrdersPage() {
                 <button
                   type="button"
                   onClick={() => setSelectedOpToFinish(null)}
-                  className="px-4 py-2 rounded-xl text-xs text-slate-400 hover:text-white"
+                  className="px-4 py-2 rounded-xl text-xs text-slate-500 hover:text-gray-900"
                 >
                   Cancelar
                 </button>

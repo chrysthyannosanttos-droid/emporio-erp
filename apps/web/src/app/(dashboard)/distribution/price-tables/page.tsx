@@ -108,11 +108,11 @@ export default function PriceTablesPage() {
       {/* Top Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2">
-            <Tag className="text-indigo-400" />
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight flex items-center gap-2">
+            <Tag className="text-indigo-600" />
             Tabelas de Preço B2B
           </h1>
-          <p className="text-slate-400 text-xs mt-1">
+          <p className="text-slate-500 text-xs mt-1">
             Configure preços diferenciados para Varejo, Atacado, Distribuição e Clientes Especiais.
           </p>
         </div>
@@ -127,8 +127,8 @@ export default function PriceTablesPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Painel Esquerdo: Lista de Tabelas */}
-        <div className="bg-[#111528] border border-indigo-500/15 rounded-2xl p-4 flex flex-col gap-3">
-          <h2 className="text-xs font-black uppercase tracking-wider text-indigo-400 pb-2 border-b border-indigo-500/10">
+        <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl p-4 flex flex-col gap-3">
+          <h2 className="text-xs font-black uppercase tracking-wider text-indigo-600 pb-2 border-b border-[#c4d5ee]">
             Tabelas Cadastradas ({tables.length})
           </h2>
 
@@ -146,12 +146,12 @@ export default function PriceTablesPage() {
                     onClick={() => handleSelectTable(t)}
                     className={`cursor-pointer rounded-xl p-3 border transition-all flex items-center justify-between ${
                       isSelected
-                        ? "bg-indigo-600/20 border-indigo-500 text-white font-semibold"
-                        : "bg-[#0c0f1a] border-indigo-500/10 text-slate-400 hover:text-slate-200"
+                        ? "bg-indigo-600/20 border-indigo-500 text-gray-900 font-semibold"
+                        : "bg-[#f3f7fe] border-[#c4d5ee] text-slate-500 hover:text-slate-700"
                     }`}
                   >
                     <div>
-                      <h3 className="text-sm font-bold text-white">{t.name}</h3>
+                      <h3 className="text-sm font-bold text-gray-900">{t.name}</h3>
                       <p className="text-[10px] text-slate-500 mt-0.5">
                         {t.type === "FIXED" ? "Preços Fixos" : t.type === "MARGIN" ? "Baseado em Margem" : "Preço por Volume"} • {t._count?.items || 0} produtos
                       </p>
@@ -162,7 +162,7 @@ export default function PriceTablesPage() {
                           e.stopPropagation();
                           handleDeleteTable(t.id);
                         }}
-                        className="p-1 text-slate-500 hover:text-rose-400 rounded transition-colors"
+                        className="p-1 text-slate-500 hover:text-rose-600 rounded transition-colors"
                         title="Excluir Tabela"
                       >
                         <Trash2 size={14} />
@@ -176,17 +176,17 @@ export default function PriceTablesPage() {
         </div>
 
         {/* Painel Direito: Edição de Produtos na Tabela Selecionada */}
-        <div className="lg:col-span-3 bg-[#111528] border border-indigo-500/15 rounded-2xl p-5 flex flex-col gap-4">
+        <div className="lg:col-span-3 bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl p-5 flex flex-col gap-4">
           {selectedTable ? (
             <>
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-indigo-500/10">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-3 border-b border-[#c4d5ee]">
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-indigo-400 uppercase tracking-wider">Tabela Selecionada:</span>
-                    <h2 className="text-lg font-bold text-white">{selectedTable.name}</h2>
+                    <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">Tabela Selecionada:</span>
+                    <h2 className="text-lg font-bold text-gray-900">{selectedTable.name}</h2>
                   </div>
                   {selectedTable.description && (
-                    <p className="text-xs text-slate-400 mt-0.5">{selectedTable.description}</p>
+                    <p className="text-xs text-slate-500 mt-0.5">{selectedTable.description}</p>
                   )}
                 </div>
 
@@ -198,7 +198,7 @@ export default function PriceTablesPage() {
                     value={searchFilter}
                     onChange={(e) => setSearchFilter(e.target.value)}
                     placeholder="Buscar produto ou seção..."
-                    className="w-full bg-[#0c0f1a] border border-indigo-500/15 rounded-xl pl-9 pr-3 py-2 text-xs text-white outline-none focus:border-indigo-500"
+                    className="w-full bg-[#f3f7fe] border border-[#c4d5ee] rounded-xl pl-9 pr-3 py-2 text-xs text-gray-900 outline-none focus:border-indigo-500"
                   />
                 </div>
               </div>
@@ -207,7 +207,7 @@ export default function PriceTablesPage() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                   <thead>
-                    <tr className="text-indigo-400/60 uppercase tracking-wider border-b border-indigo-500/10 text-[10px]">
+                    <tr className="text-indigo-600/60 uppercase tracking-wider border-b border-[#c4d5ee] text-[10px]">
                       <th className="py-2.5 px-3">Produto</th>
                       <th className="py-2.5 px-3">Seção</th>
                       <th className="py-2.5 px-3 text-right">Preço Varejo (Base)</th>
@@ -223,12 +223,12 @@ export default function PriceTablesPage() {
 
                       return (
                         <tr key={p.id} className="hover:bg-indigo-500/[0.03]">
-                          <td className="py-3 px-3 font-semibold text-white">
+                          <td className="py-3 px-3 font-semibold text-gray-900">
                             {p.name}
                             {p.barcode && <span className="block text-[10px] text-slate-500 font-mono">{p.barcode}</span>}
                           </td>
-                          <td className="py-3 px-3 text-slate-400">{p.category || "Geral"}</td>
-                          <td className="py-3 px-3 text-right font-mono text-slate-400">
+                          <td className="py-3 px-3 text-slate-500">{p.category || "Geral"}</td>
+                          <td className="py-3 px-3 text-right font-mono text-slate-500">
                             R$ {Number(p.price).toFixed(2)}
                           </td>
                           <td className="py-3 px-3 text-right">
@@ -244,14 +244,14 @@ export default function PriceTablesPage() {
                                     [p.id]: parseFloat(e.target.value) || 0,
                                   })
                                 }
-                                className="w-24 bg-[#0c0f1a] border border-indigo-500/20 rounded px-2 py-1 text-right text-xs text-emerald-400 font-mono font-bold outline-none focus:border-indigo-500"
+                                className="w-24 bg-[#f3f7fe] border border-indigo-200 rounded px-2 py-1 text-right text-xs text-emerald-600 font-mono font-bold outline-none focus:border-indigo-500"
                               />
                               {Number(diffPercent) !== 0 && (
                                 <span
                                   className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
                                     Number(diffPercent) < 0
-                                      ? "bg-rose-500/10 text-rose-400"
-                                      : "bg-emerald-500/10 text-emerald-400"
+                                      ? "bg-rose-500/10 text-rose-600"
+                                      : "bg-emerald-500/10 text-emerald-600"
                                   }`}
                                 >
                                   {Number(diffPercent) > 0 ? `+${diffPercent}%` : `${diffPercent}%`}
@@ -263,7 +263,7 @@ export default function PriceTablesPage() {
                             <button
                               onClick={() => handleSaveProductPrice(p.id, p.price)}
                               disabled={isSaving}
-                              className="bg-indigo-600/20 hover:bg-indigo-600 text-indigo-300 hover:text-white px-2.5 py-1 rounded text-[10px] font-bold transition-all disabled:opacity-50"
+                              className="bg-indigo-600/20 hover:bg-indigo-600 text-indigo-700 hover:text-gray-900 px-2.5 py-1 rounded text-[10px] font-bold transition-all disabled:opacity-50"
                             >
                               {isSaving ? "..." : "Salvar"}
                             </button>
@@ -286,27 +286,27 @@ export default function PriceTablesPage() {
       {/* Modal Criar Nova Tabela */}
       {showModal && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#111528] border border-indigo-500/20 rounded-2xl p-6 max-w-md w-full shadow-2xl">
-            <h2 className="text-lg font-bold text-white mb-4">Nova Tabela de Preço</h2>
+          <div className="bg-[#fbfdff] border border-indigo-200 rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <h2 className="text-lg font-bold text-gray-900 mb-4">Nova Tabela de Preço</h2>
             <form onSubmit={handleCreateTable} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Nome da Tabela *</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nome da Tabela *</label>
                 <input
                   type="text"
                   required
                   value={newTableName}
                   onChange={(e) => setNewTableName(e.target.value)}
                   placeholder="Ex: Tabela Atacado SP, Distribuidor Ouro"
-                  className="w-full bg-[#0c0f1a] border border-indigo-500/20 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500"
+                  className="w-full bg-[#f3f7fe] border border-indigo-200 rounded-xl px-3 py-2 text-xs text-gray-900 outline-none focus:border-indigo-500"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Tipo de Precificação</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Tipo de Precificação</label>
                 <select
                   value={newTableType}
                   onChange={(e) => setNewTableType(e.target.value)}
-                  className="w-full bg-[#0c0f1a] border border-indigo-500/20 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500"
+                  className="w-full bg-[#f3f7fe] border border-indigo-200 rounded-xl px-3 py-2 text-xs text-gray-900 outline-none focus:border-indigo-500"
                 >
                   <option value="FIXED">Preço Fixo por Produto</option>
                   <option value="MARGIN">Desconto / Margem Percentual</option>
@@ -315,13 +315,13 @@ export default function PriceTablesPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-400 uppercase mb-1">Descrição / Região</label>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Descrição / Região</label>
                 <textarea
                   value={newTableDesc}
                   onChange={(e) => setNewTableDesc(e.target.value)}
                   placeholder="Observações sobre quem utiliza esta tabela..."
                   rows={3}
-                  className="w-full bg-[#0c0f1a] border border-indigo-500/20 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-indigo-500"
+                  className="w-full bg-[#f3f7fe] border border-indigo-200 rounded-xl px-3 py-2 text-xs text-gray-900 outline-none focus:border-indigo-500"
                 />
               </div>
 
@@ -329,7 +329,7 @@ export default function PriceTablesPage() {
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 rounded-xl text-xs text-slate-400 hover:text-white"
+                  className="px-4 py-2 rounded-xl text-xs text-slate-500 hover:text-gray-900"
                 >
                   Cancelar
                 </button>

@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 export default function CotacaoLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR">
-      <body className="bg-[#060919] min-h-screen font-sans antialiased">
+      <body className="bg-[#f3f7fe] min-h-screen font-sans antialiased">
         {children}
       </body>
     </html>
