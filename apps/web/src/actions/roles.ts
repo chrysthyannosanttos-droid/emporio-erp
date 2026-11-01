@@ -24,30 +24,48 @@ function toPlain<T>(obj: T): T {
 // As matrizes e perfis padrões de supermercado foram centralizados em '@/lib/supermarketRoles'
 // para conformidade com Server Actions do Next.js Turbopack.
 
+const seededCompanies = new Set<string>();
+
 /**
  * Garante que a matriz de permissões e os grupos padrões de supermercado
- * estejam criados no banco para a empresa.
+ * estejam criados no banco para a empresa (executado com verificação rápida em lote).
  */
 export async function seedSupermarketRolesAndPermissions(companyId: string) {
+  if (seededCompanies.has(companyId)) {
+    return;
+  }
+
   try {
-    // 1. Upsert de todas as permissões globais
-    const dbPermissions: Record<string, string> = {};
-    for (const p of SUPERMARKET_PERMISSIONS) {
-      const perm = await prisma.permission.upsert({
-        where: { code: p.code },
-        update: {
-          name: p.name,
-          module: p.module,
-          description: p.description,
-        },
-        create: {
-          code: p.code,
-          name: p.name,
-          module: p.module,
-          description: p.description,
+    const [permCount, roleCount] = await Promise.all([
+      prisma.permission.count(),
+      prisma.role.count({
+        where: {
+          OR: [{ companyId }, { companyId: null, isSystem: true }]
         }
-      });
-      dbPermissions[p.code] = perm.id;
+      })
+    ]);
+
+    // Se já existem as permissões e cargos básicos, pula para resposta instantânea (< 5ms)
+    if (permCount >= SUPERMARKET_PERMISSIONS.length && roleCount >= SUPERMARKET_DEFAULT_ROLES.length) {
+      seededCompanies.add(companyId);
+      return;
+    }
+
+    // 1. Criação em lote (batch) de permissões
+    await prisma.permission.createMany({
+      data: SUPERMARKET_PERMISSIONS.map(p => ({
+        code: p.code,
+        name: p.name,
+        module: p.module,
+        description: p.description,
+      })),
+      skipDuplicates: true,
+    });
+
+    const allPerms = await prisma.permission.findMany({ select: { id: true, code: true } });
+    const dbPermissions: Record<string, string> = {};
+    for (const p of allPerms) {
+      dbPermissions[p.code] = p.id;
     }
 
     // 2. Criação dos grupos/setores padrões de supermercado para a empresa
@@ -94,6 +112,8 @@ export async function seedSupermarketRolesAndPermissions(companyId: string) {
         }
       }
     }
+
+    seededCompanies.add(companyId);
   } catch (err) {
     console.warn("Notice ao semear permissões de supermercado:", err);
   }

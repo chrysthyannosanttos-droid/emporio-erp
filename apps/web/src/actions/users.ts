@@ -49,9 +49,6 @@ export async function listTenantUsers(filters?: {
       return { users: [], error: "Não autorizado" };
     }
 
-    // Garante que os cargos e permissões padrões de supermercado estejam ativos para a empresa
-    await seedSupermarketRolesAndPermissions(session.companyId);
-
     const where: any = { companyId: session.companyId };
 
     if (filters?.role && filters.role !== "ALL") {
@@ -85,13 +82,6 @@ export async function listTenantUsers(filters?: {
         userPermissions: {
           select: { id: true, permissionId: true, granted: true }
         },
-        _count: {
-          select: {
-            sales: true,
-            requestedApprovals: true,
-            authorizedApprovals: true,
-          }
-        }
       }
     });
 
