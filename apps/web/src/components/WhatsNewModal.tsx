@@ -115,7 +115,7 @@ export function WhatsNewModal({ userName = "Usuário", forceOpen, onClose }: Wha
       <div className="relative w-full max-w-2xl bg-[#f3f7fe] border border-indigo-200 rounded-2xl shadow-2xl shadow-indigo-950/60 flex flex-col overflow-hidden z-10 max-h-[90vh]">
         
         {/* Banner Superior Decorativo */}
-        <div className="relative bg-gradient-to-r from-indigo-950 via-[#eaf1fc] to-[#f3f7fe] p-6 border-b border-indigo-200 overflow-hidden shrink-0">
+        <div className="relative bg-gradient-to-r from-indigo-950 via-indigo-900 to-slate-900 p-6 border-b border-indigo-800 overflow-hidden shrink-0">
           {/* Efeito Glow Neon no Fundo */}
           <div className="absolute top-0 right-0 w-80 h-80 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
           
@@ -126,19 +126,19 @@ export function WhatsNewModal({ userName = "Usuário", forceOpen, onClose }: Wha
                   <Sparkles size={13} className="text-amber-400 animate-spin" style={{ animationDuration: '6s' }} />
                   Novidades da Versão v2.2
                 </span>
-                <span className="text-[11px] font-mono text-slate-400">Cybertech RP</span>
+                <span className="text-[11px] font-mono text-slate-300">Cybertech RP</span>
               </div>
               <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2 pt-1">
                 {getGreeting()}, <span className="text-indigo-300">{userName}</span>! 👋
               </h2>
-              <p className="text-xs sm:text-sm text-slate-300 max-w-lg leading-relaxed">
+              <p className="text-xs sm:text-sm text-slate-100 max-w-lg leading-relaxed">
                 Preparamos uma grande atualização para o sistema hoje. Veja o que mudou para deixar o seu trabalho mais rápido e produtivo:
               </p>
             </div>
 
             <button
               onClick={handleDismiss}
-              className="p-1.5 text-slate-400 hover:text-white hover:bg-indigo-500/15 rounded-xl transition-colors border border-[#c4d5ee]"
+              className="p-1.5 text-slate-200 hover:text-white hover:bg-white/10 rounded-xl transition-colors border border-white/30"
               title="Fechar (Esc)"
             >
               <X size={18} />
@@ -167,7 +167,7 @@ export function WhatsNewModal({ userName = "Usuário", forceOpen, onClose }: Wha
                       {item.badge}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 leading-relaxed">
+                  <p className="text-xs text-slate-700 leading-relaxed">
                     {item.description}
                   </p>
                 </div>
@@ -178,7 +178,7 @@ export function WhatsNewModal({ userName = "Usuário", forceOpen, onClose }: Wha
 
         {/* Rodapé com Botão de Ação */}
         <div className="p-4 sm:p-5 border-t border-[#c4d5ee] bg-[#e8f0fc] flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0">
-          <div className="flex items-center gap-2 text-xs text-slate-500">
+          <div className="flex items-center gap-2 text-xs text-slate-700">
             <CheckCircle2 size={15} className="text-emerald-600 shrink-0" />
             <span>Você pode rever este aviso a qualquer momento pelo botão <strong>Novidades</strong> no topo.</span>
           </div>
