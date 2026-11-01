@@ -20,6 +20,8 @@ export interface ReceiptData {
   discount: number;
   total: number;
   paymentMethod: string;
+  amountGiven?: number;
+  change?: number;
 }
 
 export const PAYMENT_LABELS: Record<string, string> = {

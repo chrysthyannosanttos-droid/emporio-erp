@@ -121,6 +121,18 @@ export async function searchMobileProducts(query: string): Promise<{ products: M
   if (!access.allowed) return { products: [], error: access.reason };
 
   const q = (query || "").trim();
+  if (q.length === 0) {
+    try {
+      const initial = await prisma.product.findMany({
+        where: { companyId: access.companyId },
+        orderBy: { name: "asc" },
+        take: 30,
+      });
+      return { products: initial.map(toMobileProduct) };
+    } catch {
+      return { products: [] };
+    }
+  }
   if (q.length < 2) return { products: [] };
 
   const res = await searchProducts(q, access.companyId);

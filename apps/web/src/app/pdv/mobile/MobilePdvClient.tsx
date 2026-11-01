@@ -147,11 +147,10 @@ export function MobilePdvClient({ userName, companyName, canDiscountLimited, can
     setTimeout(() => setToast(""), 1800);
   }, []);
 
-  /* Busca com debounce */
+  /* Busca com debounce (e carrega catálogo inicial quando vazio) */
   useEffect(() => {
     const q = query.trim();
-    if (q.length < 2) {
-      setResults([]);
+    if (q.length === 1) {
       setSearching(false);
       return;
     }
@@ -163,7 +162,7 @@ export function MobilePdvClient({ userName, companyName, canDiscountLimited, can
       setResults(res.products);
       setSearching(false);
       if (res.error) setError(res.error);
-    }, 350);
+    }, q.length === 0 ? 50 : 300);
     return () => clearTimeout(timer);
   }, [query]);
 

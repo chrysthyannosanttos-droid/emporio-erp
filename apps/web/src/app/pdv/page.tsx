@@ -7,8 +7,17 @@ import {
   Keyboard, Plus, Minus, X, FileText, Check, AlertCircle,
   TrendingDown, Package, Clock, User, Users, ChevronRight, Monitor,
   DollarSign, BarChart2, LogOut, RefreshCw, Zap, Download, Settings,
-  Maximize2, Minimize2, Wifi, Volume2, Battery, Barcode, Tag, Key
+  Maximize2, Minimize2, Wifi, Volume2, Battery, Barcode, Tag, Key,
+  Smartphone, Share2, MessageCircle, Mail, Copy, ExternalLink, Printer
 } from "lucide-react";
+import {
+  buildReceiptText,
+  buildWhatsAppUrl,
+  buildSmsUrl,
+  buildMailtoUrl,
+  shortSaleNumber,
+  ReceiptData,
+} from "@/lib/receiptFormat";
 import {
   getProductByBarcode,
   searchProducts,
@@ -132,7 +141,7 @@ function useClock() {
   return time;
 }
 
-export function findInOfflineCatalog(query: string) {
+function findInOfflineCatalog(query: string) {
   try {
     const raw = typeof window !== "undefined" ? localStorage.getItem("CYBERTECH_OFFLINE_CATALOG") : null;
     if (!raw) return { product: null, products: [] };
@@ -155,7 +164,7 @@ export function findInOfflineCatalog(query: string) {
   return { product: null, products: [] };
 }
 
-export async function syncOfflineCatalog(companyId?: string) {
+async function syncOfflineCatalog(companyId?: string) {
   try {
     const res = await getFullCatalogForOfflineSync(companyId);
     if (res.success && res.products) {
@@ -406,7 +415,7 @@ function SelectCashierScreen({ onSelect, autoCaixa }: { onSelect: (session: Cash
     cashierNumber?: number;
     companyName?: string;
     storeName?: string;
-    token?: string;
+    token?: string | null;
   } | null>(null);
   const [activationCodeInput, setActivationCodeInput] = useState("");
   const [isActivating, setIsActivating] = useState(false);
@@ -608,17 +617,17 @@ function SelectCashierScreen({ onSelect, autoCaixa }: { onSelect: (session: Cash
     <div className="min-h-screen flex flex-col bg-[#dce7f7] text-gray-800 overflow-hidden relative select-none">
 
       {/* Top bar */}
-      <div className="relative z-10 bg-white border-b border-gray-200 px-8 py-4 flex justify-between items-center shadow-sm">
-        <div className="flex items-center gap-4">
-          <CybertechBrand size="md" />
-          <span className="text-gray-400 text-sm border-l border-gray-200 pl-3 font-medium">Abertura de Turno / Caixa</span>
+      <div className="relative z-10 bg-white border-b border-gray-200 px-4 sm:px-8 py-3 sm:py-4 flex justify-between items-center shadow-sm">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <CybertechBrand size="sm" />
+          <span className="hidden sm:inline text-gray-400 text-sm border-l border-gray-200 pl-3 font-medium">Abertura de Turno / Caixa</span>
         </div>
         <div className="text-right">
-          <div className="text-gray-800 text-2xl font-black tracking-tight" suppressHydrationWarning>
+          <div className="text-gray-800 text-lg sm:text-2xl font-black tracking-tight" suppressHydrationWarning>
             {time.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
           </div>
-          <div className="text-gray-400 text-xs font-semibold capitalize" suppressHydrationWarning>
-            {time.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" })}
+          <div className="text-gray-400 text-[10px] sm:text-xs font-semibold capitalize" suppressHydrationWarning>
+            {time.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" })}
           </div>
         </div>
       </div>
@@ -1081,6 +1090,17 @@ function PDVContainer() {
   const [paymentMethod, setPaymentMethod] = useState("MONEY");
   const [amountGiven, setAmountGiven] = useState("");
   const [lastSaleId, setLastSaleId] = useState("");
+  const [lastReceiptData, setLastReceiptData] = useState<ReceiptData | null>(null);
+  const [sharePhone, setSharePhone] = useState("");
+  const [shareEmail, setShareEmail] = useState("");
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [canNativeShare, setCanNativeShare] = useState(false);
+
+  useEffect(() => {
+    if (typeof navigator !== "undefined" && typeof (navigator as any).share === "function") {
+      setCanNativeShare(true);
+    }
+  }, []);
   const troco = paymentMethod === "MONEY" && parseFloat(amountGiven) >= total
     ? parseFloat(amountGiven) - total
     : 0;
@@ -1172,8 +1192,10 @@ function PDVContainer() {
       clearTimeout(priceCheckTimer);
 
       idleTimer = setTimeout(() => {
-        setIsIdle(true);
-      }, idleTimeout); // user configured idle time
+        if (typeof window !== "undefined" && window.innerWidth >= 1024) {
+          setIsIdle(true);
+        }
+      }, idleTimeout); // user configured idle time (somente desktop)
 
 
       priceCheckTimer = setTimeout(() => {
@@ -1313,10 +1335,11 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
     if (initialOrderId && session) handleImportOrder(initialOrderId);
   }, [initialOrderId, session]);
 
-  // Auto-focus
+  // Auto-focus (apenas no desktop para leitor USB; no celular evita abrir teclado sozinho)
   useEffect(() => {
     if (!session) return;
     const interval = setInterval(() => {
+      if (typeof window !== "undefined" && window.innerWidth < 1024) return;
       if (modal !== "") return;
       if (document.activeElement?.tagName !== "INPUT" && document.activeElement?.tagName !== "TEXTAREA") {
         inputRef.current?.focus();
@@ -1324,6 +1347,36 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
     }, 800);
     return () => clearInterval(interval);
   }, [modal, session]);
+
+  // Busca instantânea conforme digita (especialmente útil no celular)
+  useEffect(() => {
+    const q = barcodeInput.trim();
+    if (q.length < 2 || /^\d{8,14}$/.test(q) || /^\d+[*xX]/.test(q)) {
+      setShowSearchResults(false);
+      return;
+    }
+    let active = true;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await searchProducts(q);
+        if (!active) return;
+        const list = res.products && res.products.length > 0
+          ? res.products
+          : findInOfflineCatalog(q).products;
+        setSearchResults(list || []);
+        setShowSearchResults((list || []).length > 0);
+      } catch {
+        if (!active) return;
+        const off = findInOfflineCatalog(q).products;
+        setSearchResults(off || []);
+        setShowSearchResults((off || []).length > 0);
+      }
+    }, 220);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [barcodeInput]);
 
   // Gerenciador Centralizado de Teclado e Atalhos do PDV
   useEffect(() => {
@@ -1622,9 +1675,12 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
       return [...prev, { id: product.id, name: product.name, price: Number(product.price), quantity: quantityToAdd, barcode: product.barcode || "" }];
     });
     setMultiplier(1);
+    setBarcodeInput("");
     setSearchResults([]); setShowSearchResults(false);
     setTimeout(() => {
-      inputRef.current?.focus();
+      if (typeof window !== "undefined" && window.innerWidth >= 1024) {
+        inputRef.current?.focus();
+      }
     }, 50);
   };
 
@@ -1758,19 +1814,47 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
       const finalDiscount = disc + (res.promoDiscountApplied || 0);
       const finalTotal = Math.max(0, subtotal - finalDiscount);
 
-      // Imprime cupom automaticamente
-      printReceipt(
-        res.saleId,
-        cart,
-        finalTotal,
-        subtotal,
-        finalDiscount,
+      const snapshotReceipt: ReceiptData = {
+        saleId: res.saleId,
+        number: shortSaleNumber(res.saleId),
+        createdAt: new Date().toISOString(),
+        companyName: "Cybertech RP",
+        companyDocument: "",
+        operatorName: session?.operator || "Operador",
         paymentMethod,
-        saleGiven,
-        saleChange,
-        cashback,
-        res.generatedCoupons || []
-      );
+        subtotal,
+        discount: finalDiscount,
+        total: finalTotal,
+        amountGiven: paymentMethod === "MONEY" ? (saleGiven || finalTotal) : undefined,
+        change: paymentMethod === "MONEY" ? saleChange : undefined,
+        items: cart.map(i => ({
+          name: i.name,
+          unit: i.unit || "UN",
+          quantity: i.quantity,
+          unitPrice: i.price,
+          total: i.price * i.quantity,
+        })),
+      };
+      setLastReceiptData(snapshotReceipt);
+      setSharePhone("");
+      setShareEmail("");
+      setCopiedLink(false);
+
+      // No desktop imprime automaticamente; no celular prioriza envio por WhatsApp/Cupom Digital
+      if (typeof window !== "undefined" && window.innerWidth >= 1024) {
+        printReceipt(
+          res.saleId,
+          cart,
+          finalTotal,
+          subtotal,
+          finalDiscount,
+          paymentMethod,
+          saleGiven,
+          saleChange,
+          cashback,
+          res.generatedCoupons || []
+        );
+      }
 
       // Se for venda POS Cartão/Voucher, registra internamente
       if (isPosCard && pdvPayConfig.posModeEnabled) {
@@ -1966,12 +2050,17 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
       <div className="flex-1 flex flex-col overflow-hidden">
 
         {/* ── HEADER ── */}
-        <div className="bg-white border-b border-gray-200 px-5 py-3 flex justify-between items-center shrink-0 shadow-sm z-10 relative overflow-hidden">
-          {/* Blue diagonal accent */}
-          <div className="absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-blue-600 to-blue-400 skew-x-[-12deg] translate-x-8 pointer-events-none opacity-90" />
+        <div className="bg-white border-b border-gray-200 px-3 sm:px-5 py-2.5 sm:py-3 flex justify-between items-center shrink-0 shadow-sm z-10 relative overflow-hidden">
+          {/* Blue diagonal accent (desktop) */}
+          <div className="hidden lg:block absolute right-0 top-0 bottom-0 w-32 bg-gradient-to-l from-blue-600 to-blue-400 skew-x-[-12deg] translate-x-8 pointer-events-none opacity-90" />
 
-          <div className="flex items-center gap-4 relative z-10">
-            <CybertechBrand size="md" />
+          <div className="flex items-center gap-2 sm:gap-4 relative z-10 min-w-0">
+            <div className="sm:hidden">
+              <CybertechBrand size="sm" />
+            </div>
+            <div className="hidden sm:block">
+              <CybertechBrand size="md" />
+            </div>
 
             {/* Online status */}
             <button
@@ -1983,17 +2072,18 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
                 }
                 setIsOfflineMode(prev => !prev);
               }}
-              className={`flex items-center gap-1.5 border px-3 py-1.5 rounded-full text-xs font-bold transition-all active:scale-95 ${isOfflineMode
+              className={`flex items-center gap-1.5 border px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-bold transition-all active:scale-95 shrink-0 ${isOfflineMode
                 ? "bg-red-50 border-red-300 text-red-600"
                 : "bg-green-50 border-green-300 text-green-600"
                 }`}
             >
-              <span className={`w-2 h-2 rounded-full ${isOfflineMode ? "bg-red-500 animate-pulse" : "bg-green-500"}`}></span>
-              {isOfflineMode ? `Contingência (${contingencySales.length})` : "Online (SEFAZ)"}
+              <span className={`w-2 h-2 rounded-full shrink-0 ${isOfflineMode ? "bg-red-500 animate-pulse" : "bg-green-500"}`}></span>
+              <span className="hidden sm:inline">{isOfflineMode ? `Contingência (${contingencySales.length})` : "Online (SEFAZ)"}</span>
+              <span className="sm:hidden">{isOfflineMode ? "Offline" : "Online"}</span>
             </button>
 
             {linkedOrderId && (
-              <div className="flex items-center gap-2 text-amber-600 text-xs font-bold border border-amber-300 bg-amber-50 px-3 py-1.5 rounded-full">
+              <div className="hidden md:flex items-center gap-2 text-amber-600 text-xs font-bold border border-amber-300 bg-amber-50 px-3 py-1.5 rounded-full">
                 <FileText size={12} />
                 PEDIDO #{linkedOrderId.slice(0, 8).toUpperCase()}
                 <button onClick={() => setLinkedOrderId(null)} className="hover:text-amber-800 ml-1"><X size={10} /></button>
@@ -2001,24 +2091,24 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
             )}
           </div>
 
-          <div className="flex items-center gap-3 relative z-10">
+          <div className="flex items-center gap-1.5 sm:gap-3 relative z-10 shrink-0">
             {/* Pause Button */}
             <button
               type="button"
               onClick={handlePausePDV}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs"
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs"
               title="Pausar PDV / Bloquear tela do caixa"
             >
               <span>⏸️</span>
-              <span>Pausar Caixa</span>
+              <span className="hidden md:inline">Pausar Caixa</span>
             </button>
 
-            <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl text-xs font-bold text-gray-800">
+            <div className="hidden md:flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl text-xs font-bold text-gray-800">
               <User size={14} className="text-blue-600" />
               <span>{session.operator}</span>
             </div>
 
-            <div className="flex items-center gap-2 bg-white/80 border border-gray-200 rounded-xl px-3 py-1.5">
+            <div className="hidden lg:flex items-center gap-2 bg-white/80 border border-gray-200 rounded-xl px-3 py-1.5">
               <Monitor size={14} className="text-gray-400" />
               <div className="text-gray-800 font-bold text-sm tabular-nums" suppressHydrationWarning>
                 {time.toLocaleTimeString("pt-BR")}
@@ -2029,7 +2119,7 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
             <button
               type="button"
               onClick={toggleFullscreen}
-              className={`px-3 py-1.5 rounded-xl border transition-all cursor-pointer flex items-center gap-1.5 text-xs font-bold ${isFullscreen
+              className={`hidden sm:flex px-3 py-1.5 rounded-xl border transition-all cursor-pointer items-center gap-1.5 text-xs font-bold ${isFullscreen
                   ? "bg-blue-600 text-white border-blue-600 shadow-sm"
                   : "bg-white hover:bg-gray-100 text-gray-700 border-gray-200"
                 }`}
@@ -2051,47 +2141,113 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
           </div>
         </div>
 
-        {/* ── BODY ── */}
-        <div className="flex-1 flex overflow-hidden">
+        {/* ── BODY (Empilhado no celular, lado a lado no desktop) ── */}
+        <div className="flex-1 flex flex-col lg:flex-row overflow-hidden min-h-0">
 
           {/* ── CENTER: Search + Table + Totals ── */}
-          <div className="flex-1 flex flex-col bg-[#dce7f7] overflow-hidden">
+          <div className="flex-1 flex flex-col bg-[#dce7f7] overflow-hidden min-h-0">
 
             {/* Search bar — Único campo principal */}
-            <div className="px-5 pt-4 pb-3 flex gap-2 items-center shrink-0">
-              <form onSubmit={handleProductSubmit} className="flex-1 relative">
-                {multiplier > 1 && (
-                  <div className="absolute right-12 top-1/2 -translate-y-1/2 bg-blue-600 text-white text-[11px] font-black px-2.5 py-1 rounded-lg shadow-sm animate-in zoom-in duration-150">
-                    {multiplier} x
-                  </div>
-                )}
-                <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={barcodeInput}
-                  onChange={e => setBarcodeInput(e.target.value)}
-                  placeholder="Digite o código, nome ou código de barras..."
-                  className="w-full bg-white border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-gray-800 text-sm pl-10 pr-12 py-3 rounded-2xl outline-none transition-all shadow-xs font-medium"
-                  autoFocus
-                />
-                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 flex items-center pointer-events-none" title="Leitor de Código de Barras Pronto">
-                  <Barcode size={22} className="opacity-70" />
-                </div>
-              </form>
+            <div className="px-3 sm:px-5 pt-3 sm:pt-4 pb-2 sm:pb-3 flex flex-col gap-2 shrink-0 relative z-20">
+              <div className="flex gap-2 items-center">
+                <form onSubmit={handleProductSubmit} className="flex-1 relative">
+                  {multiplier > 1 && (
+                    <div className="absolute right-12 top-1/2 -translate-y-1/2 bg-blue-600 text-white text-[11px] font-black px-2.5 py-1 rounded-lg shadow-sm animate-in zoom-in duration-150">
+                      {multiplier} x
+                    </div>
+                  )}
+                  <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={barcodeInput}
+                    onChange={e => setBarcodeInput(e.target.value)}
+                    placeholder="Buscar produto ou código de barras..."
+                    className="w-full bg-white border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 text-gray-800 text-sm pl-10 pr-12 py-3 rounded-2xl outline-none transition-all shadow-xs font-medium"
+                  />
+                  {barcodeInput ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBarcodeInput("");
+                        setShowSearchResults(false);
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 p-1 rounded-full"
+                    >
+                      <X size={16} />
+                    </button>
+                  ) : (
+                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 flex items-center pointer-events-none" title="Leitor de Código de Barras Pronto">
+                      <Barcode size={22} className="opacity-70" />
+                    </div>
+                  )}
+
+                  {/* Dropdown de resultados instantâneos da busca */}
+                  {showSearchResults && searchResults.length > 0 && (
+                    <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-gray-200 rounded-2xl shadow-2xl z-30 max-h-64 overflow-y-auto divide-y divide-gray-100">
+                      {searchResults.slice(0, 15).map((p: any) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => addToCart(p)}
+                          className="w-full px-4 py-2.5 text-left hover:bg-blue-50/70 active:bg-blue-100 flex items-center justify-between gap-3 transition-colors cursor-pointer"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-bold text-gray-800 truncate">{p.name}</div>
+                            <div className="text-[11px] text-gray-400 font-mono">
+                              {p.barcode || p.internalCode || "S/ Código"} • Est: {p.stock ?? 0} {p.unit || "UN"}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-sm font-black text-emerald-600 font-mono">
+                              R$ {fmt(Number(p.price))}
+                            </span>
+                            <span className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center">
+                              <Plus size={14} />
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </form>
+
+                {/* Botão rápido de alternar Carrinho / Catálogo no celular */}
+                <button
+                  type="button"
+                  onClick={() => setViewMode(v => (v === "catalog" ? "cart" : "catalog"))}
+                  className={`lg:hidden shrink-0 px-3.5 py-3 rounded-2xl text-xs font-extrabold border transition-all flex items-center gap-1.5 shadow-xs ${
+                    viewMode === "catalog"
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-white text-blue-700 border-blue-200"
+                  }`}
+                >
+                  {viewMode === "catalog" ? (
+                    <>
+                      <ShoppingCart size={15} />
+                      <span>Carrinho ({cart.reduce((a, b) => a + b.quantity, 0)})</span>
+                    </>
+                  ) : (
+                    <>
+                      <Package size={15} />
+                      <span>Catálogo</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
 
             {/* Error message */}
             {errorMessage && (
-              <div className="mx-5 mb-2 text-red-600 text-xs font-semibold bg-red-50 border border-red-200 px-3 py-2 rounded-lg flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+              <div className="mx-3 sm:mx-5 mb-2 text-red-600 text-xs font-semibold bg-red-50 border border-red-200 px-3 py-2 rounded-lg flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
                 <AlertCircle size={13} className="shrink-0" />
                 <span>{errorMessage}</span>
               </div>
             )}
 
-            {/* Catálogo de Produtos / Categorias (Somente visível quando ativado via F9) */}
+            {/* Catálogo de Produtos / Categorias */}
             {viewMode === "catalog" && (
-              <div className="px-5 pb-3 flex gap-2 shrink-0 items-center overflow-x-auto animate-in fade-in">
+              <div className="px-3 sm:px-5 pb-2.5 flex gap-2 shrink-0 items-center overflow-x-auto animate-in fade-in">
                 {["Todos", "Bebidas", "Alimentos", "Higiene", "Limpeza", "Utilidades"].map((cat) => (
                   <button
                     key={cat}
@@ -2108,7 +2264,7 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
                 <button
                   type="button"
                   onClick={() => setViewMode("cart")}
-                  className="ml-auto text-xs font-bold text-gray-600 hover:text-blue-600 bg-white border border-gray-200 px-3 py-1.5 rounded-full cursor-pointer shadow-2xs"
+                  className="hidden lg:inline-flex ml-auto text-xs font-bold text-gray-600 hover:text-blue-600 bg-white border border-gray-200 px-3 py-1.5 rounded-full cursor-pointer shadow-2xs"
                 >
                   ✕ Voltar à Venda (ESC)
                 </button>
@@ -2116,67 +2272,138 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
             )}
 
             {/* Product Table or Catalog Grid */}
-            <div className="flex-1 overflow-y-auto px-5 pb-4">
+            <div className="flex-1 overflow-y-auto px-3 sm:px-5 pb-3 min-h-0">
               {viewMode === "cart" ? (
                 cart.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-gray-400 py-16 animate-in fade-in">
-                    <div className="w-28 h-28 rounded-full bg-blue-50/80 border-4 border-blue-100 flex items-center justify-center mb-5 shadow-inner">
-                      <ShoppingCart size={48} className="text-blue-500" />
+                  <div className="h-full flex flex-col items-center justify-center text-gray-400 py-8 sm:py-16 animate-in fade-in">
+                    <div className="w-20 h-20 sm:w-28 sm:h-28 rounded-full bg-blue-50/80 border-4 border-blue-100 flex items-center justify-center mb-4 shadow-inner">
+                      <ShoppingCart size={36} className="text-blue-500 sm:hidden" />
+                      <ShoppingCart size={48} className="text-blue-500 hidden sm:block" />
                     </div>
-                    <div className="text-2xl font-black text-gray-800 tracking-tight mb-2">
+                    <div className="text-lg sm:text-2xl font-black text-gray-800 tracking-tight mb-1 text-center">
                       Nenhum item na venda
                     </div>
-                    <div className="text-sm text-gray-500 font-medium max-w-sm text-center">
-                      Digite um produto ou passe o código de barras
+                    <div className="text-xs sm:text-sm text-gray-500 font-medium max-w-xs text-center mb-4">
+                      Digite um produto acima ou escolha pelo catálogo rápido
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setViewMode("catalog")}
+                      className="px-4 py-2.5 rounded-xl bg-white hover:bg-blue-50 text-blue-700 border border-blue-200 font-bold text-xs shadow-xs flex items-center gap-2 transition-all active:scale-95 cursor-pointer"
+                    >
+                      <Package size={15} className="text-blue-600" />
+                      <span>Abrir Catálogo de Produtos</span>
+                    </button>
                   </div>
                 ) : (
-                  <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xs">
-                    <table className="w-full text-left border-collapse">
-                      <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
-                        <tr className="text-gray-600 text-[11px] font-bold tracking-widest uppercase">
-                          <th className="px-4 py-3 w-12 text-center">#</th>
-                          <th className="px-4 py-3">Produto</th>
-                          <th className="px-4 py-3 text-center">Código</th>
-                          <th className="px-4 py-3 text-center w-28">Qtd</th>
-                          <th className="px-4 py-3 text-right w-32">Valor Un.</th>
-                          <th className="px-4 py-3 text-right w-36">Valor Total</th>
-                          <th className="w-12" />
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {cart.map((item, i) => (
-                          <tr key={item.id} className="border-b border-gray-100 hover:bg-blue-50/40 transition-colors group">
-                            <td className="px-4 py-3 text-gray-400 font-medium text-xs text-center">{String(i + 1).padStart(3, "0")}</td>
-                            <td className="px-4 py-3">
-                              <div className="text-gray-800 font-semibold text-sm leading-tight">{item.name}</div>
-                            </td>
-                            <td className="px-4 py-3 text-center">
-                              <span className="text-gray-400 text-xs font-mono">{item.barcode}</span>
-                            </td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center justify-center bg-gray-50 rounded-lg border border-gray-200 p-0.5 w-fit mx-auto">
-                                <button onClick={() => updateQty(item.id, -1)} className="w-6 h-6 rounded-md hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors">
-                                  <Minus size={11} />
-                                </button>
-                                <span className="w-8 text-center text-gray-800 font-bold text-sm">{item.quantity}</span>
-                                <button onClick={() => updateQty(item.id, 1)} className="w-6 h-6 rounded-md hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors">
-                                  <Plus size={11} />
-                                </button>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-right text-gray-500 font-mono text-sm">R$ {fmt(item.price)}</td>
-                            <td className="px-4 py-3 text-right text-gray-900 font-bold text-sm font-mono">R$ {fmt(item.price * item.quantity)}</td>
-                            <td className="px-3 py-3 text-center">
-                              <button onClick={() => removeItem(item.id)} className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all">
-                                <Trash2 size={15} />
+                  <>
+                    {/* Lista de Cards para Mobile (< md) */}
+                    <div className="md:hidden space-y-2">
+                      {cart.map((item, i) => (
+                        <div
+                          key={item.id}
+                          className="bg-white border border-gray-200 rounded-2xl p-3 shadow-2xs flex flex-col gap-2"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-mono font-bold text-[10px] shrink-0">
+                                #{String(i + 1).padStart(2, "0")}
+                              </span>
+                              <span className="text-gray-900 font-bold text-sm leading-snug truncate">
+                                {item.name}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removeItem(item.id)}
+                              className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 shrink-0"
+                              title="Remover item"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+
+                          <div className="flex items-center justify-between pt-1 border-t border-gray-100">
+                            <span className="text-xs text-gray-500 font-mono">
+                              R$ {fmt(item.price)} / un
+                            </span>
+
+                            <div className="flex items-center bg-gray-100 rounded-xl border border-gray-200 p-0.5">
+                              <button
+                                type="button"
+                                onClick={() => updateQty(item.id, -1)}
+                                className="w-7 h-7 rounded-lg bg-white hover:bg-gray-50 flex items-center justify-center text-gray-700 shadow-2xs"
+                              >
+                                <Minus size={13} />
                               </button>
-                            </td>
+                              <span className="w-9 text-center text-gray-900 font-black text-sm font-mono">
+                                {item.quantity}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => updateQty(item.id, 1)}
+                                className="w-7 h-7 rounded-lg bg-white hover:bg-gray-50 flex items-center justify-center text-gray-700 shadow-2xs"
+                              >
+                                <Plus size={13} />
+                              </button>
+                            </div>
+
+                            <span className="text-gray-900 font-black text-sm font-mono">
+                              R$ {fmt(item.price * item.quantity)}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Tabela Completa para Desktop/Tablet (>= md) */}
+                    <div className="hidden md:block bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-xs">
+                      <table className="w-full text-left border-collapse">
+                        <thead className="bg-gray-50 border-b border-gray-200 sticky top-0 z-10">
+                          <tr className="text-gray-600 text-[11px] font-bold tracking-widest uppercase">
+                            <th className="px-4 py-3 w-12 text-center">#</th>
+                            <th className="px-4 py-3">Produto</th>
+                            <th className="px-4 py-3 text-center">Código</th>
+                            <th className="px-4 py-3 text-center w-28">Qtd</th>
+                            <th className="px-4 py-3 text-right w-32">Valor Un.</th>
+                            <th className="px-4 py-3 text-right w-36">Valor Total</th>
+                            <th className="w-12" />
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                        </thead>
+                        <tbody>
+                          {cart.map((item, i) => (
+                            <tr key={item.id} className="border-b border-gray-100 hover:bg-blue-50/40 transition-colors group">
+                              <td className="px-4 py-3 text-gray-400 font-medium text-xs text-center">{String(i + 1).padStart(3, "0")}</td>
+                              <td className="px-4 py-3">
+                                <div className="text-gray-800 font-semibold text-sm leading-tight">{item.name}</div>
+                              </td>
+                              <td className="px-4 py-3 text-center">
+                                <span className="text-gray-400 text-xs font-mono">{item.barcode}</span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="flex items-center justify-center bg-gray-50 rounded-lg border border-gray-200 p-0.5 w-fit mx-auto">
+                                  <button onClick={() => updateQty(item.id, -1)} className="w-6 h-6 rounded-md hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors">
+                                    <Minus size={11} />
+                                  </button>
+                                  <span className="w-8 text-center text-gray-800 font-bold text-sm">{item.quantity}</span>
+                                  <button onClick={() => updateQty(item.id, 1)} className="w-6 h-6 rounded-md hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors">
+                                    <Plus size={11} />
+                                  </button>
+                                </div>
+                              </td>
+                              <td className="px-4 py-3 text-right text-gray-500 font-mono text-sm">R$ {fmt(item.price)}</td>
+                              <td className="px-4 py-3 text-right text-gray-900 font-bold text-sm font-mono">R$ {fmt(item.price * item.quantity)}</td>
+                              <td className="px-3 py-3 text-center">
+                                <button onClick={() => removeItem(item.id)} className="p-1.5 rounded-lg text-gray-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all">
+                                  <Trash2 size={15} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
                 )
               ) : (
                 <div className="h-full flex flex-col">
@@ -2186,10 +2413,10 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
                         Produtos: {selectedCategory}
                       </span>
                       <span className="text-xs font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200">
-                        {categoryProducts.length} itens com preço
+                        {categoryProducts.length} itens
                       </span>
                     </div>
-                    <span className="text-xs text-gray-500 font-medium">Toque ou clique no produto para adicionar ao carrinho</span>
+                    <span className="hidden sm:inline text-xs text-gray-500 font-medium">Toque no produto para adicionar</span>
                   </div>
 
                   {loadingCategoryProducts ? (
@@ -2203,7 +2430,7 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
                       <div className="text-sm font-bold text-gray-700">Nenhum produto cadastrado nesta categoria</div>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 pb-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-3 pb-4">
                       {categoryProducts.map((p) => {
                         const inCart = cart.find(c => c.id === p.id);
                         return (
@@ -2212,9 +2439,11 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
                             type="button"
                             onClick={() => {
                               addToCart(p);
-                              setViewMode("cart");
+                              if (typeof window !== "undefined" && window.innerWidth >= 1024) {
+                                setViewMode("cart");
+                              }
                             }}
-                            className="bg-white border border-gray-200 hover:border-blue-500 hover:shadow-md rounded-xl p-3 text-left flex flex-col justify-between transition-all group cursor-pointer relative"
+                            className="bg-white border border-gray-200 hover:border-blue-500 active:scale-[0.98] hover:shadow-md rounded-xl p-3 text-left flex flex-col justify-between transition-all group cursor-pointer relative"
                           >
                             {inCart && (
                               <span className="absolute -top-2 -right-2 bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-xs">
@@ -2252,8 +2481,78 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
             </div>
           </div>
 
-          {/* ── RIGHT PANEL: Payment & Resumo ── */}
-          <div className="w-[280px] bg-white flex flex-col border-l border-gray-200 shrink-0 z-20 shadow-xl">
+          {/* ── BARRA DE FECHAMENTO MOBILE (< lg) ── */}
+          <div className="lg:hidden bg-white border-t border-gray-200 px-3 pt-2.5 pb-3 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] z-20 shrink-0 space-y-2">
+            {/* Linha compacta de Desconto, CPF, Pedido e Fechar Caixa */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+              <div className="flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-1.5 shrink-0">
+                <Tag size={12} className="text-blue-600" />
+                <span className="text-[11px] font-bold text-gray-600">Desc R$</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={discountInput}
+                  onChange={e => setDiscountInput(e.target.value)}
+                  className="w-14 bg-white border border-gray-200 rounded-lg px-1.5 py-0.5 text-xs font-mono font-bold text-gray-800 outline-none text-right"
+                  placeholder="0"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setModal("cpf")}
+                className="flex items-center gap-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-2.5 py-1.5 text-[11px] font-bold text-gray-700 shrink-0"
+              >
+                <User size={12} className="text-blue-600" />
+                <span className="truncate max-w-[90px]">{cpfInput || "CPF/Cliente"}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={openOrderModal}
+                className="flex items-center gap-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-2.5 py-1.5 text-[11px] font-bold text-gray-700 shrink-0"
+              >
+                <Download size={12} className="text-blue-600" />
+                <span>Pedido</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setModal("closing")}
+                className="flex items-center gap-1 bg-gray-50 hover:bg-amber-50 border border-gray-200 rounded-xl px-2.5 py-1.5 text-[11px] font-bold text-gray-700 shrink-0 ml-auto"
+              >
+                <LogOut size={12} className="text-amber-600" />
+                <span>Fechar</span>
+              </button>
+            </div>
+
+            {/* Linha principal: Total da Venda + Botão Finalizar */}
+            <div className="flex items-center gap-2.5">
+              <div className="flex-1 bg-gradient-to-r from-blue-700 via-blue-600 to-blue-500 rounded-2xl px-3.5 py-2.5 text-white flex items-center justify-between shadow-sm">
+                <div>
+                  <span className="text-[9px] font-black uppercase tracking-wider text-blue-100 block leading-none">
+                    TOTAL ({cart.reduce((a, b) => a + b.quantity, 0)} un)
+                  </span>
+                  <span className="text-xl sm:text-2xl font-black font-mono tracking-tight leading-tight">
+                    R$ {fmt(total)}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => { if (cart.length > 0) setModal("payment"); }}
+                disabled={cart.length === 0}
+                className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-black px-5 py-3.5 rounded-2xl text-sm shadow-md shadow-emerald-600/20 active:scale-95 transition-all shrink-0 cursor-pointer"
+              >
+                Finalizar Venda ➔
+              </button>
+            </div>
+          </div>
+
+          {/* ── RIGHT PANEL: Payment & Resumo (Desktop >= lg) ── */}
+          <div className="hidden lg:flex w-[280px] bg-white flex-col border-l border-gray-200 shrink-0 z-20 shadow-xl">
 
             {/* Total Block — Estilo Card Azul Profundo */}
             <div className="p-4">
@@ -2359,8 +2658,8 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
         </div>
       </div>
 
-      {/* ── RODAPÉ COM ATALHOS ESSENCIAIS (CYBERTECH RP) ── */}
-      <div className="bg-[#00245a] text-white px-5 py-2 flex items-center justify-between text-xs font-bold border-t border-blue-900 shrink-0 z-30 select-none">
+      {/* ── RODAPÉ COM ATALHOS ESSENCIAIS (CYBERTECH RP - Desktop) ── */}
+      <div className="hidden lg:flex bg-[#00245a] text-white px-5 py-2 items-center justify-between text-xs font-bold border-t border-blue-900 shrink-0 z-30 select-none">
         <div className="flex items-center gap-3 overflow-x-auto">
           <button
             type="button"
@@ -2685,7 +2984,7 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
                 </div>
               )}
 
-              <div className="grid grid-cols-5 gap-1.5">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
                 {[
                   { key: "MONEY", label: "Dinheiro", icon: <Banknote size={18} /> },
                   { key: "PIX", label: "PIX", icon: <QrCode size={18} /> },
@@ -2983,32 +3282,182 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
         </ModalWrapper>
       )}
 
-      {/* ── Success Modal ── */}
+      {/* ── Success Modal (com envio de Cupom por WhatsApp / SMS / Email / Link Digital) ── */}
       {modal === "success" && (
-        <ModalWrapper title="Venda Concluída" icon={<Check size={20} />} onClose={() => { setModal(""); clearSale(); }}>
-          <div className="p-8 text-center space-y-6">
-            <div className="w-24 h-24 bg-green-50 border-4 border-green-500 rounded-full flex items-center justify-center mx-auto shadow-md animate-in zoom-in duration-300">
-              <Check size={48} className="text-green-500" />
-            </div>
-            <div>
-              <div className="text-gray-900 text-2xl font-black tracking-tight">CUPOM EMITIDO</div>
-              <div className="text-gray-500 text-sm mt-1">A venda foi registrada com sucesso no sistema.</div>
-              <div className="mt-4 inline-block bg-gray-100 border border-gray-200 text-gray-700 font-mono text-xs px-4 py-2 rounded-lg font-bold">
-                Cód: {lastSaleId.slice(0, 12).toUpperCase()}
+        <ModalWrapper title="Venda Concluída & Envio de Cupom" icon={<Check size={20} />} onClose={() => { setModal(""); clearSale(); }}>
+          <div className="p-5 sm:p-6 space-y-4">
+            <div className="text-center space-y-2">
+              <div className="w-16 h-16 bg-green-50 border-4 border-green-500 rounded-full flex items-center justify-center mx-auto shadow-xs animate-in zoom-in duration-300">
+                <Check size={32} className="text-green-500" />
+              </div>
+              <div>
+                <div className="text-gray-900 text-xl font-black tracking-tight">VENDA FINALIZADA!</div>
+                <div className="text-gray-500 text-xs mt-0.5">
+                  Cupom #{lastSaleId.slice(0, 8).toUpperCase()} • Total:{" "}
+                  <strong className="text-gray-900 font-mono">
+                    R$ {fmt(lastReceiptData?.total ?? total)}
+                  </strong>
+                </div>
               </div>
             </div>
 
-            {paymentMethod === "MONEY" && troco > 0 && (
-              <div className="bg-green-50 border border-green-200 rounded-2xl p-5 shadow-sm">
-                <div className="text-green-600 text-[10px] font-bold uppercase tracking-widest mb-1">Troco a Devolver</div>
-                <div className="text-green-700 font-black text-4xl font-mono">R$ {fmt(troco)}</div>
-                <ChangeVisual amount={troco} />
+            {lastReceiptData && lastReceiptData.paymentMethod === "MONEY" && (lastReceiptData.change ?? 0) > 0 && (
+              <div className="bg-green-50 border border-green-200 rounded-2xl p-3.5 text-center shadow-2xs">
+                <div className="text-green-600 text-[10px] font-bold uppercase tracking-widest mb-0.5">Troco a Devolver</div>
+                <div className="text-green-700 font-black text-2xl sm:text-3xl font-mono">
+                  R$ {fmt(lastReceiptData.change || 0)}
+                </div>
+                <div className="hidden sm:block">
+                  <ChangeVisual amount={lastReceiptData.change || 0} />
+                </div>
+              </div>
+            )}
+
+            {/* ── ENVIAR CUPOM DIGITAL (WHATSAPP / SMS / EMAIL / COMPARTILHAR) ── */}
+            {lastReceiptData && (
+              <div className="bg-slate-50 border border-gray-200 rounded-2xl p-3.5 space-y-3">
+                <div className="text-xs font-extrabold text-gray-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <Smartphone size={14} className="text-emerald-600" />
+                  <span>Enviar Cupom ao Cliente</span>
+                </div>
+
+                {/* WhatsApp Input + Button */}
+                <div className="space-y-2">
+                  <input
+                    type="tel"
+                    inputMode="tel"
+                    value={sharePhone}
+                    onChange={(e) => setSharePhone(e.target.value)}
+                    placeholder="WhatsApp do cliente (DDD + número)"
+                    className="w-full bg-white border border-gray-300 focus:border-emerald-500 rounded-xl px-3.5 py-2.5 text-sm font-medium text-gray-800 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const origin = typeof window !== "undefined" ? window.location.origin : "";
+                      const receiptUrl = `${origin}/cupom/${lastReceiptData.saleId}`;
+                      const text = buildReceiptText(lastReceiptData, receiptUrl);
+                      const url = buildWhatsAppUrl(sharePhone, text);
+                      window.open(url, "_blank", "noopener,noreferrer");
+                    }}
+                    className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:scale-[0.99] text-white font-extrabold text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 cursor-pointer"
+                  >
+                    <MessageCircle size={18} />
+                    <span>Enviar Cupom por WhatsApp</span>
+                  </button>
+                </div>
+
+                {/* Outros canais: Compartilhar Nativo, SMS, Email, Link e Impressão */}
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  {canNativeShare && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const origin = typeof window !== "undefined" ? window.location.origin : "";
+                          const receiptUrl = `${origin}/cupom/${lastReceiptData.saleId}`;
+                          const text = buildReceiptText(lastReceiptData, receiptUrl);
+                          await (navigator as any).share({
+                            title: `Cupom ${lastReceiptData.companyName}`,
+                            text,
+                            url: receiptUrl,
+                          });
+                        } catch {}
+                      }}
+                      className="py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Share2 size={14} />
+                      <span>Compartilhar...</span>
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const origin = typeof window !== "undefined" ? window.location.origin : "";
+                      const receiptUrl = `${origin}/cupom/${lastReceiptData.saleId}`;
+                      const text = buildReceiptText(lastReceiptData, receiptUrl);
+                      window.location.href = buildSmsUrl(sharePhone, text);
+                    }}
+                    className="py-2.5 px-3 rounded-xl bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <MessageCircle size={14} className="text-blue-600" />
+                    <span>Enviar SMS</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const origin = typeof window !== "undefined" ? window.location.origin : "";
+                      const receiptUrl = `${origin}/cupom/${lastReceiptData.saleId}`;
+                      const text = buildReceiptText(lastReceiptData, receiptUrl);
+                      window.location.href = buildMailtoUrl(shareEmail, lastReceiptData.companyName, lastReceiptData.number, text);
+                    }}
+                    className="py-2.5 px-3 rounded-xl bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Mail size={14} className="text-indigo-600" />
+                    <span>Enviar E-mail</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const origin = typeof window !== "undefined" ? window.location.origin : "";
+                        await navigator.clipboard.writeText(`${origin}/cupom/${lastReceiptData.saleId}`);
+                        setCopiedLink(true);
+                        setTimeout(() => setCopiedLink(false), 2500);
+                      } catch {}
+                    }}
+                    className="py-2.5 px-3 rounded-xl bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Copy size={14} className="text-gray-600" />
+                    <span>{copiedLink ? "Link Copiado!" : "Copiar Link"}</span>
+                  </button>
+
+                  <a
+                    href={`/cupom/${lastReceiptData.saleId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="py-2.5 px-3 rounded-xl bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 font-bold text-xs flex items-center justify-center gap-1.5"
+                  >
+                    <ExternalLink size={14} className="text-emerald-600" />
+                    <span>Ver Cupom Digital</span>
+                  </a>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      printReceipt(
+                        lastReceiptData.saleId,
+                        lastReceiptData.items.map((it, idx) => ({
+                          id: String(idx),
+                          name: it.name,
+                          price: it.unitPrice,
+                          quantity: it.quantity,
+                          barcode: "",
+                          unit: it.unit,
+                        })),
+                        lastReceiptData.total,
+                        lastReceiptData.subtotal,
+                        lastReceiptData.discount,
+                        lastReceiptData.paymentMethod,
+                        lastReceiptData.amountGiven || lastReceiptData.total,
+                        lastReceiptData.change || 0
+                      )
+                    }
+                    className="py-2.5 px-3 rounded-xl bg-white hover:bg-gray-100 border border-gray-200 text-gray-700 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <Printer size={14} className="text-blue-600" />
+                    <span>Imprimir Cupom</span>
+                  </button>
+                </div>
               </div>
             )}
 
             <button
               onClick={() => { setModal(""); clearSale(); }}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl text-sm tracking-widest transition-all shadow-md shadow-blue-500/20 mt-4"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-3.5 rounded-xl text-sm tracking-wider transition-all shadow-md shadow-blue-500/20 cursor-pointer"
             >
               INICIAR NOVA VENDA ↵
             </button>
