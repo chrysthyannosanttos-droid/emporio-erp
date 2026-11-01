@@ -20,6 +20,7 @@ import {
   buildMailtoUrl,
   formatBRL,
 } from "@/lib/receiptFormat";
+import { ConcurrentSessionWatcher } from "@/components/ConcurrentSessionWatcher";
 
 interface CartLine {
   product: MobileProduct;
@@ -643,6 +644,8 @@ export function MobilePdvClient({ userName, companyName, canDiscountLimited, can
       )}
 
       {showScanner && <BarcodeScanner onDetected={handleBarcode} onClose={() => setShowScanner(false)} />}
+
+      <ConcurrentSessionWatcher />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { getTenantTheme } from "@/actions/theme";
 import { getCompanyModulesConfig } from "@/actions/modules";
 import { getSession } from "@/lib/session";
+import { validateActiveSession } from "@/actions/auth";
 import { getUserEffectivePermissions } from "@/lib/permissions";
 import { redirect } from "next/navigation";
 import { DrawerLayout } from "./DrawerLayout";
@@ -13,6 +14,15 @@ export default async function DashboardLayout({
   const session = await getSession();
 
   if (!session || session.isSuperAdmin) {
+    redirect("/login");
+  }
+
+  // Validação de acesso simultâneo: se o usuário conectou em outro dispositivo, encerra esta sessão
+  const sessionStatus = await validateActiveSession();
+  if (!sessionStatus.valid) {
+    if (sessionStatus.reason === "CONCURRENT_LOGIN") {
+      redirect("/login?reason=concurrent_session");
+    }
     redirect("/login");
   }
 

@@ -95,6 +95,7 @@ model SystemUser {
   password  String
   role      String   @default("SUPER_ADMIN")
   active    Boolean  @default(true)
+  activeSessionToken String? // Token da sessão ativa (controle de login único simultâneo)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -130,6 +131,7 @@ model User {
   roleId    String?  // ID do Role customizado ou padrão
   active    Boolean  @default(true)
   lastLogin DateTime?
+  activeSessionToken String? // Token da sessão ativa (controle de login único simultâneo)
   companyId String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

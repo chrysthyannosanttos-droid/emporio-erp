@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { prisma } from "@emporio/database";
-import { createSession, deleteSession } from "@/lib/session";
+import { createSession, deleteSession, getSession } from "@/lib/session";
 import bcrypt from "bcryptjs";
 
 export async function quickLogin(identifier?: string) {
@@ -13,11 +13,17 @@ export async function quickLogin(identifier?: string) {
         where: { active: true },
       });
       if (sysUser) {
+        const sessionToken = crypto.randomUUID();
+        await prisma.systemUser.update({
+          where: { id: sysUser.id },
+          data: { activeSessionToken: sessionToken },
+        });
         await createSession({
           userId: sysUser.id,
           name: sysUser.name,
           role: sysUser.role,
           isSuperAdmin: true,
+          sessionToken,
         });
         return { success: true, redirectUrl: "/master" };
       }
@@ -60,6 +66,12 @@ export async function quickLogin(identifier?: string) {
       return { error: "Nenhum usuário cadastrado no sistema." };
     }
 
+    const sessionToken = crypto.randomUUID();
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { activeSessionToken: sessionToken, lastLogin: new Date() },
+    });
+
     await createSession({
       userId: user.id,
       name: user.name,
@@ -67,6 +79,7 @@ export async function quickLogin(identifier?: string) {
       companyId: user.companyId,
       companyName: user.company.name,
       isSuperAdmin: false,
+      sessionToken,
     });
 
     // Redireciona operadores e caixas diretamente para o PDV
@@ -109,11 +122,18 @@ export async function login(formData: FormData) {
         }
       }
 
+      const sessionToken = crypto.randomUUID();
+      await prisma.systemUser.update({
+        where: { id: sysUser.id },
+        data: { activeSessionToken: sessionToken },
+      });
+
       await createSession({
         userId: sysUser.id,
         name: sysUser.name,
         role: sysUser.role,
         isSuperAdmin: true,
+        sessionToken,
       });
 
       return { success: true, redirectUrl: "/master" };
@@ -144,6 +164,12 @@ export async function login(formData: FormData) {
             }
           });
         }
+        const sessionToken = crypto.randomUUID();
+        await prisma.user.update({
+          where: { id: cashier.id },
+          data: { activeSessionToken: sessionToken, lastLogin: new Date() },
+        });
+
         await createSession({
           userId: cashier.id,
           name: cashier.name,
@@ -151,6 +177,7 @@ export async function login(formData: FormData) {
           companyId: cashier.companyId,
           companyName: company.name,
           isSuperAdmin: false,
+          sessionToken,
         });
         return { success: true, redirectUrl: "/pdv" };
       }
@@ -194,6 +221,12 @@ export async function login(formData: FormData) {
       }
     }
 
+    const sessionToken = crypto.randomUUID();
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { activeSessionToken: sessionToken, lastLogin: new Date() },
+    });
+
     await createSession({
       userId: user.id,
       name: user.name,
@@ -201,6 +234,7 @@ export async function login(formData: FormData) {
       companyId: user.companyId,
       companyName: user.company.name,
       isSuperAdmin: false,
+      sessionToken,
     });
 
     // Redireciona operadores e caixas diretamente para o PDV
@@ -215,6 +249,90 @@ export async function login(formData: FormData) {
 }
 
 export async function logout() {
+  try {
+    const session = await getSession();
+    if (session?.userId) {
+      if (session.isSuperAdmin) {
+        await prisma.systemUser.updateMany({
+          where: { id: session.userId, activeSessionToken: session.sessionToken || undefined },
+          data: { activeSessionToken: null },
+        });
+      } else {
+        await prisma.user.updateMany({
+          where: { id: session.userId, activeSessionToken: session.sessionToken || undefined },
+          data: { activeSessionToken: null },
+        });
+      }
+    }
+  } catch (err) {
+    console.warn("Erro ao limpar activeSessionToken no logout:", err);
+  }
+
   await deleteSession();
   redirect("/login");
+}
+
+/**
+ * Valida se a sessão do usuário ainda é a sessão ativa autorizada no banco de dados.
+ * Caso outro login tenha sido efetuado com o mesmo usuário em outro aparelho/navegador,
+ * esta função detecta o conflito para encerrar a sessão duplicada.
+ */
+export async function validateActiveSession(): Promise<{
+  valid: boolean;
+  reason?: "CONCURRENT_LOGIN" | "USER_INACTIVE" | "NO_SESSION";
+  userName?: string;
+}> {
+  try {
+    const session = await getSession();
+    if (!session?.userId) {
+      return { valid: false, reason: "NO_SESSION" };
+    }
+
+    // Se o JWT ainda não tiver sessionToken (sessões legadas antes do update),
+    // vincula o token atual ao banco para não deslogar bruscamente na primeira vez
+    if (!session.sessionToken) {
+      return { valid: true, userName: session.name };
+    }
+
+    if (session.isSuperAdmin) {
+      const sysUser = await prisma.systemUser.findUnique({
+        where: { id: session.userId },
+        select: { activeSessionToken: true, active: true },
+      });
+
+      if (!sysUser || !sysUser.active) {
+        await deleteSession();
+        return { valid: false, reason: "USER_INACTIVE" };
+      }
+
+      if (sysUser.activeSessionToken && sysUser.activeSessionToken !== session.sessionToken) {
+        await deleteSession();
+        return { valid: false, reason: "CONCURRENT_LOGIN", userName: session.name };
+      }
+
+      return { valid: true, userName: session.name };
+    } else {
+      const user = await prisma.user.findUnique({
+        where: { id: session.userId },
+        select: { activeSessionToken: true, active: true },
+      });
+
+      if (!user || !user.active) {
+        await deleteSession();
+        return { valid: false, reason: "USER_INACTIVE" };
+      }
+
+      // Se há um token ativo no banco e é diferente do token gravado neste navegador,
+      // significa que o mesmo usuário fez login em outro dispositivo!
+      if (user.activeSessionToken && user.activeSessionToken !== session.sessionToken) {
+        await deleteSession();
+        return { valid: false, reason: "CONCURRENT_LOGIN", userName: session.name };
+      }
+
+      return { valid: true, userName: session.name };
+    }
+  } catch (err) {
+    // Fail-open em caso de oscilação momentânea do pooler para não prejudicar operadores
+    return { valid: true };
+  }
 }

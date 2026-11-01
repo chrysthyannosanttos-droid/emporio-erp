@@ -13,6 +13,7 @@ export type SessionPayload = {
   companyId?: string;
   companyName?: string;
   isSuperAdmin?: boolean;
+  sessionToken?: string;
 };
 
 export async function encrypt(payload: SessionPayload) {

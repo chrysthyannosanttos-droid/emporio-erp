@@ -33,6 +33,7 @@ import { useHotkeys, hotkeyLabels, PDVHotkeys, defaultHotkeys } from "@/hooks/us
 import { PdvSplashScreen } from "@/components/PdvSplashScreen";
 import { CybertechBrand } from "@/components/CybertechBrand";
 import { PdvConfigModal } from "@/components/PdvConfigModal";
+import { ConcurrentSessionWatcher } from "@/components/ConcurrentSessionWatcher";
 import { playScannerBeep } from "@/lib/pdvHardwareConfig";
 import { activateTerminalOnline } from "@/actions/terminals";
 import { getPdvOperators, verifyPdvPin } from "@/actions/users";
@@ -4051,6 +4052,9 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
         }}
         title="receipt-printer"
       />
+
+      {/* Monitor de Acesso Simultâneo */}
+      <ConcurrentSessionWatcher />
     </div>
   );
 }

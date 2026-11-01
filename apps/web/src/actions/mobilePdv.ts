@@ -5,6 +5,7 @@ import { getSession } from "@/lib/session";
 import { getUserEffectivePermissions } from "@/lib/permissions";
 import { getReceiptBySaleId } from "@/lib/receiptData";
 import { ReceiptData } from "@/lib/receiptFormat";
+import { validateActiveSession } from "@/actions/auth";
 import { searchProducts, getProductByBarcode } from "./product";
 import { createSale } from "./sale";
 
@@ -71,6 +72,16 @@ async function checkMobileAccess(): Promise<MobileAccess & { userId?: string; co
   const session = await getSession();
   if (!session?.userId || !session.companyId || session.isSuperAdmin) {
     return { allowed: false, reason: "Sessão expirada. Faça login novamente." };
+  }
+
+  const sessionStatus = await validateActiveSession();
+  if (!sessionStatus.valid) {
+    return {
+      allowed: false,
+      reason: sessionStatus.reason === "CONCURRENT_LOGIN"
+        ? "Esta conta foi conectada em outro dispositivo. Não é permitido acesso simultâneo."
+        : "Sessão expirada. Faça login novamente.",
+    };
   }
 
   await ensureMobilePermissionSeeded();

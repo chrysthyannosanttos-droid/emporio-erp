@@ -17,6 +17,7 @@ import { logout } from "@/actions/auth";
 import { WhatsNewModal } from "@/components/WhatsNewModal";
 import { AutoInstallLogo } from "@/components/AutoInstallLogo";
 import { CybertechBrand } from "@/components/CybertechBrand";
+import { ConcurrentSessionWatcher } from "@/components/ConcurrentSessionWatcher";
 
 interface DrawerLayoutProps {
   children: React.ReactNode;
@@ -606,6 +607,9 @@ export function DrawerLayout({
         forceOpen={showWhatsNew}
         onClose={() => setShowWhatsNew(false)}
       />
+
+      {/* Monitor de Acesso Simultâneo (Encerra sessão se outro aparelho logar) */}
+      <ConcurrentSessionWatcher />
     </div>
   );
 }
