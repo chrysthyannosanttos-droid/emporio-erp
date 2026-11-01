@@ -281,3 +281,4 @@ export async function setupDemonstrativoAndCleanReal(companyIdParam?: string) {
     return { success: false, error: err.message || "Erro desconhecido na manutenção." };
   }
 }
+

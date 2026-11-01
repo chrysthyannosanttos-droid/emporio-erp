@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { getFiscalConfig, saveFiscalConfig } from "@/actions/fiscalConfig";
 import { getTenantCompanyInfo, updateTenantCompanyInfo } from "@/actions/company";
+import { setupDemonstrativoAndCleanReal } from "@/actions/maintenance";
 import { TenantUsersManager } from "./TenantUsersManager";
 import { CustoOperacionalTab } from "./CustoOperacionalTab";
 import {
@@ -187,6 +188,31 @@ export default function SettingsPage() {
 }
 
 function GeralTab({ company, fiscal, certFile, setCertFile, setActiveTab, saving, onSubmit }: any) {
+  const [runningClean, setRunningClean] = useState(false);
+
+  const handleRunDemoAndClean = async () => {
+    const msg = "CONFIRMAÇÃO:\n\n" +
+      "1. Será criado o usuário 'demonstrativo' (senha: 1234) com todos os produtos fictícios preservados para vitrine.\n" +
+      "2. Todos os produtos e vendas fake da sua conta atual serão apagados para você começar a subir a base real do cliente.\n\n" +
+      "Deseja prosseguir?";
+    if (!window.confirm(msg)) return;
+
+    setRunningClean(true);
+    try {
+      const res = await setupDemonstrativoAndCleanReal();
+      if (res.success) {
+        alert(res.message);
+        window.location.reload();
+      } else {
+        alert("Erro: " + (res.error || "Falha ao processar."));
+      }
+    } catch (err: any) {
+      alert("Erro: " + err.message);
+    } finally {
+      setRunningClean(false);
+    }
+  };
+
   return (
     <form onSubmit={onSubmit} className="space-y-6">
       <div className="flex items-center gap-3 mb-4">
@@ -303,6 +329,38 @@ function GeralTab({ company, fiscal, certFile, setCertFile, setActiveTab, saving
           {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
           Salvar Dados da Empresa &amp; Certificado
         </button>
+      </div>
+
+      {/* SEÇÃO: AMBIENTE DEMONSTRATIVO & LIMPEZA PARA CLIENTE REAL */}
+      <div className="mt-8 p-6 bg-gradient-to-r from-indigo-900/5 via-purple-900/5 to-transparent border-2 border-dashed border-indigo-200 rounded-2xl space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 mb-2">
+              <span>Modo Demonstração vs Produção Real</span>
+            </div>
+            <h3 className="text-base font-bold text-gray-900">
+              Isolar Dados Fake para Usuário Demonstrativo &amp; Limpar Base Real
+            </h3>
+            <p className="text-xs text-gray-600 mt-1 max-w-xl leading-relaxed">
+              Cria o usuário <strong>demonstrativo</strong> com senha <strong>1234</strong> para apresentar o sistema a novos clientes (com todos os dados de teste preservados) e limpa os produtos e vendas fictícias da sua conta principal para você subir os dados reais do cliente.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleRunDemoAndClean}
+            disabled={runningClean}
+            className="px-5 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-600/20 shrink-0 cursor-pointer flex items-center gap-2 disabled:opacity-50"
+          >
+            {runningClean ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                <span>Processando Limpeza...</span>
+              </>
+            ) : (
+              <span>Ativar Demonstrativo &amp; Limpar Base</span>
+            )}
+          </button>
+        </div>
       </div>
     </form>
   );
