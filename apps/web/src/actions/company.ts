@@ -272,7 +272,7 @@ import { SEGMENT_PRESETS } from "@/lib/modules-catalog";
 
 export async function createCompany(formData: FormData) {
   const session = await getSession();
-  if (!session?.isSuperAdmin) redirect("/login");
+  if (!session?.isSuperAdmin && session?.role !== "ADMIN") redirect("/login");
 
   const name = formData.get("name") as string;
   const document = formData.get("document") as string;
@@ -324,7 +324,7 @@ export async function createCompany(formData: FormData) {
 // ─── Listar todas as empresas ─────────────────────────────────────────────────
 export async function listCompanies() {
   const session = await getSession();
-  if (!session?.isSuperAdmin) return { companies: [] };
+  if (!session?.isSuperAdmin && session?.role !== "ADMIN") return { companies: [] };
 
   const companies = await prisma.company.findMany({
     include: {
@@ -346,7 +346,7 @@ export async function listCompanies() {
 // ─── Atualizar licença da empresa ─────────────────────────────────────────────
 export async function updateCompanyLicense(companyId: string, status: string, expiresAtStr: string) {
   const session = await getSession();
-  if (!session?.isSuperAdmin) redirect("/login");
+  if (!session?.isSuperAdmin && session?.role !== "ADMIN") redirect("/login");
 
   if (!companyId || !status || !expiresAtStr) {
     return { error: "Parâmetros inválidos." };

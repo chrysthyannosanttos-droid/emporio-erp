@@ -61,3 +61,4 @@ apps/web/public/login-neon-ref.png
 # ─── Arquivos temporários de deploy ───────────────────────────────────────────
 .env.vercel.prod.tmp
 .env.vercel.tmp
+scratch/

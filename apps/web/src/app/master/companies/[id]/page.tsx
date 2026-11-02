@@ -1,4 +1,5 @@
 import { getCompanyDetails } from "@/actions/masterCompany";
+import { listPlans } from "@/actions/plans";
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 import {
@@ -9,19 +10,41 @@ import {
   ShoppingCart,
   FileText,
   UserCheck,
+  Store,
 } from "lucide-react";
 import Link from "next/link";
 import { CompanyActions } from "./CompanyActions";
+import { EditCompanyModal } from "./EditCompanyModal";
+import { AccessTenantButton } from "@/components/AccessTenantButton";
 
 export default async function CompanyDetailPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }> | { id: string };
 }) {
   const session = await getSession();
-  if (!session?.isSuperAdmin) redirect("/login");
+  if (!session?.isSuperAdmin && session?.role !== "ADMIN") redirect("/login");
 
-  const { company } = await getCompanyDetails(params.id);
+  const resolvedParams = await Promise.resolve(params);
+  const companyId = resolvedParams?.id;
+
+  if (!companyId) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <p className="text-slate-500">ID da empresa não informado.</p>
+          <Link href="/master/companies" className="text-emerald-600 hover:underline text-sm mt-2 block">
+            Voltar para a lista
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const [{ company }, { plans }] = await Promise.all([
+    getCompanyDetails(companyId),
+    listPlans(),
+  ]);
 
   if (!company) {
     return (
@@ -62,6 +85,11 @@ export default async function CompanyDetailPage({
           </div>
           <p className="text-sm text-slate-500 mt-0.5">CNPJ/CPF: {company.document}</p>
         </div>
+
+        <div className="flex items-center gap-2.5">
+          <EditCompanyModal company={company} plans={plans} />
+          <AccessTenantButton companyId={company.id} companyName={company.name} />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -69,7 +97,9 @@ export default async function CompanyDetailPage({
         <div className="flex flex-col gap-5">
           {/* Info Card */}
           <div className="bg-[#fbfdff] border border-emerald-500/[0.08] rounded-xl p-5">
-            <h2 className="text-sm font-semibold text-gray-900 mb-4">Informações da Licença</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-gray-900">Informações da Licença</h2>
+            </div>
             <div className="space-y-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-slate-500">Plano Atual</span>
@@ -86,6 +116,40 @@ export default async function CompanyDetailPage({
                 <span className="text-slate-500">Cliente desde</span>
                 <span className="text-gray-900">{new Date(company.createdAt).toLocaleDateString("pt-BR")}</span>
               </div>
+            </div>
+          </div>
+
+          {/* Módulos Contratados Card */}
+          <div className="bg-[#fbfdff] border border-emerald-500/[0.08] rounded-xl p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-gray-900">Módulos Ativos</h2>
+              <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                {(() => {
+                  try {
+                    const list = typeof company.activeModules === "string" ? JSON.parse(company.activeModules || "[]") : company.activeModules;
+                    return Array.isArray(list) ? list.length : 0;
+                  } catch {
+                    return 0;
+                  }
+                })()} ativos
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {(() => {
+                try {
+                  const list = typeof company.activeModules === "string" ? JSON.parse(company.activeModules || "[]") : company.activeModules;
+                  if (!Array.isArray(list) || list.length === 0) {
+                    return <span className="text-xs text-slate-400">Todos os módulos básicos liberados</span>;
+                  }
+                  return list.map((m: string) => (
+                    <span key={m} className="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                      {m}
+                    </span>
+                  ));
+                } catch {
+                  return <span className="text-xs text-slate-400">Padrão do segmento</span>;
+                }
+              })()}
             </div>
           </div>
 

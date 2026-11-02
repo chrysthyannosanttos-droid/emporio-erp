@@ -73,23 +73,28 @@ export default function UsersSettingsPage() {
   const loadData = async () => {
     setLoading(true);
     try {
-      const [usersRes, storesRes, rolesRes, currentSession] = await Promise.all([
+      const [usersRes, storesRes, currentSession] = await Promise.all([
         listTenantUsers(),
         listStores(),
-        listRolesWithPermissions(),
         getCurrentUserSession(),
       ]);
 
       if (usersRes.users) setUsers(usersRes.users);
       if (storesRes.stores) setStores(storesRes.stores);
-      if (rolesRes.roles) setRoles(rolesRes.roles);
-      if (rolesRes.permissions) setPermissions(rolesRes.permissions);
       if (currentSession) setCurrentUser(currentSession);
     } catch (err) {
       console.error("Erro ao carregar dados de usuários:", err);
     } finally {
       setLoading(false);
     }
+
+    // Carrega a matriz de permissões em segundo plano (não trava a visualização da tela)
+    listRolesWithPermissions()
+      .then((rolesRes) => {
+        if (rolesRes.roles) setRoles(rolesRes.roles);
+        if (rolesRes.permissions) setPermissions(rolesRes.permissions);
+      })
+      .catch((err) => console.warn("Notice ao carregar permissões secundárias:", err));
   };
 
   useEffect(() => {

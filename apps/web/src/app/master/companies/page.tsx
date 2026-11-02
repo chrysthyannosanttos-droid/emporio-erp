@@ -3,10 +3,11 @@ import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 import { Building2, Search, Plus } from "lucide-react";
 import Link from "next/link";
+import { AccessTenantButton } from "@/components/AccessTenantButton";
 
 export default async function CompaniesPage() {
   const session = await getSession();
-  if (!session?.isSuperAdmin) redirect("/login");
+  if (!session?.isSuperAdmin && session?.role !== "ADMIN") redirect("/login");
 
   const { companies } = await listCompanies();
 
@@ -93,9 +94,18 @@ export default async function CompaniesPage() {
                     <span className="text-gray-900">{company._count.users}</span> / <span className="text-gray-900">{company._count.products}</span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <Link href={`/master/companies/${company.id}`} className="text-emerald-600 hover:text-emerald-700 font-medium text-sm transition-colors">
-                      Gerenciar
-                    </Link>
+                    <div className="flex items-center justify-end gap-2">
+                      <AccessTenantButton
+                        companyId={company.id}
+                        companyName={company.name}
+                        label="Acessar Loja"
+                        size={13}
+                        className="px-2.5 py-1 text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200 flex items-center gap-1.5 cursor-pointer"
+                      />
+                      <Link href={`/master/companies/${company.id}`} className="px-2.5 py-1 text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-200">
+                        Gerenciar Licença
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}

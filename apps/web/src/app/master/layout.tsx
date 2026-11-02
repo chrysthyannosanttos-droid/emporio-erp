@@ -7,9 +7,11 @@ import {
   CreditCard,
   LogOut,
   ChevronRight,
-  Settings
+  Settings,
+  Store
 } from "lucide-react";
 import { logout } from "@/actions/auth";
+import { AccessTenantButton } from "@/components/AccessTenantButton";
 
 export default async function MasterLayout({
   children,
@@ -71,9 +73,18 @@ export default async function MasterLayout({
       {/* ── Main Content ─────────────────────── */}
       <main className="flex-1 flex flex-col min-w-0 bg-[#f3f7fe] overflow-hidden">
         <header className="h-14 border-b border-emerald-500/[0.08] px-6 flex items-center justify-between shrink-0 bg-[#e8f0fc]/80 backdrop-blur-sm z-10">
-          <div className="flex items-center gap-4">
-            <h1 className="text-sm font-bold text-slate-600">Painel Master ERP SaaS</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-sm font-bold text-slate-700">Painel Master ERP SaaS</h1>
+            <span className="text-[11px] bg-emerald-500/10 text-emerald-700 font-semibold px-2 py-0.5 rounded-full border border-emerald-500/20">
+              Cybertech SaaS Core
+            </span>
           </div>
+
+          <AccessTenantButton
+            label="Acessar Loja Cliente (Empório)"
+            size={14}
+            className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-semibold shadow-sm transition-all cursor-pointer"
+          />
         </header>
 
         <div className="flex-1 overflow-hidden p-6">

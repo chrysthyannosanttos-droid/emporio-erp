@@ -13,7 +13,7 @@ import {
   CreditCard, TrendingDown, TrendingUp, Building2, Monitor,
   Plus, Pin, PinOff, Sparkles, Receipt, RefreshCw, Globe, Smartphone
 } from "lucide-react";
-import { logout } from "@/actions/auth";
+import { logout, switchToMaster } from "@/actions/auth";
 import { WhatsNewModal } from "@/components/WhatsNewModal";
 import { AutoInstallLogo } from "@/components/AutoInstallLogo";
 import { CybertechBrand } from "@/components/CybertechBrand";
@@ -28,6 +28,7 @@ interface DrawerLayoutProps {
   activeModules?: string[];
   operationTypes?: string[];
   canMobilePdv?: boolean;
+  isMasterEligible?: boolean;
 }
 
 interface WorkspaceTab {
@@ -128,6 +129,7 @@ export function DrawerLayout({
   activeModules = [],
   operationTypes = [],
   canMobilePdv = false,
+  isMasterEligible = false,
 }: DrawerLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -387,6 +389,22 @@ export function DrawerLayout({
 
       {/* Novidades & Logout */}
       <div className="p-3 border-t border-gray-100 shrink-0 space-y-2">
+        {isMasterEligible && (
+          <button
+            onClick={async () => {
+              setIsOpen(false);
+              const res = await switchToMaster();
+              if (res?.redirectUrl) {
+                window.location.href = res.redirectUrl;
+              }
+            }}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs font-bold text-white bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800 rounded-xl transition-all shadow-sm shadow-purple-900/20 active:scale-95"
+          >
+            <ShieldCheck size={15} className="text-purple-200" />
+            <span>👑 Painel Master SaaS</span>
+          </button>
+        )}
+
         <button
           onClick={() => {
             setIsOpen(false);
@@ -485,6 +503,23 @@ export function DrawerLayout({
               <Calendar size={14} className="text-blue-600" />
               <span className="text-[11px] font-medium">{currentDateFormatted}</span>
             </div>
+
+            {/* Botão Atalho Painel Master SaaS */}
+            {isMasterEligible && (
+              <button
+                onClick={async () => {
+                  const res = await switchToMaster();
+                  if (res?.redirectUrl) {
+                    window.location.href = res.redirectUrl;
+                  }
+                }}
+                title="Acessar o Painel Master do SaaS (Gerenciar Empresas, Licenças e Planos)"
+                className="flex items-center gap-1.5 bg-gradient-to-r from-purple-700 to-indigo-700 hover:from-purple-800 hover:to-indigo-800 text-white border border-purple-500/40 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-sm shadow-purple-900/10 active:scale-95"
+              >
+                <ShieldCheck size={14} className="text-purple-200" />
+                <span className="hidden sm:inline">Painel Master (SaaS)</span>
+              </button>
+            )}
 
             {/* Botão de Novidades */}
             <button

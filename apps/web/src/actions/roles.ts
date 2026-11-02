@@ -126,9 +126,6 @@ export async function listRolesWithPermissions() {
       return { roles: [], permissions: [], error: "Não autorizado" };
     }
 
-    // Garante que a empresa tenha a matriz completa de supermercado
-    await seedSupermarketRolesAndPermissions(session.companyId);
-
     const [roles, permissions] = await Promise.all([
       prisma.role.findMany({
         where: {
@@ -151,6 +148,11 @@ export async function listRolesWithPermissions() {
         orderBy: [{ module: "asc" }, { code: "asc" }]
       })
     ]);
+
+    // Se ainda não tiver os cargos de supermercado criados, roda a semeadura em background
+    if (roles.length < SUPERMARKET_DEFAULT_ROLES.length) {
+      seedSupermarketRolesAndPermissions(session.companyId).catch(() => {});
+    }
 
     return { roles: toPlain(roles), permissions: toPlain(permissions) };
   } catch (err: any) {

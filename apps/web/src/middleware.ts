@@ -35,9 +35,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // === Rota do Master: exige isSuperAdmin ===
+  // === Rota do Master: exige isSuperAdmin ou ADMIN ===
   if (pathname.startsWith("/master")) {
-    if (!session.isSuperAdmin) {
+    if (!session.isSuperAdmin && session.role !== "ADMIN") {
       return NextResponse.redirect(new URL("/login", request.url));
     }
     return NextResponse.next();

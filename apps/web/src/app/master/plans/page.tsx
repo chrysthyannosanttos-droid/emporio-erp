@@ -6,7 +6,7 @@ import Link from "next/link";
 
 export default async function PlansPage() {
   const session = await getSession();
-  if (!session?.isSuperAdmin) redirect("/login");
+  if (!session?.isSuperAdmin && session?.role !== "ADMIN") redirect("/login");
 
   const { plans } = await listPlans();
 
