@@ -64,7 +64,7 @@ function formatProduct(p: any): InventoryProduct {
     internalCode: p.internalCode || null,
     unit: p.unit || "UN",
     price: Number(p.price || 0),
-    costPrice: Number(p.costPrice || (Number(p.price || 0) * 0.6)), // fallback custo 60% caso nulo
+    costPrice: Number(p.cost || (Number(p.price || 0) * 0.6)), // fallback custo 60% caso nulo
     stock: Number(p.stock || 0),
     categoryName: p.category?.name || "Sem Categoria",
   };
@@ -196,7 +196,7 @@ export async function getInventoryStats(): Promise<InventoryStats> {
 
     const products = await prisma.product.findMany({
       where: { companyId },
-      select: { stock: true, costPrice: true, price: true },
+      select: { stock: true, cost: true, price: true },
     });
 
     let totalStockUnits = 0;
@@ -206,7 +206,7 @@ export async function getInventoryStats(): Promise<InventoryStats> {
 
     for (const p of products) {
       const s = Number(p.stock || 0);
-      const cost = Number(p.costPrice || (Number(p.price || 0) * 0.6));
+      const cost = Number(p.cost || (Number(p.price || 0) * 0.6));
       totalStockUnits += s;
       totalStockValue += s * cost;
       if (s === 0) zeroStockCount++;
@@ -262,7 +262,7 @@ export async function applyInventoryAdjustments(input: {
     const productIds = input.items.map((i) => i.productId);
     const existingProducts = await prisma.product.findMany({
       where: { id: { in: productIds }, companyId },
-      select: { id: true, name: true, stock: true, costPrice: true, price: true, unit: true },
+      select: { id: true, name: true, stock: true, cost: true, price: true, unit: true },
     });
 
     const prodMap = new Map<string, (typeof existingProducts)[0]>();
@@ -290,7 +290,7 @@ export async function applyInventoryAdjustments(input: {
         }
 
         totalAdjusted++;
-        const cost = Number(prod.costPrice || (Number(prod.price || 0) * 0.6));
+        const cost = Number(prod.cost || (Number(prod.price || 0) * 0.6));
         const impact = diff * cost;
         financialImpact += impact;
 
