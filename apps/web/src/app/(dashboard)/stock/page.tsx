@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Package, Search, Plus, FileCode, X, Check, AlertCircle, Zap, Loader2, Sparkles, ScanBarcode, ArrowRight, Scale, Edit2, Radio } from "lucide-react";
+import { Package, Search, Plus, FileCode, X, Check, AlertCircle, Zap, Loader2, Sparkles, ScanBarcode, ArrowRight, Scale, Edit2, Radio, ClipboardCheck } from "lucide-react";
 import Link from "next/link";
 import { getProducts, lookupBarcodeOnline, quickCreateProductByBarcode, updateProduct } from "@/actions/product";
 
@@ -248,6 +248,15 @@ export default function StockPage() {
           <p className="text-gray-500 text-sm mt-0.5">Gerencie seu catálogo de produtos e insumos.</p>
         </div>
         <div className="flex gap-2">
+          {/* Lançamento de Balanço & Inventário Físico */}
+          <Link
+            href="/stock/inventory"
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2.5 rounded-xl font-bold flex items-center gap-1.5 transition-all shadow-md shadow-indigo-600/20 text-sm active:scale-95"
+            title="Realizar balanço físico de estoque, contagem e ajuste por código de barras, código interno, nome ou câmera"
+          >
+            <ClipboardCheck size={17} className="text-indigo-100" />
+            <span>Lançar Balanço</span>
+          </Link>
           {/* Botão de Destaque: Bipar / Cadastro Automático */}
           <button
             onClick={() => {

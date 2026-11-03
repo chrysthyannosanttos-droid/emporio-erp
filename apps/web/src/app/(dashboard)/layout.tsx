@@ -50,8 +50,8 @@ export default async function DashboardLayout({
     session.role === "ADMIN" || Boolean(session.isSuperAdmin)
       ? Promise.resolve(true)
       : getUserEffectivePermissions(session.userId)
-          .then((perms) => perms.includes("pdv.mobile") || perms.includes("pdv.sale") || perms.includes("pdv.access"))
-          .catch(() => true);
+        .then((perms) => perms.includes("pdv.mobile") || perms.includes("pdv.sale") || perms.includes("pdv.access"))
+        .catch(() => true);
 
   const [{ theme }, { activeModules, operationTypes }, canMobilePdv] = await Promise.all([
     getTenantTheme(),

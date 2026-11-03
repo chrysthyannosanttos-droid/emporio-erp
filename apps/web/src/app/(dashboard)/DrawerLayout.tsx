@@ -11,7 +11,8 @@ import {
   Utensils, ChefHat, BookOpen, Menu, X, ShieldAlert, ShieldCheck, Shield,
   Sliders, Settings, Search, Calendar, HelpCircle, Hexagon,
   CreditCard, TrendingDown, TrendingUp, Building2, Monitor,
-  Plus, Pin, PinOff, Sparkles, Receipt, RefreshCw, Globe, Smartphone
+  Plus, Pin, PinOff, Sparkles, Receipt, RefreshCw, Globe, Smartphone,
+  ClipboardCheck
 } from "lucide-react";
 import { logout, switchToMaster } from "@/actions/auth";
 import { WhatsNewModal } from "@/components/WhatsNewModal";
@@ -51,6 +52,7 @@ const ROUTE_DEFINITIONS: Record<string, { title: string; iconName: string }> = {
   "/scales": { title: "Balanças (Toledo MGV6)", iconName: "Scale" },
   "/expirations": { title: "Validades", iconName: "Calendar" },
   "/stock": { title: "Estoque", iconName: "Landmark" },
+  "/stock/inventory": { title: "Balanço & Inventário", iconName: "ClipboardCheck" },
   "/stock/new": { title: "Cadastrar Produto", iconName: "Package" },
   "/purchases": { title: "Pedidos de Compra & Cotações", iconName: "ClipboardList" },
   "/suppliers": { title: "Fornecedores", iconName: "Truck" },
@@ -346,6 +348,7 @@ export function DrawerLayout({
         <div className="space-y-0.5">
           <SectionLabel>PRODUTOS & ESTOQUE</SectionLabel>
           {hasModule("STOCK") && <NavItem href="/stock" icon={<Landmark size={16} />} label="Estoque & Produtos" active={pathname === "/stock"} onNavigate={handleNavigate} />}
+          {hasModule("STOCK") && <NavItem href="/stock/inventory" icon={<ClipboardCheck size={16} />} label="Balanço & Inventário" active={pathname === "/stock/inventory"} onNavigate={handleNavigate} />}
           <NavItem href="/stock/new" icon={<Package size={16} />} label="Cadastrar Produto" active={pathname === "/stock/new"} onNavigate={handleNavigate} />
           <NavItem href="/purchases" icon={<ClipboardList size={16} />} label="Pedidos de Compra & Cotações" active={pathname?.startsWith("/purchases")} onNavigate={handleNavigate} />
           <NavItem href="/invoices" icon={<Receipt size={16} />} label="Entrada de Notas & XML" active={pathname === "/invoices"} onNavigate={handleNavigate} />
