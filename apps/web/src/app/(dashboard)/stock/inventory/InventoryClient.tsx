@@ -5,7 +5,8 @@ import {
   Search, ScanBarcode, Camera, Plus, Minus, Trash2, Check,
   AlertTriangle, ArrowUpDown, RefreshCw, Save, FileText,
   X, CheckCircle2, ChevronRight, Package, Sparkles, Filter,
-  TrendingDown, TrendingUp, DollarSign, Layers, ArrowLeft
+  TrendingDown, TrendingUp, DollarSign, Layers, ArrowLeft,
+  Zap, Smartphone
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -27,6 +28,31 @@ interface CountedItem {
   systemStock: number;
   diff: number;
   financialImpact: number;
+}
+
+// Bip sonoro com Web Audio API + Vibração Háptica para smartphones
+function triggerBipFeedback() {
+  try {
+    if (typeof window !== "undefined") {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtx) {
+        const ctx = new AudioCtx();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(1760, ctx.currentTime); // 1760Hz (A6)
+        gain.gain.setValueAtTime(0.12, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.12);
+      }
+      if (typeof navigator !== "undefined" && navigator.vibrate) {
+        navigator.vibrate([40]);
+      }
+    }
+  } catch {}
 }
 
 export function InventoryClient({ initialStats, initialProducts }: Props) {
@@ -85,6 +111,8 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
 
   // Adiciona ou incrementa produto no lote de contagem
   const registerProductCount = useCallback((product: InventoryProduct, quantityToSet?: number, isDelta = false) => {
+    triggerBipFeedback();
+
     setBatchItems((prev) => {
       const existingIdx = prev.findIndex((i) => i.product.id === product.id);
       let newCounted = 0;
@@ -146,7 +174,7 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
       }
       setQuery("");
     } else {
-      setErrorMessage(`Nenhum produto encontrado com o código "${code}". Tente o nome do produto.`);
+      setErrorMessage(`Nenhum produto com código "${code}". Digite o nome ou verifique o PLU.`);
       setTimeout(() => setErrorMessage(null), 3500);
     }
   };
@@ -252,7 +280,6 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
     if (res.success) {
       setSaveSuccess(`Balanço aplicado com sucesso! ${res.totalAdjusted} produtos atualizados no estoque.`);
       setBatchItems([]);
-      // Atualiza estatísticas locais
       setStats((prev) => ({
         ...prev,
         totalStockUnits: Math.round((prev.totalStockUnits + (batchSummary.surplusCount - batchSummary.deficitCount)) * 100) / 100,
@@ -273,11 +300,11 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
   }, [batchItems, batchFilter]);
 
   return (
-    <div className="space-y-6 pb-20 animate-in fade-in duration-200">
-      {/* Header & Ações */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-xl text-white">
+    <div className="space-y-4 md:space-y-6 pb-28 md:pb-20 animate-in fade-in duration-200 px-2 sm:px-4 md:px-0 max-w-7xl mx-auto">
+      {/* Header & Ações - Responsivo para Smartphone */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-900 border border-slate-800 p-4 sm:p-6 rounded-2xl sm:rounded-3xl shadow-xl text-white">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Link
               href="/stock"
               className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
@@ -285,11 +312,14 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
             >
               <ArrowLeft size={18} />
             </Link>
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
               Inventário Físico & Auditoria
             </span>
+            <span className="inline-flex md:hidden items-center gap-1 text-[10px] font-bold text-blue-300 bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20">
+              <Smartphone size={10} /> Mobile Ready
+            </span>
           </div>
-          <h1 className="text-2xl font-black tracking-tight text-white flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2">
             Lançamento de Balanço de Estoque
           </h1>
           <p className="text-xs text-slate-400">
@@ -298,11 +328,11 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
         </div>
 
         {/* Alternador de Modo de Bipagem */}
-        <div className="flex items-center gap-2 bg-slate-800/80 p-1.5 rounded-2xl border border-slate-700/60 self-start md:self-auto">
+        <div className="flex items-center gap-1.5 sm:gap-2 bg-slate-800/80 p-1 rounded-2xl border border-slate-700/60 self-stretch sm:self-start md:self-auto justify-between sm:justify-start">
           <button
             type="button"
             onClick={() => setCountMode("INCREMENTAL")}
-            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+            className={`flex-1 sm:flex-initial px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
               countMode === "INCREMENTAL"
                 ? "bg-emerald-600 text-white shadow-md shadow-emerald-950"
                 : "text-slate-400 hover:text-white"
@@ -315,7 +345,7 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
           <button
             type="button"
             onClick={() => setCountMode("DIRECT")}
-            className={`px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+            className={`flex-1 sm:flex-initial px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
               countMode === "DIRECT"
                 ? "bg-blue-600 text-white shadow-md shadow-blue-950"
                 : "text-slate-400 hover:text-white"
@@ -328,90 +358,90 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
         </div>
       </div>
 
-      {/* Cards de Métricas do Catálogo */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between text-slate-500 mb-1">
-            <span className="text-xs font-bold uppercase tracking-wider">Produtos Ativos</span>
-            <Package size={16} className="text-blue-600" />
+      {/* Cards de Métricas do Catálogo - 2 colunas no celular, 4 no desktop */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4">
+        <div className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-200 shadow-sm">
+          <div className="flex items-center justify-between text-slate-500 mb-0.5">
+            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">Produtos</span>
+            <Package size={15} className="text-blue-600" />
           </div>
-          <div className="text-2xl font-black text-slate-900">{stats.totalProducts}</div>
-          <p className="text-[11px] text-slate-500 mt-1">Todos com PLU de 4 dígitos</p>
+          <div className="text-xl sm:text-2xl font-black text-slate-900">{stats.totalProducts}</div>
+          <p className="text-[10px] text-slate-500 mt-0.5">Com PLU 4 dígitos</p>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between text-slate-500 mb-1">
-            <span className="text-xs font-bold uppercase tracking-wider">Unidades em Estoque</span>
-            <Layers size={16} className="text-emerald-600" />
+        <div className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-200 shadow-sm">
+          <div className="flex items-center justify-between text-slate-500 mb-0.5">
+            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">Unidades</span>
+            <Layers size={15} className="text-emerald-600" />
           </div>
-          <div className="text-2xl font-black text-slate-900">{stats.totalStockUnits.toLocaleString("pt-BR")}</div>
-          <p className="text-[11px] text-slate-500 mt-1">Saldo contábil no sistema</p>
+          <div className="text-xl sm:text-2xl font-black text-slate-900">{stats.totalStockUnits.toLocaleString("pt-BR")}</div>
+          <p className="text-[10px] text-slate-500 mt-0.5">Saldo no sistema</p>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between text-slate-500 mb-1">
-            <span className="text-xs font-bold uppercase tracking-wider">Valor em Estoque</span>
-            <DollarSign size={16} className="text-amber-600" />
+        <div className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-200 shadow-sm">
+          <div className="flex items-center justify-between text-slate-500 mb-0.5">
+            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">Valor Total</span>
+            <DollarSign size={15} className="text-amber-600" />
           </div>
-          <div className="text-2xl font-black text-slate-900">
-            R$ {stats.totalStockValue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          <div className="text-lg sm:text-2xl font-black text-slate-900 truncate">
+            R$ {stats.totalStockValue.toLocaleString("pt-BR", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">Custo médio total apurado</p>
+          <p className="text-[10px] text-slate-500 mt-0.5">Custo médio apurado</p>
         </div>
 
-        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between text-slate-500 mb-1">
-            <span className="text-xs font-bold uppercase tracking-wider">Estoque Zerado / Neg.</span>
-            <AlertTriangle size={16} className="text-rose-600" />
+        <div className="bg-white rounded-2xl p-3 sm:p-4 border border-slate-200 shadow-sm">
+          <div className="flex items-center justify-between text-slate-500 mb-0.5">
+            <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">Zerado / Neg.</span>
+            <AlertTriangle size={15} className="text-rose-600" />
           </div>
-          <div className="text-2xl font-black text-rose-600">
+          <div className="text-xl sm:text-2xl font-black text-rose-600">
             {stats.zeroStockCount + stats.negativeStockCount}
           </div>
-          <p className="text-[11px] text-slate-500 mt-1">{stats.negativeStockCount} negativos precisando de acerto</p>
+          <p className="text-[10px] text-slate-500 mt-0.5">{stats.negativeStockCount} negativos para acertar</p>
         </div>
       </div>
 
       {/* Alertas de Feedback */}
       {saveSuccess && (
-        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-sm font-bold flex items-center justify-between animate-in slide-in-from-top-2">
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs sm:text-sm font-bold flex items-center justify-between animate-in slide-in-from-top-2">
           <div className="flex items-center gap-2">
-            <CheckCircle2 size={18} className="text-emerald-600" />
+            <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
             <span>{saveSuccess}</span>
           </div>
-          <button onClick={() => setSaveSuccess(null)} className="text-emerald-700 hover:text-emerald-900">
+          <button onClick={() => setSaveSuccess(null)} className="text-emerald-700 hover:text-emerald-900 p-1">
             <X size={16} />
           </button>
         </div>
       )}
 
       {errorMessage && (
-        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-sm font-bold flex items-center justify-between animate-in slide-in-from-top-2">
+        <div className="p-3.5 sm:p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs sm:text-sm font-bold flex items-center justify-between animate-in slide-in-from-top-2">
           <div className="flex items-center gap-2">
-            <AlertTriangle size={18} className="text-rose-600" />
+            <AlertTriangle size={18} className="text-rose-600 shrink-0" />
             <span>{errorMessage}</span>
           </div>
-          <button onClick={() => setErrorMessage(null)} className="text-rose-700 hover:text-rose-900">
+          <button onClick={() => setErrorMessage(null)} className="text-rose-700 hover:text-rose-900 p-1">
             <X size={16} />
           </button>
         </div>
       )}
 
-      {/* ÁREA DE LANÇAMENTO: Barra de Busca Unificada + Botão Câmera */}
-      <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-md space-y-4">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+      {/* ÁREA DE LANÇAMENTO: Barra de Busca Unificada + Botão Câmera com feedback tátil */}
+      <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200 shadow-md space-y-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
           <form onSubmit={handleSearchSubmit} className="relative flex-1">
-            <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               ref={searchInputRef}
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Bipar código de barras, digitar PLU interno (ex: 1004) ou buscar pelo nome..."
-              className="w-full pl-12 pr-4 py-3.5 rounded-2xl border-2 border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-100 text-base font-medium text-slate-900 placeholder:text-slate-400 transition-all outline-none"
+              placeholder="Bipar código, digitar PLU (ex: 1004) ou buscar nome..."
+              className="w-full pl-10 pr-9 py-3 rounded-xl sm:rounded-2xl border-2 border-slate-200 focus:border-blue-600 focus:ring-4 focus:ring-blue-100 text-sm sm:text-base font-medium text-slate-900 placeholder:text-slate-400 transition-all outline-none"
               autoFocus
             />
             {searching && (
-              <RefreshCw size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-blue-600 animate-spin" />
+              <RefreshCw size={16} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-blue-600 animate-spin" />
             )}
           </form>
 
@@ -419,50 +449,50 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
           <button
             type="button"
             onClick={() => setShowScanner(true)}
-            className="px-5 py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm rounded-2xl shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2 active:scale-95 transition-all shrink-0 cursor-pointer"
+            className="w-full sm:w-auto px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm rounded-xl sm:rounded-2xl shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2 active:scale-95 transition-all shrink-0 cursor-pointer"
             title="Abrir câmera do celular ou webcam para bipar"
           >
-            <Camera size={20} />
+            <Camera size={18} />
             <span>Ler com a Câmera</span>
           </button>
         </div>
 
         {/* Card de Produto Selecionado para Edição Rápida de Quantidade */}
         {selectedProduct && (
-          <div className="bg-blue-50/70 border-2 border-blue-400/60 rounded-2xl p-5 animate-in zoom-in-95 duration-150">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-black uppercase tracking-wider text-blue-800 bg-blue-100 px-2.5 py-0.5 rounded-lg border border-blue-200">
+          <div className="bg-blue-50/80 border-2 border-blue-400/60 rounded-2xl p-3.5 sm:p-5 animate-in zoom-in-95 duration-150">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 sm:gap-4">
+              <div className="space-y-1 w-full md:w-auto">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-blue-800 bg-blue-100 px-2 py-0.5 rounded-lg border border-blue-200">
                     PLU #{selectedProduct.internalCode || "SEM PLU"}
                   </span>
-                  <span className="text-xs font-semibold text-slate-500">
+                  <span className="text-[11px] font-semibold text-slate-500">
                     {selectedProduct.categoryName}
                   </span>
                   {selectedProduct.barcode && (
-                    <span className="text-xs font-mono text-slate-400">
+                    <span className="text-[11px] font-mono text-slate-400">
                       EAN: {selectedProduct.barcode}
                     </span>
                   )}
                 </div>
-                <h3 className="text-lg font-black text-slate-900">
+                <h3 className="text-base sm:text-lg font-black text-slate-900">
                   {selectedProduct.name}
                 </h3>
-                <div className="flex items-center gap-4 text-xs text-slate-600">
-                  <span>Estoque no Sistema: <strong className="text-slate-900">{selectedProduct.stock} {selectedProduct.unit}</strong></span>
+                <div className="flex items-center gap-3 text-xs text-slate-600 flex-wrap">
+                  <span>Estoque Sistema: <strong className="text-slate-900">{selectedProduct.stock} {selectedProduct.unit}</strong></span>
                   <span>Custo Médio: <strong className="text-slate-900">R$ {selectedProduct.costPrice.toFixed(2)}</strong></span>
                 </div>
               </div>
 
               {/* Controles de Quantidade Apurada */}
-              <div className="flex items-center gap-3 bg-white p-2 rounded-2xl border border-blue-200 shadow-sm w-full md:w-auto justify-between md:justify-end">
+              <div className="flex items-center gap-2 sm:gap-3 bg-white p-1.5 sm:p-2 rounded-2xl border border-blue-200 shadow-sm w-full md:w-auto justify-between md:justify-end">
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => setInputQuantity((q) => String(Math.max(0, (parseFloat(q) || 0) - (selectedProduct.unit.toUpperCase() === "KG" ? 1 : 1))))}
-                    className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center active:scale-95"
+                    onClick={() => setInputQuantity((q) => String(Math.max(0, (parseFloat(q) || 0) - (selectedProduct.unit.toUpperCase() === "KG" ? 0.5 : 1))))}
+                    className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center active:scale-95 text-xs"
                   >
-                    -1
+                    -
                   </button>
                   <input
                     ref={quantityInputRef}
@@ -471,35 +501,37 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
                     value={inputQuantity}
                     onChange={(e) => setInputQuantity(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && confirmSingleItemCount()}
-                    className="w-24 text-center text-xl font-black text-slate-900 bg-transparent outline-none py-1"
+                    className="w-20 text-center text-lg sm:text-xl font-black text-slate-900 bg-transparent outline-none py-1"
                     placeholder="Qtd"
                   />
                   <span className="text-xs font-bold text-slate-400 pr-1">{selectedProduct.unit}</span>
                   <button
                     type="button"
-                    onClick={() => setInputQuantity((q) => String(Math.max(0, (parseFloat(q) || 0) + (selectedProduct.unit.toUpperCase() === "KG" ? 1 : 1))))}
-                    className="w-10 h-10 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center active:scale-95"
+                    onClick={() => setInputQuantity((q) => String(Math.max(0, (parseFloat(q) || 0) + (selectedProduct.unit.toUpperCase() === "KG" ? 0.5 : 1))))}
+                    className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center active:scale-95 text-xs"
                   >
-                    +1
+                    +
                   </button>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={confirmSingleItemCount}
-                  className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-sm rounded-xl flex items-center gap-1.5 shadow-md shadow-blue-600/30 active:scale-95 transition-all"
-                >
-                  <Check size={16} />
-                  <span>Confirmar</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelectedProduct(null)}
-                  className="p-2 text-slate-400 hover:text-slate-600 rounded-xl"
-                  title="Cancelar"
-                >
-                  <X size={18} />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={confirmSingleItemCount}
+                    className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs sm:text-sm rounded-xl flex items-center gap-1 shadow-md shadow-blue-600/30 active:scale-95 transition-all"
+                  >
+                    <Check size={16} />
+                    <span>Confirmar</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedProduct(null)}
+                    className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl"
+                    title="Cancelar"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -514,34 +546,34 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
                 <div
                   key={p.id}
                   onClick={() => handleSelectProductFromList(p)}
-                  className="p-3.5 hover:bg-blue-50/80 cursor-pointer flex items-center justify-between transition-colors text-sm"
+                  className="p-3 hover:bg-blue-50/80 cursor-pointer flex items-center justify-between transition-colors text-xs sm:text-sm"
                 >
                   <div className="space-y-0.5">
-                    <div className="flex items-center gap-2">
-                      <span className="text-[11px] font-black font-mono px-2 py-0.5 bg-slate-200 text-slate-700 rounded-md">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-[10px] font-black font-mono px-1.5 py-0.5 bg-slate-200 text-slate-700 rounded-md">
                         PLU #{p.internalCode || "SEM PLU"}
                       </span>
                       <span className="font-bold text-slate-900">{p.name}</span>
-                      <span className="text-xs text-slate-400">({p.categoryName})</span>
+                      <span className="text-[11px] text-slate-400">({p.categoryName})</span>
                     </div>
                     {p.barcode && (
-                      <span className="text-xs font-mono text-slate-400 block">
+                      <span className="text-[11px] font-mono text-slate-400 block">
                         Cód. Barras: {p.barcode}
                       </span>
                     )}
                   </div>
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3 shrink-0 ml-2">
                     <div className="text-right">
-                      <span className="text-xs text-slate-500 block">Estoque Atual</span>
+                      <span className="text-[10px] text-slate-500 block">Estoque</span>
                       <span className="font-black text-slate-900">{p.stock} {p.unit}</span>
                     </div>
                     {inBatch && (
-                      <span className="text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-lg">
-                        Contado: {inBatch.countedStock}
+                      <span className="text-[10px] sm:text-xs font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-lg">
+                        Cont: {inBatch.countedStock}
                       </span>
                     )}
-                    <ChevronRight size={18} className="text-slate-300" />
+                    <ChevronRight size={16} className="text-slate-300" />
                   </div>
                 </div>
               );
@@ -551,25 +583,25 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
       </div>
 
       {/* PAINEL DO LOTE DE BALANÇO (ITENS CONTADOS NA SESSÃO) */}
-      <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-md space-y-5">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+      <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200 shadow-md space-y-4">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
           <div>
-            <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+            <h2 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
               Itens no Lote de Balanço
-              <span className="text-xs font-extrabold px-2.5 py-0.5 bg-blue-100 text-blue-800 rounded-full">
-                {batchItems.length} {batchItems.length === 1 ? "item" : "itens"}
+              <span className="text-xs font-extrabold px-2 py-0.5 bg-blue-100 text-blue-800 rounded-full">
+                {batchItems.length}
               </span>
             </h2>
-            <p className="text-xs text-slate-400">
-              Revise as divergências antes de gravar as atualizações no estoque oficial.
+            <p className="text-[11px] sm:text-xs text-slate-400">
+              Revise divergências antes de gravar no estoque oficial.
             </p>
           </div>
 
-          {/* Filtros da Tabela */}
-          <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl text-xs font-bold">
+          {/* Filtros da Lista / Tabela */}
+          <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold w-full sm:w-auto overflow-x-auto">
             <button
               onClick={() => setBatchFilter("ALL")}
-              className={`px-2.5 py-1.5 rounded-lg transition-all ${
+              className={`flex-1 sm:flex-initial px-2.5 py-1.5 rounded-lg transition-all ${
                 batchFilter === "ALL" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
               }`}
             >
@@ -577,7 +609,7 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
             </button>
             <button
               onClick={() => setBatchFilter("SURPLUS")}
-              className={`px-2.5 py-1.5 rounded-lg transition-all ${
+              className={`flex-1 sm:flex-initial px-2.5 py-1.5 rounded-lg transition-all ${
                 batchFilter === "SURPLUS" ? "bg-emerald-600 text-white shadow-sm" : "text-emerald-700 hover:bg-emerald-50"
               }`}
             >
@@ -585,7 +617,7 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
             </button>
             <button
               onClick={() => setBatchFilter("DEFICIT")}
-              className={`px-2.5 py-1.5 rounded-lg transition-all ${
+              className={`flex-1 sm:flex-initial px-2.5 py-1.5 rounded-lg transition-all ${
                 batchFilter === "DEFICIT" ? "bg-rose-600 text-white shadow-sm" : "text-rose-700 hover:bg-rose-50"
               }`}
             >
@@ -593,7 +625,7 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
             </button>
             <button
               onClick={() => setBatchFilter("MATCH")}
-              className={`px-2.5 py-1.5 rounded-lg transition-all ${
+              className={`flex-1 sm:flex-initial px-2.5 py-1.5 rounded-lg transition-all ${
                 batchFilter === "MATCH" ? "bg-blue-600 text-white shadow-sm" : "text-blue-700 hover:bg-blue-50"
               }`}
             >
@@ -602,137 +634,256 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
           </div>
         </div>
 
-        {/* Tabela de Itens Contados */}
+        {/* Quando vazio */}
         {batchItems.length === 0 ? (
-          <div className="py-12 text-center space-y-3">
-            <div className="w-16 h-16 rounded-3xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
-              <ScanBarcode size={32} />
+          <div className="py-10 sm:py-12 text-center space-y-2 sm:space-y-3">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-3xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+              <ScanBarcode size={28} />
             </div>
-            <h3 className="text-base font-bold text-slate-700">Nenhum produto contado ainda</h3>
+            <h3 className="text-sm sm:text-base font-bold text-slate-700">Nenhum produto contado ainda</h3>
             <p className="text-xs text-slate-400 max-w-md mx-auto">
-              Biper o código de barras, digite o código interno (PLU) ou use a câmera do celular acima para iniciar o lançamento do balanço.
+              Biper o código de barras, digite o PLU interno (ex: 1004) ou toque no botão de câmera acima para iniciar.
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-2xl border border-slate-100">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider border-b border-slate-100">
-                <tr>
-                  <th className="py-3 px-4">Código / PLU</th>
-                  <th className="py-3 px-4">Produto</th>
-                  <th className="py-3 px-4 text-center">Estoque Sistema</th>
-                  <th className="py-3 px-4 text-center">Contagem Física</th>
-                  <th className="py-3 px-4 text-center">Divergência</th>
-                  <th className="py-3 px-4 text-right">Impacto Financeiro</th>
-                  <th className="py-3 px-4 text-center">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 font-medium">
-                {filteredBatchItems.map((item) => {
-                  const isSurplus = item.diff > 0;
-                  const isDeficit = item.diff < 0;
+          <>
+            {/* 1. Visão Otimizada em CARDS para SMARTPHONES (md:hidden) */}
+            <div className="block md:hidden space-y-2.5">
+              {filteredBatchItems.map((item) => {
+                const isSurplus = item.diff > 0;
+                const isDeficit = item.diff < 0;
 
-                  return (
-                    <tr key={item.product.id} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3 px-4">
-                        <span className="font-mono text-xs font-extrabold px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md">
-                          #{item.product.internalCode || "SEM PLU"}
-                        </span>
-                        {item.product.barcode && (
-                          <span className="block text-[11px] font-mono text-slate-400 mt-0.5">
-                            {item.product.barcode}
+                return (
+                  <div
+                    key={item.product.id}
+                    className="bg-slate-50 border border-slate-200/90 rounded-2xl p-3 space-y-2.5 shadow-sm"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="space-y-0.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-mono text-[10px] font-black px-1.5 py-0.5 bg-slate-200 text-slate-800 rounded-md">
+                            PLU #{item.product.internalCode || "SEM PLU"}
                           </span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4">
-                        <span className="font-bold text-slate-900 block">{item.product.name}</span>
-                        <span className="text-xs text-slate-400">{item.product.categoryName}</span>
-                      </td>
-                      <td className="py-3 px-4 text-center font-bold text-slate-600">
-                        {item.systemStock} {item.product.unit}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <div className="inline-flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-xl">
-                          <input
-                            type="number"
-                            step={item.product.unit.toUpperCase() === "KG" ? "0.01" : "1"}
-                            value={item.countedStock}
-                            onChange={(e) => {
-                              const v = parseFloat(e.target.value);
-                              if (!isNaN(v) && v >= 0) {
-                                registerProductCount(item.product, v, false);
-                              }
-                            }}
-                            className="w-16 text-center font-black text-slate-900 bg-transparent outline-none"
-                          />
-                          <span className="text-xs text-slate-400">{item.product.unit}</span>
+                          <span className="text-[11px] font-semibold text-slate-500">
+                            {item.product.categoryName}
+                          </span>
                         </div>
-                      </td>
-                      <td className="py-3 px-4 text-center">
+                        <h4 className="font-bold text-slate-900 text-sm leading-snug">
+                          {item.product.name}
+                        </h4>
+                        {item.product.barcode && (
+                          <p className="text-[10px] font-mono text-slate-400">
+                            EAN: {item.product.barcode}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeBatchItem(item.product.id)}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors active:scale-90"
+                        title="Remover"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+
+                    {/* Quantidades e Ajuste Rápido no Smartphone */}
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 text-xs">
+                      <div>
+                        <span className="text-slate-500 block text-[10px] uppercase font-bold">Estoque Sistema</span>
+                        <span className="font-extrabold text-slate-700">{item.systemStock} {item.product.unit}</span>
+                      </div>
+
+                      <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-300 shadow-sm">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const step = item.product.unit.toUpperCase() === "KG" ? 0.1 : 1;
+                            registerProductCount(item.product, Math.max(0, Math.round((item.countedStock - step) * 1000) / 1000), false);
+                          }}
+                          className="w-8 h-8 rounded-lg bg-slate-100 active:bg-slate-200 text-slate-800 font-bold flex items-center justify-center text-sm"
+                        >
+                          -
+                        </button>
+                        <input
+                          type="number"
+                          step={item.product.unit.toUpperCase() === "KG" ? "0.01" : "1"}
+                          value={item.countedStock}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            if (!isNaN(v) && v >= 0) registerProductCount(item.product, v, false);
+                          }}
+                          className="w-14 text-center font-black text-slate-900 bg-transparent outline-none text-base"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const step = item.product.unit.toUpperCase() === "KG" ? 0.1 : 1;
+                            registerProductCount(item.product, Math.round((item.countedStock + step) * 1000) / 1000), false);
+                          }}
+                          className="w-8 h-8 rounded-lg bg-slate-100 active:bg-slate-200 text-slate-800 font-bold flex items-center justify-center text-sm"
+                        >
+                          +
+                        </button>
+                        <span className="text-[10px] font-bold text-slate-400 pr-1">{item.product.unit}</span>
+                      </div>
+                    </div>
+
+                    {/* Status de Divergência e Impacto Financeiro */}
+                    <div className="flex items-center justify-between pt-1 text-xs">
+                      <div>
                         {isSurplus && (
-                          <span className="inline-flex items-center gap-1 text-xs font-black text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-lg">
-                            <TrendingUp size={14} />
+                          <span className="inline-flex items-center gap-1 text-[11px] font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">
+                            <TrendingUp size={12} />
                             +{item.diff} {item.product.unit} (Sobra)
                           </span>
                         )}
                         {isDeficit && (
-                          <span className="inline-flex items-center gap-1 text-xs font-black text-rose-700 bg-rose-100 px-2.5 py-1 rounded-lg">
-                            <TrendingDown size={14} />
+                          <span className="inline-flex items-center gap-1 text-[11px] font-black text-rose-700 bg-rose-100 px-2 py-0.5 rounded-md">
+                            <TrendingDown size={12} />
                             {item.diff} {item.product.unit} (Falta)
                           </span>
                         )}
                         {!isSurplus && !isDeficit && (
-                          <span className="inline-flex items-center gap-1 text-xs font-black text-blue-700 bg-blue-100 px-2.5 py-1 rounded-lg">
-                            <Check size={14} />
+                          <span className="inline-flex items-center gap-1 text-[11px] font-black text-blue-700 bg-blue-100 px-2 py-0.5 rounded-md">
+                            <Check size={12} />
                             Conforme (0)
                           </span>
                         )}
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <span className={`font-mono font-bold ${
-                          isSurplus ? "text-emerald-700" : isDeficit ? "text-rose-700" : "text-slate-400"
-                        }`}>
+                      </div>
+                      <div className="font-mono font-black text-right text-xs">
+                        <span className={isSurplus ? "text-emerald-700" : isDeficit ? "text-rose-700" : "text-slate-400"}>
                           {item.financialImpact > 0 ? "+" : ""}
                           R$ {item.financialImpact.toFixed(2).replace(".", ",")}
                         </span>
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <button
-                          type="button"
-                          onClick={() => removeBatchItem(item.product.id)}
-                          className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                          title="Remover do lote"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* 2. Visão em TABELA para COMPUTADORES & TABLETS (hidden md:block) */}
+            <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-100">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider border-b border-slate-100">
+                  <tr>
+                    <th className="py-3 px-4">Código / PLU</th>
+                    <th className="py-3 px-4">Produto</th>
+                    <th className="py-3 px-4 text-center">Estoque Sistema</th>
+                    <th className="py-3 px-4 text-center">Contagem Física</th>
+                    <th className="py-3 px-4 text-center">Divergência</th>
+                    <th className="py-3 px-4 text-right">Impacto Financeiro</th>
+                    <th className="py-3 px-4 text-center">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-medium">
+                  {filteredBatchItems.map((item) => {
+                    const isSurplus = item.diff > 0;
+                    const isDeficit = item.diff < 0;
+
+                    return (
+                      <tr key={item.product.id} className="hover:bg-slate-50/80 transition-colors">
+                        <td className="py-3 px-4">
+                          <span className="font-mono text-xs font-extrabold px-2 py-0.5 bg-slate-100 text-slate-700 rounded-md">
+                            #{item.product.internalCode || "SEM PLU"}
+                          </span>
+                          {item.product.barcode && (
+                            <span className="block text-[11px] font-mono text-slate-400 mt-0.5">
+                              {item.product.barcode}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          <span className="font-bold text-slate-900 block">{item.product.name}</span>
+                          <span className="text-xs text-slate-400">{item.product.categoryName}</span>
+                        </td>
+                        <td className="py-3 px-4 text-center font-bold text-slate-600">
+                          {item.systemStock} {item.product.unit}
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <div className="inline-flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-xl">
+                            <input
+                              type="number"
+                              step={item.product.unit.toUpperCase() === "KG" ? "0.01" : "1"}
+                              value={item.countedStock}
+                              onChange={(e) => {
+                                const v = parseFloat(e.target.value);
+                                if (!isNaN(v) && v >= 0) {
+                                  registerProductCount(item.product, v, false);
+                                }
+                              }}
+                              className="w-16 text-center font-black text-slate-900 bg-transparent outline-none"
+                            />
+                            <span className="text-xs text-slate-400">{item.product.unit}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          {isSurplus && (
+                            <span className="inline-flex items-center gap-1 text-xs font-black text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-lg">
+                              <TrendingUp size={14} />
+                              +{item.diff} {item.product.unit} (Sobra)
+                            </span>
+                          )}
+                          {isDeficit && (
+                            <span className="inline-flex items-center gap-1 text-xs font-black text-rose-700 bg-rose-100 px-2.5 py-1 rounded-lg">
+                              <TrendingDown size={14} />
+                              {item.diff} {item.product.unit} (Falta)
+                            </span>
+                          )}
+                          {!isSurplus && !isDeficit && (
+                            <span className="inline-flex items-center gap-1 text-xs font-black text-blue-700 bg-blue-100 px-2.5 py-1 rounded-lg">
+                              <Check size={14} />
+                              Conforme (0)
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4 text-right">
+                          <span className={`font-mono font-bold ${
+                            isSurplus ? "text-emerald-700" : isDeficit ? "text-rose-700" : "text-slate-400"
+                          }`}>
+                            {item.financialImpact > 0 ? "+" : ""}
+                            R$ {item.financialImpact.toFixed(2).replace(".", ",")}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-center">
+                          <button
+                            type="button"
+                            onClick={() => removeBatchItem(item.product.id)}
+                            className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            title="Remover do lote"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
 
-        {/* Rodapé do Lote com Totais e Botão de Gravação */}
+        {/* Rodapé do Lote com Totais e Botão de Gravação Desktop */}
         {batchItems.length > 0 && (
           <div className="pt-4 border-t border-slate-100 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-4 text-sm font-semibold">
-              <div className="bg-slate-100 px-3.5 py-2 rounded-xl text-slate-700">
-                Itens no Lote: <strong className="text-slate-900">{batchSummary.totalItems}</strong>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm font-semibold">
+              <div className="bg-slate-100 px-3 py-1.5 rounded-xl text-slate-700">
+                Itens: <strong className="text-slate-900">{batchSummary.totalItems}</strong>
               </div>
-              <div className="bg-emerald-50 border border-emerald-200 px-3.5 py-2 rounded-xl text-emerald-900">
+              <div className="bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl text-emerald-900">
                 Sobras: <strong>{batchSummary.surplusCount}</strong> (+R$ {batchSummary.surplusValue.toFixed(2)})
               </div>
-              <div className="bg-rose-50 border border-rose-200 px-3.5 py-2 rounded-xl text-rose-900">
+              <div className="bg-rose-50 border border-rose-200 px-3 py-1.5 rounded-xl text-rose-900">
                 Faltas: <strong>{batchSummary.deficitCount}</strong> (-R$ {batchSummary.deficitValue.toFixed(2)})
               </div>
-              <div className="bg-blue-50 border border-blue-200 px-3.5 py-2 rounded-xl text-blue-900">
+              <div className="bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-xl text-blue-900">
                 Impacto Líquido: <strong>R$ {batchSummary.totalNetImpact.toFixed(2)}</strong>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="hidden md:flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => {
@@ -768,7 +919,46 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
         )}
       </div>
 
-      {/* MODAL DO LEITOR DE CÂMERA (COMPLETO / CELULAR OU DESKTOP) */}
+      {/* BARRA FIXA FLUTUANTE NO RODAPÉ PARA SMARTPHONE (STICKY BOTTOM BAR) */}
+      {batchItems.length > 0 && (
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200 p-3 shadow-2xl flex items-center justify-between gap-3 animate-in slide-in-from-bottom-3">
+          <div className="leading-tight">
+            <span className="text-[10px] uppercase font-bold text-slate-500 block">
+              {batchSummary.totalItems} {batchSummary.totalItems === 1 ? "item" : "itens"} | Balanço Líquido
+            </span>
+            <span className={`text-sm font-black font-mono ${
+              batchSummary.totalNetImpact > 0 ? "text-emerald-600" : batchSummary.totalNetImpact < 0 ? "text-rose-600" : "text-slate-900"
+            }`}>
+              {batchSummary.totalNetImpact > 0 ? "+" : ""}R$ {batchSummary.totalNetImpact.toFixed(2).replace(".", ",")}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm("Limpar contagem?")) setBatchItems([]);
+              }}
+              className="p-2 text-slate-400 hover:text-rose-600 rounded-xl"
+              title="Limpar"
+            >
+              <Trash2 size={16} />
+            </button>
+
+            <button
+              type="button"
+              disabled={saving}
+              onClick={handleFinalizeInventory}
+              className="px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 active:from-emerald-700 active:to-teal-700 disabled:opacity-50 text-white font-black text-xs rounded-xl shadow-md shadow-emerald-600/30 flex items-center gap-1.5 cursor-pointer"
+            >
+              {saving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+              <span>Gravar Balanço</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DO LEITOR DE CÂMERA (TOTALMENTE FULLSCREEN PARA SMARTPHONES) */}
       {showScanner && (
         <CameraScannerModal
           continuous={scannerContinuous}
@@ -786,7 +976,7 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
   );
 }
 
-/* ───────────────────────── Modal de Câmera & Leitor Rápido ───────────────────────── */
+/* ───────────────────────── Modal de Câmera & Leitor Mobile-First ───────────────────────── */
 function CameraScannerModal({
   onDetected,
   onClose,
@@ -804,6 +994,9 @@ function CameraScannerModal({
   const [hasCamera, setHasCamera] = useState(false);
   const [useCamera, setUseCamera] = useState(true);
   const [lastBip, setLastBip] = useState<string | null>(null);
+  const [hasTorch, setHasTorch] = useState(false);
+  const [torchOn, setTorchOn] = useState(false);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     let stream: MediaStream | null = null;
@@ -821,13 +1014,26 @@ function CameraScannerModal({
 
         setHasCamera(true);
         const detector = new Detector({
-          formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39"],
+          formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "qr_code"],
         });
 
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "environment" } },
+          video: {
+            facingMode: { ideal: "environment" },
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+          },
           audio: false,
         });
+
+        mediaStreamRef.current = stream;
+
+        // Verifica suporte a lanterna (flash) no smartphone
+        const track = stream.getVideoTracks()[0];
+        const capabilities = (track as any)?.getCapabilities?.();
+        if (capabilities && "torch" in capabilities) {
+          setHasTorch(true);
+        }
 
         if (stopped || !videoRef.current) return;
         videoRef.current.srcObject = stream;
@@ -841,6 +1047,7 @@ function CameraScannerModal({
             if (codes.length > 0 && codes[0].rawValue) {
               const detected = codes[0].rawValue;
               setLastBip(detected);
+              triggerBipFeedback();
               cooldown = true;
               onDetected(detected);
               setTimeout(() => {
@@ -864,9 +1071,22 @@ function CameraScannerModal({
     };
   }, [onDetected]);
 
+  const toggleTorch = async () => {
+    try {
+      const track = mediaStreamRef.current?.getVideoTracks()[0];
+      if (track) {
+        await (track as any).applyConstraints({
+          advanced: [{ torch: !torchOn }],
+        });
+        setTorchOn(!torchOn);
+      }
+    } catch {}
+  };
+
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (manualCode.trim()) {
+      triggerBipFeedback();
       onDetected(manualCode.trim());
       setManualCode("");
       if (!continuous) onClose();
@@ -874,35 +1094,47 @@ function CameraScannerModal({
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-slate-950/95 flex flex-col backdrop-blur-md animate-in fade-in duration-150">
-      <div className="flex items-center justify-between p-4 text-white border-b border-slate-800">
-        <div className="flex items-center gap-3">
+    <div className="fixed inset-0 z-[9999] bg-slate-950 flex flex-col backdrop-blur-md animate-in fade-in duration-150">
+      {/* Topo do Scanner */}
+      <div className="flex items-center justify-between p-3 sm:p-4 text-white border-b border-slate-800 bg-slate-900/90">
+        <div className="flex items-center gap-2 sm:gap-3">
           <div className="p-2 rounded-xl bg-blue-600/20 text-blue-400">
-            <Camera size={22} />
+            <Camera size={20} />
           </div>
           <div>
-            <h2 className="font-bold text-base">Leitor de Balanço de Estoque</h2>
-            <p className="text-xs text-slate-400">
-              {useCamera && hasCamera
-                ? "Aponte a câmera para o código de barras ou etiqueta"
-                : "Digite o código de barras (EAN) ou PLU interno (4 dígitos)"}
+            <h2 className="font-bold text-sm sm:text-base">Scanner de Balanço</h2>
+            <p className="text-[11px] text-slate-400">
+              {useCamera && hasCamera ? "Aponte para a etiqueta ou código" : "Digite o PLU ou EAN"}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Lanterna para celular */}
+          {hasTorch && useCamera && (
+            <button
+              type="button"
+              onClick={toggleTorch}
+              className={`p-2 rounded-xl border text-xs font-bold transition-all ${
+                torchOn ? "bg-amber-500 text-slate-950 border-amber-400" : "bg-slate-800 text-slate-300 border-slate-700"
+              }`}
+              title="Ligar/Desligar Lanterna"
+            >
+              <Zap size={16} />
+            </button>
+          )}
+
           {/* Alternar modo contínuo */}
           <button
             type="button"
             onClick={onContinuousToggle}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all border ${
               continuous
                 ? "bg-emerald-600 text-white border-emerald-500 shadow-sm"
                 : "bg-slate-800 text-slate-400 border-slate-700"
             }`}
-            title="Se ativo, a câmera continua aberta após bipar cada produto"
           >
-            {continuous ? "Modo Bip Contínuo (Ativo)" : "Fechar ao Bipar"}
+            {continuous ? "Contínuo" : "1 Bip"}
           </button>
 
           <button
@@ -910,18 +1142,20 @@ function CameraScannerModal({
             className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white transition-colors"
             aria-label="Fechar"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
         </div>
       </div>
 
       {useCamera && hasCamera ? (
-        <div className="flex-1 relative flex items-center justify-center bg-black overflow-hidden">
+        <div className="flex-1 relative flex items-center justify-center bg-black overflow-hidden select-none">
           <video ref={videoRef} playsInline muted className="absolute inset-0 w-full h-full object-cover" />
-          <div className="relative w-[84%] max-w-md h-48 border-4 border-emerald-400 rounded-3xl shadow-[0_0_0_9999px_rgba(0,0,0,0.65)] flex items-center justify-center">
-            <div className="w-full h-0.5 bg-red-500 animate-pulse opacity-90" />
+          
+          {/* Mira de leitura de código centralizada */}
+          <div className="relative w-[88%] max-w-xs sm:max-w-md h-44 sm:h-52 border-4 border-emerald-400 rounded-3xl shadow-[0_0_0_9999px_rgba(0,0,0,0.65)] flex items-center justify-center">
+            <div className="w-full h-0.5 bg-red-500 animate-pulse opacity-90 shadow-sm" />
             {lastBip && (
-              <div className="absolute -top-12 bg-emerald-600 text-white text-xs font-bold px-3 py-1 rounded-full animate-bounce shadow-lg">
+              <div className="absolute -top-11 bg-emerald-600 text-white text-xs font-bold px-3 py-1 rounded-full animate-bounce shadow-lg">
                 Bipado: {lastBip}
               </div>
             )}
@@ -931,18 +1165,18 @@ function CameraScannerModal({
             <button
               type="button"
               onClick={() => setUseCamera(false)}
-              className="bg-slate-900/90 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-full border border-slate-700 shadow-lg"
+              className="bg-slate-900/90 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-full border border-slate-700 shadow-lg active:scale-95"
             >
               Digitar PLU / Código Manual
             </button>
           </div>
         </div>
       ) : (
-        <div className="flex-1 p-6 flex flex-col justify-center max-w-md mx-auto w-full">
+        <div className="flex-1 p-4 sm:p-6 flex flex-col justify-center max-w-md mx-auto w-full">
           <form onSubmit={handleManualSubmit} className="space-y-4">
-            <div className="text-center space-y-1 mb-4">
-              <ScanBarcode size={48} className="mx-auto text-blue-400" />
-              <h3 className="text-xl font-bold text-white">Entrada Rápida por Código</h3>
+            <div className="text-center space-y-1 mb-2">
+              <ScanBarcode size={42} className="mx-auto text-blue-400" />
+              <h3 className="text-lg font-bold text-white">Entrada Rápida por Código</h3>
               <p className="text-xs text-slate-400">
                 Digite o Código de Barras (EAN-13) ou o Código Interno / PLU (ex: 1004, 2019)
               </p>
@@ -950,19 +1184,20 @@ function CameraScannerModal({
 
             <input
               type="tel"
+              inputMode="numeric"
               autoFocus
               value={manualCode}
               onChange={(e) => setManualCode(e.target.value)}
-              placeholder="Ex: 1004 ou 789100010001"
-              className="w-full text-center text-3xl font-mono tracking-wider font-bold py-4 px-4 bg-slate-900 border-2 border-blue-500 rounded-2xl text-white placeholder:text-slate-600 focus:outline-none focus:ring-4 focus:ring-blue-500/20"
+              placeholder="Ex: 1004 ou EAN"
+              className="w-full text-center text-3xl font-mono tracking-wider font-bold py-3.5 px-4 bg-slate-900 border-2 border-blue-500 rounded-2xl text-white placeholder:text-slate-600 focus:outline-none focus:ring-4 focus:ring-blue-500/20"
             />
 
             <button
               type="submit"
               disabled={!manualCode.trim()}
-              className="w-full py-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-extrabold text-base rounded-2xl transition-all shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full py-3.5 bg-blue-600 hover:bg-blue-500 active:bg-blue-700 disabled:opacity-50 text-white font-extrabold text-sm sm:text-base rounded-2xl transition-all shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2 cursor-pointer"
             >
-              <Check size={20} />
+              <Check size={18} />
               <span>Localizar e Lançar</span>
             </button>
 
@@ -970,7 +1205,7 @@ function CameraScannerModal({
               <button
                 type="button"
                 onClick={() => setUseCamera(true)}
-                className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs rounded-xl"
+                className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs rounded-xl active:scale-95"
               >
                 Voltar para Câmera
               </button>
@@ -979,7 +1214,7 @@ function CameraScannerModal({
         </div>
       )}
 
-      {error && <p className="p-3 text-center text-xs font-semibold text-amber-300 bg-black/80">{error}</p>}
+      {error && <p className="p-2 text-center text-xs font-semibold text-amber-300 bg-black/80">{error}</p>}
     </div>
   );
 }
