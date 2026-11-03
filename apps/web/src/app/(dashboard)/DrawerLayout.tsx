@@ -53,6 +53,7 @@ const ROUTE_DEFINITIONS: Record<string, { title: string; iconName: string }> = {
   "/expirations": { title: "Validades", iconName: "Calendar" },
   "/stock": { title: "Estoque", iconName: "Landmark" },
   "/stock/inventory": { title: "Balanço & Inventário", iconName: "ClipboardCheck" },
+  "/assets": { title: "Ativo Imobilizado", iconName: "Shield" },
   "/stock/new": { title: "Cadastrar Produto", iconName: "Package" },
   "/purchases": { title: "Pedidos de Compra & Cotações", iconName: "ClipboardList" },
   "/suppliers": { title: "Fornecedores", iconName: "Truck" },
@@ -349,6 +350,7 @@ export function DrawerLayout({
           <SectionLabel>PRODUTOS & ESTOQUE</SectionLabel>
           {hasModule("STOCK") && <NavItem href="/stock" icon={<Landmark size={16} />} label="Estoque & Produtos" active={pathname === "/stock"} onNavigate={handleNavigate} />}
           {hasModule("STOCK") && <NavItem href="/stock/inventory" icon={<ClipboardCheck size={16} />} label="Balanço & Inventário" active={pathname === "/stock/inventory"} onNavigate={handleNavigate} />}
+          <NavItem href="/assets" icon={<Shield size={16} />} label="Ativo Imobilizado" active={pathname === "/assets"} onNavigate={handleNavigate} />
           <NavItem href="/stock/new" icon={<Package size={16} />} label="Cadastrar Produto" active={pathname === "/stock/new"} onNavigate={handleNavigate} />
           <NavItem href="/purchases" icon={<ClipboardList size={16} />} label="Pedidos de Compra & Cotações" active={pathname?.startsWith("/purchases")} onNavigate={handleNavigate} />
           <NavItem href="/invoices" icon={<Receipt size={16} />} label="Entrada de Notas & XML" active={pathname === "/invoices"} onNavigate={handleNavigate} />

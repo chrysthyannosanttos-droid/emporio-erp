@@ -308,8 +308,8 @@ export default function StockPage() {
                 key={tab.key}
                 onClick={() => setStockArea(tab.key as any)}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-bold border transition-all ${stockArea === tab.key
-                    ? "bg-blue-600 border-blue-600 text-white shadow-sm"
-                    : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                  ? "bg-blue-600 border-blue-600 text-white shadow-sm"
+                  : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                   }`}
               >
                 {tab.label}
@@ -384,7 +384,7 @@ export default function StockPage() {
         )}
       </div>
 
-      
+
 
       {/* Modal de Bipagem Rápida e Cadastro Automático por Código de Barras */}
       {isBarcodeModalOpen && (
@@ -427,10 +427,10 @@ export default function StockPage() {
               {barcodeFeedback && (
                 <div
                   className={`p-3.5 rounded-xl border flex items-center gap-2.5 text-xs font-semibold ${barcodeFeedback.type === "success"
-                      ? "bg-green-50 border-green-200 text-green-700"
-                      : barcodeFeedback.type === "error"
-                        ? "bg-red-50 border-red-200 text-red-600"
-                        : "bg-blue-50 border-blue-200 text-blue-700"
+                    ? "bg-green-50 border-green-200 text-green-700"
+                    : barcodeFeedback.type === "error"
+                      ? "bg-red-50 border-red-200 text-red-600"
+                      : "bg-blue-50 border-blue-200 text-blue-700"
                     }`}
                 >
                   {barcodeFeedback.type === "success" ? (

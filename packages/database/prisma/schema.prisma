@@ -78,6 +78,8 @@ model Company {
   vehicles          Vehicle[]
   drivers           Driver[]
   productionOrders  ProductionOrder[]
+  assets            Asset[]
+  assetMaintenances AssetMaintenance[]
 
   plan           Plan?    @relation(fields: [planId], references: [id])
 
@@ -1667,4 +1669,87 @@ model QualityCheckItem {
   qualityCheck   QualityCheck @relation(fields: [qualityCheckId], references: [id], onDelete: Cascade)
 
   @@map("quality_check_items")
+}
+
+// ─────────────────────────────────────────────
+// ATIVO IMOBILIZADO & CONTROLE PATRIMONIAL
+// ─────────────────────────────────────────────
+
+model Asset {
+  id                  String   @id @default(uuid())
+  code                String   // Plaqueta / Tombamento único (ex: PAT-0001)
+  name                String   // Nome do Bem (ex: Balança Toledo Prix 5 Plus)
+  description         String?  // Detalhes e especificações
+  category            String   @default("EQUIPMENT") // AUTOMATION_IT, REFRIGERATION, FOOD_PRODUCTION, FURNITURE, VEHICLE, BUILDING, OTHER
+  serialNumber        String?  // Chassi / Serial do fabricante
+  brand               String?  // Marca (ex: Toledo, Gelopar, Hobart, Metalfrio)
+  model               String?  // Modelo
+  location            String   @default("SALÃO DE VENDAS") // Setor/Ambiente físico
+  status              String   @default("ACTIVE") // ACTIVE, MAINTENANCE, STANDBY, DISPOSED, LOST
+  condition           String   @default("GOOD") // NEW, GOOD, FAIR, POOR
+  acquisitionDate     DateTime @default(now()) // Data de compra / tombamento
+  acquisitionValue    Decimal  @default(0) // Valor original pago
+  currentValue        Decimal  @default(0) // Valor contábil residual pós-depreciação
+  depreciationRate    Float    @default(10.0) // % ao ano
+  usefulLifeMonths    Int      @default(120) // Vida útil estimada em meses
+  supplier            String?  // Fornecedor de compra
+  invoiceNumber       String?  // Número da NF-e de entrada
+  warrantyExpiresAt   DateTime? // Vencimento da garantia
+  nextMaintenanceDate DateTime? // Próxima preventiva / IPEM
+  lastInventoryDate   DateTime? // Última conferência física no setor
+  responsibleName     String?  // Responsável do setor
+  notes               String?  // Observações adicionais
+  qrCode              String?  // Payload do QR Code gerado para etiquetagem
+
+  companyId           String
+  company             Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  maintenances        AssetMaintenance[]
+  audits              AssetAudit[]
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([companyId, code])
+  @@index([companyId, status])
+  @@index([companyId, category])
+  @@index([companyId, location])
+  @@map("assets")
+}
+
+model AssetMaintenance {
+  id             String   @id @default(uuid())
+  assetId        String
+  asset          Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  type           String   @default("PREVENTIVE") // PREVENTIVE, CORRECTIVE, CALIBRATION_IPEM
+  description    String   // Descrição do serviço executado
+  cost           Decimal  @default(0) // Custo do conserto / peças
+  provider       String?  // Prestador / Assistência técnica
+  performedAt    DateTime @default(now())
+  nextDueDate    DateTime? // Data recomendada da próxima revisão
+  notes          String?
+
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt      DateTime @default(now())
+
+  @@index([companyId, assetId])
+  @@map("asset_maintenances")
+}
+
+model AssetAudit {
+  id              String   @id @default(uuid())
+  assetId         String
+  asset           Asset    @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  scannedLocation String   // Setor onde o bem foi bipado pelo celular
+  condition       String   @default("GOOD") // Estado apurado na vistoria
+  operatorName    String   // Quem bipou a plaqueta
+  notes           String?
+  companyId       String
+
+  createdAt       DateTime @default(now())
+
+  @@index([companyId, assetId])
+  @@map("asset_audits")
 }
