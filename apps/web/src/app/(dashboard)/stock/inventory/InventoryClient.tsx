@@ -719,7 +719,7 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
                           type="button"
                           onClick={() => {
                             const step = item.product.unit.toUpperCase() === "KG" ? 0.1 : 1;
-                            registerProductCount(item.product, Math.round((item.countedStock + step) * 1000) / 1000), false);
+                            registerProductCount(item.product, Math.round((item.countedStock + step) * 1000) / 1000, false);
                           }}
                           className="w-8 h-8 rounded-lg bg-slate-100 active:bg-slate-200 text-slate-800 font-bold flex items-center justify-center text-sm"
                         >
