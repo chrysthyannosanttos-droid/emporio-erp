@@ -1,0 +1,5720 @@
+[
+  {
+    "accessKey": "26260934199574000152550010000023401704221089",
+    "invoiceNum": "2340",
+    "series": "1",
+    "naturezaOp": "VENDA DE MERCADORIA ADQUIRIDA",
+    "issueDate": "2026-09-02T00:00:00-03:00",
+    "supplierName": "I M E PRASERES FABRICACAO E COMERCIO DE PRODUTOS D",
+    "supplierCnpj": "34199574000152",
+    "supplierIe": "083757988",
+    "supplierAddress": "RODOVIA PE 218 KM 33,5 S/N, 71 - BOM CONSELHO/PE",
+    "totalAmount": 126,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000002340",
+    "itemsPreview": [
+      {
+        "name": "LIMPADOR PERFUMADO 3800ML",
+        "quantity": 3,
+        "unit": "UN",
+        "unitCost": 15,
+        "totalCost": 45,
+        "barcode": null,
+        "ncm": "34029090",
+        "cfop": "6102"
+      },
+      {
+        "name": "LAVA LOUCAS 3800ML",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 17,
+        "totalCost": 17,
+        "barcode": null,
+        "ncm": "34029090",
+        "cfop": "6102"
+      },
+      {
+        "name": "AROMATIZANTE FRASCO LONGO 500ML",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 17,
+        "totalCost": 17,
+        "barcode": null,
+        "ncm": "34029090",
+        "cfop": "6102"
+      },
+      {
+        "name": "HIPOCLORITO DE SODIO 5000ML",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 20,
+        "totalCost": 20,
+        "barcode": null,
+        "ncm": "34029090",
+        "cfop": "6102"
+      },
+      {
+        "name": "POLIDOR DE ALUMINIO 1LITRO",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 10,
+        "totalCost": 10,
+        "barcode": null,
+        "ncm": "34029090",
+        "cfop": "6102"
+      },
+      {
+        "name": "LAVA ROUPAS OMO 3800ML",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 17,
+        "totalCost": 17,
+        "barcode": null,
+        "ncm": "34029090",
+        "cfop": "6102"
+      }
+    ]
+  },
+  {
+    "accessKey": "26261034199574000152550010000023911893233283",
+    "invoiceNum": "2391",
+    "series": "1",
+    "naturezaOp": "VENDA DE MERCADORIA ADQUIRIDA",
+    "issueDate": "2026-10-05T00:00:00-03:00",
+    "supplierName": "I M E PRASERES FABRICACAO E COMERCIO DE PRODUTOS D",
+    "supplierCnpj": "34199574000152",
+    "supplierIe": "083757988",
+    "supplierAddress": "RODOVIA PE 218 KM 33,5 S/N, 71 - BOM CONSELHO/PE",
+    "totalAmount": 184,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000002391",
+    "itemsPreview": [
+      {
+        "name": "LIMPADOR PERFUMADO 3800ML",
+        "quantity": 3,
+        "unit": "UN",
+        "unitCost": 15,
+        "totalCost": 45,
+        "barcode": null,
+        "ncm": "34029090",
+        "cfop": "6102"
+      },
+      {
+        "name": "LAVA LOUCAS 3800ML",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 17,
+        "totalCost": 17,
+        "barcode": null,
+        "ncm": "34029090",
+        "cfop": "6102"
+      },
+      {
+        "name": "DIFUSOR DE AROMA 290ML",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 27,
+        "totalCost": 54,
+        "barcode": null,
+        "ncm": "34029090",
+        "cfop": "6102"
+      },
+      {
+        "name": "AROMATIZANTE FRASCO LONGO 500ML",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 17,
+        "totalCost": 34,
+        "barcode": null,
+        "ncm": "34029090",
+        "cfop": "6102"
+      },
+      {
+        "name": "POLIDOR DE ALUMINIO 1LITRO",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 10,
+        "totalCost": 10,
+        "barcode": null,
+        "ncm": "34029090",
+        "cfop": "6102"
+      },
+      {
+        "name": "CLORO GEL 1LT",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 12,
+        "totalCost": 24,
+        "barcode": null,
+        "ncm": "34029090",
+        "cfop": "6102"
+      }
+    ]
+  },
+  {
+    "accessKey": "26261034199574000152550010000024161019774094",
+    "invoiceNum": "2416",
+    "series": "1",
+    "naturezaOp": "VENDA DE MERCADORIA ADQUIRIDA",
+    "issueDate": "2026-10-28T00:00:00-03:00",
+    "supplierName": "I M E PRASERES FABRICACAO E COMERCIO DE PRODUTOS D",
+    "supplierCnpj": "34199574000152",
+    "supplierIe": "083757988",
+    "supplierAddress": "RODOVIA PE 218 KM 33,5 S/N, 71 - BOM CONSELHO/PE",
+    "totalAmount": 179,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000002416",
+    "itemsPreview": [
+      {
+        "name": "LIMPADOR PERFUMADO 3800ML",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 15,
+        "totalCost": 30,
+        "barcode": null,
+        "ncm": "34029090",
+        "cfop": "6102"
+      },
+      {
+        "name": "LAVA LOUCAS 3800ML",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 17,
+        "totalCost": 17,
+        "barcode": null,
+        "ncm": "34029090",
+        "cfop": "6102"
+      },
+      {
+        "name": "DIFUSOR DE AROMA 290ML",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 27,
+        "totalCost": 27,
+        "barcode": null,
+        "ncm": "34029090",
+        "cfop": "6102"
+      },
+      {
+        "name": "AROMATIZANTE FRASCO LONGO 500ML",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 17,
+        "totalCost": 17,
+        "barcode": null,
+        "ncm": "34029090",
+        "cfop": "6102"
+      },
+      {
+        "name": "LAVA ROUPAS OMO 3800ML",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 17,
+        "totalCost": 17,
+        "barcode": null,
+        "ncm": "34029090",
+        "cfop": "6102"
+      },
+      {
+        "name": "POLIDOR DE ALUMINIO 3800ML",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 20,
+        "totalCost": 20,
+        "barcode": null,
+        "ncm": "34029090",
+        "cfop": "6102"
+      },
+      {
+        "name": "DESENGORDURANTE",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 8,
+        "totalCost": 8,
+        "barcode": null,
+        "ncm": "34029090",
+        "cfop": "6102"
+      },
+      {
+        "name": "PINHO GEL CONCENTRADO 1LT V",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 15,
+        "totalCost": 15,
+        "barcode": null,
+        "ncm": "34029090",
+        "cfop": "6102"
+      },
+      {
+        "name": "CLORO GEL 1LT",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 14,
+        "totalCost": 28,
+        "barcode": null,
+        "ncm": "34029090",
+        "cfop": "6102"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260503246173000182550020000669211251097116",
+    "invoiceNum": "66921",
+    "series": "2",
+    "naturezaOp": "5101 - VENDA DE PRODUCAO DO ESTABELECIMENTO",
+    "issueDate": "2026-05-29T00:00:00-03:00",
+    "supplierName": "BISCOITO CASEIRO D LICIA LTDA",
+    "supplierCnpj": "03246173000182",
+    "supplierIe": "241027560",
+    "supplierAddress": "RUA JOAO RAMALHO, 0 - PENEDO/AL",
+    "totalAmount": 660,
+    "totalIcms": 13.53,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000066921",
+    "itemsPreview": [
+      {
+        "name": "BISCOITO DE BATATA DOCE 135G",
+        "quantity": 6,
+        "unit": "UN",
+        "unitCost": 11,
+        "totalCost": 66,
+        "barcode": "7898279540029",
+        "ncm": "19059020",
+        "cfop": "5101"
+      },
+      {
+        "name": "BISCOITO LOLITA 200G",
+        "quantity": 6,
+        "unit": "UN",
+        "unitCost": 11,
+        "totalCost": 66,
+        "barcode": "7898279540043",
+        "ncm": "19059020",
+        "cfop": "5101"
+      },
+      {
+        "name": "BISCOITO QUERO MAIS 200G",
+        "quantity": 12,
+        "unit": "UN",
+        "unitCost": 11,
+        "totalCost": 132,
+        "barcode": "7898279540074",
+        "ncm": "19059020",
+        "cfop": "5101"
+      },
+      {
+        "name": "BISCOITO SALGADINHO ACEBOLADO 270G",
+        "quantity": 12,
+        "unit": "UN",
+        "unitCost": 11,
+        "totalCost": 132,
+        "barcode": "7898279540081",
+        "ncm": "19059020",
+        "cfop": "5101"
+      },
+      {
+        "name": "BISCOITO SALGADINHO DE ALHO 270G",
+        "quantity": 6,
+        "unit": "UN",
+        "unitCost": 11,
+        "totalCost": 66,
+        "barcode": "7898279540098",
+        "ncm": "19059020",
+        "cfop": "5101"
+      },
+      {
+        "name": "BISCOITO SALGADINHO DE BACON 270G",
+        "quantity": 6,
+        "unit": "UN",
+        "unitCost": 11,
+        "totalCost": 66,
+        "barcode": "7898279540104",
+        "ncm": "19059020",
+        "cfop": "5101"
+      },
+      {
+        "name": "BISCOITO SALGADINHO DE QUEIJO 270G",
+        "quantity": 12,
+        "unit": "UN",
+        "unitCost": 11,
+        "totalCost": 132,
+        "barcode": "7898279540111",
+        "ncm": "19059020",
+        "cfop": "5101"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260503636036000154550010062524591678900441",
+    "invoiceNum": "6252459",
+    "series": "1",
+    "naturezaOp": "VENDA DE MERCADORIAS",
+    "issueDate": "2026-05-22T03:48:00-03:00",
+    "supplierName": "ASA BRANCA INDUSTRIAL COMERCIAL E IMPORTADORA LTDA",
+    "supplierCnpj": "03636036000154",
+    "supplierIe": "240989201",
+    "supplierAddress": "AV. ASA BRANCA Nr., 342 - ARAPIRACA/AL",
+    "totalAmount": 1898.12,
+    "totalIcms": 92.05,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000006252459",
+    "itemsPreview": [
+      {
+        "name": "SALAME TIPO ITALIANO 590/610G AURORA +-600G(5KG",
+        "quantity": 5.482,
+        "unit": "KG",
+        "unitCost": 81.9098869026,
+        "totalCost": 449.03,
+        "barcode": "7891164006044",
+        "ncm": "16010000",
+        "cfop": "5403"
+      },
+      {
+        "name": "SALAME TIPO ITALIANO FATIADO AURORA 100G(35)",
+        "quantity": 10,
+        "unit": "PC",
+        "unitCost": 11.48,
+        "totalCost": 114.8,
+        "barcode": "7891164006204",
+        "ncm": "16010000",
+        "cfop": "5403"
+      },
+      {
+        "name": "MOLHO DE PIMENTA VERDE (SUAVE) TABASCO 60ML(12)            CX/12",
+        "quantity": 6,
+        "unit": "UN",
+        "unitCost": 16.84,
+        "totalCost": 101.04,
+        "barcode": null,
+        "ncm": "21039091",
+        "cfop": "5403"
+      },
+      {
+        "name": "AZEITE DE OLIVA VD EXTR.VIRGEM PORTUGUES ANDORINHA 500ML(12)           CX/12",
+        "quantity": 6,
+        "unit": "UN",
+        "unitCost": 28.505,
+        "totalCost": 171.03,
+        "barcode": "5601216120152",
+        "ncm": "15092000",
+        "cfop": "5403"
+      },
+      {
+        "name": "MAION.SACHE HELLMANNS 168X7G              CX/168",
+        "quantity": 1,
+        "unit": "CX",
+        "unitCost": 25,
+        "totalCost": 25,
+        "barcode": "67891150057588",
+        "ncm": "21039011",
+        "cfop": "5102"
+      },
+      {
+        "name": "GELEIA GOURMET CABERNET SAUVIGNON CASA MADEIRA 240G(12)            CX/12",
+        "quantity": 9,
+        "unit": "UN",
+        "unitCost": 16.0022222222,
+        "totalCost": 144.02,
+        "barcode": "7898070110919",
+        "ncm": "20079910",
+        "cfop": "5403"
+      },
+      {
+        "name": "CACHACA ENVELHECIDA BREJO DOS BOIS 250ML(12)           CX/12",
+        "quantity": 3,
+        "unit": "UN",
+        "unitCost": 21.18,
+        "totalCost": 63.54,
+        "barcode": "7898923383286",
+        "ncm": "22084000",
+        "cfop": "5403"
+      },
+      {
+        "name": "KETCHUP SACHE HELLMANNS 168X7G              CX/168",
+        "quantity": 1,
+        "unit": "CX",
+        "unitCost": 25,
+        "totalCost": 25,
+        "barcode": "7891150057609",
+        "ncm": "21032010",
+        "cfop": "5102"
+      },
+      {
+        "name": "QUEIJO PARMESAO CILINDRO FAIXA AZUL 195G(30)            CX/30",
+        "quantity": 6,
+        "unit": "UN",
+        "unitCost": 30.8633333333,
+        "totalCost": 185.18,
+        "barcode": "7891999014092",
+        "ncm": "04069010",
+        "cfop": "5403"
+      },
+      {
+        "name": "QUEIJO TIPO GORGONZOLA FAIXA AZUL 100G(12)            CX/12",
+        "quantity": 6,
+        "unit": "UN",
+        "unitCost": 18.275,
+        "totalCost": 109.65,
+        "barcode": "7896625211425",
+        "ncm": "04064000",
+        "cfop": "5403"
+      },
+      {
+        "name": "QUEIJO PARMESAO FATIA VIGOR 200G(24)            CX/24",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 25.03,
+        "totalCost": 25.03,
+        "barcode": "7896625210664",
+        "ncm": "04069010",
+        "cfop": "5403"
+      },
+      {
+        "name": "QUEIJO PARMESAO FATIA VIGOR 200G(24)            CX/24",
+        "quantity": 5,
+        "unit": "UN",
+        "unitCost": 25.034,
+        "totalCost": 125.17,
+        "barcode": "7896625210664",
+        "ncm": "04069010",
+        "cfop": "5403"
+      },
+      {
+        "name": "QUEIJO TIPO EMMENTAL VIGOR 145G(12)            CX/12",
+        "quantity": 3,
+        "unit": "UN",
+        "unitCost": 23.13,
+        "totalCost": 69.39,
+        "barcode": "7891999007735",
+        "ncm": "04069020",
+        "cfop": "5403"
+      },
+      {
+        "name": "QUEIJO PRATO PROCESSADO FATIADO VIGOR 2,24KG(4)           CX/4",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 120.53,
+        "totalCost": 120.53,
+        "barcode": "7896625210183",
+        "ncm": "21069090",
+        "cfop": "5102"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260503636036000154550010062547291360938464",
+    "invoiceNum": "6254729",
+    "series": "1",
+    "naturezaOp": "VENDA DE MERCADORIAS",
+    "issueDate": "2026-05-26T04:03:00-03:00",
+    "supplierName": "ASA BRANCA INDUSTRIAL COMERCIAL E IMPORTADORA LTDA",
+    "supplierCnpj": "03636036000154",
+    "supplierIe": "240989201",
+    "supplierAddress": "AV. ASA BRANCA Nr., 342 - ARAPIRACA/AL",
+    "totalAmount": 815.44,
+    "totalIcms": 19.42,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000006254729",
+    "itemsPreview": [
+      {
+        "name": "VINHO TINTO DE MESA SUAVE ADEGA DO VALE 750ML(12)           CX/12",
+        "quantity": 6,
+        "unit": "UN",
+        "unitCost": 11.99,
+        "totalCost": 71.94,
+        "barcode": "7898921126878",
+        "ncm": "22042100",
+        "cfop": "5403"
+      },
+      {
+        "name": "VINHO BRANCO DE MESA SUAVE ADEGA DO VALE 750ML(12)           CX/12",
+        "quantity": 6,
+        "unit": "UN",
+        "unitCost": 11.99,
+        "totalCost": 71.94,
+        "barcode": "7898921126977",
+        "ncm": "22042100",
+        "cfop": "5403"
+      },
+      {
+        "name": "VINHO ROSE DE MESA SUAVE ADEGA DO VALE 750ML(12)           CX/12",
+        "quantity": 6,
+        "unit": "UN",
+        "unitCost": 11.99,
+        "totalCost": 71.94,
+        "barcode": "7898921127387",
+        "ncm": "22042100",
+        "cfop": "5403"
+      },
+      {
+        "name": "CARNE BOV. CONT.FILE (CHORIZO) CONG. CARA PRETA +-25KG",
+        "quantity": 3.63,
+        "unit": "KG",
+        "unitCost": 107.0165289256,
+        "totalCost": 388.47,
+        "barcode": "7908267504275",
+        "ncm": "02023000",
+        "cfop": "5403"
+      },
+      {
+        "name": "LING. DE COSTELA CONG. CARA PRETA 300G(24)",
+        "quantity": 6,
+        "unit": "PC",
+        "unitCost": 13.42,
+        "totalCost": 80.52,
+        "barcode": "7908267520091",
+        "ncm": "16010000",
+        "cfop": "5403"
+      },
+      {
+        "name": "LING.DE CORDEIRO CONG. CARA PRETA 300G(24)",
+        "quantity": 4,
+        "unit": "PC",
+        "unitCost": 20.6525,
+        "totalCost": 82.61,
+        "barcode": "7908267526239",
+        "ncm": "16010000",
+        "cfop": "5403"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260503636036000154550010062598271380336170",
+    "invoiceNum": "6259827",
+    "series": "1",
+    "naturezaOp": "DEVOLUCAO DE VENDAS",
+    "issueDate": "2026-05-29T18:02:40-03:00",
+    "supplierName": "ASA BRANCA INDUSTRIAL COMERCIAL E IMPORTADORA LTDA",
+    "supplierCnpj": "03636036000154",
+    "supplierIe": "240989201",
+    "supplierAddress": "AV. ASA BRANCA Nr., 342 - ARAPIRACA/AL",
+    "totalAmount": 41.48,
+    "totalIcms": 6.56,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000006259827",
+    "itemsPreview": [
+      {
+        "name": "GELEIA GOURMET CABERNET SAUVIGNON CASA MADEIRA 240G(12)            CX/12",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 16,
+        "totalCost": 32,
+        "barcode": "7898070110919",
+        "ncm": "20079910",
+        "cfop": "1411"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260506247344000186550010009319781224126133",
+    "invoiceNum": "931978",
+    "series": "1",
+    "naturezaOp": "Venda de mercadorias sujeita ao regime de S.T. - Substituido",
+    "issueDate": "2026-05-13T01:43:00-03:00",
+    "supplierName": "CUNHA DISTRIBUIDORA LTDA",
+    "supplierCnpj": "06247344000186",
+    "supplierIe": "241041953",
+    "supplierAddress": "AV. GOV. MUNIZ FALCAO, 1800 - PALMEIRA DOS INDIOS/AL",
+    "totalAmount": 2555.65,
+    "totalIcms": 89.65,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000931978",
+    "itemsPreview": [
+      {
+        "name": "WHISKY J WALKER RED 1LT",
+        "quantity": 4,
+        "unit": "LT",
+        "unitCost": 83.01,
+        "totalCost": 332.04,
+        "barcode": "5000267013602",
+        "ncm": "22083020",
+        "cfop": "5403"
+      },
+      {
+        "name": "SMIRNOFF RED 998ML",
+        "quantity": 2,
+        "unit": "LT",
+        "unitCost": 33.205,
+        "totalCost": 66.41,
+        "barcode": "7893218000473",
+        "ncm": "22086000",
+        "cfop": "5403"
+      },
+      {
+        "name": "VHO Q MORGADO TTO SUAVE 12X750ML",
+        "quantity": 0.5,
+        "unit": "CX",
+        "unitCost": 142.96,
+        "totalCost": 71.48,
+        "barcode": "7896037913146",
+        "ncm": "22042100",
+        "cfop": "5403"
+      },
+      {
+        "name": "WHISKY J WALKER BLACK 1LT",
+        "quantity": 1,
+        "unit": "LT",
+        "unitCost": 184.47,
+        "totalCost": 184.47,
+        "barcode": "5000267023601",
+        "ncm": "22083020",
+        "cfop": "5403"
+      },
+      {
+        "name": "VODKA ABSOLUT 1X1LT",
+        "quantity": 2,
+        "unit": "LT",
+        "unitCost": 76.09,
+        "totalCost": 152.18,
+        "barcode": "7312040017034",
+        "ncm": "22086000",
+        "cfop": "5403"
+      },
+      {
+        "name": "VHO ST HELENA RSD TT CAB SAUVNG 375ML",
+        "quantity": 3,
+        "unit": "UN",
+        "unitCost": 23.0566666667,
+        "totalCost": 69.17,
+        "barcode": "7804300121464",
+        "ncm": "22042100",
+        "cfop": "5403"
+      },
+      {
+        "name": "VHO GATO NEGRO TT CAB SAUVING 750ML",
+        "quantity": 2,
+        "unit": "LT",
+        "unitCost": 27.67,
+        "totalCost": 55.34,
+        "barcode": "7804300010638",
+        "ncm": "22042100",
+        "cfop": "5403"
+      },
+      {
+        "name": "VHO TRAPICHE VINEYAR TT CAB SAV 750ML",
+        "quantity": 2,
+        "unit": "LT",
+        "unitCost": 34.035,
+        "totalCost": 68.07,
+        "barcode": "7790240072150",
+        "ncm": "22042100",
+        "cfop": "5403"
+      },
+      {
+        "name": "VHO CASAL GARCIA BCO VERDE 750ML",
+        "quantity": 1,
+        "unit": "LT",
+        "unitCost": 50.64,
+        "totalCost": 50.64,
+        "barcode": "5601096201309",
+        "ncm": "22042100",
+        "cfop": "5403"
+      },
+      {
+        "name": "LICOR COINTREAU 700ML",
+        "quantity": 1,
+        "unit": "LT",
+        "unitCost": 106.07,
+        "totalCost": 106.07,
+        "barcode": "3035542004206",
+        "ncm": "22087000",
+        "cfop": "5403"
+      },
+      {
+        "name": "AGUARD YPIOCA PRATA CG 965ML",
+        "quantity": 4,
+        "unit": "LT",
+        "unitCost": 17.07,
+        "totalCost": 68.28,
+        "barcode": "7896383730152",
+        "ncm": "22084000",
+        "cfop": "5405"
+      },
+      {
+        "name": "AGUARD YPIOCA COMP C/MALT 160 ANOS 700ML",
+        "quantity": 4,
+        "unit": "LT",
+        "unitCost": 81.94,
+        "totalCost": 327.76,
+        "barcode": "7896383730114",
+        "ncm": "22084000",
+        "cfop": "5405"
+      },
+      {
+        "name": "CACHACA YPIOCA MESTRE PRATA CG 965ML",
+        "quantity": 4,
+        "unit": "LT",
+        "unitCost": 19.69,
+        "totalCost": 78.76,
+        "barcode": "7896383730428",
+        "ncm": "22084000",
+        "cfop": "5405"
+      },
+      {
+        "name": "WHISKY BALLANTINES 10 ANOS 1X1LT",
+        "quantity": 2,
+        "unit": "LT",
+        "unitCost": 84.855,
+        "totalCost": 169.71,
+        "barcode": "5000299628768",
+        "ncm": "22083020",
+        "cfop": "5403"
+      },
+      {
+        "name": "AGUARD PITU GOLD CX/6 C/FIBRA 1X1LT",
+        "quantity": 2,
+        "unit": "LT",
+        "unitCost": 50.63,
+        "totalCost": 101.26,
+        "barcode": "7896607100273",
+        "ncm": "22084000",
+        "cfop": "5405"
+      },
+      {
+        "name": "VHO FINO TT SC SEPTIMA CABERN SAUV 750ML",
+        "quantity": 3,
+        "unit": "LT",
+        "unitCost": 46.6233333333,
+        "totalCost": 139.87,
+        "barcode": "7798078230032",
+        "ncm": "22042100",
+        "cfop": "5403"
+      },
+      {
+        "name": "CACHACA YPIOCA MESTRE OURO CG 965ML",
+        "quantity": 3,
+        "unit": "LT",
+        "unitCost": 29.14,
+        "totalCost": 87.42,
+        "barcode": "7893218003955",
+        "ncm": "22084000",
+        "cfop": "5405"
+      },
+      {
+        "name": "CACHACA YPIOCA 5 CHAVES 700ML",
+        "quantity": 3,
+        "unit": "LT",
+        "unitCost": 88.1,
+        "totalCost": 264.3,
+        "barcode": "7896383730510",
+        "ncm": "22084000",
+        "cfop": "5405"
+      },
+      {
+        "name": "COQ ALC PITU MEL LIMAO PAPELAO 6X965ML",
+        "quantity": 3,
+        "unit": "LT",
+        "unitCost": 11.99,
+        "totalCost": 35.97,
+        "barcode": "7896607100938",
+        "ncm": "22089000",
+        "cfop": "5403"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260506247344000267550010000402821240719510",
+    "invoiceNum": "40282",
+    "series": "1",
+    "naturezaOp": "Venda de mercadorias sujeita ao regime de S.T. - Substituido",
+    "issueDate": "2026-05-13T01:49:00-03:00",
+    "supplierName": "CUNHA DISTRIBUIDORA LTDA",
+    "supplierCnpj": "06247344000267",
+    "supplierIe": "242205135",
+    "supplierAddress": "AV VIEIRA DE BRITO, 1888D, 1888 - PALMEIRA DOS INDIOS/AL",
+    "totalAmount": 527.6,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000040282",
+    "itemsPreview": [
+      {
+        "name": "WHISKY OLD PARR 1LT",
+        "quantity": 4,
+        "unit": "LT",
+        "unitCost": 131.9,
+        "totalCost": 527.6,
+        "barcode": "5000281004020",
+        "ncm": "22083020",
+        "cfop": "5405"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260506864595000100550010002527631025175470",
+    "invoiceNum": "252763",
+    "series": "1",
+    "naturezaOp": "VENDA DE MERCADORIAS",
+    "issueDate": "2026-05-29T17:26:43-03:00",
+    "supplierName": "MIXPEL DISTRIBUIDORA LTDA",
+    "supplierCnpj": "06864595000100",
+    "supplierIe": "241069254",
+    "supplierAddress": "AV. WALTER ANANIAS, 112 - MACEIO/AL",
+    "totalAmount": 649,
+    "totalIcms": 133.05,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000252763",
+    "itemsPreview": [
+      {
+        "name": "MODULO GAVETEIRO GD56M BEMATECH ELGIN",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 649,
+        "totalCost": 649,
+        "barcode": "7908412516788",
+        "ncm": "83030000",
+        "cfop": "5102"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260507196033005590550010054593251558020984",
+    "invoiceNum": "5459325",
+    "series": "1",
+    "naturezaOp": "Remessa de bem por conta de contrato de comodato",
+    "issueDate": "2026-05-15T13:19:30-03:00",
+    "supplierName": "NORSA REFRIGERANTES S.A.",
+    "supplierCnpj": "07196033005590",
+    "supplierIe": "247227846",
+    "supplierAddress": "AV ANTONIO LISBOA DE AMORIM, 799 - MACEIO/AL",
+    "totalAmount": 1991.27,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000005459325",
+    "itemsPreview": [
+      {
+        "name": "GE VR08 CC 220V",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 1991.27,
+        "totalCost": 1991.27,
+        "barcode": null,
+        "ncm": "84183000",
+        "cfop": "5908"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260517464294000105550010007923141219101894",
+    "invoiceNum": "792314",
+    "series": "1",
+    "naturezaOp": "VENDA DE MERCADORIAS SUJEITA AO REGIME DE S.T.-SUBSTITUTO",
+    "issueDate": "2026-05-21T03:12:00-03:00",
+    "supplierName": "BMH DISTRIBUICAO E LOGISTICA LTDA",
+    "supplierCnpj": "17464294000105",
+    "supplierIe": "242793770",
+    "supplierAddress": "RUA 01 (CJ VILLAGE CAMPESTRE I), 311 - MACEIO/AL",
+    "totalAmount": 550.98,
+    "totalIcms": 30.84,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000792314",
+    "itemsPreview": [
+      {
+        "name": "VINHO CASILLERO DIABLO MALBEC 750ML",
+        "quantity": 3,
+        "unit": "UN",
+        "unitCost": 38.07,
+        "totalCost": 114.21,
+        "barcode": "7804320510187",
+        "ncm": "22042100",
+        "cfop": "5403"
+      },
+      {
+        "name": "VINHO PERGOLA BORDO SUAVE 1L",
+        "quantity": 6,
+        "unit": "UN",
+        "unitCost": 27.0233333333,
+        "totalCost": 162.14,
+        "barcode": "7896855909147",
+        "ncm": "22042100",
+        "cfop": "5403"
+      },
+      {
+        "name": "VINHO PERGOLA TTO SUAVE SELECAO 750ML",
+        "quantity": 6,
+        "unit": "UN",
+        "unitCost": 16.5,
+        "totalCost": 99,
+        "barcode": "7896855903022",
+        "ncm": "22042100",
+        "cfop": "5403"
+      },
+      {
+        "name": "CACHACA MATUTA 1LT BALSAMO",
+        "quantity": 3,
+        "unit": "UN",
+        "unitCost": 32.95,
+        "totalCost": 98.85,
+        "barcode": "07898906925243",
+        "ncm": "22084000",
+        "cfop": "5403"
+      },
+      {
+        "name": "CACHACA MATUTA 1LT CRISTAL",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 24.6,
+        "totalCost": 24.6,
+        "barcode": "7898906925021",
+        "ncm": "22084000",
+        "cfop": "5403"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260540432544071400554050000255341108670168",
+    "invoiceNum": "25534",
+    "series": "405",
+    "naturezaOp": "VENDA MERC.ADQ.3",
+    "issueDate": "2026-05-30T18:29:18-03:00",
+    "supplierName": "CLARO S.A",
+    "supplierCnpj": "40432544071400",
+    "supplierIe": "244091358",
+    "supplierAddress": "AV MOREIRA E SILVA, 391 - MACEIÓ/AL",
+    "totalAmount": 10,
+    "totalIcms": 2.05,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000025534",
+    "itemsPreview": [
+      {
+        "name": "SC BOPP 8NP NE 128KB AAC005 TRIPLE",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 10,
+        "totalCost": 10,
+        "barcode": "7894537020678",
+        "ncm": "85235290",
+        "cfop": "5102"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260563310411001922550010010128641658618551",
+    "invoiceNum": "1012864",
+    "series": "1",
+    "naturezaOp": "Venda merc.adq.receb.de terceiros /  Vnd mer.adq.rec.ter.op.",
+    "issueDate": "2026-05-08T21:50:31-03:00",
+    "supplierName": "TRES CORACOES ALIMENTOS SA",
+    "supplierCnpj": "63310411001922",
+    "supplierIe": "240976240",
+    "supplierAddress": "Rua 01-QD 1273-Pavlh 08/09 - Cj Village Campestre I, 493 - MACEIO/AL",
+    "totalAmount": 527.15,
+    "totalIcms": 21.89,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000001012864",
+    "itemsPreview": [
+      {
+        "name": "BARRA PROTEINA 3CORACOES CAPPUCCINO COOKIES N CREAM 6X12X50G",
+        "quantity": 1,
+        "unit": "DIS",
+        "unitCost": 106.76,
+        "totalCost": 106.76,
+        "barcode": "7896045115501",
+        "ncm": "21069030",
+        "cfop": "5102"
+      },
+      {
+        "name": "BARRA PROTEINA 3CORACOES CAPPUCCINO CLASSIC 6X12X50G",
+        "quantity": 1,
+        "unit": "DIS",
+        "unitCost": 106.76,
+        "totalCost": 106.76,
+        "barcode": "7896045115495",
+        "ncm": "21069030",
+        "cfop": "5102"
+      },
+      {
+        "name": "BARRA PROTEINA 3CORACOES CAPPUCCINO CARAMELO SALGADO 6X12X50G",
+        "quantity": 1,
+        "unit": "DIS",
+        "unitCost": 106.76,
+        "totalCost": 106.76,
+        "barcode": "7896045115716",
+        "ncm": "21069030",
+        "cfop": "5102"
+      },
+      {
+        "name": "BARRA PROTEINA 3CORACOES CAPPUCCINO CHOCOLATE 6X12X50G",
+        "quantity": 1,
+        "unit": "DIS",
+        "unitCost": 106.76,
+        "totalCost": 106.76,
+        "barcode": "7896045115693",
+        "ncm": "21069030",
+        "cfop": "5102"
+      },
+      {
+        "name": "ALIMENTO ERVILHA PLANT POWER PROTEIN BANANA MORANGO 12X250ML",
+        "quantity": 1,
+        "unit": "CX",
+        "unitCost": 91.85,
+        "totalCost": 91.85,
+        "barcode": "17898692301969",
+        "ncm": "22029900",
+        "cfop": "5403"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260563310411001922550010010136291750633760",
+    "invoiceNum": "1013629",
+    "series": "1",
+    "naturezaOp": "Vnd mer.adq.rec.ter.op.mer.sj.rg.sub.trb.cnd.sub.t",
+    "issueDate": "2026-05-08T22:44:13-03:00",
+    "supplierName": "TRES CORACOES ALIMENTOS SA",
+    "supplierCnpj": "63310411001922",
+    "supplierIe": "240976240",
+    "supplierAddress": "Rua 01-QD 1273-Pavlh 08/09 - Cj Village Campestre I, 493 - MACEIO/AL",
+    "totalAmount": 466.41,
+    "totalIcms": 22.42,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000001013629",
+    "itemsPreview": [
+      {
+        "name": "CAPSULA CAFE TRES ESPRESSO VIBRANTE 10X8G",
+        "quantity": 6,
+        "unit": "DIS",
+        "unitCost": 18.23,
+        "totalCost": 109.38,
+        "barcode": "7896005805015",
+        "ncm": "09012100",
+        "cfop": "5403"
+      },
+      {
+        "name": "CAPSULA CAFE TRES ESPRESSO ATENTO 10X8G",
+        "quantity": 6,
+        "unit": "DIS",
+        "unitCost": 18.23,
+        "totalCost": 109.38,
+        "barcode": "7896005805718",
+        "ncm": "09012100",
+        "cfop": "5403"
+      },
+      {
+        "name": "CAPSULA CAFE CAPPUCCINO SANTA CLARA 8X10X11G",
+        "quantity": 6,
+        "unit": "DIS",
+        "unitCost": 16.9,
+        "totalCost": 101.4,
+        "barcode": "7896045109517",
+        "ncm": "21011200",
+        "cfop": "5403"
+      },
+      {
+        "name": "CAPSULA CHOCOLATTO TRES 8X10X11G",
+        "quantity": 6,
+        "unit": "DIS",
+        "unitCost": 17.63,
+        "totalCost": 105.78,
+        "barcode": "7896005805138",
+        "ncm": "18069000",
+        "cfop": "5403"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260563310411001922550010010193411690924115",
+    "invoiceNum": "1019341",
+    "series": "1",
+    "naturezaOp": "Remessa bem por conta de contrato de comodato",
+    "issueDate": "2026-05-29T11:29:08-03:00",
+    "supplierName": "TRES CORACOES ALIMENTOS SA",
+    "supplierCnpj": "63310411001922",
+    "supplierIe": "240976240",
+    "supplierAddress": "Rua 01-QD 1273-Pavlh 08/09 - Cj Village Campestre I, 493 - MACEIO/AL",
+    "totalAmount": 886.25,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000001019341",
+    "itemsPreview": [
+      {
+        "name": "MAQUINA DE CAPSULAS DE USO DOMESTICO MARCA TRES MODELO G8 SPARTA MINI COR PRETA TENSAO DE 220V CAPACIDADE DE 2L POTENCI",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 533.43,
+        "totalCost": 533.43,
+        "barcode": null,
+        "ncm": "85167100",
+        "cfop": "5908"
+      },
+      {
+        "name": "AQUECEDOR DE XICARA MARCA TRES CORACOES MODELO G7 SPARTA HEAT TENSAO DE 220V POTENCIA DE 60W FREQUENCIA DE 60HZ",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 352.82,
+        "totalCost": 352.82,
+        "barcode": null,
+        "ncm": "84198999",
+        "cfop": "5908"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260603636036000154550010062788431692016405",
+    "invoiceNum": "6278843",
+    "series": "1",
+    "naturezaOp": "VENDA DE MERCADORIAS",
+    "issueDate": "2026-06-18T06:48:00-03:00",
+    "supplierName": "ASA BRANCA INDUSTRIAL COMERCIAL E IMPORTADORA LTDA",
+    "supplierCnpj": "03636036000154",
+    "supplierIe": "240989201",
+    "supplierAddress": "AV. ASA BRANCA Nr., 342 - ARAPIRACA/AL",
+    "totalAmount": 390.99,
+    "totalIcms": 6.97,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000006278843",
+    "itemsPreview": [
+      {
+        "name": "G.MASCAR TRIDENT 5S MELANCIA TWIST KRAFT 21X8G(32)           CX/32",
+        "quantity": 1,
+        "unit": "DP",
+        "unitCost": 33.99,
+        "totalCost": 33.99,
+        "barcode": "7895800400227",
+        "ncm": "21069050",
+        "cfop": "5102"
+      },
+      {
+        "name": "G.MASCAR TRIDENT 5S MENTA KRAFT 21X8G(32)           CX/32",
+        "quantity": 1,
+        "unit": "DP",
+        "unitCost": 33.99,
+        "totalCost": 33.99,
+        "barcode": "7895800400142",
+        "ncm": "21069050",
+        "cfop": "5102"
+      },
+      {
+        "name": "G.MASCAR TRIDENT 5S HORTELA KRAFT 21X8G(32)           CX/32",
+        "quantity": 1,
+        "unit": "DP",
+        "unitCost": 33.99,
+        "totalCost": 33.99,
+        "barcode": "7895800400159",
+        "ncm": "21069050",
+        "cfop": "5102"
+      },
+      {
+        "name": "DROPS HALLS MORANGO MONDELEZ 21/10S(30)          CX/30",
+        "quantity": 1,
+        "unit": "DP",
+        "unitCost": 22,
+        "totalCost": 22,
+        "barcode": "7622210857774",
+        "ncm": "17049020",
+        "cfop": "5102"
+      },
+      {
+        "name": "DROPS HALLS EXTRA FORTE MONDELEZ 21/10S(30)          CX/30",
+        "quantity": 1,
+        "unit": "DP",
+        "unitCost": 22,
+        "totalCost": 22,
+        "barcode": "7622210878946",
+        "ncm": "17049020",
+        "cfop": "5102"
+      },
+      {
+        "name": "DROPS HALLS CEREJA MONDELEZ 21/10S(30)          CX/30",
+        "quantity": 1,
+        "unit": "DP",
+        "unitCost": 22,
+        "totalCost": 22,
+        "barcode": "7622210812636",
+        "ncm": "17049020",
+        "cfop": "5102"
+      },
+      {
+        "name": "BALA SUP.MACIA  MORANGO MONDELEZ 12X15G(12)",
+        "quantity": 1,
+        "unit": "DP",
+        "unitCost": 10.35,
+        "totalCost": 10.35,
+        "barcode": "7622210562074",
+        "ncm": "17049020",
+        "cfop": "5102"
+      },
+      {
+        "name": "BALA SUP.MACIA  TUTTI FRUTTI MONDELEZ 12X15G(12)",
+        "quantity": 1,
+        "unit": "DP",
+        "unitCost": 10.35,
+        "totalCost": 10.35,
+        "barcode": "7622210562135",
+        "ncm": "17049020",
+        "cfop": "5102"
+      },
+      {
+        "name": "BALA SUP.MACIA MIX DE FRUTAS MONDELEZ 12X15G(12)",
+        "quantity": 1,
+        "unit": "DP",
+        "unitCost": 10.35,
+        "totalCost": 10.35,
+        "barcode": "7622210562081",
+        "ncm": "17049020",
+        "cfop": "5102"
+      },
+      {
+        "name": "CHOC.BARRA DIAMANTE NEGRO LACTA 12X28G(12)",
+        "quantity": 1,
+        "unit": "DP",
+        "unitCost": 38.09,
+        "totalCost": 38.09,
+        "barcode": "7622202256684",
+        "ncm": "18063210",
+        "cfop": "5403"
+      },
+      {
+        "name": "CHOC. BARRA AO LEITE LACTA 12X28G(12)",
+        "quantity": 1,
+        "unit": "DP",
+        "unitCost": 38.09,
+        "totalCost": 38.09,
+        "barcode": "7622202256745",
+        "ncm": "18063210",
+        "cfop": "5403"
+      },
+      {
+        "name": "G.MASCAR TRIDENT GARRAFA BLUE ACID BERRY MONDELEZ 54G(36)             CX/36",
+        "quantity": 6,
+        "unit": "UN",
+        "unitCost": 8.85,
+        "totalCost": 53.1,
+        "barcode": "7622202281488",
+        "ncm": "21069050",
+        "cfop": "5102"
+      },
+      {
+        "name": "G.MASCAR TRIDENT GARRAFA CITRUS MIX MONDELEZ 54G(36)             CX/36",
+        "quantity": 6,
+        "unit": "UN",
+        "unitCost": 8.85,
+        "totalCost": 53.1,
+        "barcode": "7622202281464",
+        "ncm": "21069050",
+        "cfop": "5102"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260603636036000154550010062863501324048280",
+    "invoiceNum": "6286350",
+    "series": "1",
+    "naturezaOp": "VENDA MERCADORIAS",
+    "issueDate": "2026-06-27T02:42:00-03:00",
+    "supplierName": "ASA BRANCA INDUSTRIAL COMERCIAL E IMPORTADORA LTDA",
+    "supplierCnpj": "03636036000154",
+    "supplierIe": "240989201",
+    "supplierAddress": "AV. ASA BRANCA Nr., 342 - ARAPIRACA/AL",
+    "totalAmount": 267.52,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000006286350",
+    "itemsPreview": [
+      {
+        "name": "RED BULL ENERGY DRINK RED BULL 250ML(24)           CX/24",
+        "quantity": 12,
+        "unit": "UN",
+        "unitCost": 8.36,
+        "totalCost": 100.32,
+        "barcode": "611269991000",
+        "ncm": "22029900",
+        "cfop": "5405"
+      },
+      {
+        "name": "RED BULL TROPICAL EDITION RED BULL 250ML(24)           CX/24",
+        "quantity": 4,
+        "unit": "UN",
+        "unitCost": 8.36,
+        "totalCost": 33.44,
+        "barcode": "9002490229160",
+        "ncm": "22029900",
+        "cfop": "5405"
+      },
+      {
+        "name": "RED BULL SUGAR FREE RED BULL 250ML(24)           CX/24",
+        "quantity": 4,
+        "unit": "UN",
+        "unitCost": 8.36,
+        "totalCost": 33.44,
+        "barcode": "611269101713",
+        "ncm": "22029900",
+        "cfop": "5405"
+      },
+      {
+        "name": "RED BULL SUMMER EDITION MELANCIA RED BULL 250ML(24)           CX/24",
+        "quantity": 4,
+        "unit": "UN",
+        "unitCost": 8.36,
+        "totalCost": 33.44,
+        "barcode": "9002490247379",
+        "ncm": "22029900",
+        "cfop": "5405"
+      },
+      {
+        "name": "RED BULL ZERO RED BULL 250ML(24)           CX/24",
+        "quantity": 4,
+        "unit": "UN",
+        "unitCost": 8.36,
+        "totalCost": 33.44,
+        "barcode": "9002490283063",
+        "ncm": "22029900",
+        "cfop": "5405"
+      },
+      {
+        "name": "RED BULL MACA SUGARFREE EDITION RED BULL 250ML(24)           CX/24",
+        "quantity": 4,
+        "unit": "UN",
+        "unitCost": 8.36,
+        "totalCost": 33.44,
+        "barcode": "9002490290450",
+        "ncm": "22029900",
+        "cfop": "5405"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260606247344000186550010009394871113741630",
+    "invoiceNum": "939487",
+    "series": "1",
+    "naturezaOp": "SAIDA DE BONIFICACAO, DOACAO OU BRINDE",
+    "issueDate": "2026-06-30T23:27:00-03:00",
+    "supplierName": "CUNHA DISTRIBUIDORA LTDA",
+    "supplierCnpj": "06247344000186",
+    "supplierIe": "241041953",
+    "supplierAddress": "AV. GOV. MUNIZ FALCAO, 1800 - PALMEIRA DOS INDIOS/AL",
+    "totalAmount": 29.41,
+    "totalIcms": 7.32,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000939487",
+    "itemsPreview": [
+      {
+        "name": "SMIRNOFF ICE LATA 269ML",
+        "quantity": 6,
+        "unit": "UN",
+        "unitCost": 4.52,
+        "totalCost": 27.12,
+        "barcode": "7893218003610",
+        "ncm": "22060090",
+        "cfop": "5910"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260609358384000193550010001430261602516867",
+    "invoiceNum": "143026",
+    "series": "1",
+    "naturezaOp": "LANCAMENTO EFETUADO EM DECORRENCIA DE EMISSAO DE DOCUMENTO F",
+    "issueDate": "2026-06-22T14:34:00-03:00",
+    "supplierName": "ALEPLAST COMERCIO DE PRODUTOS DESCARTAVE",
+    "supplierCnpj": "09358384000193",
+    "supplierIe": "242109004",
+    "supplierAddress": "AV. MACEIO, 226 - MACEIO/AL",
+    "totalAmount": 138.1,
+    "totalIcms": 1.69,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000143026",
+    "itemsPreview": [
+      {
+        "name": "LUVA LATEX RANH FLEX C. LONGO NATURAL M",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 8.25,
+        "totalCost": 8.25,
+        "barcode": "07898546008023",
+        "ncm": "40151900",
+        "cfop": "5929"
+      },
+      {
+        "name": "SALEIRO DE MESA BRANCO PLASVALE",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 9.65,
+        "totalCost": 9.65,
+        "barcode": "7891115003818",
+        "ncm": "39241000",
+        "cfop": "5929"
+      },
+      {
+        "name": "COPO ULTRA PP 440ML LISO TRANSP",
+        "quantity": 1,
+        "unit": "PC",
+        "unitCost": 7.59,
+        "totalCost": 7.59,
+        "barcode": "7898339100743",
+        "ncm": "39241000",
+        "cfop": "5929"
+      },
+      {
+        "name": "TOUCA SANFONADA TNT BR VABENE C/100",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 9.19,
+        "totalCost": 9.19,
+        "barcode": "07898546005572",
+        "ncm": "65050090",
+        "cfop": "5929"
+      },
+      {
+        "name": "SACO P/LIXO 60LT PRETO 58X62X4 PEBD PM",
+        "quantity": 1,
+        "unit": "PC",
+        "unitCost": 25.45,
+        "totalCost": 25.45,
+        "barcode": "7896001043039",
+        "ncm": "39232990",
+        "cfop": "5929"
+      },
+      {
+        "name": "SACO 70X88X05 PRETO RECIAL",
+        "quantity": 1,
+        "unit": "PC",
+        "unitCost": 49.99,
+        "totalCost": 49.99,
+        "barcode": "7898610800041",
+        "ncm": "39232190",
+        "cfop": "5929"
+      },
+      {
+        "name": "TAMPA ROSCA 38MM VERMELHA",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 1.65,
+        "totalCost": 3.3,
+        "barcode": null,
+        "ncm": "39235000",
+        "cfop": "5929"
+      },
+      {
+        "name": "GARRAFA 300ML PET CRISTAL",
+        "quantity": 10,
+        "unit": "UN",
+        "unitCost": 1.219,
+        "totalCost": 12.19,
+        "barcode": null,
+        "ncm": "39233090",
+        "cfop": "5929"
+      },
+      {
+        "name": "GARRAFA 500ML PET CRISTAL",
+        "quantity": 10,
+        "unit": "UN",
+        "unitCost": 1.249,
+        "totalCost": 12.49,
+        "barcode": "0000078960596",
+        "ncm": "39233090",
+        "cfop": "5929"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260612200192000169558900117518331145636126",
+    "invoiceNum": "11751833",
+    "series": "890",
+    "naturezaOp": "Venda de Mercadoria",
+    "issueDate": "2026-06-01T09:05:00-03:00",
+    "supplierName": "JADIELSON HENRIQUE DA SILVA",
+    "supplierCnpj": "",
+    "supplierIe": "ISENTO",
+    "supplierAddress": "NOVO RIO, S/N - IGACI/AL",
+    "totalAmount": 218.2,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000011751833",
+    "itemsPreview": [
+      {
+        "name": "120623MEL DE ABELHA JADAPIS 280G",
+        "quantity": 6,
+        "unit": "UN",
+        "unitCost": 11.7,
+        "totalCost": 70.2,
+        "barcode": null,
+        "ncm": "04090000",
+        "cfop": "5101"
+      },
+      {
+        "name": "MEL DE ABELHA 500G",
+        "quantity": 8,
+        "unit": "UN",
+        "unitCost": 18.5,
+        "totalCost": 148,
+        "barcode": null,
+        "ncm": "04090000",
+        "cfop": "5101"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260622336585000158550010000103841408180987",
+    "invoiceNum": "10384",
+    "series": "1",
+    "naturezaOp": "Venda Estadual",
+    "issueDate": "2026-06-01T13:50:06-03:00",
+    "supplierName": "Livraria e Papelaria Globo Eireli",
+    "supplierCnpj": "22336585000158",
+    "supplierIe": "244238669",
+    "supplierAddress": "Praca Dom Pedro II, 84 - Maceio/AL",
+    "totalAmount": 170.8,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000010384",
+    "itemsPreview": [
+      {
+        "name": "PASTA SAFONADA 12 DIV FASHION  NO9307",
+        "quantity": 3,
+        "unit": "UND",
+        "unitCost": 18.95,
+        "totalCost": 56.85,
+        "barcode": null,
+        "ncm": "48202000",
+        "cfop": "5405"
+      },
+      {
+        "name": "CLIP PUPYLEX OFFICE  2/0, 3/0,4/0",
+        "quantity": 3,
+        "unit": "UND",
+        "unitCost": 3.15,
+        "totalCost": 9.45,
+        "barcode": null,
+        "ncm": "96081000",
+        "cfop": "5102"
+      },
+      {
+        "name": "MARCA TEXTO MASTERPRINT",
+        "quantity": 4,
+        "unit": "UND",
+        "unitCost": 1.5,
+        "totalCost": 6,
+        "barcode": null,
+        "ncm": "96081000",
+        "cfop": "5405"
+      },
+      {
+        "name": "REFIL DE PASTA CATALOGO DAC GROSSO",
+        "quantity": 30,
+        "unit": "UND",
+        "unitCost": 0.6,
+        "totalCost": 18,
+        "barcode": null,
+        "ncm": "39231090",
+        "cfop": "5102"
+      },
+      {
+        "name": "porta lapis/clips/lembrete acrimet",
+        "quantity": 1,
+        "unit": "UND",
+        "unitCost": 16,
+        "totalCost": 16,
+        "barcode": null,
+        "ncm": "48209000",
+        "cfop": "5102"
+      },
+      {
+        "name": "CANETA COMPACTOR FINA",
+        "quantity": 10,
+        "unit": "UND",
+        "unitCost": 1,
+        "totalCost": 10,
+        "barcode": null,
+        "ncm": "96082000",
+        "cfop": "5405"
+      },
+      {
+        "name": "SMART NOTESNEON AMARELO BRW 38MX51M",
+        "quantity": 1,
+        "unit": "UND",
+        "unitCost": 6.95,
+        "totalCost": 6.95,
+        "barcode": null,
+        "ncm": "39199010",
+        "cfop": "5102"
+      },
+      {
+        "name": "BLOCO NOTAS ADESIVAS",
+        "quantity": 4,
+        "unit": "UND",
+        "unitCost": 1.95,
+        "totalCost": 7.8,
+        "barcode": null,
+        "ncm": "49119900",
+        "cfop": "5102"
+      },
+      {
+        "name": "REGUA YALONG YL88131-30",
+        "quantity": 2,
+        "unit": "UND",
+        "unitCost": 2,
+        "totalCost": 4,
+        "barcode": null,
+        "ncm": "48025710",
+        "cfop": "5405"
+      },
+      {
+        "name": "GRAMPEADOR DL 0207",
+        "quantity": 2,
+        "unit": "UND",
+        "unitCost": 8.95,
+        "totalCost": 17.9,
+        "barcode": null,
+        "ncm": "48202000",
+        "cfop": "5405"
+      },
+      {
+        "name": "GRAMPO DL 5013 26/6",
+        "quantity": 2,
+        "unit": "UND",
+        "unitCost": 4.8,
+        "totalCost": 9.6,
+        "barcode": null,
+        "ncm": "48202000",
+        "cfop": "5102"
+      },
+      {
+        "name": "chamequinho seninha branco 100fls",
+        "quantity": 1,
+        "unit": "und",
+        "unitCost": 8.25,
+        "totalCost": 8.25,
+        "barcode": null,
+        "ncm": "73194000",
+        "cfop": "5405"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260629422082000144550010000801501127142246",
+    "invoiceNum": "80150",
+    "series": "1",
+    "naturezaOp": "Lancamento efetuado em decorrencia da emissao de documento",
+    "issueDate": "2026-06-16T11:56:00-03:00",
+    "supplierName": "GRACINDO BRITO &amp; CIA LIMITADA",
+    "supplierCnpj": "29422082000144",
+    "supplierIe": "247493783",
+    "supplierAddress": "AVENIDA GOVERNADOR MUNIZ FALCAO, 1800 - PALMEIRA DOS INDIOS/AL",
+    "totalAmount": 1606.52,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000080150",
+    "itemsPreview": [
+      {
+        "name": "CARNE BOV CARNE DE SOL",
+        "quantity": 4.977,
+        "unit": "KG",
+        "unitCost": 39.99,
+        "totalCost": 199.03,
+        "barcode": null,
+        "ncm": "02012010",
+        "cfop": "5929"
+      },
+      {
+        "name": "CARNE BOV AGULHA",
+        "quantity": 9.2,
+        "unit": "KG",
+        "unitCost": 28.95,
+        "totalCost": 266.34,
+        "barcode": null,
+        "ncm": "02012010",
+        "cfop": "5929"
+      },
+      {
+        "name": "CARNE BOV AGULHA",
+        "quantity": 10.915,
+        "unit": "KG",
+        "unitCost": 28.95,
+        "totalCost": 315.99,
+        "barcode": null,
+        "ncm": "02012010",
+        "cfop": "5929"
+      },
+      {
+        "name": "CARNE BOV PEITO KG",
+        "quantity": 5.424,
+        "unit": "KG",
+        "unitCost": 27.95,
+        "totalCost": 151.6,
+        "barcode": null,
+        "ncm": "02012010",
+        "cfop": "5929"
+      },
+      {
+        "name": "BOLO CREMOSO DE LARANJA AVANT KG",
+        "quantity": 0.404,
+        "unit": "KG",
+        "unitCost": 35.95,
+        "totalCost": 14.52,
+        "barcode": null,
+        "ncm": "19059090",
+        "cfop": "5929"
+      },
+      {
+        "name": "PAO DE FORMA TRADICIONAL BAUDUCCO 390G",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 10.95,
+        "totalCost": 21.9,
+        "barcode": "7891962064048",
+        "ncm": "19059010",
+        "cfop": "5929"
+      },
+      {
+        "name": "VINAGRE MACA MINHOTO 500ML",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 6.45,
+        "totalCost": 6.45,
+        "barcode": "7896013101055",
+        "ncm": "22090000",
+        "cfop": "5929"
+      },
+      {
+        "name": "VINAGRE ALCOOL TIO VIEIRA 500ML",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 2.35,
+        "totalCost": 2.35,
+        "barcode": "7898902735297",
+        "ncm": "22090000",
+        "cfop": "5929"
+      },
+      {
+        "name": "VINAGRE CONDIMENTADO TIO VIEIRA 500ML",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 2.25,
+        "totalCost": 2.25,
+        "barcode": "7898902735303",
+        "ncm": "22090000",
+        "cfop": "5929"
+      },
+      {
+        "name": "OLEO DE SOJA PET SOYA 900ML",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 7.85,
+        "totalCost": 7.85,
+        "barcode": "7891107101621",
+        "ncm": "15079011",
+        "cfop": "5929"
+      },
+      {
+        "name": "PEPINO KG",
+        "quantity": 0.525,
+        "unit": "KG",
+        "unitCost": 5.95,
+        "totalCost": 3.12,
+        "barcode": null,
+        "ncm": "07070000",
+        "cfop": "5929"
+      },
+      {
+        "name": "PEPINO JAPONES KG",
+        "quantity": 0.485,
+        "unit": "KG",
+        "unitCost": 4.95,
+        "totalCost": 2.4,
+        "barcode": null,
+        "ncm": "07070000",
+        "cfop": "5929"
+      },
+      {
+        "name": "PAO FRANCES AVANT KG",
+        "quantity": 0.542,
+        "unit": "KG",
+        "unitCost": 14.95,
+        "totalCost": 8.1,
+        "barcode": null,
+        "ncm": "19059090",
+        "cfop": "5929"
+      },
+      {
+        "name": "PAO FRANCES AVANT KG",
+        "quantity": 0.536,
+        "unit": "KG",
+        "unitCost": 14.95,
+        "totalCost": 8.01,
+        "barcode": null,
+        "ncm": "19059090",
+        "cfop": "5929"
+      },
+      {
+        "name": "PAO FRANCES AVANT KG",
+        "quantity": 0.542,
+        "unit": "KG",
+        "unitCost": 14.95,
+        "totalCost": 8.1,
+        "barcode": null,
+        "ncm": "19059090",
+        "cfop": "5929"
+      },
+      {
+        "name": "PAO FRANCES AVANT KG",
+        "quantity": 0.53,
+        "unit": "KG",
+        "unitCost": 14.95,
+        "totalCost": 7.92,
+        "barcode": null,
+        "ncm": "19059090",
+        "cfop": "5929"
+      },
+      {
+        "name": "PAO FRANCES AVANT KG",
+        "quantity": 0.528,
+        "unit": "KG",
+        "unitCost": 14.95,
+        "totalCost": 7.89,
+        "barcode": null,
+        "ncm": "19059090",
+        "cfop": "5929"
+      },
+      {
+        "name": "ADOC DIETETICO MAGRO 100ML",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 6.45,
+        "totalCost": 6.45,
+        "barcode": "7896292001442",
+        "ncm": "21069090",
+        "cfop": "5929"
+      },
+      {
+        "name": "ADOCANTE LIQ MARATA 100ML",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 2.99,
+        "totalCost": 2.99,
+        "barcode": "7898286202231",
+        "ncm": "21069090",
+        "cfop": "5929"
+      },
+      {
+        "name": "CARVAO IMPERIAL 2,2KG",
+        "quantity": 2,
+        "unit": "PT",
+        "unitCost": 13.95,
+        "totalCost": 27.9,
+        "barcode": null,
+        "ncm": "44029000",
+        "cfop": "5929"
+      },
+      {
+        "name": "COENTRO UN",
+        "quantity": 4,
+        "unit": "UN",
+        "unitCost": 2.65,
+        "totalCost": 10.6,
+        "barcode": null,
+        "ncm": "07099990",
+        "cfop": "5929"
+      },
+      {
+        "name": "BACON FAT FRIMESA 1KG",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 62.65,
+        "totalCost": 62.65,
+        "barcode": "7896275900601",
+        "ncm": "02101200",
+        "cfop": "5929"
+      },
+      {
+        "name": "SALSAO UN",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 3.25,
+        "totalCost": 6.5,
+        "barcode": "751320062468",
+        "ncm": "07129090",
+        "cfop": "5929"
+      },
+      {
+        "name": "ALFACE CRESPA HIDROPONICA UN",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 2.95,
+        "totalCost": 5.9,
+        "barcode": "751320062475",
+        "ncm": "07051900",
+        "cfop": "5929"
+      },
+      {
+        "name": "ALECRIM IN NATURA UN",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 3.45,
+        "totalCost": 3.45,
+        "barcode": "7898267250374",
+        "ncm": "12119090",
+        "cfop": "5929"
+      },
+      {
+        "name": "LARANJA PERA KG",
+        "quantity": 2.34,
+        "unit": "KG",
+        "unitCost": 1.99,
+        "totalCost": 4.66,
+        "barcode": null,
+        "ncm": "08051000",
+        "cfop": "5929"
+      },
+      {
+        "name": "LIMAO TAITI KG",
+        "quantity": 0.51,
+        "unit": "KG",
+        "unitCost": 4.45,
+        "totalCost": 2.27,
+        "barcode": null,
+        "ncm": "08055000",
+        "cfop": "5929"
+      },
+      {
+        "name": "TOMATE KG",
+        "quantity": 1.44,
+        "unit": "KG",
+        "unitCost": 8.95,
+        "totalCost": 12.89,
+        "barcode": null,
+        "ncm": "07020000",
+        "cfop": "5929"
+      },
+      {
+        "name": "ALHO A GRANEL KG",
+        "quantity": 0.255,
+        "unit": "KG",
+        "unitCost": 35.95,
+        "totalCost": 9.17,
+        "barcode": null,
+        "ncm": "07032090",
+        "cfop": "5929"
+      },
+      {
+        "name": "PILHA ALC PAL AAA DURACELL 4UN",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 30.95,
+        "totalCost": 30.95,
+        "barcode": "0041333001098",
+        "ncm": "85061019",
+        "cfop": "5929"
+      },
+      {
+        "name": "CENOURA KG",
+        "quantity": 0.415,
+        "unit": "KG",
+        "unitCost": 9.95,
+        "totalCost": 4.13,
+        "barcode": null,
+        "ncm": "07061000",
+        "cfop": "5929"
+      },
+      {
+        "name": "CENOURA KG",
+        "quantity": 0.405,
+        "unit": "KG",
+        "unitCost": 9.95,
+        "totalCost": 4.03,
+        "barcode": null,
+        "ncm": "07061000",
+        "cfop": "5929"
+      },
+      {
+        "name": "LARANJA PERA KG",
+        "quantity": 2.445,
+        "unit": "KG",
+        "unitCost": 1.99,
+        "totalCost": 4.87,
+        "barcode": null,
+        "ncm": "08051000",
+        "cfop": "5929"
+      },
+      {
+        "name": "ALHO A GRANEL KG",
+        "quantity": 0.125,
+        "unit": "KG",
+        "unitCost": 35.95,
+        "totalCost": 4.49,
+        "barcode": null,
+        "ncm": "07032090",
+        "cfop": "5929"
+      },
+      {
+        "name": "LARANJA PERA KG",
+        "quantity": 3.295,
+        "unit": "KG",
+        "unitCost": 1.99,
+        "totalCost": 6.56,
+        "barcode": null,
+        "ncm": "08051000",
+        "cfop": "5929"
+      },
+      {
+        "name": "LARANJA PERA KG",
+        "quantity": 1.13,
+        "unit": "KG",
+        "unitCost": 1.99,
+        "totalCost": 2.25,
+        "barcode": null,
+        "ncm": "08051000",
+        "cfop": "5929"
+      },
+      {
+        "name": "LARANJA PERA KG",
+        "quantity": 1.12,
+        "unit": "KG",
+        "unitCost": 1.99,
+        "totalCost": 2.23,
+        "barcode": null,
+        "ncm": "08051000",
+        "cfop": "5929"
+      },
+      {
+        "name": "CEBOLA BRANCA KG",
+        "quantity": 1.49,
+        "unit": "KG",
+        "unitCost": 6.95,
+        "totalCost": 10.36,
+        "barcode": null,
+        "ncm": "07031019",
+        "cfop": "5929"
+      },
+      {
+        "name": "LARANJA PERA KG",
+        "quantity": 2.83,
+        "unit": "KG",
+        "unitCost": 1.99,
+        "totalCost": 5.63,
+        "barcode": null,
+        "ncm": "08051000",
+        "cfop": "5929"
+      },
+      {
+        "name": "LARANJA PERA KG",
+        "quantity": 1.105,
+        "unit": "KG",
+        "unitCost": 1.99,
+        "totalCost": 2.2,
+        "barcode": null,
+        "ncm": "08051000",
+        "cfop": "5929"
+      },
+      {
+        "name": "BATATA LISA KG",
+        "quantity": 1.11,
+        "unit": "KG",
+        "unitCost": 11.95,
+        "totalCost": 13.26,
+        "barcode": null,
+        "ncm": "07019000",
+        "cfop": "5929"
+      },
+      {
+        "name": "CEBOLA BRANCA KG",
+        "quantity": 3.775,
+        "unit": "KG",
+        "unitCost": 6.95,
+        "totalCost": 26.24,
+        "barcode": null,
+        "ncm": "07031019",
+        "cfop": "5929"
+      },
+      {
+        "name": "LARANJA PERA KG",
+        "quantity": 1.04,
+        "unit": "KG",
+        "unitCost": 1.99,
+        "totalCost": 2.07,
+        "barcode": null,
+        "ncm": "08051000",
+        "cfop": "5929"
+      },
+      {
+        "name": "ESPONJA MULTI BETTANIN ESFREBOM 1UN",
+        "quantity": 12,
+        "unit": "UN",
+        "unitCost": 2.15,
+        "totalCost": 25.8,
+        "barcode": "7896001004504",
+        "ncm": "68053090",
+        "cfop": "5929"
+      },
+      {
+        "name": "SABAO BARRA BRISA NEUTRO 5X160G",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 10.85,
+        "totalCost": 10.85,
+        "barcode": "7908324402933",
+        "ncm": "34011900",
+        "cfop": "5929"
+      },
+      {
+        "name": "LAVA ROUPA PO LAVANDA ALA 400G",
+        "quantity": 3,
+        "unit": "UN",
+        "unitCost": 3.39,
+        "totalCost": 10.17,
+        "barcode": "7891150097544",
+        "ncm": "34025000",
+        "cfop": "5929"
+      },
+      {
+        "name": "AGUA SANITARIA DRAGAO 5L",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 14.55,
+        "totalCost": 14.55,
+        "barcode": "7896221600067",
+        "ncm": "28289011",
+        "cfop": "5929"
+      },
+      {
+        "name": "LAVA ROUP LIQ ACT AZUL DRAGAO 3L",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 29.95,
+        "totalCost": 29.95,
+        "barcode": "7896221600333",
+        "ncm": "34025000",
+        "cfop": "5929"
+      },
+      {
+        "name": "PEDRA SANT MARINE 25%DESC PATO 25G",
+        "quantity": 3,
+        "unit": "UN",
+        "unitCost": 3.45,
+        "totalCost": 10.35,
+        "barcode": "7894650014288",
+        "ncm": "34025000",
+        "cfop": "5929"
+      },
+      {
+        "name": "SACO ALVEJADO N10 47X69CM ENXUGA BEM 1UN",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 5.15,
+        "totalCost": 10.3,
+        "barcode": "7898126080036",
+        "ncm": "63079090",
+        "cfop": "5929"
+      },
+      {
+        "name": "MULTI ORIGINAL AZUL 10%DESC VEJA 500ML",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 5.45,
+        "totalCost": 5.45,
+        "barcode": "7891035800214",
+        "ncm": "34025000",
+        "cfop": "5929"
+      },
+      {
+        "name": "PORTA SABAO DETERGENTE JAGUAR 1UN",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 6.95,
+        "totalCost": 6.95,
+        "barcode": "7896952506881",
+        "ncm": "39249000",
+        "cfop": "5929"
+      },
+      {
+        "name": "POTES PLASTICOS SANREMO 1UN",
+        "quantity": 4,
+        "unit": "UN",
+        "unitCost": 11.35,
+        "totalCost": 45.4,
+        "barcode": "7896359039944",
+        "ncm": "39241000",
+        "cfop": "5929"
+      },
+      {
+        "name": "POTES PLASTICOS SANREMO 1UN",
+        "quantity": 6,
+        "unit": "UN",
+        "unitCost": 11.35,
+        "totalCost": 68.1,
+        "barcode": "7896359039944",
+        "ncm": "39241000",
+        "cfop": "5929"
+      },
+      {
+        "name": "DETERGENTE YPE NEUTRO 500ML",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 2.19,
+        "totalCost": 4.38,
+        "barcode": "7896098900208",
+        "ncm": "34025000",
+        "cfop": "5929"
+      },
+      {
+        "name": "LIMPA ALUMINIO POLIAL 500ML",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 3.45,
+        "totalCost": 6.9,
+        "barcode": "7898174172202",
+        "ncm": "34029090",
+        "cfop": "5929"
+      },
+      {
+        "name": "PANO P LIMP MULTIUSO C 25FL 20,5X28,5CM",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 8.95,
+        "totalCost": 8.95,
+        "barcode": "7908224360449",
+        "ncm": "63071000",
+        "cfop": "5929"
+      },
+      {
+        "name": "OVOS GRANDE FILMADO LUNA 30UN",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 19.95,
+        "totalCost": 39.9,
+        "barcode": "7898903159078",
+        "ncm": "04079000",
+        "cfop": "5929"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260629422082000144550010000802641782291071",
+    "invoiceNum": "80264",
+    "series": "1",
+    "naturezaOp": "Lancamento efetuado em decorrencia da emissao de documento",
+    "issueDate": "2026-06-19T16:37:00-03:00",
+    "supplierName": "GRACINDO BRITO &amp; CIA LIMITADA",
+    "supplierCnpj": "29422082000144",
+    "supplierIe": "247493783",
+    "supplierAddress": "AVENIDA GOVERNADOR MUNIZ FALCAO, 1800 - PALMEIRA DOS INDIOS/AL",
+    "totalAmount": 276.16,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000080264",
+    "itemsPreview": [
+      {
+        "name": "QUEIJO MUSSARELA PROC SAO FELIX KG",
+        "quantity": 0.4,
+        "unit": "KG",
+        "unitCost": 28.49,
+        "totalCost": 11.4,
+        "barcode": null,
+        "ncm": "04061090",
+        "cfop": "5929"
+      },
+      {
+        "name": "PRESUNTO COZIDO FRIATO KG",
+        "quantity": 0.358,
+        "unit": "KG",
+        "unitCost": 19.99,
+        "totalCost": 7.16,
+        "barcode": "7896733304224",
+        "ncm": "16024900",
+        "cfop": "5929"
+      },
+      {
+        "name": "MORTADELA DEF FRIATO KG",
+        "quantity": 0.254,
+        "unit": "KG",
+        "unitCost": 23.65,
+        "totalCost": 6.01,
+        "barcode": "7896733304828",
+        "ncm": "16010000",
+        "cfop": "5929"
+      },
+      {
+        "name": "FOLHA ALUMINIO 30CM X 7.5M PARANA 1UN",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 5.99,
+        "totalCost": 5.99,
+        "barcode": "7896080900957",
+        "ncm": "76071190",
+        "cfop": "5929"
+      },
+      {
+        "name": "SACO LIXO ROLO 30L BRILHUS 30UN",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 14.95,
+        "totalCost": 14.95,
+        "barcode": "7896001020566",
+        "ncm": "39232190",
+        "cfop": "5929"
+      },
+      {
+        "name": "SACO LIXO ROLO 30L BRILHUS 30UN",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 14.95,
+        "totalCost": 14.95,
+        "barcode": "7896001020566",
+        "ncm": "39232190",
+        "cfop": "5929"
+      },
+      {
+        "name": "GUARDANAPO PAPEL MILI 30X29,5CM 50UN",
+        "quantity": 6,
+        "unit": "UN",
+        "unitCost": 3.55,
+        "totalCost": 21.3,
+        "barcode": "7896104994092",
+        "ncm": "48183000",
+        "cfop": "5929"
+      },
+      {
+        "name": "SACOLA AVANT ATACAREJO",
+        "quantity": 3,
+        "unit": "UN",
+        "unitCost": 0.25,
+        "totalCost": 0.75,
+        "barcode": null,
+        "ncm": "49119900",
+        "cfop": "5929"
+      },
+      {
+        "name": "TOALHA PAPEL MILI 2UN 110F",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 5.99,
+        "totalCost": 5.99,
+        "barcode": "7896104998724",
+        "ncm": "48189090",
+        "cfop": "5929"
+      },
+      {
+        "name": "TOALHA PAPEL MILI 2UN 110F",
+        "quantity": 4,
+        "unit": "UN",
+        "unitCost": 5.99,
+        "totalCost": 23.96,
+        "barcode": "7896104998724",
+        "ncm": "48189090",
+        "cfop": "5929"
+      },
+      {
+        "name": "AGUA SANITARIA BRILUX 5L",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 18.95,
+        "totalCost": 18.95,
+        "barcode": "7896013100430",
+        "ncm": "28289011",
+        "cfop": "5929"
+      },
+      {
+        "name": "LIMP PESADA ORIG AZUL VEJA 2L",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 42.35,
+        "totalCost": 42.35,
+        "barcode": "7891035228001",
+        "ncm": "34025000",
+        "cfop": "5929"
+      },
+      {
+        "name": "LUVAS WISH MULTIUSO G LIMPPANO 1PR",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 16.95,
+        "totalCost": 16.95,
+        "barcode": "7896021623457",
+        "ncm": "40151900",
+        "cfop": "5929"
+      },
+      {
+        "name": "SACOLA AVANT ATACAREJO",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 0.25,
+        "totalCost": 0.25,
+        "barcode": null,
+        "ncm": "49119900",
+        "cfop": "5929"
+      },
+      {
+        "name": "COPO DESC SUPREMO PRAFESTA 300ML 40UN",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 17.15,
+        "totalCost": 17.15,
+        "barcode": "7896343086053",
+        "ncm": "39241000",
+        "cfop": "5929"
+      },
+      {
+        "name": "CANUDO BIODEGRADAVEL THEOTO 500UN",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 39.95,
+        "totalCost": 39.95,
+        "barcode": "7891334175136",
+        "ncm": "39172290",
+        "cfop": "5929"
+      },
+      {
+        "name": "DESINF EUCALIPTO KALIPTO 5L",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 22.35,
+        "totalCost": 22.35,
+        "barcode": "7891022101300",
+        "ncm": "38089419",
+        "cfop": "5929"
+      },
+      {
+        "name": "CABO VASSOURA LIMPAMANIA 1UN",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 5.75,
+        "totalCost": 5.75,
+        "barcode": "7908028700465",
+        "ncm": "44170090",
+        "cfop": "5929"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260637560113000151550010000615171016173654",
+    "invoiceNum": "61517",
+    "series": "1",
+    "naturezaOp": "VENDA DE PRODUTOS",
+    "issueDate": "2026-06-10T00:00:00-03:00",
+    "supplierName": "MISA ALIMENTOS LTDA",
+    "supplierCnpj": "37560113000151",
+    "supplierIe": "243542178",
+    "supplierAddress": "TV DOUTOR JOSE CARNAUBA, 9217 - MACEIO/AL",
+    "totalAmount": 530.04,
+    "totalIcms": 16.72,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000061517",
+    "itemsPreview": [
+      {
+        "name": "COXINHA FRANGO 140G FORNO CX32UN",
+        "quantity": 0.5,
+        "unit": "CX",
+        "unitCost": 163.12,
+        "totalCost": 81.56,
+        "barcode": null,
+        "ncm": "19022000",
+        "cfop": "5101"
+      },
+      {
+        "name": "COXINHA FRANGO REQUEIJAO 140G FORNO CX32UN",
+        "quantity": 0.5,
+        "unit": "CX",
+        "unitCost": 187.44,
+        "totalCost": 93.72,
+        "barcode": null,
+        "ncm": "19022000",
+        "cfop": "5101"
+      },
+      {
+        "name": "COXINHA CHARQUE 140G FORNO CX32UN",
+        "quantity": 0.5,
+        "unit": "CX",
+        "unitCost": 225.48,
+        "totalCost": 112.74,
+        "barcode": null,
+        "ncm": "19022000",
+        "cfop": "5101"
+      },
+      {
+        "name": "EMPADA FRANGO 100G CX28UN",
+        "quantity": 0.5,
+        "unit": "CX",
+        "unitCost": 142.04,
+        "totalCost": 71.02,
+        "barcode": null,
+        "ncm": "19022000",
+        "cfop": "5101"
+      },
+      {
+        "name": "CROISSANT FRANGO 115G CX32UN",
+        "quantity": 0.5,
+        "unit": "CX",
+        "unitCost": 161.28,
+        "totalCost": 80.64,
+        "barcode": null,
+        "ncm": "19022000",
+        "cfop": "5101"
+      },
+      {
+        "name": "CROISSANT QUEIJO REINO 115G CX32UN",
+        "quantity": 0.5,
+        "unit": "CX",
+        "unitCost": 180.72,
+        "totalCost": 90.36,
+        "barcode": null,
+        "ncm": "19022000",
+        "cfop": "5101"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260641927956000110550010000013291448681771",
+    "invoiceNum": "1329",
+    "series": "1",
+    "naturezaOp": "Venda de mercadorias",
+    "issueDate": "2026-06-17T15:58:46-03:00",
+    "supplierName": "ALAGOAS FIRE LTDA",
+    "supplierCnpj": "41927956000110",
+    "supplierIe": "240257340",
+    "supplierAddress": "Avenida Menino Marcelo, 7200 - Maceio/AL",
+    "totalAmount": 81,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000001329",
+    "itemsPreview": [
+      {
+        "name": "E00506B E5 PLACA BC",
+        "quantity": 2,
+        "unit": "UNID",
+        "unitCost": 27,
+        "totalCost": 54,
+        "barcode": null,
+        "ncm": "39199090",
+        "cfop": "5102"
+      },
+      {
+        "name": "E00502B 00 E5 PLACA AGUA",
+        "quantity": 1,
+        "unit": "UNID",
+        "unitCost": 27,
+        "totalCost": 27,
+        "barcode": null,
+        "ncm": "39199090",
+        "cfop": "5102"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260656223742000130550010000001531526479610",
+    "invoiceNum": "153",
+    "series": "1",
+    "naturezaOp": "VENDA DE MERCADORIA ADQUIRIDA OU RECEBIDA DE TERCEIROS",
+    "issueDate": "2026-06-10T16:36:57-02:00",
+    "supplierName": "JATOBA E TENORIO COMERCIO DE EXTINTORES LTDA",
+    "supplierCnpj": "56223742000130",
+    "supplierIe": "241316634",
+    "supplierAddress": "Avenida Dona Constança de Góes Monteiro, 239 - MACEIO/AL",
+    "totalAmount": 860,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000000153",
+    "itemsPreview": [
+      {
+        "name": "EXTINTOR PO BC 6KG",
+        "quantity": 2,
+        "unit": "UND",
+        "unitCost": 260,
+        "totalCost": 520,
+        "barcode": null,
+        "ncm": "84241000",
+        "cfop": "5102"
+      },
+      {
+        "name": "EXTINTOR DE AGUA 10LT",
+        "quantity": 1,
+        "unit": "UND",
+        "unitCost": 180,
+        "totalCost": 180,
+        "barcode": null,
+        "ncm": "84241000",
+        "cfop": "5102"
+      },
+      {
+        "name": "PLACA DE SINALIZACAO SAIDA",
+        "quantity": 2,
+        "unit": "UND",
+        "unitCost": 30,
+        "totalCost": 60,
+        "barcode": null,
+        "ncm": "39269090",
+        "cfop": "5102"
+      },
+      {
+        "name": "SUPORTE DE PISO",
+        "quantity": 2,
+        "unit": "UND",
+        "unitCost": 50,
+        "totalCost": 100,
+        "barcode": null,
+        "ncm": "73261900",
+        "cfop": "5102"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260663310411001922550010010254711027348083",
+    "invoiceNum": "1025471",
+    "series": "1",
+    "naturezaOp": "Vnd mer.adq.rec.ter.op.mer.sj.rg.sub.trb.cnd.sub.t",
+    "issueDate": "2026-06-19T22:59:05-03:00",
+    "supplierName": "TRES CORACOES ALIMENTOS SA",
+    "supplierCnpj": "63310411001922",
+    "supplierIe": "240976240",
+    "supplierAddress": "Rua 01-QD 1273-Pavlh 08/09 - Cj Village Campestre I, 493 - MACEIO/AL",
+    "totalAmount": 884.53,
+    "totalIcms": 36.72,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000001025471",
+    "itemsPreview": [
+      {
+        "name": "CAFE TORRADO E MOIDO SANTA CLARA RESERVA FAMILIA CERRADO MINEIRO 4 SOLDAS 20X250G",
+        "quantity": 8,
+        "unit": "UN",
+        "unitCost": 22.39,
+        "totalCost": 179.12,
+        "barcode": "7896005810460",
+        "ncm": "09012100",
+        "cfop": "5403"
+      },
+      {
+        "name": "CAFE TORRADO E MOIDO SANTA CLARA RESERVA FAMILIA SUL DE MINAS 4 SOLDAS 20X250G",
+        "quantity": 8,
+        "unit": "UN",
+        "unitCost": 22.39,
+        "totalCost": 179.12,
+        "barcode": "7896005810484",
+        "ncm": "09012100",
+        "cfop": "5403"
+      },
+      {
+        "name": "CAFE TORRADO E MOIDO SANTA CLARA RESERVA FAMILIA MOGIANA PAULISTA 4 SOLDAS 20X250G",
+        "quantity": 8,
+        "unit": "UN",
+        "unitCost": 22.39,
+        "totalCost": 179.12,
+        "barcode": "7896005810491",
+        "ncm": "09012100",
+        "cfop": "5403"
+      },
+      {
+        "name": "CAFE TM 3C GOURM SUL M 4S 20X250G",
+        "quantity": 8,
+        "unit": "UN",
+        "unitCost": 22.39,
+        "totalCost": 179.12,
+        "barcode": "7896045101665",
+        "ncm": "09012100",
+        "cfop": "5403"
+      },
+      {
+        "name": "CHOCOLATE QUENTE PO 3 CORACOES POTE 24X180G",
+        "quantity": 6,
+        "unit": "UN",
+        "unitCost": 15.94,
+        "totalCost": 95.64,
+        "barcode": "7896045110612",
+        "ncm": "18069000",
+        "cfop": "5403"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260663310411001922550010010257741546682403",
+    "invoiceNum": "1025774",
+    "series": "1",
+    "naturezaOp": "Remessa em bonificação, doação ou brinde",
+    "issueDate": "2026-06-19T23:15:58-03:00",
+    "supplierName": "TRES CORACOES ALIMENTOS SA",
+    "supplierCnpj": "63310411001922",
+    "supplierIe": "240976240",
+    "supplierAddress": "Rua 01-QD 1273-Pavlh 08/09 - Cj Village Campestre I, 493 - MACEIO/AL",
+    "totalAmount": 396.48,
+    "totalIcms": 35.47,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000001025774",
+    "itemsPreview": [
+      {
+        "name": "XICARA C/PIR FOOD SC V2 65ML",
+        "quantity": 12,
+        "unit": "UN",
+        "unitCost": 14.42,
+        "totalCost": 173.04,
+        "barcode": "7896045104338",
+        "ncm": "69111090",
+        "cfop": "5910"
+      },
+      {
+        "name": "XICARA C/PIR FOOD SC V2 180ML",
+        "quantity": 12,
+        "unit": "UN",
+        "unitCost": 18.62,
+        "totalCost": 223.44,
+        "barcode": "7896045104321",
+        "ncm": "69111090",
+        "cfop": "5910"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260706698222000378550010000824941619147947",
+    "invoiceNum": "82494",
+    "series": "1",
+    "naturezaOp": "Venda de mercadoria",
+    "issueDate": "2026-07-20T12:27:42-03:00",
+    "supplierName": "CENTER FRIOS MAQUINAS E EQUIPAMENTOS LTDA",
+    "supplierCnpj": "06698222000378",
+    "supplierIe": "242990622",
+    "supplierAddress": "Avenida Doutor Durval de Goes Monteiro, 3791 - Maceio/AL",
+    "totalAmount": 396.3,
+    "totalIcms": 77.96,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000082494",
+    "itemsPreview": [
+      {
+        "name": "Grade 445x544mm ESP 15mm GPTU 40 BR Gelopar",
+        "quantity": 2,
+        "unit": "UND",
+        "unitCost": 190.15,
+        "totalCost": 380.3,
+        "barcode": null,
+        "ncm": "84189900",
+        "cfop": "5102"
+      },
+      {
+        "name": "Suporte Prat Linha Vertical Alum S Pint Gelopar",
+        "quantity": 8,
+        "unit": "UND",
+        "unitCost": 2,
+        "totalCost": 16,
+        "barcode": null,
+        "ncm": "84189900",
+        "cfop": "5102"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260706864595000100550010002557901025383667",
+    "invoiceNum": "255790",
+    "series": "1",
+    "naturezaOp": "VENDA DE MERCADORIAS",
+    "issueDate": "2026-07-03T17:20:22-03:00",
+    "supplierName": "MIXPEL DISTRIBUIDORA LTDA",
+    "supplierCnpj": "06864595000100",
+    "supplierIe": "241069254",
+    "supplierAddress": "AV. WALTER ANANIAS, 112 - MACEIO/AL",
+    "totalAmount": 19.9,
+    "totalIcms": 4.08,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000255790",
+    "itemsPreview": [
+      {
+        "name": "CABO DE FORCA TRIPOLAR 1,5 0181439 PIX",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 19.9,
+        "totalCost": 19.9,
+        "barcode": "7908891109228",
+        "ncm": "85444200",
+        "cfop": "5102"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260706864595000100550010002581341025535370",
+    "invoiceNum": "258134",
+    "series": "1",
+    "naturezaOp": "VENDA DE MERCADORIAS",
+    "issueDate": "2026-07-28T15:44:02-03:00",
+    "supplierName": "MIXPEL DISTRIBUIDORA LTDA",
+    "supplierCnpj": "06864595000100",
+    "supplierIe": "241069254",
+    "supplierAddress": "AV. WALTER ANANIAS, 112 - MACEIO/AL",
+    "totalAmount": 144,
+    "totalIcms": 9.23,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000258134",
+    "itemsPreview": [
+      {
+        "name": "MOUSE S/FIO OP MW20BK PR C3TECH",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 45,
+        "totalCost": 45,
+        "barcode": "7898555212367",
+        "ncm": "84716053",
+        "cfop": "5102"
+      },
+      {
+        "name": "PAPEL A4 500F 75G BR REPORT",
+        "quantity": 1,
+        "unit": "RS",
+        "unitCost": 34,
+        "totalCost": 34,
+        "barcode": "7891191790008",
+        "ncm": "48025610",
+        "cfop": "5102"
+      },
+      {
+        "name": "TONER SIMILAR CB 435 436A 285A 278A HP 207010077 MASTERPRINT",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 65,
+        "totalCost": 65,
+        "barcode": "7898119101595",
+        "ncm": "84439933",
+        "cfop": "5102"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260707196033005590550050006939651287810008",
+    "invoiceNum": "693965",
+    "series": "5",
+    "naturezaOp": "Venda producao oper. c/ merc. suj. reg. sub. trib. / Venda",
+    "issueDate": "2026-07-01T21:51:32-03:00",
+    "supplierName": "NORSA REFRIGERANTES S.A.",
+    "supplierCnpj": "07196033005590",
+    "supplierIe": "247227846",
+    "supplierAddress": "AV ANTONIO LISBOA DE AMORIM, 799 - MACEIO/AL",
+    "totalAmount": 235.75,
+    "totalIcms": 7.11,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000693965",
+    "itemsPreview": [
+      {
+        "name": "FL PET 1L",
+        "quantity": 6,
+        "unit": "UN",
+        "unitCost": 5.78,
+        "totalCost": 34.68,
+        "barcode": "27894900031717",
+        "ncm": "22021000",
+        "cfop": "5401"
+      },
+      {
+        "name": "FANTA LAR LT 350ML COLOR",
+        "quantity": 6,
+        "unit": "UN",
+        "unitCost": 2.498333,
+        "totalCost": 14.99,
+        "barcode": "7894900030044",
+        "ncm": "22021000",
+        "cfop": "5401"
+      },
+      {
+        "name": "CC SEM ACUCAR COLOR LT 350ML",
+        "quantity": 12,
+        "unit": "UN",
+        "unitCost": 3.0025,
+        "totalCost": 36.03,
+        "barcode": "7894900700046",
+        "ncm": "22021000",
+        "cfop": "5401"
+      },
+      {
+        "name": "COCA COLA ORIG PET 1L",
+        "quantity": 6,
+        "unit": "UN",
+        "unitCost": 6.721667,
+        "totalCost": 40.33,
+        "barcode": "27894900027048",
+        "ncm": "22021000",
+        "cfop": "5401"
+      },
+      {
+        "name": "COCA-COLA LT 350ML",
+        "quantity": 12,
+        "unit": "UN",
+        "unitCost": 3.114167,
+        "totalCost": 37.37,
+        "barcode": "47894900010013",
+        "ncm": "22021000",
+        "cfop": "5401"
+      },
+      {
+        "name": "DEL VAL FRU LARANJA 450ML",
+        "quantity": 6,
+        "unit": "UN",
+        "unitCost": 3.296667,
+        "totalCost": 19.78,
+        "barcode": "17894900556053",
+        "ncm": "22021000",
+        "cfop": "5401"
+      },
+      {
+        "name": "AM CRYS BR PET 350ML C/G",
+        "quantity": 24,
+        "unit": "UN",
+        "unitCost": 1.47,
+        "totalCost": 35.28,
+        "barcode": "17894900531302",
+        "ncm": "22011000",
+        "cfop": "5405"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260710459249000113550010000025651100019325",
+    "invoiceNum": "2565",
+    "series": "1",
+    "naturezaOp": "Venda Dentro do Estado",
+    "issueDate": "2026-07-25T09:19:15-03:00",
+    "supplierName": "ITALA M T BRANDAO ME",
+    "supplierCnpj": "10459249000113",
+    "supplierIe": "242149014",
+    "supplierAddress": "Faz Carangueja de Cima, Sn - Quebrangulo/AL",
+    "totalAmount": 589.9,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000002565",
+    "itemsPreview": [
+      {
+        "name": "DOCE AMBROSIA 650G",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 26,
+        "totalCost": 52,
+        "barcode": "7898937037106",
+        "ncm": "19019020",
+        "cfop": "5401"
+      },
+      {
+        "name": "DOCE DE LEITE 650G",
+        "quantity": 5,
+        "unit": "UN",
+        "unitCost": 26,
+        "totalCost": 130,
+        "barcode": "7898937037090",
+        "ncm": "19019020",
+        "cfop": "5401"
+      },
+      {
+        "name": "DOCE DE LEITE COM AMEIXA 650G",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 26,
+        "totalCost": 52,
+        "barcode": "7898937037014",
+        "ncm": "19019020",
+        "cfop": "5401"
+      },
+      {
+        "name": "DOCE DE LEITE COM CHOCOLATE 650G",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 26,
+        "totalCost": 52,
+        "barcode": "7898937037045",
+        "ncm": "19019020",
+        "cfop": "5401"
+      },
+      {
+        "name": "DOCE DE LEITE COM MARACUJA 650G",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 26,
+        "totalCost": 52,
+        "barcode": "7898937037076",
+        "ncm": "19019020",
+        "cfop": "5401"
+      },
+      {
+        "name": "DOCE DE MAMAO 630G",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 21,
+        "totalCost": 42,
+        "barcode": "7898937037182",
+        "ncm": "20079990",
+        "cfop": "5401"
+      },
+      {
+        "name": "DOCE BANANADA 550G",
+        "quantity": 5,
+        "unit": "UN",
+        "unitCost": 19.99,
+        "totalCost": 99.95,
+        "barcode": "7898937037205",
+        "ncm": "20079990",
+        "cfop": "5401"
+      },
+      {
+        "name": "DOCE GOIABADA CASCAO 550G",
+        "quantity": 5,
+        "unit": "UN",
+        "unitCost": 21.99,
+        "totalCost": 109.95,
+        "barcode": "7898937037212",
+        "ncm": "20079990",
+        "cfop": "5401"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260710459249000113550010000025671100019346",
+    "invoiceNum": "2567",
+    "series": "1",
+    "naturezaOp": "Venda Dentro do Estado",
+    "issueDate": "2026-07-27T13:53:25-03:00",
+    "supplierName": "ITALA M T BRANDAO ME",
+    "supplierCnpj": "10459249000113",
+    "supplierIe": "242149014",
+    "supplierAddress": "Faz Carangueja de Cima, Sn - Quebrangulo/AL",
+    "totalAmount": 479.95,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000002567",
+    "itemsPreview": [
+      {
+        "name": "DOCE AMBROSIA 650G",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 26,
+        "totalCost": 52,
+        "barcode": "7898937037106",
+        "ncm": "19019020",
+        "cfop": "5401"
+      },
+      {
+        "name": "DOCE DE LEITE 650G",
+        "quantity": 5,
+        "unit": "UN",
+        "unitCost": 26,
+        "totalCost": 130,
+        "barcode": "7898937037090",
+        "ncm": "19019020",
+        "cfop": "5401"
+      },
+      {
+        "name": "DOCE DE LEITE COM CHOCOLATE 650G",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 26,
+        "totalCost": 52,
+        "barcode": "7898937037045",
+        "ncm": "19019020",
+        "cfop": "5401"
+      },
+      {
+        "name": "DOCE DE LEITE COM AMEIXA 650G",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 26,
+        "totalCost": 52,
+        "barcode": "7898937037014",
+        "ncm": "19019020",
+        "cfop": "5401"
+      },
+      {
+        "name": "DOCE DE LEITE COM MARACUJA 650G",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 26,
+        "totalCost": 52,
+        "barcode": "7898937037076",
+        "ncm": "19019020",
+        "cfop": "5401"
+      },
+      {
+        "name": "DOCE DE MAMAO 630G",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 21,
+        "totalCost": 42,
+        "barcode": "7898937037182",
+        "ncm": "20079990",
+        "cfop": "5401"
+      },
+      {
+        "name": "DOCE BANANADA 550G",
+        "quantity": 5,
+        "unit": "UN",
+        "unitCost": 19.99,
+        "totalCost": 99.95,
+        "barcode": "7898937037205",
+        "ncm": "20079990",
+        "cfop": "5401"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260729422082000144550010000811271144897012",
+    "invoiceNum": "81127",
+    "series": "1",
+    "naturezaOp": "Lancamento efetuado em decorrencia da emissao de documento",
+    "issueDate": "2026-07-22T10:05:00-03:00",
+    "supplierName": "GRACINDO BRITO &amp; CIA LIMITADA",
+    "supplierCnpj": "29422082000144",
+    "supplierIe": "247493783",
+    "supplierAddress": "AVENIDA GOVERNADOR MUNIZ FALCAO, 1800 - PALMEIRA DOS INDIOS/AL",
+    "totalAmount": 288.29,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000081127",
+    "itemsPreview": [
+      {
+        "name": "PAO FRANCES AVANT KG",
+        "quantity": 0.598,
+        "unit": "KG",
+        "unitCost": 14.95,
+        "totalCost": 8.94,
+        "barcode": null,
+        "ncm": "19059090",
+        "cfop": "5929"
+      },
+      {
+        "name": "PAO FRANCES AVANT KG",
+        "quantity": 0.598,
+        "unit": "KG",
+        "unitCost": 14.95,
+        "totalCost": 8.94,
+        "barcode": null,
+        "ncm": "19059090",
+        "cfop": "5929"
+      },
+      {
+        "name": "PAO FRANCES AVANT KG",
+        "quantity": 0.596,
+        "unit": "KG",
+        "unitCost": 14.95,
+        "totalCost": 8.91,
+        "barcode": null,
+        "ncm": "19059090",
+        "cfop": "5929"
+      },
+      {
+        "name": "PAO FRANCES AVANT KG",
+        "quantity": 0.614,
+        "unit": "KG",
+        "unitCost": 14.95,
+        "totalCost": 9.18,
+        "barcode": null,
+        "ncm": "19059090",
+        "cfop": "5929"
+      },
+      {
+        "name": "PAO FRANCES AVANT KG",
+        "quantity": 0.616,
+        "unit": "KG",
+        "unitCost": 14.95,
+        "totalCost": 9.21,
+        "barcode": null,
+        "ncm": "19059090",
+        "cfop": "5929"
+      },
+      {
+        "name": "GUARDANAPO PAPEL MILI 30X29,5CM 50UN",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 3.49,
+        "totalCost": 6.98,
+        "barcode": "7896104994092",
+        "ncm": "48183000",
+        "cfop": "5929"
+      },
+      {
+        "name": "PAO DE FORMA AVANT KG",
+        "quantity": 0.504,
+        "unit": "KG",
+        "unitCost": 18.95,
+        "totalCost": 9.55,
+        "barcode": null,
+        "ncm": "19059010",
+        "cfop": "5929"
+      },
+      {
+        "name": "POTE DESC TRANSP CRISTALCOPO 200ML 50UN",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 6.85,
+        "totalCost": 6.85,
+        "barcode": "7898939720426",
+        "ncm": "39239090",
+        "cfop": "5929"
+      },
+      {
+        "name": "POTE DESC TRANSP CRISTALCOPO 200ML 50UN",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 6.85,
+        "totalCost": 6.85,
+        "barcode": "7898939720426",
+        "ncm": "39239090",
+        "cfop": "5929"
+      },
+      {
+        "name": "DESINF LAVANDA KALIPTO 2L",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 8.95,
+        "totalCost": 8.95,
+        "barcode": "7891022848083",
+        "ncm": "38089419",
+        "cfop": "5929"
+      },
+      {
+        "name": "QUEIJO COALHO CAPELINHA KG",
+        "quantity": 0.502,
+        "unit": "KG",
+        "unitCost": 51.45,
+        "totalCost": 25.83,
+        "barcode": "0631430051203",
+        "ncm": "04069090",
+        "cfop": "5929"
+      },
+      {
+        "name": "QUEIJO COALHO CAPELINHA KG",
+        "quantity": 0.474,
+        "unit": "KG",
+        "unitCost": 51.45,
+        "totalCost": 24.39,
+        "barcode": "0631430051203",
+        "ncm": "04069090",
+        "cfop": "5929"
+      },
+      {
+        "name": "COLHER SOBREM VERDE PARAFESTA 50UN",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 4.65,
+        "totalCost": 9.3,
+        "barcode": "7896343099541",
+        "ncm": "39241000",
+        "cfop": "5929"
+      },
+      {
+        "name": "PRESUNTO COZ OVAL INT REZENDE KG",
+        "quantity": 0.62,
+        "unit": "KG",
+        "unitCost": 29.75,
+        "totalCost": 18.45,
+        "barcode": "7894904578153",
+        "ncm": "16024900",
+        "cfop": "5929"
+      },
+      {
+        "name": "QUEIJO MUSSARELA PROC SAO FELIX KG",
+        "quantity": 0.658,
+        "unit": "KG",
+        "unitCost": 28.99,
+        "totalCost": 19.08,
+        "barcode": null,
+        "ncm": "04061090",
+        "cfop": "5929"
+      },
+      {
+        "name": "DESINF CAMPOS LAVANDA PINHO BRIL 500ML",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 7.95,
+        "totalCost": 7.95,
+        "barcode": "7891022100990",
+        "ncm": "38089419",
+        "cfop": "5929"
+      },
+      {
+        "name": "LUSTRA MOVEL LAVANDA CAMPO PEROBA 500ML",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 22.95,
+        "totalCost": 22.95,
+        "barcode": "7896050500293",
+        "ncm": "34052000",
+        "cfop": "5929"
+      },
+      {
+        "name": "PAPEL TOALHA MULTIPICOTE SCALA 2X100 FLS",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 6.49,
+        "totalCost": 12.98,
+        "barcode": "7891172523519",
+        "ncm": "48183000",
+        "cfop": "5929"
+      },
+      {
+        "name": "LIMP PESADA ORIG AZUL VEJA 2L",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 42.35,
+        "totalCost": 42.35,
+        "barcode": "7891035228001",
+        "ncm": "34025000",
+        "cfop": "5929"
+      },
+      {
+        "name": "BISNAGA CONDIMEN PLAST SANREMO 1UN",
+        "quantity": 3,
+        "unit": "UN",
+        "unitCost": 6.55,
+        "totalCost": 19.65,
+        "barcode": "7896359012473",
+        "ncm": "39239090",
+        "cfop": "5929"
+      },
+      {
+        "name": "SACOLA AVANT ATACAREJO",
+        "quantity": 4,
+        "unit": "UN",
+        "unitCost": 0.25,
+        "totalCost": 1,
+        "barcode": null,
+        "ncm": "49119900",
+        "cfop": "5929"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260729422082000144550010000812871227223233",
+    "invoiceNum": "81287",
+    "series": "1",
+    "naturezaOp": "Lancamento efetuado em decorrencia da emissao de documento",
+    "issueDate": "2026-07-28T12:54:00-03:00",
+    "supplierName": "GRACINDO BRITO &amp; CIA LIMITADA",
+    "supplierCnpj": "29422082000144",
+    "supplierIe": "247493783",
+    "supplierAddress": "AVENIDA GOVERNADOR MUNIZ FALCAO, 1800 - PALMEIRA DOS INDIOS/AL",
+    "totalAmount": 279.11,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000081287",
+    "itemsPreview": [
+      {
+        "name": "LARANJA PERA KG",
+        "quantity": 1.56,
+        "unit": "KG",
+        "unitCost": 1.49,
+        "totalCost": 2.32,
+        "barcode": null,
+        "ncm": "08051000",
+        "cfop": "5929"
+      },
+      {
+        "name": "LARANJA PERA KG",
+        "quantity": 1.64,
+        "unit": "KG",
+        "unitCost": 1.49,
+        "totalCost": 2.44,
+        "barcode": null,
+        "ncm": "08051000",
+        "cfop": "5929"
+      },
+      {
+        "name": "SAB LIQ ERVA DOCE ALYNE 1L",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 19.65,
+        "totalCost": 19.65,
+        "barcode": "7897161390339",
+        "ncm": "34013000",
+        "cfop": "5929"
+      },
+      {
+        "name": "CAFE TORR MOID SANTA CLARA 250G",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 15.95,
+        "totalCost": 31.9,
+        "barcode": "7896224813082",
+        "ncm": "09012100",
+        "cfop": "5929"
+      },
+      {
+        "name": "AGUA SANITARIA BRILUX LV2L PG1,8L",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 7.15,
+        "totalCost": 14.3,
+        "barcode": "7896013106364",
+        "ncm": "28289011",
+        "cfop": "5929"
+      },
+      {
+        "name": "DESINF PINHORADI TRADICIONAL RADIANTE 1L",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 4.95,
+        "totalCost": 4.95,
+        "barcode": "7898174172660",
+        "ncm": "38089419",
+        "cfop": "5929"
+      },
+      {
+        "name": "LIMP PERF MIST DI AMOR CASA&amp;PERFUME 2L",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 18.55,
+        "totalCost": 18.55,
+        "barcode": "7896040706261",
+        "ncm": "34025000",
+        "cfop": "5929"
+      },
+      {
+        "name": "DETERGENTE COCO MINUANO 500ML",
+        "quantity": 5,
+        "unit": "UN",
+        "unitCost": 2.35,
+        "totalCost": 11.75,
+        "barcode": "7897664130302",
+        "ncm": "34025000",
+        "cfop": "5929"
+      },
+      {
+        "name": "ESPONJA MULT BETTANIN ESFREBOM L4P3 4UN",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 7.55,
+        "totalCost": 7.55,
+        "barcode": "7896001045446",
+        "ncm": "68053090",
+        "cfop": "5929"
+      },
+      {
+        "name": "OVOS GRANDE FILMADO LUNA 18UN",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 14.95,
+        "totalCost": 14.95,
+        "barcode": "7898903159085",
+        "ncm": "04079000",
+        "cfop": "5929"
+      },
+      {
+        "name": "PALITO DENTE BAMBU PARANA 100UN",
+        "quantity": 4,
+        "unit": "UN",
+        "unitCost": 0.95,
+        "totalCost": 3.8,
+        "barcode": "7896080901442",
+        "ncm": "44219100",
+        "cfop": "5929"
+      },
+      {
+        "name": "PALITEIRO JAGUAR 1UN",
+        "quantity": 3,
+        "unit": "UN",
+        "unitCost": 3.55,
+        "totalCost": 10.65,
+        "barcode": "7896952514039",
+        "ncm": "39241000",
+        "cfop": "5929"
+      },
+      {
+        "name": "MOLHEIRA CONFORT VERMELHA JAGUAR 1UN",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 2.65,
+        "totalCost": 5.3,
+        "barcode": "7896952521402",
+        "ncm": "39241000",
+        "cfop": "5929"
+      },
+      {
+        "name": "PALITEIRO JAGUAR 1UN",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 3.55,
+        "totalCost": 7.1,
+        "barcode": "7896952514039",
+        "ncm": "39241000",
+        "cfop": "5929"
+      },
+      {
+        "name": "ADOC DIETETICO MAGRO 100ML",
+        "quantity": 3,
+        "unit": "UN",
+        "unitCost": 6.45,
+        "totalCost": 19.35,
+        "barcode": "7896292001442",
+        "ncm": "21069090",
+        "cfop": "5929"
+      },
+      {
+        "name": "PAST SANT ADESV LAVANDA 20%DESC PATO 3UN",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 6.75,
+        "totalCost": 13.5,
+        "barcode": "7894650013502",
+        "ncm": "34025000",
+        "cfop": "5929"
+      },
+      {
+        "name": "PAST SANT ADSV FLORAL 20% DESC PATO 3UN",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 6.75,
+        "totalCost": 13.5,
+        "barcode": "7894650940082",
+        "ncm": "34025000",
+        "cfop": "5929"
+      },
+      {
+        "name": "PAST SANT ADESV CITR 20%DESC PATO 3UN",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 6.75,
+        "totalCost": 13.5,
+        "barcode": "7894650938690",
+        "ncm": "34025000",
+        "cfop": "5929"
+      },
+      {
+        "name": "COLHER SOBREM VERDE PARAFESTA 50UN",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 4.65,
+        "totalCost": 9.3,
+        "barcode": "7896343099541",
+        "ncm": "39241000",
+        "cfop": "5929"
+      },
+      {
+        "name": "COLHER SOBREM BRANCA PRAFESTA 50UN",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 4.65,
+        "totalCost": 4.65,
+        "barcode": "7896343099565",
+        "ncm": "39241000",
+        "cfop": "5929"
+      },
+      {
+        "name": "LUVAS SCOTCH BRITE MULTI GDE AMAR 1PR",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 24.55,
+        "totalCost": 49.1,
+        "barcode": "021200510069",
+        "ncm": "40151900",
+        "cfop": "5929"
+      },
+      {
+        "name": "SACOLA AVANT ATACAREJO",
+        "quantity": 4,
+        "unit": "UN",
+        "unitCost": 0.25,
+        "totalCost": 1,
+        "barcode": null,
+        "ncm": "49119900",
+        "cfop": "5929"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260740841728002619550000002894971005612108",
+    "invoiceNum": "289497",
+    "series": "0",
+    "naturezaOp": "VENDAS",
+    "issueDate": "2026-07-15T10:17:10-03:00",
+    "supplierName": "MASTER ELETRONICA E BRINQUEDOS LTDA",
+    "supplierCnpj": "40841728002619",
+    "supplierIe": "241002079",
+    "supplierAddress": "RUA DO COMERCIO, 182 - MACEIO/AL",
+    "totalAmount": 3980,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000289497",
+    "itemsPreview": [
+      {
+        "name": "FREEZER HOR. 528L CONSUL CHB53MBBNA BR 220V",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 3980,
+        "totalCost": 3980,
+        "barcode": "7891129596221",
+        "ncm": "84183000",
+        "cfop": "5405"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260746395687003802550190000040491725187178",
+    "invoiceNum": "4049",
+    "series": "19",
+    "naturezaOp": "COLETORES-VD COMBUSTIVEL P/CONS.FINAL",
+    "issueDate": "2026-07-15T12:52:41-03:00",
+    "supplierName": "BAHIANA DISTRIBUIDORA DE GAS LTDA",
+    "supplierCnpj": "46395687003802",
+    "supplierIe": "240955730",
+    "supplierAddress": "AV DOUTOR DURVAL DE GOES MONTEIRO, 3091 - MACEIO/AL",
+    "totalAmount": 1110.4,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000004049",
+    "itemsPreview": [
+      {
+        "name": "ONU 1075 GAS(ES) DE PETROLEO, LIQUEFEITO(S), 2.1, GPL/GLP GRANEL",
+        "quantity": 160,
+        "unit": "KG",
+        "unitCost": 6.94,
+        "totalCost": 1110.4,
+        "barcode": null,
+        "ncm": "27111910",
+        "cfop": "5656"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260746395687003802550990003238421085166716",
+    "invoiceNum": "323842",
+    "series": "99",
+    "naturezaOp": "REMESSA EM COMODATO",
+    "issueDate": "2026-07-02T00:00:00-03:00",
+    "supplierName": "BAHIANA DISTRIBUIDORA DE GAS LTDA",
+    "supplierCnpj": "46395687003802",
+    "supplierIe": "240955730",
+    "supplierAddress": "AV DURVAL DE GOES MONTEIRO, 3091 - MACEIO/AL",
+    "totalAmount": 1178.02,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000323842",
+    "itemsPreview": [
+      {
+        "name": "VASILHAME BRANCO B190 (420LBS) 190 KG - UN 1075 GLP 2.1",
+        "quantity": 2,
+        "unit": "PC",
+        "unitCost": 589.01,
+        "totalCost": 1178.02,
+        "barcode": null,
+        "ncm": "73110000",
+        "cfop": "5908"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260746395687003802550990003238431527224810",
+    "invoiceNum": "323843",
+    "series": "99",
+    "naturezaOp": "VENDA COMBUSTIVEL P/ INDUSTRIALIZ.",
+    "issueDate": "2026-07-02T00:00:00-03:00",
+    "supplierName": "BAHIANA DISTRIBUIDORA DE GAS LTDA",
+    "supplierCnpj": "46395687003802",
+    "supplierIe": "240955730",
+    "supplierAddress": "AV DURVAL DE GOES MONTEIRO, 3091 - MACEIO/AL",
+    "totalAmount": 1388,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000323843",
+    "itemsPreview": [
+      {
+        "name": "ONU 1075 GAS(ES) DE PETROLEO, LIQUEFEITO(S), 2.1, GPL/GLP GRANEL",
+        "quantity": 200,
+        "unit": "KG",
+        "unitCost": 6.94,
+        "totalCost": 1388,
+        "barcode": null,
+        "ncm": "27111910",
+        "cfop": "5656"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260746395687003802550990003238441982043380",
+    "invoiceNum": "323844",
+    "series": "99",
+    "naturezaOp": "REM. DE MERCADORIA P/ INSTALACAO",
+    "issueDate": "2026-07-02T00:00:00-03:00",
+    "supplierName": "BAHIANA DISTRIBUIDORA DE GAS LTDA",
+    "supplierCnpj": "46395687003802",
+    "supplierIe": "240955730",
+    "supplierAddress": "AV DURVAL DE GOES MONTEIRO, 3091 - MACEIO/AL",
+    "totalAmount": 1154.87,
+    "totalIcms": 1.13,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000323844",
+    "itemsPreview": [
+      {
+        "name": "ADESIVO MARCA BOTIJAO (25,5X14,6)",
+        "quantity": 2,
+        "unit": "PC",
+        "unitCost": 2.7562,
+        "totalCost": 5.51,
+        "barcode": null,
+        "ncm": "39202090",
+        "cfop": "5949"
+      },
+      {
+        "name": "ADESIVO ULTRASYSTEM B190 E B125 (0.60X0.16)",
+        "quantity": 2,
+        "unit": "PC",
+        "unitCost": 5.8296,
+        "totalCost": 11.66,
+        "barcode": null,
+        "ncm": "39202090",
+        "cfop": "5949"
+      },
+      {
+        "name": "PLACA DE SEGURANCA CENTRAL DE GLP MED. 50X70CM",
+        "quantity": 1,
+        "unit": "PC",
+        "unitCost": 32.8686,
+        "totalCost": 32.87,
+        "barcode": null,
+        "ncm": "39211900",
+        "cfop": "5949"
+      },
+      {
+        "name": "KIT CENTRAL 02 X B190/B125",
+        "quantity": 1,
+        "unit": "PC",
+        "unitCost": 653.7034,
+        "totalCost": 653.7,
+        "barcode": null,
+        "ncm": "74122000",
+        "cfop": "5949"
+      },
+      {
+        "name": "EXTINTOR INCENDIO CONVENCIONAL PO QUIMICO SECO 20BC BCK 4KG",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 178.1408,
+        "totalCost": 356.28,
+        "barcode": null,
+        "ncm": "84249010",
+        "cfop": "5949"
+      },
+      {
+        "name": "PIG TAIL DE COBRE 1 4POL COMPR 800MM (P45P90B190)",
+        "quantity": 2,
+        "unit": "PC",
+        "unitCost": 47.4268,
+        "totalCost": 94.85,
+        "barcode": null,
+        "ncm": "40094290",
+        "cfop": "5949"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260750583563000128550030000039531697856490",
+    "invoiceNum": "3953",
+    "series": "3",
+    "naturezaOp": "Venda de mercadoria adquirida ou recebida de terceiros em op",
+    "issueDate": "2026-07-28T15:06:06-03:00",
+    "supplierName": "GDR GELADOS COMERCIO VAREJISTA LTDA",
+    "supplierCnpj": "50583563000128",
+    "supplierIe": "240589572",
+    "supplierAddress": "AVENIDA MENINO MARCELO, 9731 - Maceió/AL",
+    "totalAmount": 577,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000003953",
+    "itemsPreview": [
+      {
+        "name": "PICOLE PISTACHE (CX COM 30 UNID)",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 103.5,
+        "totalCost": 103.5,
+        "barcode": null,
+        "ncm": "21050090",
+        "cfop": "5405"
+      },
+      {
+        "name": "PICOLE DE MORANGO (CX COM 30 UNID)",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 103.5,
+        "totalCost": 103.5,
+        "barcode": null,
+        "ncm": "21050090",
+        "cfop": "5405"
+      },
+      {
+        "name": "PICOLE DE CHOCOLATE (CX COM 30 UNID)",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 103.5,
+        "totalCost": 103.5,
+        "barcode": null,
+        "ncm": "21050090",
+        "cfop": "5405"
+      },
+      {
+        "name": "PICOLE DE CUSCUZ (CX COM 30 UNID)",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 103.5,
+        "totalCost": 103.5,
+        "barcode": null,
+        "ncm": "21050090",
+        "cfop": "5405"
+      },
+      {
+        "name": "PALETA MEXICANA MARACUJA (CX COM 20 UNID)",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 163,
+        "totalCost": 163,
+        "barcode": null,
+        "ncm": "21050090",
+        "cfop": "5405"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260750672529000120550010000024891331464658",
+    "invoiceNum": "2489",
+    "series": "1",
+    "naturezaOp": "VENDA DE PRODUÇÃO DO ESTABELECIMENTO",
+    "issueDate": "2026-07-22T07:07:00-03:00",
+    "supplierName": "JOSUE LOURENCO DE ALCANTARA E CIA LTDA",
+    "supplierCnpj": "50672529000120",
+    "supplierIe": "240596625",
+    "supplierAddress": "SITIO SALGADO, SN - Coité do Nóia/AL",
+    "totalAmount": 634,
+    "totalIcms": 48.35,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000002489",
+    "itemsPreview": [
+      {
+        "name": "CAMARAO ALCAN DESC COZ 71 90 400g PCT",
+        "quantity": 20,
+        "unit": "UN",
+        "unitCost": 31.7,
+        "totalCost": 634,
+        "barcode": null,
+        "ncm": "03061790",
+        "cfop": "5101"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260763310411001922550010010343641529695912",
+    "invoiceNum": "1034364",
+    "series": "1",
+    "naturezaOp": "Vnd mer.adq.rec.ter.op.mer.sj.rg.sub.trb.cnd.sub.t",
+    "issueDate": "2026-07-20T17:14:31-03:00",
+    "supplierName": "TRES CORACOES ALIMENTOS SA",
+    "supplierCnpj": "63310411001922",
+    "supplierIe": "240976240",
+    "supplierAddress": "Rua 01-QD 1273-Pavlh 08/09 - Cj Village Campestre I, 493 - MACEIO/AL",
+    "totalAmount": 1304.95,
+    "totalIcms": 8.22,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000001034364",
+    "itemsPreview": [
+      {
+        "name": "CAFE DRIP SANTA CLARA RESERVA FAMILIA 12X10X10G",
+        "quantity": 2,
+        "unit": "DIS",
+        "unitCost": 20.05,
+        "totalCost": 40.1,
+        "barcode": "7896045103652",
+        "ncm": "09012100",
+        "cfop": "5403"
+      },
+      {
+        "name": "CAFE TORRADO MOIDO 3CORACOES GOURMET MOGIANA PAULISTA 4SOLDAS 20X250G",
+        "quantity": 4,
+        "unit": "UN",
+        "unitCost": 22.39,
+        "totalCost": 89.56,
+        "barcode": "7896045101641",
+        "ncm": "09012100",
+        "cfop": "5403"
+      },
+      {
+        "name": "CAFE TORRADO MOIDO 3CORACOES GOURMET CERRADO MINEIRO 4SOLDAS 20X250G",
+        "quantity": 4,
+        "unit": "UN",
+        "unitCost": 22.39,
+        "totalCost": 89.56,
+        "barcode": "7896045101658",
+        "ncm": "09012100",
+        "cfop": "5403"
+      },
+      {
+        "name": "BEBIDA LACTEA 3 CORACOES CAPPUCCINO CHOCOLATE PET 6X260ML",
+        "quantity": 1,
+        "unit": "CX",
+        "unitCost": 32.21,
+        "totalCost": 32.21,
+        "barcode": "17896005809508",
+        "ncm": "22029900",
+        "cfop": "5403"
+      },
+      {
+        "name": "BEBIDA LACTEA 3 CORACOES CAPPUCCINO CLASSIC PET 6X260ML",
+        "quantity": 1,
+        "unit": "CX",
+        "unitCost": 32.21,
+        "totalCost": 32.21,
+        "barcode": "17896005809515",
+        "ncm": "22029900",
+        "cfop": "5403"
+      },
+      {
+        "name": "CAPSULA CAFE TRES ESPRESSO VIBRANTE 10X8G",
+        "quantity": 8,
+        "unit": "DIS",
+        "unitCost": 18.23,
+        "totalCost": 145.84,
+        "barcode": "7896005805015",
+        "ncm": "09012100",
+        "cfop": "5403"
+      },
+      {
+        "name": "CAPSULA CAFE TRES COADO GOURMET 10X7,5G",
+        "quantity": 8,
+        "unit": "DIS",
+        "unitCost": 18.23,
+        "totalCost": 145.84,
+        "barcode": "7896005805114",
+        "ncm": "09012100",
+        "cfop": "5403"
+      },
+      {
+        "name": "CAPSULA CAFE TRES ESPRESSO ATENTO 10X8G",
+        "quantity": 8,
+        "unit": "DIS",
+        "unitCost": 18.23,
+        "totalCost": 145.84,
+        "barcode": "7896005805718",
+        "ncm": "09012100",
+        "cfop": "5403"
+      },
+      {
+        "name": "CAPSULA CAFE TRES ESPRESSO FORZA 8X10X8G",
+        "quantity": 8,
+        "unit": "DIS",
+        "unitCost": 18.23,
+        "totalCost": 145.84,
+        "barcode": "7896045101733",
+        "ncm": "09012100",
+        "cfop": "5403"
+      },
+      {
+        "name": "CAPSULA CAFE CAPPUCCINO 3CORACOES 8X10X11G",
+        "quantity": 8,
+        "unit": "DIS",
+        "unitCost": 17.79,
+        "totalCost": 142.32,
+        "barcode": "7896005805077",
+        "ncm": "21011200",
+        "cfop": "5403"
+      },
+      {
+        "name": "CAPSULA CAFE CAPPUCCINO TRES AVELA NOVA FORMULA 8X10X11G",
+        "quantity": 2,
+        "unit": "DIS",
+        "unitCost": 17.79,
+        "totalCost": 35.58,
+        "barcode": "7896005810323",
+        "ncm": "21011200",
+        "cfop": "5403"
+      },
+      {
+        "name": "CAPSULA CHOCOLATTO TRES 8X10X11G",
+        "quantity": 8,
+        "unit": "DIS",
+        "unitCost": 18.55,
+        "totalCost": 148.4,
+        "barcode": "7896005805138",
+        "ncm": "18069000",
+        "cfop": "5403"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260801438784005590550060003938621896589208",
+    "invoiceNum": "393862",
+    "series": "6",
+    "naturezaOp": "Vnd.Mer.Adq.Rec.Ter.Mer.Suj.Sub.Tri.Con.Con.Sb.",
+    "issueDate": "2026-08-13T08:10:08-03:00",
+    "supplierName": "Leroy Merlin Cia Brasileira de Bric",
+    "supplierCnpj": "01438784005590",
+    "supplierIe": "244409870",
+    "supplierAddress": "AV COMENDADOR GUSTAVO PAIVA, 5886 - MACEIO/AL",
+    "totalAmount": 1119.3,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000393862",
+    "itemsPreview": [
+      {
+        "name": "TELHA PVC COLON 2,3x0,86m MARF PRECON",
+        "quantity": 7,
+        "unit": "UN",
+        "unitCost": 170.11,
+        "totalCost": 1190.77,
+        "barcode": "07898187882365",
+        "ncm": "39259090",
+        "cfop": "5405"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260803102165000162550010000015071000007484",
+    "invoiceNum": "1507",
+    "series": "1",
+    "naturezaOp": "VENDA DE MERCADORIA ADQUIRIDA OU RECEBIDA DE TERCEIROS",
+    "issueDate": "2026-08-21T14:54:15-03:00",
+    "supplierName": "MARIA APARECIDA DOS SANTOS SILVA - ME",
+    "supplierCnpj": "03102165000162",
+    "supplierIe": "248379801",
+    "supplierAddress": "PC SANTO ANTONIO, 70 - COITE DO NOIA/AL",
+    "totalAmount": 540,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000001507",
+    "itemsPreview": [
+      {
+        "name": "DOCE KI PALADAR LEITE CREMOSO ZERO ADICAO DE ACUCARES 382G",
+        "quantity": 30,
+        "unit": "UN",
+        "unitCost": 18,
+        "totalCost": 540,
+        "barcode": null,
+        "ncm": "19019020",
+        "cfop": "5102"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260807196033005590550050007284851838277121",
+    "invoiceNum": "728485",
+    "series": "5",
+    "naturezaOp": "Venda producao oper. c/ merc. suj. reg. sub. trib. / Venda",
+    "issueDate": "2026-08-18T20:55:34-03:00",
+    "supplierName": "NORSA REFRIGERANTES S.A.",
+    "supplierCnpj": "07196033005590",
+    "supplierIe": "247227846",
+    "supplierAddress": "AV ANTONIO LISBOA DE AMORIM, 799 - MACEIO/AL",
+    "totalAmount": 321.12,
+    "totalIcms": 9.24,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000728485",
+    "itemsPreview": [
+      {
+        "name": "FANTA LAR KS 290ML",
+        "quantity": 24,
+        "unit": "UN",
+        "unitCost": 1.878333,
+        "totalCost": 45.08,
+        "barcode": "7894900035049",
+        "ncm": "22021000",
+        "cfop": "5401"
+      },
+      {
+        "name": "FANTA LAR LT 350ML COLOR",
+        "quantity": 12,
+        "unit": "UN",
+        "unitCost": 2.6,
+        "totalCost": 31.2,
+        "barcode": "7894900030044",
+        "ncm": "22021000",
+        "cfop": "5403"
+      },
+      {
+        "name": "COCA COLA ORIG PET 1L",
+        "quantity": 6,
+        "unit": "UN",
+        "unitCost": 6.721667,
+        "totalCost": 40.33,
+        "barcode": "27894900027048",
+        "ncm": "22021000",
+        "cfop": "5401"
+      },
+      {
+        "name": "KUAT LT 350ML COLOR",
+        "quantity": 6,
+        "unit": "UN",
+        "unitCost": 2.7,
+        "totalCost": 16.2,
+        "barcode": "7894900910049",
+        "ncm": "22021000",
+        "cfop": "5403"
+      },
+      {
+        "name": "CC SEM ACUCAR KS 290ML",
+        "quantity": 24,
+        "unit": "UN",
+        "unitCost": 1.98875,
+        "totalCost": 47.73,
+        "barcode": "7894900705041",
+        "ncm": "22021000",
+        "cfop": "5401"
+      },
+      {
+        "name": "KUAT SA LT 350ML",
+        "quantity": 12,
+        "unit": "UN",
+        "unitCost": 2.304167,
+        "totalCost": 27.65,
+        "barcode": "17894900920014",
+        "ncm": "22021000",
+        "cfop": "5401"
+      },
+      {
+        "name": "KAPO MARACUJA 200ML",
+        "quantity": 12,
+        "unit": "UN",
+        "unitCost": 2.0725,
+        "totalCost": 24.87,
+        "barcode": "7894900573718",
+        "ncm": "22021000",
+        "cfop": "5401"
+      },
+      {
+        "name": "KAPO UVA 200ML",
+        "quantity": 12,
+        "unit": "UN",
+        "unitCost": 2.0725,
+        "totalCost": 24.87,
+        "barcode": "7894900593716",
+        "ncm": "22021000",
+        "cfop": "5401"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260810459249000113550010000025881100019536",
+    "invoiceNum": "2588",
+    "series": "1",
+    "naturezaOp": "Venda Dentro do Estado",
+    "issueDate": "2026-08-21T11:22:36-03:00",
+    "supplierName": "ITALA M T BRANDAO ME",
+    "supplierCnpj": "10459249000113",
+    "supplierIe": "242149014",
+    "supplierAddress": "Faz Carangueja de Cima, Sn - Quebrangulo/AL",
+    "totalAmount": 750,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000002588",
+    "itemsPreview": [
+      {
+        "name": "DOCE AMBROSIA 650G",
+        "quantity": 4,
+        "unit": "UN",
+        "unitCost": 26,
+        "totalCost": 104,
+        "barcode": "7898937037106",
+        "ncm": "19019020",
+        "cfop": "5401"
+      },
+      {
+        "name": "DOCE DE LEITE 650 G",
+        "quantity": 10,
+        "unit": "UN",
+        "unitCost": 26,
+        "totalCost": 260,
+        "barcode": null,
+        "ncm": "19019020",
+        "cfop": "5401"
+      },
+      {
+        "name": "DOCE DE LEITE COM CHOCOLATE 650G",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 26,
+        "totalCost": 52,
+        "barcode": "7898937037045",
+        "ncm": "19019020",
+        "cfop": "5401"
+      },
+      {
+        "name": "DOCE DE LEITE COM MARACUJA 650G",
+        "quantity": 4,
+        "unit": "UN",
+        "unitCost": 26,
+        "totalCost": 104,
+        "barcode": "7898937037076",
+        "ncm": "19019020",
+        "cfop": "5401"
+      },
+      {
+        "name": "DOCE DE LEITE COM MORANGO 650G",
+        "quantity": 4,
+        "unit": "UN",
+        "unitCost": 26,
+        "totalCost": 104,
+        "barcode": "7898937037083",
+        "ncm": "19019020",
+        "cfop": "5401"
+      },
+      {
+        "name": "DOCE DE MAMAO 630G",
+        "quantity": 3,
+        "unit": "UN",
+        "unitCost": 21,
+        "totalCost": 63,
+        "barcode": "7898937037182",
+        "ncm": "20079990",
+        "cfop": "5401"
+      },
+      {
+        "name": "DOCE DE MAMAO COM COCO 680G",
+        "quantity": 3,
+        "unit": "UN",
+        "unitCost": 21,
+        "totalCost": 63,
+        "barcode": "7898937037199",
+        "ncm": "20079990",
+        "cfop": "5401"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260810830776000192550010000024601983000000",
+    "invoiceNum": "2460",
+    "series": "1",
+    "naturezaOp": "Venda",
+    "issueDate": "2026-08-07T10:26:39-03:00",
+    "supplierName": "J NERIVALDO TENORIO EIRELI - ME",
+    "supplierCnpj": "10830776000192",
+    "supplierIe": "240857038",
+    "supplierAddress": "RUA Dr. PEDRO MARCELO DE OLIVEIRA, 135 - Maceio/AL",
+    "totalAmount": 100,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000002460",
+    "itemsPreview": [
+      {
+        "name": "ETIQUETA 60X40",
+        "quantity": 5,
+        "unit": "UN",
+        "unitCost": 20,
+        "totalCost": 100,
+        "barcode": null,
+        "ncm": "48219000",
+        "cfop": "5102"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260812200192000169558900121347021935899495",
+    "invoiceNum": "12134702",
+    "series": "890",
+    "naturezaOp": "Venda de Mercadoria",
+    "issueDate": "2026-08-06T12:47:00-03:00",
+    "supplierName": "JADIELSON HENRIQUE DA SILVA",
+    "supplierCnpj": "",
+    "supplierIe": "ISENTO",
+    "supplierAddress": "NOVO RIO, S/N - IGACI/AL",
+    "totalAmount": 204,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000012134702",
+    "itemsPreview": [
+      {
+        "name": "MEL DE ABELHA JADAPIS 280 GRAMAS",
+        "quantity": 4,
+        "unit": "UN",
+        "unitCost": 13,
+        "totalCost": 52,
+        "barcode": null,
+        "ncm": "04090000",
+        "cfop": "5101"
+      },
+      {
+        "name": "MEL DE ABELHA JADAPIS 500 GRAMAS",
+        "quantity": 8,
+        "unit": "UN",
+        "unitCost": 19,
+        "totalCost": 152,
+        "barcode": null,
+        "ncm": "04090000",
+        "cfop": "5101"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260814458284000179550020000000471928419863",
+    "invoiceNum": "47",
+    "series": "2",
+    "naturezaOp": "5101 - Venda de produção do estabelecimento",
+    "issueDate": "2026-08-12T17:25:00-03:00",
+    "supplierName": "COOPERATIVA MISTA DE PRODUCAO E COMERCIALIZACAO COMPONESA...",
+    "supplierCnpj": "14458284000179",
+    "supplierIe": "240307771",
+    "supplierAddress": "Rua Duque de Caxias 181, S/N - Palmeira dos Indios/AL",
+    "totalAmount": 636,
+    "totalIcms": 34.44,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000000047",
+    "itemsPreview": [
+      {
+        "name": "Geleia Premium de Jabuticaba",
+        "quantity": 6,
+        "unit": "UN",
+        "unitCost": 28,
+        "totalCost": 168,
+        "barcode": null,
+        "ncm": "20079910",
+        "cfop": "5101"
+      },
+      {
+        "name": "Fermentado de Jabuticaba Suave",
+        "quantity": 6,
+        "unit": "LT",
+        "unitCost": 35,
+        "totalCost": 210,
+        "barcode": null,
+        "ncm": "22060090",
+        "cfop": "5101"
+      },
+      {
+        "name": "Fermentado de Jabuticaba Seco",
+        "quantity": 6,
+        "unit": "LT",
+        "unitCost": 35,
+        "totalCost": 210,
+        "barcode": null,
+        "ncm": "22060090",
+        "cfop": "5101"
+      },
+      {
+        "name": "CASQUINHA CRISTALIZADA DE JABUTICABA",
+        "quantity": 4,
+        "unit": "UN",
+        "unitCost": 12,
+        "totalCost": 48,
+        "barcode": null,
+        "ncm": "20060000",
+        "cfop": "5101"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260826528069000186550010000236741556110358",
+    "invoiceNum": "23674",
+    "series": "1",
+    "naturezaOp": "5 - VENDA DENTRO DO ESTADO",
+    "issueDate": "2026-08-29T00:00:00-03:00",
+    "supplierName": "A E C COMERCIO DE MAQUINAS E EQUIPAMENTOS LTDA",
+    "supplierCnpj": "26528069000186",
+    "supplierIe": "247130680",
+    "supplierAddress": "AV DURVAL DE GOES M., 162A - MACEIO/AL",
+    "totalAmount": 12500,
+    "totalIcms": 820,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000023674",
+    "itemsPreview": [
+      {
+        "name": "CONSERV HOR 503 PADRAO 2C000 (220V) - HCED503",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 4500,
+        "totalCost": 4500,
+        "barcode": "7899461805438",
+        "ncm": "84185090",
+        "cfop": "5405"
+      },
+      {
+        "name": "CONSERV HOR 503 TAP UNI 2C555 (220V) - HCED503-2C555",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 4000,
+        "totalCost": 4000,
+        "barcode": "7899461862172",
+        "ncm": "84185090",
+        "cfop": "5102"
+      },
+      {
+        "name": "CONSERV HOR 411 PADRAO 2C000 (220V) - HCED411",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 4000,
+        "totalCost": 4000,
+        "barcode": "7899461805414",
+        "ncm": "84185090",
+        "cfop": "5405"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260840432544071400554050000265451459263300",
+    "invoiceNum": "26545",
+    "series": "405",
+    "naturezaOp": "DEV. VENDA MERC. ADQ. 3ª",
+    "issueDate": "2026-08-17T11:57:17-03:00",
+    "supplierName": "CLARO S.A",
+    "supplierCnpj": "40432544071400",
+    "supplierIe": "244091358",
+    "supplierAddress": "AV MOREIRA E SILVA, 391 - MACEIÓ/AL",
+    "totalAmount": 10,
+    "totalIcms": 2.05,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000026545",
+    "itemsPreview": [
+      {
+        "name": "SC BOPP 8NP NE 128KB AAC005 TRIPLE",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 10,
+        "totalCost": 10,
+        "barcode": "7894537020678",
+        "ncm": "85235290",
+        "cfop": "1202"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260863310411001922550010010458071725143601",
+    "invoiceNum": "1045807",
+    "series": "1",
+    "naturezaOp": "Venda merc.adq.receb.de terceiros",
+    "issueDate": "2026-08-28T21:14:18-03:00",
+    "supplierName": "TRES CORACOES ALIMENTOS SA",
+    "supplierCnpj": "63310411001922",
+    "supplierIe": "240976240",
+    "supplierAddress": "Rua 01-QD 1273-Pavlh 08/09 - Cj Village Campestre I, 493 - MACEIO/AL",
+    "totalAmount": 62.04,
+    "totalIcms": 6.15,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000001045807",
+    "itemsPreview": [
+      {
+        "name": "COPO PAP SC TRAD 100ML C/50UN",
+        "quantity": 2,
+        "unit": "PAC",
+        "unitCost": 14.99,
+        "totalCost": 29.98,
+        "barcode": "7896045108688",
+        "ncm": "48236900",
+        "cfop": "5102"
+      },
+      {
+        "name": "COPO PAP SC TRAD 180ML C/50UN",
+        "quantity": 2,
+        "unit": "PAC",
+        "unitCost": 16.03,
+        "totalCost": 32.06,
+        "barcode": "7896045108701",
+        "ncm": "48236900",
+        "cfop": "5102"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260863310411001922550010010460261390338372",
+    "invoiceNum": "1046026",
+    "series": "1",
+    "naturezaOp": "Vnd mer.adq.rec.ter.op.mer.sj.rg.sub.trb.cnd.sub.t",
+    "issueDate": "2026-08-28T21:17:59-03:00",
+    "supplierName": "TRES CORACOES ALIMENTOS SA",
+    "supplierCnpj": "63310411001922",
+    "supplierIe": "240976240",
+    "supplierAddress": "Rua 01-QD 1273-Pavlh 08/09 - Cj Village Campestre I, 493 - MACEIO/AL",
+    "totalAmount": 363.01,
+    "totalIcms": 20.2,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000001046026",
+    "itemsPreview": [
+      {
+        "name": "CAFE TORRADO MOIDO 3CORACOES GOURMET MOGIANA PAULISTA 4SOLDAS 20X250G",
+        "quantity": 4,
+        "unit": "UN",
+        "unitCost": 24.63,
+        "totalCost": 98.52,
+        "barcode": "7896045101641",
+        "ncm": "09012100",
+        "cfop": "5403"
+      },
+      {
+        "name": "CAFE TORRADO MOIDO 3CORACOES GOURMET CERRADO MINEIRO 4SOLDAS 20X250G",
+        "quantity": 4,
+        "unit": "UN",
+        "unitCost": 24.63,
+        "totalCost": 98.52,
+        "barcode": "7896045101658",
+        "ncm": "09012100",
+        "cfop": "5403"
+      },
+      {
+        "name": "CAFE TM 3C GOURM SUL M 4S 20X250G",
+        "quantity": 4,
+        "unit": "UN",
+        "unitCost": 24.63,
+        "totalCost": 98.52,
+        "barcode": "7896045101665",
+        "ncm": "09012100",
+        "cfop": "5403"
+      },
+      {
+        "name": "CAPSULA CHOCOLATTO TRES 8X10X11G",
+        "quantity": 2,
+        "unit": "DIS",
+        "unitCost": 18.55,
+        "totalCost": 37.1,
+        "barcode": "7896005805138",
+        "ncm": "18069000",
+        "cfop": "5403"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260903246173000182550020000679081691055974",
+    "invoiceNum": "67908",
+    "series": "2",
+    "naturezaOp": "5910 - REM. EM BONIFICACAO, DOACAO E BRINDE",
+    "issueDate": "2026-09-03T00:00:00-03:00",
+    "supplierName": "BISCOITO CASEIRO D LICIA LTDA",
+    "supplierCnpj": "03246173000182",
+    "supplierIe": "241027560",
+    "supplierAddress": "RUA JOAO RAMALHO, 0 - PENEDO/AL",
+    "totalAmount": 162,
+    "totalIcms": 16.61,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000067908",
+    "itemsPreview": [
+      {
+        "name": "BISCOITO SALGADINHO ACEBOLADO 130G",
+        "quantity": 12,
+        "unit": "UN",
+        "unitCost": 6.75,
+        "totalCost": 81,
+        "barcode": "7898279540319",
+        "ncm": "19059020",
+        "cfop": "5910"
+      },
+      {
+        "name": "BISCOITO SALGADINHO DE QUEIJO 130G",
+        "quantity": 12,
+        "unit": "UN",
+        "unitCost": 6.75,
+        "totalCost": 81,
+        "barcode": "7898279540340",
+        "ncm": "19059020",
+        "cfop": "5910"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260903636036000154550010063629641128180541",
+    "invoiceNum": "6362964",
+    "series": "1",
+    "naturezaOp": "VENDA DE MERCADORIAS",
+    "issueDate": "2026-09-12T04:41:00-03:00",
+    "supplierName": "ASA BRANCA INDUSTRIAL COMERCIAL E IMPORTADORA LTDA",
+    "supplierCnpj": "03636036000154",
+    "supplierIe": "240989201",
+    "supplierAddress": "AV. ASA BRANCA Nr., 342 - ARAPIRACA/AL",
+    "totalAmount": 297.76,
+    "totalIcms": 11.82,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000006362964",
+    "itemsPreview": [
+      {
+        "name": "LING.DE COSTELA APIMENTADA CONG. CARA PRETA 300G(24)",
+        "quantity": 4,
+        "unit": "PC",
+        "unitCost": 14.415,
+        "totalCost": 57.66,
+        "barcode": "7908267522842",
+        "ncm": "16010000",
+        "cfop": "5403"
+      },
+      {
+        "name": "LING. DE COSTELA CONG. CARA PRETA 300G(24)",
+        "quantity": 4,
+        "unit": "PC",
+        "unitCost": 13.47,
+        "totalCost": 53.88,
+        "barcode": "7908267520091",
+        "ncm": "16010000",
+        "cfop": "5403"
+      },
+      {
+        "name": "LING.DE CORDEIRO APIMENTADA CONG. CARA PRETA 300G(24)",
+        "quantity": 4,
+        "unit": "PC",
+        "unitCost": 20.515,
+        "totalCost": 82.06,
+        "barcode": "7908267526222",
+        "ncm": "16010000",
+        "cfop": "5403"
+      },
+      {
+        "name": "LING.DE CORDEIRO CONG. CARA PRETA 300G(24)",
+        "quantity": 4,
+        "unit": "PC",
+        "unitCost": 20.495,
+        "totalCost": 81.98,
+        "barcode": "7908267526239",
+        "ncm": "16010000",
+        "cfop": "5403"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260903636036000154550010063755181890847550",
+    "invoiceNum": "6375518",
+    "series": "1",
+    "naturezaOp": "VENDA MERCADORIAS/ VENDA DE MERCADORIAS",
+    "issueDate": "2026-09-25T04:48:00-03:00",
+    "supplierName": "ASA BRANCA INDUSTRIAL COMERCIAL E IMPORTADORA LTDA",
+    "supplierCnpj": "03636036000154",
+    "supplierIe": "240989201",
+    "supplierAddress": "AV. ASA BRANCA Nr., 342 - ARAPIRACA/AL",
+    "totalAmount": 208.46,
+    "totalIcms": 1.5,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000006375518",
+    "itemsPreview": [
+      {
+        "name": "RED BULL ENERGY DRINK RED BULL 250ML(24)CX/24",
+        "quantity": 16,
+        "unit": "UN",
+        "unitCost": 8.36,
+        "totalCost": 133.76,
+        "barcode": "611269991000",
+        "ncm": "22029900",
+        "cfop": "5405"
+      },
+      {
+        "name": "YOPRO CHOCOLATE DANONE 250ML(24)CX/24",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 7.33,
+        "totalCost": 7.33,
+        "barcode": "7891025115656",
+        "ncm": "22029900",
+        "cfop": "5403"
+      },
+      {
+        "name": "RED BULL SUGAR FREE RED BULL 250ML(24)CX/24",
+        "quantity": 8,
+        "unit": "UN",
+        "unitCost": 8.36,
+        "totalCost": 66.88,
+        "barcode": "611269101713",
+        "ncm": "22029900",
+        "cfop": "5405"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260912200192000169558900123481361859279378",
+    "invoiceNum": "12348136",
+    "series": "890",
+    "naturezaOp": "Venda de Mercadoria",
+    "issueDate": "2026-09-11T11:32:00-03:00",
+    "supplierName": "JADIELSON HENRIQUE DA SILVA",
+    "supplierCnpj": "",
+    "supplierIe": "ISENTO",
+    "supplierAddress": "NOVO RIO, S/N - IGACI/AL",
+    "totalAmount": 274,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000012348136",
+    "itemsPreview": [
+      {
+        "name": "MEL DE ABELHA JADAPIS 280 GRAMAS",
+        "quantity": 5,
+        "unit": "UN",
+        "unitCost": 13,
+        "totalCost": 65,
+        "barcode": null,
+        "ncm": "04090000",
+        "cfop": "5101"
+      },
+      {
+        "name": "MEL DE ABELHA JADAPIS 500 GRAMAS",
+        "quantity": 11,
+        "unit": "UN",
+        "unitCost": 19,
+        "totalCost": 209,
+        "barcode": null,
+        "ncm": "04090000",
+        "cfop": "5101"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260914458284000179550010000000591793860441",
+    "invoiceNum": "59",
+    "series": "1",
+    "naturezaOp": "Venda de mercadoria",
+    "issueDate": "2026-09-30T17:00:46-03:00",
+    "supplierName": "COOPERATIVA MISTA DE PRODUCAO E COMERCIALIZACAO COMPONESA...",
+    "supplierCnpj": "14458284000179",
+    "supplierIe": "240307771",
+    "supplierAddress": "Rua Duque de Caxias 181, S/N - Palmeira dos Indios/AL",
+    "totalAmount": 408,
+    "totalIcms": 14.35,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000000059",
+    "itemsPreview": [
+      {
+        "name": "Fermentado de Jabuticaba",
+        "quantity": 2,
+        "unit": "LT",
+        "unitCost": 35,
+        "totalCost": 70,
+        "barcode": null,
+        "ncm": "22060090",
+        "cfop": "5101"
+      },
+      {
+        "name": "Geleia Premium de Jabuticaba",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 28,
+        "totalCost": 56,
+        "barcode": null,
+        "ncm": "20079910",
+        "cfop": "5102"
+      },
+      {
+        "name": "Casquinha Cristalizada de Jabuticaba",
+        "quantity": 6,
+        "unit": "UN",
+        "unitCost": 12,
+        "totalCost": 72,
+        "barcode": null,
+        "ncm": "20060000",
+        "cfop": "5101"
+      },
+      {
+        "name": "Fermentado de Jabuticaba Suave",
+        "quantity": 6,
+        "unit": "LT",
+        "unitCost": 35,
+        "totalCost": 210,
+        "barcode": null,
+        "ncm": "22060090",
+        "cfop": "5102"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260917191761000170550010003401741831732115",
+    "invoiceNum": "340174",
+    "series": "1",
+    "naturezaOp": "VENDA DE MERC. ADQUIRIDA OU RECEBIDA DE TERCEIROS",
+    "issueDate": "2026-09-22T01:53:00-03:00",
+    "supplierName": "MASCARENHAS &amp; LINS DISTRIBUIDORA LTDA",
+    "supplierCnpj": "17191761000170",
+    "supplierIe": "242780067",
+    "supplierAddress": "RUA JOSE AUGUSTO LESSA, 0 - MACEIO/AL",
+    "totalAmount": 310.97,
+    "totalIcms": 42.31,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000340174",
+    "itemsPreview": [
+      {
+        "name": "FAROFA CROCANTE SERIDOENSE CX12X300G",
+        "quantity": 24,
+        "unit": "UN",
+        "unitCost": 8.6,
+        "totalCost": 206.4,
+        "barcode": "7898711770304",
+        "ncm": "19019090",
+        "cfop": "5102"
+      },
+      {
+        "name": "PAO ALHO TRAD SANTA MASSA 10X240G",
+        "quantity": 10,
+        "unit": "UN",
+        "unitCost": 10.457239,
+        "totalCost": 104.57,
+        "barcode": "07898067340510",
+        "ncm": "19059090",
+        "cfop": "5102"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260950583563000128550030000042951461549597",
+    "invoiceNum": "4295",
+    "series": "3",
+    "naturezaOp": "Venda de mercadoria adquirida ou recebida de terceiros em op",
+    "issueDate": "2026-09-01T16:16:10-03:00",
+    "supplierName": "GDR GELADOS COMERCIO VAREJISTA LTDA",
+    "supplierCnpj": "50583563000128",
+    "supplierIe": "240589572",
+    "supplierAddress": "AVENIDA MENINO MARCELO, 9731 - Maceió/AL",
+    "totalAmount": 223.44,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000004295",
+    "itemsPreview": [
+      {
+        "name": "SORVETE DE NAPOLITANO 400 ML (CX COM 4 UNID)",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 33.2,
+        "totalCost": 33.2,
+        "barcode": null,
+        "ncm": "21050090",
+        "cfop": "5405"
+      },
+      {
+        "name": "SORVETE DE TOFFEE 400 ML (CX COM 4 UNID)",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 33.2,
+        "totalCost": 33.2,
+        "barcode": null,
+        "ncm": "21050090",
+        "cfop": "5405"
+      },
+      {
+        "name": "SORVETE DE BOMBOM 400 ML (CX COM 4 UNID)",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 33.2,
+        "totalCost": 33.2,
+        "barcode": null,
+        "ncm": "21050090",
+        "cfop": "5405"
+      },
+      {
+        "name": "SORVETE DE NINHO TRUFADO 140ML (CX COM 8 UNID)",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 37.2,
+        "totalCost": 37.2,
+        "barcode": null,
+        "ncm": "21050090",
+        "cfop": "5405"
+      },
+      {
+        "name": "CREME DE AÇAÍ COM LEITINHO 300ML (CX COM 4 UNID)",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 43.32,
+        "totalCost": 86.64,
+        "barcode": "7898754470315",
+        "ncm": "21050090",
+        "cfop": "5405"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260956223742000130550010000002031359090756",
+    "invoiceNum": "203",
+    "series": "1",
+    "naturezaOp": "VENDA DE MERCADORIA ADQUIRIDA OU RECEBIDA DE TERCEIROS",
+    "issueDate": "2026-09-08T00:00:00-03:00",
+    "supplierName": "JATOBA E TENORIO COMERCIO DE EXTINTORES LTDA",
+    "supplierCnpj": "56223742000130",
+    "supplierIe": "241316634",
+    "supplierAddress": "Avenida Dona Constança de Góes Monteiro, 239 - MACEIO/AL",
+    "totalAmount": 60,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000000203",
+    "itemsPreview": [
+      {
+        "name": "SUPORTE DE PISO",
+        "quantity": 1,
+        "unit": "UND",
+        "unitCost": 60,
+        "totalCost": 60,
+        "barcode": null,
+        "ncm": "73261900",
+        "cfop": "5102"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260963310411001922550010010508851424300342",
+    "invoiceNum": "1050885",
+    "series": "1",
+    "naturezaOp": "Venda merc.adq.receb.de terceiros",
+    "issueDate": "2026-09-18T20:10:26-03:00",
+    "supplierName": "TRES CORACOES ALIMENTOS SA",
+    "supplierCnpj": "63310411001922",
+    "supplierIe": "240976240",
+    "supplierAddress": "Rua 01-QD 1273-Pavlh 08/09 - Cj Village Campestre I, 493 - MACEIO/AL",
+    "totalAmount": 67.88,
+    "totalIcms": 3.25,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000001050885",
+    "itemsPreview": [
+      {
+        "name": "ACUCAR SANTA CLARA CRISTAL SACHE 400X5G",
+        "quantity": 1,
+        "unit": "CX",
+        "unitCost": 15.83,
+        "totalCost": 15.83,
+        "barcode": "7896045112784",
+        "ncm": "17019900",
+        "cfop": "5102"
+      },
+      {
+        "name": "TAMPA COPO C/BICO TP BR 180ML 100UN",
+        "quantity": 1,
+        "unit": "PAC",
+        "unitCost": 28.65,
+        "totalCost": 28.65,
+        "barcode": "7896045108749",
+        "ncm": "39235000",
+        "cfop": "5102"
+      },
+      {
+        "name": "TAMPA COPO C/BICO TP BR 100ML 100UN",
+        "quantity": 1,
+        "unit": "PAC",
+        "unitCost": 23.4,
+        "totalCost": 23.4,
+        "barcode": "7896045109043",
+        "ncm": "39235000",
+        "cfop": "5102"
+      }
+    ]
+  },
+  {
+    "accessKey": "27260963310411001922550010010510441452912657",
+    "invoiceNum": "1051044",
+    "series": "1",
+    "naturezaOp": "Vnd mer.adq.rec.ter.op.mer.sj.rg.sub.trb.cnd.sub.t",
+    "issueDate": "2026-09-18T20:28:15-03:00",
+    "supplierName": "TRES CORACOES ALIMENTOS SA",
+    "supplierCnpj": "63310411001922",
+    "supplierIe": "240976240",
+    "supplierAddress": "Rua 01-QD 1273-Pavlh 08/09 - Cj Village Campestre I, 493 - MACEIO/AL",
+    "totalAmount": 242.14,
+    "totalIcms": 16.45,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000001051044",
+    "itemsPreview": [
+      {
+        "name": "CAFE TM SC CLAS CAP ALM 20X250G",
+        "quantity": 1,
+        "unit": "FD",
+        "unitCost": 235,
+        "totalCost": 235,
+        "barcode": "17896224813089",
+        "ncm": "09012100",
+        "cfop": "5403"
+      }
+    ]
+  },
+  {
+    "accessKey": "27261003636036000154550010063966511105150926",
+    "invoiceNum": "6396651",
+    "series": "1",
+    "naturezaOp": "VENDA DE MERCADORIAS",
+    "issueDate": "2026-10-16T02:26:00-03:00",
+    "supplierName": "ASA BRANCA INDUSTRIAL COMERCIAL E IMPORTADORA LTDA",
+    "supplierCnpj": "03636036000154",
+    "supplierIe": "240989201",
+    "supplierAddress": "AV. ASA BRANCA Nr., 342 - ARAPIRACA/AL",
+    "totalAmount": 339.08,
+    "totalIcms": 18.8,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000006396651",
+    "itemsPreview": [
+      {
+        "name": "LING.DE COSTELA APIMENTADA CONG. CARA PRETA 300G(24)",
+        "quantity": 6,
+        "unit": "PC",
+        "unitCost": 15.2783333333,
+        "totalCost": 91.67,
+        "barcode": "7908267522842",
+        "ncm": "16010000",
+        "cfop": "5403"
+      },
+      {
+        "name": "LING. DE COSTELA CONG. CARA PRETA 300G(24)",
+        "quantity": 6,
+        "unit": "PC",
+        "unitCost": 15.2783333333,
+        "totalCost": 91.67,
+        "barcode": "7908267520091",
+        "ncm": "16010000",
+        "cfop": "5403"
+      },
+      {
+        "name": "LING.DE CORDEIRO APIMENTADA CONG. CARA PRETA 300G(24)",
+        "quantity": 2,
+        "unit": "PC",
+        "unitCost": 21.745,
+        "totalCost": 43.49,
+        "barcode": "7908267526222",
+        "ncm": "16010000",
+        "cfop": "5403"
+      },
+      {
+        "name": "LING.DE CORDEIRO CONG. CARA PRETA 300G(24)",
+        "quantity": 4,
+        "unit": "PC",
+        "unitCost": 21.7475,
+        "totalCost": 86.99,
+        "barcode": "7908267526239",
+        "ncm": "16010000",
+        "cfop": "5403"
+      }
+    ]
+  },
+  {
+    "accessKey": "27261007196033005590550020004858531760391765",
+    "invoiceNum": "485853",
+    "series": "2",
+    "naturezaOp": "Ret. bem rem. por conta de contrato de comodato",
+    "issueDate": "2026-10-14T16:40:01-03:00",
+    "supplierName": "NORSA REFRIGERANTES S.A.",
+    "supplierCnpj": "07196033005590",
+    "supplierIe": "247227846",
+    "supplierAddress": "AV ANTONIO LISBOA DE AMORIM, 799 - MACEIO/AL",
+    "totalAmount": 1991.27,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000485853",
+    "itemsPreview": [
+      {
+        "name": "GE VR08 CC 220V",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 1991.27,
+        "totalCost": 1991.27,
+        "barcode": null,
+        "ncm": "84183000",
+        "cfop": "1909"
+      }
+    ]
+  },
+  {
+    "accessKey": "27261018219358000175550010000292521000060266",
+    "invoiceNum": "29252",
+    "series": "1",
+    "naturezaOp": "Venda de producao do estabelecimento",
+    "issueDate": "2026-10-20T09:33:25-03:00",
+    "supplierName": "MAIS NATA LATICINIOS LTDA",
+    "supplierCnpj": "18219358000175",
+    "supplierIe": "242858554",
+    "supplierAddress": "R POVOADO SALGADO, 26 - Taquarana/AL",
+    "totalAmount": 756,
+    "totalIcms": 63.14,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000029252",
+    "itemsPreview": [
+      {
+        "name": "QUEIJO MANTEIGA",
+        "quantity": 8.8,
+        "unit": "KG",
+        "unitCost": 35,
+        "totalCost": 308,
+        "barcode": "7898920252035",
+        "ncm": "04069020",
+        "cfop": "5101"
+      },
+      {
+        "name": "QUEIJO COALHO",
+        "quantity": 2.9,
+        "unit": "KG",
+        "unitCost": 35,
+        "totalCost": 101.5,
+        "barcode": "7898920252011",
+        "ncm": "04069030",
+        "cfop": "5101"
+      },
+      {
+        "name": "QUEIJO DE COALHO LIGHT",
+        "quantity": 2.9,
+        "unit": "KG",
+        "unitCost": 35,
+        "totalCost": 101.5,
+        "barcode": "7898920252158",
+        "ncm": "04069030",
+        "cfop": "5101"
+      },
+      {
+        "name": "MANTEIGA",
+        "quantity": 7,
+        "unit": "KG",
+        "unitCost": 35,
+        "totalCost": 245,
+        "barcode": "7898920252080",
+        "ncm": "04051000",
+        "cfop": "5101"
+      }
+    ]
+  },
+  {
+    "accessKey": "27261050583563000128550030000049911746943144",
+    "invoiceNum": "4991",
+    "series": "3",
+    "naturezaOp": "Venda de mercadoria adquirida ou recebida de terceiros em op",
+    "issueDate": "2026-10-27T10:40:10-03:00",
+    "supplierName": "GDR GELADOS COMERCIO VAREJISTA LTDA",
+    "supplierCnpj": "50583563000128",
+    "supplierIe": "240589572",
+    "supplierAddress": "AVENIDA MENINO MARCELO, 9731 - Maceió/AL",
+    "totalAmount": 598.88,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000004991",
+    "itemsPreview": [
+      {
+        "name": "PALETA MEXICANA MARACUJA (CX COM 20 UNID)",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 163,
+        "totalCost": 163,
+        "barcode": null,
+        "ncm": "21050090",
+        "cfop": "5405"
+      },
+      {
+        "name": "PALETA MEXICANA MORANGO (CX COM 20 UNID)",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 163,
+        "totalCost": 163,
+        "barcode": null,
+        "ncm": "21050090",
+        "cfop": "5405"
+      },
+      {
+        "name": "PALETA MEXICANA NINHO (CX COM 20 UNID)",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 163,
+        "totalCost": 163,
+        "barcode": null,
+        "ncm": "21050090",
+        "cfop": "5405"
+      },
+      {
+        "name": "SORVETE DE CREME 2L",
+        "quantity": 2,
+        "unit": "UN",
+        "unitCost": 24.65,
+        "totalCost": 49.3,
+        "barcode": null,
+        "ncm": "21050090",
+        "cfop": "5405"
+      },
+      {
+        "name": "SORVETE DE CHOCOLATE DUPLO ZERO 1L",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 30.29,
+        "totalCost": 30.29,
+        "barcode": null,
+        "ncm": "21050090",
+        "cfop": "5405"
+      },
+      {
+        "name": "SORVETE DE AMEIXA DUPLO ZERO 1L",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 30.29,
+        "totalCost": 30.29,
+        "barcode": null,
+        "ncm": "21050090",
+        "cfop": "5405"
+      }
+    ]
+  },
+  {
+    "accessKey": "27261050672529000120550010000029211321400205",
+    "invoiceNum": "2921",
+    "series": "1",
+    "naturezaOp": "VENDA DE PRODUÇÃO DO ESTABELECIMENTO",
+    "issueDate": "2026-10-29T23:45:00-03:00",
+    "supplierName": "JOSUE LOURENCO DE ALCANTARA E CIA LTDA",
+    "supplierCnpj": "50672529000120",
+    "supplierIe": "240596625",
+    "supplierAddress": "SITIO SALGADO, SN - Coité do Nóia/AL",
+    "totalAmount": 325,
+    "totalIcms": 24.78,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000002921",
+    "itemsPreview": [
+      {
+        "name": "CAMARAO ALCAN DESC COZ 71 90 400g PCT",
+        "quantity": 10,
+        "unit": "UN",
+        "unitCost": 32.5,
+        "totalCost": 325,
+        "barcode": null,
+        "ncm": "03061790",
+        "cfop": "5101"
+      }
+    ]
+  },
+  {
+    "accessKey": "27261063310411001922550010010607221082595393",
+    "invoiceNum": "1060722",
+    "series": "1",
+    "naturezaOp": "Vnd mer.adq.rec.ter.op.mer.sj.rg.sub.trb.cnd.sub.t",
+    "issueDate": "2026-10-30T23:18:27-03:00",
+    "supplierName": "TRES CORACOES ALIMENTOS SA",
+    "supplierCnpj": "63310411001922",
+    "supplierIe": "240976240",
+    "supplierAddress": "Rua 01-QD 1273-Pavlh 08/09 - Cj Village Campestre I, 493 - MACEIO/AL",
+    "totalAmount": 355.4,
+    "totalIcms": 15.75,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000001060722",
+    "itemsPreview": [
+      {
+        "name": "CAFE TM SC CLAS CAP ALM 20X250G",
+        "quantity": 1,
+        "unit": "FD",
+        "unitCost": 225,
+        "totalCost": 225,
+        "barcode": "17896224813089",
+        "ncm": "09012100",
+        "cfop": "5403"
+      },
+      {
+        "name": "CAFE DRIP 3 CORACOES GOURMET DARK 12X10X11G",
+        "quantity": 2,
+        "unit": "DIS",
+        "unitCost": 20.05,
+        "totalCost": 40.1,
+        "barcode": "7896045106844",
+        "ncm": "09012100",
+        "cfop": "5403"
+      },
+      {
+        "name": "CAPSULA CAFE CAPPUCCINO TRES AVELA NOVA FORMULA 8X10X11G",
+        "quantity": 2,
+        "unit": "DIS",
+        "unitCost": 17.79,
+        "totalCost": 35.58,
+        "barcode": "7896005810323",
+        "ncm": "21011200",
+        "cfop": "5403"
+      },
+      {
+        "name": "CAPSULA CAFE CAPPUCCINO SANTA CLARA 8X10X11G",
+        "quantity": 2,
+        "unit": "DIS",
+        "unitCost": 17.79,
+        "totalCost": 35.58,
+        "barcode": "7896045109517",
+        "ncm": "21011200",
+        "cfop": "5403"
+      }
+    ]
+  },
+  {
+    "accessKey": "27261063310411001922550010010608241453236175",
+    "invoiceNum": "1060824",
+    "series": "1",
+    "naturezaOp": "Remessa em bonificação, doação ou brinde",
+    "issueDate": "2026-10-30T23:23:03-03:00",
+    "supplierName": "TRES CORACOES ALIMENTOS SA",
+    "supplierCnpj": "63310411001922",
+    "supplierIe": "240976240",
+    "supplierAddress": "Rua 01-QD 1273-Pavlh 08/09 - Cj Village Campestre I, 493 - MACEIO/AL",
+    "totalAmount": 39.86,
+    "totalIcms": 7.29,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000001060824",
+    "itemsPreview": [
+      {
+        "name": "CAPSULA CAPPUCCINO 3CORACOES CHOCOLATE COM PISTACHE 8X10X11G",
+        "quantity": 2,
+        "unit": "DIS",
+        "unitCost": 17.79,
+        "totalCost": 35.58,
+        "barcode": "7896045121281",
+        "ncm": "21011200",
+        "cfop": "5910"
+      }
+    ]
+  },
+  {
+    "accessKey": "33261068654938000169550100000030721729043871",
+    "invoiceNum": "3072",
+    "series": "10",
+    "naturezaOp": "Venda de mercadoria para consumidor final",
+    "issueDate": "2026-10-28T06:20:23-03:00",
+    "supplierName": "METALURGICA BESSER LTDA",
+    "supplierCnpj": "68654938000169",
+    "supplierIe": "84655708",
+    "supplierAddress": "Rua Jose Pedro Poletti, 162 - Nova Friburgo/RJ",
+    "totalAmount": 75.89,
+    "totalIcms": 5.31,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000003072",
+    "itemsPreview": [
+      {
+        "name": "Ganchos P/ Painel Canaletado 25cm",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 66.29,
+        "totalCost": 66.29,
+        "barcode": null,
+        "ncm": "73269090",
+        "cfop": "6101"
+      }
+    ]
+  },
+  {
+    "accessKey": "35260640872203000192550020003309371333064578",
+    "invoiceNum": "330937",
+    "series": "2",
+    "naturezaOp": "Venda de mercadoria para consumidor final",
+    "issueDate": "2026-06-19T09:03:07-03:00",
+    "supplierName": "GENERAL NOTBOOKS PRODUTOS DE INFORMATICA LTDA",
+    "supplierCnpj": "40872203000192",
+    "supplierIe": "407951389111",
+    "supplierAddress": "Rua Boa Vista, 314 - Sao Paulo/SP",
+    "totalAmount": 44.89,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000330937",
+    "itemsPreview": [
+      {
+        "name": "TECLADO PARA NOTEBOOK",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 44.89,
+        "totalCost": 44.89,
+        "barcode": null,
+        "ncm": "84716052",
+        "cfop": "6102"
+      }
+    ]
+  },
+  {
+    "accessKey": "35260655963771000176550010000499131268366985",
+    "invoiceNum": "49913",
+    "series": "1",
+    "naturezaOp": "VENDA DE MERCADORIA ADQUIRIDA OU RECEBIDA DE TERCEIROS",
+    "issueDate": "2026-06-02T09:50:00-03:00",
+    "supplierName": "ZANOTTI E ZANOTTI IND.COM. REFRIG LTDA.",
+    "supplierCnpj": "55963771000176",
+    "supplierIe": "582023236111",
+    "supplierAddress": "RUA JOAO CLAPP, 439 - RIBEIRAO PRETO/SP",
+    "totalAmount": 865,
+    "totalIcms": 44.46,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000049913",
+    "itemsPreview": [
+      {
+        "name": "ESTUFA 8BD EVR-BP PRETO 220V I",
+        "quantity": 1,
+        "unit": "PC",
+        "unitCost": 865,
+        "totalCost": 865,
+        "barcode": "7898058476204",
+        "ncm": "84198920",
+        "cfop": "6102"
+      }
+    ]
+  },
+  {
+    "accessKey": "35260833866861000106550010000370471196592325",
+    "invoiceNum": "37047",
+    "series": "1",
+    "naturezaOp": "Venda de mercadoria para Contribuinte RPA",
+    "issueDate": "2026-08-28T08:56:08-03:00",
+    "supplierName": "JR Marketing Promocional e Artigos Para Brindes LTDA",
+    "supplierCnpj": "33866861000106",
+    "supplierIe": "799336944119",
+    "supplierAddress": "Avenida Porto Seguro, 142 - Sao Bernardo do Campo/SP",
+    "totalAmount": 239,
+    "totalIcms": 16.73,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000037047",
+    "itemsPreview": [
+      {
+        "name": "Mini Cesta de Compras Farmacia 7lts Cor:Verde",
+        "quantity": 10,
+        "unit": "Un",
+        "unitCost": 23.9,
+        "totalCost": 239,
+        "barcode": null,
+        "ncm": "39231090",
+        "cfop": "6102"
+      }
+    ]
+  },
+  {
+    "accessKey": "35260854163230000109550010000680261578266277",
+    "invoiceNum": "68026",
+    "series": "1",
+    "naturezaOp": "Venda de mercadorias",
+    "issueDate": "2026-08-06T17:19:58-03:00",
+    "supplierName": "XD IMPORTS LTDA",
+    "supplierCnpj": "54163230000109",
+    "supplierIe": "799828002110",
+    "supplierAddress": "R Das Flores, 663 - Sao Bernardo do Campo/SP",
+    "totalAmount": 96.89,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000068026",
+    "itemsPreview": [
+      {
+        "name": "2 Etiqueta 50x30 Niimbot B21 B1 230 Etiquetas P/ Rolo",
+        "quantity": 1,
+        "unit": "UN",
+        "unitCost": 78.9,
+        "totalCost": 78.9,
+        "barcode": "7893899758830",
+        "ncm": "48211000",
+        "cfop": "6106"
+      }
+    ]
+  },
+  {
+    "accessKey": "35261031900398000227550020008027401918441473",
+    "invoiceNum": "802740",
+    "series": "2",
+    "naturezaOp": "Venda de mercadorias",
+    "issueDate": "2026-10-14T11:39:36-03:00",
+    "supplierName": "SLK VIDROS E UTILIDADES LTDA",
+    "supplierCnpj": "31900398000227",
+    "supplierIe": "152296036110",
+    "supplierAddress": "Via Anhanguera, S/N - Sao Paulo/SP",
+    "totalAmount": 133.94,
+    "totalIcms": 5.25,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000802740",
+    "itemsPreview": [
+      {
+        "name": "24 Potes Andino 360ml Com Tampa Metalica Cor Verde Xadrez",
+        "quantity": 1,
+        "unit": "CX",
+        "unitCost": 74.95,
+        "totalCost": 74.95,
+        "barcode": "7893190011894",
+        "ncm": "70109090",
+        "cfop": "6106"
+      }
+    ]
+  },
+  {
+    "accessKey": "35261031900398000227550020008027461101518388",
+    "invoiceNum": "802746",
+    "series": "2",
+    "naturezaOp": "Venda de mercadorias",
+    "issueDate": "2026-10-14T11:40:14-03:00",
+    "supplierName": "SLK VIDROS E UTILIDADES LTDA",
+    "supplierCnpj": "31900398000227",
+    "supplierIe": "152296036110",
+    "supplierAddress": "Via Anhanguera, S/N - Sao Paulo/SP",
+    "totalAmount": 133.94,
+    "totalIcms": 5.25,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000802746",
+    "itemsPreview": [
+      {
+        "name": "24 Potes Andino 360ml Com Tampa Metalica Cor Verde Xadrez",
+        "quantity": 1,
+        "unit": "CX",
+        "unitCost": 74.95,
+        "totalCost": 74.95,
+        "barcode": "7893190011894",
+        "ncm": "70109090",
+        "cfop": "6106"
+      }
+    ]
+  },
+  {
+    "accessKey": "35261061115555000173550060000270581920470816",
+    "invoiceNum": "27058",
+    "series": "6",
+    "naturezaOp": "Operação de comercialização",
+    "issueDate": "2026-10-02T10:18:12-03:00",
+    "supplierName": "FLOR DE MAIO PRESENTES E VARIEDADES LTDA",
+    "supplierCnpj": "61115555000173",
+    "supplierIe": "154300305112",
+    "supplierAddress": "Avenida das Nacoes Unidas - de 12997 a 17279 - lado impar, 14401 - São Paulo/SP",
+    "totalAmount": 149.99,
+    "totalIcms": 0,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000027058",
+    "itemsPreview": [
+      {
+        "name": "EtiquetaAdesiva50x30NiimbotB21B1230EtiquetaspRoloSuper",
+        "quantity": 5,
+        "unit": "UN",
+        "unitCost": 29.998,
+        "totalCost": 149.99,
+        "barcode": null,
+        "ncm": "48119090",
+        "cfop": "6102"
+      }
+    ]
+  },
+  {
+    "accessKey": "42260645033465000187550030000810631757372601",
+    "invoiceNum": "81063",
+    "series": "3",
+    "naturezaOp": "VENDA DE MERCADORIA PARA CONTRIBUINTE",
+    "issueDate": "2026-06-02T07:46:15-03:00",
+    "supplierName": "LUIZ CARLOS ROHDEN MEURER LTDA",
+    "supplierCnpj": "45033465000187",
+    "supplierIe": "261514210",
+    "supplierAddress": "Rua Jonas Jose da Silva, 260 - Braco do Norte/SC",
+    "totalAmount": 1732.5,
+    "totalIcms": 69.3,
+    "statusManifest": "CIENCIA_EMITIDA",
+    "xmlAvailable": true,
+    "imported": false,
+    "nsu": "000000000081063",
+    "itemsPreview": [
+      {
+        "name": "Gerador de energia a gasolina 110v/220v partida eletrica Tssaper modelo TS3900EB",
+        "quantity": 1,
+        "unit": "Un",
+        "unitCost": 1732.5,
+        "totalCost": 1732.5,
+        "barcode": "7898624209618",
+        "ncm": "85022011",
+        "cfop": "6102"
+      }
+    ]
+  }
+]

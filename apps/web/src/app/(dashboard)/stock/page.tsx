@@ -1,21 +1,15 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Package, Search, Plus, FileCode, X, Check, AlertCircle, Zap, Loader2, Sparkles, ScanBarcode, ArrowRight, Scale, Edit2 } from "lucide-react";
+import { Package, Search, Plus, FileCode, X, Check, AlertCircle, Zap, Loader2, Sparkles, ScanBarcode, ArrowRight, Scale, Edit2, Radio } from "lucide-react";
 import Link from "next/link";
-import { getProducts, createProductsFromInvoice, lookupBarcodeOnline, quickCreateProductByBarcode, updateProduct } from "@/actions/product";
+import { getProducts, lookupBarcodeOnline, quickCreateProductByBarcode, updateProduct } from "@/actions/product";
 
 export default function StockPage() {
   const [products, setProducts] = useState<any[]>([]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-
-  const [isXmlModalOpen, setIsXmlModalOpen] = useState(false);
-  const [xmlLoading, setXmlLoading] = useState(false);
-  const [xmlSuccess, setXmlSuccess] = useState("");
-  const [xmlError, setXmlError] = useState("");
-  const [selectedInvoice, setSelectedInvoice] = useState<"inv1" | "inv2" | "">("");
 
   // Estados da Bipagem Rápida / Cadastro por Código de Barras
   const [isBarcodeModalOpen, setIsBarcodeModalOpen] = useState(false);
@@ -50,17 +44,6 @@ export default function StockPage() {
       osc.start();
       osc.stop(ctx.currentTime + (isSuccess ? 0.09 : 0.25));
     } catch (_) { }
-  };
-
-  const invoicesData = {
-    inv1: [
-      { name: "Refrigerante Guaraná Antarctica 2L", barcode: "7891991000821", price: 7.99, cost: 5.10, stock: 60, ncm: "2202.10.00", cest: "03.010.00", cfop: "5405", cst: "060", ibsRate: 12, cbsRate: 8.8, isRate: 5 },
-      { name: "Batata Palha Elma Chips 140g", barcode: "7891000120202", price: 9.90, cost: 6.40, stock: 40, ncm: "2005.20.00", cest: "17.031.00", cfop: "5102", cst: "102", ibsRate: 8.5, cbsRate: 5.8, isRate: 0 },
-    ],
-    inv2: [
-      { name: "Biscoito Oreo Chocolate 90g", barcode: "7622300742186", price: 3.50, cost: 2.10, stock: 120, ncm: "1905.31.00", cest: "17.020.00", cfop: "5102", cst: "102", ibsRate: 8.5, cbsRate: 5.8, isRate: 0 },
-      { name: "Detergente Ypê Coco 500ml", barcode: "7891022100139", price: 2.80, cost: 1.65, stock: 80, ncm: "3402.20.00", cest: "17.025.00", cfop: "5405", cst: "060", ibsRate: 12, cbsRate: 8.8, isRate: 0 },
-    ],
   };
 
   const [stockArea, setStockArea] = useState<"ALL" | "SALE" | "LOSS" | "PRODUCTION" | "SCALE">("ALL");
@@ -237,18 +220,6 @@ export default function StockPage() {
     }
   };
 
-  const handleImportXml = async () => {
-    if (!selectedInvoice) { setXmlError("Selecione uma nota fiscal."); return; }
-    setXmlLoading(true); setXmlError(""); setXmlSuccess("");
-    const res = await createProductsFromInvoice(invoicesData[selectedInvoice]);
-    if (res.success) {
-      setXmlSuccess(`Importado! ${res.count} produtos atualizados.`);
-      setSelectedInvoice(""); loadProducts();
-      setTimeout(() => { setIsXmlModalOpen(false); setXmlSuccess(""); }, 2000);
-    } else { setXmlError(res.error || "Erro ao importar."); }
-    setXmlLoading(false);
-  };
-
   const filtered = products.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || (p.barcode && p.barcode.includes(search));
     if (!matchesSearch) return false;
@@ -299,9 +270,9 @@ export default function StockPage() {
             <Scale size={16} />
             <span>Carga Balança (MGV6)</span>
           </Link>
-          <button onClick={() => setIsXmlModalOpen(true)} className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-colors text-sm shadow-sm">
-            <FileCode size={16} className="text-blue-600" /> Importar XML
-          </button>
+          <Link href="/invoices" className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-colors text-sm shadow-sm">
+            <Radio size={16} className="text-blue-600" /> Radar XML & Entradas
+          </Link>
           <Link href="/stock/new" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-md shadow-blue-500/20 text-sm">
             <Plus size={16} /> Novo Produto
           </Link>
@@ -404,54 +375,7 @@ export default function StockPage() {
         )}
       </div>
 
-      {/* XML Modal */}
-      {isXmlModalOpen && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-gray-200 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden">
-            <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2"><FileCode className="text-blue-600" size={18} /> Importar NF-e (XML)</h3>
-              <button onClick={() => { setIsXmlModalOpen(false); setXmlError(""); setXmlSuccess(""); setSelectedInvoice(""); }} className="p-1.5 rounded-full hover:bg-gray-200 text-gray-400 hover:text-gray-700 transition-colors"><X size={18} /></button>
-            </div>
-            <div className="p-5 space-y-4">
-              {xmlError && <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl flex items-center gap-2 text-sm font-medium"><AlertCircle size={16} />{xmlError}</div>}
-              {xmlSuccess && <div className="p-3 bg-green-50 border border-green-200 text-green-700 rounded-xl flex items-center gap-2 text-sm font-medium"><Check size={16} />{xmlSuccess}</div>}
-              <div className="space-y-2">
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">Selecione o XML</label>
-                {(["inv1", "inv2"] as const).map(inv => (
-                  <button key={inv} type="button" onClick={() => setSelectedInvoice(inv)}
-                    className={`w-full flex items-center justify-between p-3.5 rounded-xl border-2 transition-all text-left ${selectedInvoice === inv ? "border-blue-600 bg-blue-50 text-blue-700 font-bold" : "border-gray-200 bg-gray-50 hover:border-blue-300 text-gray-700"
-                      }`}>
-                    <div>
-                      <span className="block text-sm font-bold">{inv === "inv1" ? "NFe_88392_distribuidora.xml" : "NFe_88410_laticinios.xml"}</span>
-                      <span className="text-xs text-gray-500">{inv === "inv1" ? "Guaraná, Batata Palha" : "Oreo, Detergente Ypê"}</span>
-                    </div>
-                    <FileCode size={16} className="text-blue-500" />
-                  </button>
-                ))}
-              </div>
-              {selectedInvoice && (
-                <div className="bg-gray-50 border border-gray-200 p-3 rounded-xl space-y-1">
-                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Itens na Nota:</span>
-                  {invoicesData[selectedInvoice].map((item, idx) => (
-                    <div key={idx} className="flex justify-between text-xs text-gray-700">
-                      <span>• {item.name}</span>
-                      <span className="font-mono font-bold text-gray-900">Qtd: {item.stock}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <div className="flex gap-2 pt-2">
-                <button onClick={() => { setIsXmlModalOpen(false); setSelectedInvoice(""); setXmlError(""); }}
-                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 rounded-xl border border-gray-200 text-sm transition-colors">Voltar</button>
-                <button onClick={handleImportXml} disabled={xmlLoading || !selectedInvoice}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2.5 rounded-xl shadow-md shadow-blue-500/20 text-sm transition-all disabled:opacity-40">
-                  {xmlLoading ? "Importando..." : "Confirmar"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      
 
       {/* Modal de Bipagem Rápida e Cadastro Automático por Código de Barras */}
       {isBarcodeModalOpen && (

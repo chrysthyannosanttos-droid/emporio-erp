@@ -1,5 +1,7 @@
 "use server";
 
+import fs from "fs";
+import path from "path";
 import { prisma } from "@emporio/database";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/session";
@@ -372,97 +374,134 @@ export async function getRadarInvoices(): Promise<{ invoices: RadarInvoice[]; la
 
   const importedNums = new Set(existingEntries.map(e => e.invoiceNum));
 
-  // Buscar fornecedores reais do banco se existirem
-  const suppliers = companyId
-    ? await prisma.supplier.findMany({
-        where: { companyId },
-        take: 3,
-        select: { name: true, document: true, stateReg: true, city: true, state: true }
-      })
-    : [];
-
-  const sup1 = suppliers[0] || { name: "AMBEV BRASIL BEBIDAS S.A.", document: "07526557000100", stateReg: "112345678", city: "Jaguariúna", state: "SP" };
-  const sup2 = suppliers[1] || { name: "FRIGORIFICO MATURATTA MINERVA S.A.", document: "67620377000180", stateReg: "209876543", city: "Barretos", state: "SP" };
-  const sup3 = suppliers[2] || { name: "MOINHO DIAS BRANCO IND. ALIMENTOS", document: "07206816000106", stateReg: "334455667", city: "Fortaleza", state: "CE" };
-
-  const radarList: RadarInvoice[] = [
-    {
-      accessKey: "35261007526557000100550010000458921098234712",
-      invoiceNum: "45892",
-      series: "1",
-      naturezaOp: "VENDA DE MERCADORIA ADQUIRIDA DE TERCEIROS",
-      issueDate: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(), // 3 horas atrás
-      supplierName: sup1.name,
-      supplierCnpj: sup1.document || "07.526.557/0001-00",
-      supplierIe: sup1.stateReg || "112.345.678.900",
-      supplierAddress: `Rod. Adhemar Pereira de Barros, km 133 - ${sup1.city || "Jaguariúna"}/${sup1.state || "SP"}`,
-      totalAmount: 3840.50,
-      totalIcms: 691.29,
-      statusManifest: "CIENCIA_EMITIDA",
-      manifestProtocolo: "135260098412345",
-      manifestDate: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-      xmlAvailable: true,
-      imported: importedNums.has("45892"),
-      nsu: "000000000142981",
-      itemsPreview: [
-        { name: "Cerveja Spaten Puro Malte 355ml LN", quantity: 240, unit: "UN", unitCost: 4.80, totalCost: 1152.00, barcode: "7891991015240", ncm: "22030000", cfop: "5102" },
-        { name: "Cerveja Corona Extra 330ml LN", quantity: 180, unit: "UN", unitCost: 6.20, totalCost: 1116.00, barcode: "7891991015257", ncm: "22030000", cfop: "5102" },
-        { name: "Cerveja Stella Artois Pure Gold 330ml", quantity: 120, unit: "UN", unitCost: 5.50, totalCost: 660.00, barcode: "7891991015264", ncm: "22030000", cfop: "5102" },
-        { name: "Refrigerante Guaraná Antarctica 2L", quantity: 150, unit: "UN", unitCost: 6.08, totalCost: 912.50, barcode: "7891991000857", ncm: "22021000", cfop: "5102" },
-      ]
-    },
-    {
-      accessKey: "35261067620377000180550010000128451003487192",
-      invoiceNum: "12845",
-      series: "2",
-      naturezaOp: "VENDA DE PRODUÇÃO DO ESTABELECIMENTO",
-      issueDate: new Date(Date.now() - 1000 * 60 * 60 * 18).toISOString(), // ontem
-      supplierName: sup2.name,
-      supplierCnpj: sup2.document || "67.620.377/0001-80",
-      supplierIe: sup2.stateReg || "209.876.543.210",
-      supplierAddress: `Av. Frigorífico Minerva, 1000 - ${sup2.city || "Barretos"}/${sup2.state || "SP"}`,
-      totalAmount: 4950.00,
-      totalIcms: 594.00,
-      statusManifest: "CONFIRMADA",
-      manifestProtocolo: "135260098409812",
-      manifestDate: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
-      xmlAvailable: true,
-      imported: importedNums.has("12845"),
-      nsu: "000000000142980",
-      itemsPreview: [
-        { name: "Picanha Bovina Resfriada Fatiada (Kg)", quantity: 45, unit: "KG", unitCost: 58.00, totalCost: 2610.00, barcode: "7891112223334", ncm: "02013000", cfop: "5101" },
-        { name: "Contra Filé Bovino Grill Resfriado (Kg)", quantity: 50, unit: "KG", unitCost: 38.00, totalCost: 1900.00, barcode: "7891112223341", ncm: "02013000", cfop: "5101" },
-        { name: "Carvão São José Especial 3kg", quantity: 40, unit: "UN", unitCost: 11.00, totalCost: 440.00, barcode: "7890987654321", ncm: "44029000", cfop: "5102" },
-      ]
-    },
-    {
-      accessKey: "35261007206816000106550010000981241084729104",
-      invoiceNum: "98124",
-      series: "1",
-      naturezaOp: "VENDA DE PRODUTOS ALIMENTICIOS",
-      issueDate: new Date(Date.now() - 1000 * 60 * 60 * 36).toISOString(),
-      supplierName: sup3.name,
-      supplierCnpj: sup3.document || "07.206.816/0001-06",
-      supplierIe: sup3.stateReg || "334.455.667.890",
-      supplierAddress: `Av. Brasil Industrial, 500 - ${sup3.city || "Fortaleza"}/${sup3.state || "CE"}`,
-      totalAmount: 1820.00,
-      totalIcms: 218.40,
-      statusManifest: "AGUARDANDO_MANIFESTACAO",
-      xmlAvailable: false,
-      imported: importedNums.has("98124"),
-      nsu: "000000000142978",
-      itemsPreview: [
-        { name: "Farinha de Trigo Especial Pastel/Pão 5kg", quantity: 60, unit: "UN", unitCost: 18.50, totalCost: 1110.00, barcode: "7891000123456", ncm: "11010010", cfop: "5101" },
-        { name: "Fermento Biológico Seco Instantâneo 500g", quantity: 20, unit: "UN", unitCost: 14.50, totalCost: 290.00, barcode: "7891000123463", ncm: "21021090", cfop: "5102" },
-        { name: "Açúcar Cristal Especial 5kg", quantity: 30, unit: "UN", unitCost: 14.00, totalCost: 420.00, barcode: "7891000123470", ncm: "17019900", cfop: "5102" },
-      ]
-    }
+  // Lê o cache oficial dos XMLs ou diretamente da pasta oficial do CNPJ
+  const xmlDir = "C:\\Users\\tisup\\Downloads\\CNPJ_65522409000113_2026-01-01_2026-11-30";
+  const candidateCachePaths = [
+    path.join(process.cwd(), "apps", "web", "src", "data", "real_radar_invoices.json"),
+    path.join(process.cwd(), "src", "data", "real_radar_invoices.json"),
+    path.resolve(process.cwd(), "apps/web/src/data/real_radar_invoices.json"),
+    path.resolve(process.cwd(), "src/data/real_radar_invoices.json"),
   ];
+  let realInvoices: RadarInvoice[] = [];
+
+  for (const cp of candidateCachePaths) {
+    if (fs.existsSync(cp)) {
+      try {
+        realInvoices = JSON.parse(fs.readFileSync(cp, "utf-8"));
+        if (realInvoices.length > 0) break;
+      } catch (e) {
+        console.error("Erro ao ler cache de notas reais:", e);
+      }
+    }
+  }
+
+  // Se a pasta física de downloads estiver acessível e tiver mais arquivos, faz scan
+  if (realInvoices.length === 0 && fs.existsSync(xmlDir)) {
+    try {
+      const files = fs.readdirSync(xmlDir).filter(f => f.endsWith(".xml"));
+
+      for (const file of files) {
+        try {
+          const content = fs.readFileSync(path.join(xmlDir, file), "utf-8");
+          const chMatch = content.match(/<chNFe>(.*?)<\/chNFe>/) || content.match(/Id="NFe(\d+)"/);
+          const chNFe = chMatch ? chMatch[1] : file.replace(".xml", "");
+          const nNF = (content.match(/<nNF>(.*?)<\/nNF>/) || [])[1] || "";
+          if (!nNF) continue; // pula XMLs que não são NF-e completa (ex: eventos)
+
+          const serie = (content.match(/<serie>(.*?)<\/serie>/) || [])[1] || "1";
+          const natOp = (content.match(/<natOp>(.*?)<\/natOp>/) || [])[1] || "COMPRA DE MERCADORIA";
+          const dhEmi = (content.match(/<dhEmi>(.*?)<\/dhEmi>/) || content.match(/<dEmi>(.*?)<\/dEmi>/) || [])[1] || new Date().toISOString();
+
+          const emitMatch = content.match(/<emit>([\s\S]*?)<\/emit>/);
+          let supplierName = "Fornecedor";
+          let supplierCnpj = "";
+          let supplierIe = "";
+          let supplierAddress = "";
+
+          if (emitMatch) {
+            supplierName = (emitMatch[1].match(/<xNome>(.*?)<\/xNome>/) || [])[1] || "Fornecedor";
+            supplierCnpj = (emitMatch[1].match(/<CNPJ>(.*?)<\/CNPJ>/) || [])[1] || "";
+            supplierIe = (emitMatch[1].match(/<IE>(.*?)<\/IE>/) || [])[1] || "";
+            const xLgr = (emitMatch[1].match(/<xLgr>(.*?)<\/xLgr>/) || [])[1] || "";
+            const nro = (emitMatch[1].match(/<nro>(.*?)<\/nro>/) || [])[1] || "";
+            const xMun = (emitMatch[1].match(/<xMun>(.*?)<\/xMun>/) || [])[1] || "";
+            const uf = (emitMatch[1].match(/<UF>(.*?)<\/UF>/) || [])[1] || "";
+            supplierAddress = xLgr ? `${xLgr}, ${nro} - ${xMun}/${uf}` : "";
+          }
+
+          const vNF = parseFloat((content.match(/<vNF>(.*?)<\/vNF>/) || [])[1] || "0");
+          const vICMS = parseFloat((content.match(/<vICMS>(.*?)<\/vICMS>/) || [])[1] || "0");
+
+          const detRegex = /<det\s+nItem="(\d+)">([\s\S]*?)<\/det>/g;
+          let dMatch;
+          const items: RadarInvoice["itemsPreview"] = [];
+
+          while ((dMatch = detRegex.exec(content)) !== null) {
+            const b = dMatch[2];
+            const name = (b.match(/<xProd>(.*?)<\/xProd>/) || [])[1] || "";
+            const qty = parseFloat((b.match(/<qCom>(.*?)<\/qCom>/) || [])[1] || "0");
+            const unit = (b.match(/<uCom>(.*?)<\/uCom>/) || [])[1] || "UN";
+            const unitCost = parseFloat((b.match(/<vUnCom>(.*?)<\/vUnCom>/) || [])[1] || "0");
+            const totalCost = parseFloat((b.match(/<vProd>(.*?)<\/vProd>/) || [])[1] || "0");
+            let barcode = (b.match(/<cEAN>(.*?)<\/cEAN>/) || [])[1] || null;
+            if (barcode === "SEM GTIN" || (barcode && barcode.length < 8)) barcode = null;
+            const ncm = (b.match(/<NCM>(.*?)<\/NCM>/) || [])[1] || null;
+            const cfop = (b.match(/<CFOP>(.*?)<\/CFOP>/) || [])[1] || null;
+
+            items.push({
+              name,
+              quantity: qty,
+              unit,
+              unitCost,
+              totalCost,
+              barcode,
+              ncm,
+              cfop
+            });
+          }
+
+          realInvoices.push({
+            accessKey: chNFe,
+            invoiceNum: nNF,
+            series: serie,
+            naturezaOp: natOp,
+            issueDate: dhEmi,
+            supplierName,
+            supplierCnpj,
+            supplierIe,
+            supplierAddress,
+            totalAmount: vNF,
+            totalIcms: vICMS,
+            statusManifest: "CIENCIA_EMITIDA",
+            xmlAvailable: true,
+            imported: importedNums.has(nNF),
+            nsu: nNF.padStart(15, "0"),
+            itemsPreview: items
+          });
+        } catch {
+          // ignora erro em arquivo corrompido
+        }
+      }
+    } catch (e) {
+      console.error("Erro ao ler diretório de XMLs reais:", e);
+    }
+  }
+
+  // Atualiza flag de importado com base no banco atual
+  realInvoices = realInvoices.map(inv => ({
+    ...inv,
+    imported: importedNums.has(inv.invoiceNum)
+  }));
+
+  // Ordena pelas notas mais recentes primeiro
+  realInvoices.sort((a, b) => new Date(b.issueDate).getTime() - new Date(a.issueDate).getTime());
+
+  const company = companyId ? await prisma.company.findUnique({ where: { id: companyId } }) : null;
 
   return {
-    invoices: radarList,
+    invoices: realInvoices,
     lastSync: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
-    cnpjMonitorado: sup1.document || "Matriz Ativa"
+    cnpjMonitorado: company?.document || "65.522.409/0001-13"
   };
 }
 

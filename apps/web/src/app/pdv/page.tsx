@@ -23,7 +23,6 @@ import {
   searchProducts,
   lookupBarcodeOnline,
   getProductsByCategory,
-  seedSampleCategoryProducts,
   getFullCatalogForOfflineSync
 } from "@/actions/product";
 import { getOrderById, getOrders } from "@/actions/order";
@@ -983,10 +982,6 @@ function PDVContainer() {
     setIsPaused(false);
     setPausePin("");
   };
-
-  useEffect(() => {
-    seedSampleCategoryProducts().catch(() => { });
-  }, []);
 
   // Sincronização automática de vendas offline quando a conexão com a nuvem é restabelecida
   useEffect(() => {

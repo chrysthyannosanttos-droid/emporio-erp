@@ -89,263 +89,74 @@ function fmt(v: number) {
   return v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// ─── Initial Mock Data ──────────────────────────────────────────────────────
-const MOCK_WAITERS = ["Carlos Silva", "Ana Oliveira", "Mateus Santos", "Juliana Costa"];
-const MOCK_COURIERS = ["Marcos Motoboy", "Lucas Entrega Express", "Roberto iFood", "Felipe Flash"];
+import { getProducts } from "@/actions/product";
 
-const CATEGORIES = [
+// ─── Initial Data ───────────────────────────────────────────────────────────
+const MOCK_WAITERS = ["Atendente Principal", "Caixa Balcão"];
+const MOCK_COURIERS = ["Entregador Próprio", "Motoboy"];
+
+const DEFAULT_CATEGORIES = [
   { id: "ALL", name: "Todos os Itens", icon: <Utensils size={16} /> },
-  { id: "PIZZA", name: "Pizzas Gourmet", icon: <Pizza size={16} /> },
-  { id: "BURGER", name: "Lanches & Chapa", icon: <Flame size={16} /> },
-  { id: "EXECUTIVE", name: "Pratos Executivos", icon: <ChefHat size={16} /> },
-  { id: "PORTIONS", name: "Porções & Petiscos", icon: <Utensils size={16} /> },
-  { id: "DRINKS", name: "Bebidas & Coquetéis", icon: <Wine size={16} /> },
-  { id: "DESSERT", name: "Sobremesas", icon: <IceCream size={16} /> },
 ];
 
-const PRODUCTS: ProductItem[] = [
-  {
-    id: "p1",
-    name: "Pizza Calabresa Especial",
-    category: "PIZZA",
-    price: 58.00,
-    sector: "PIZZERIA",
-    isPizza: true,
-    additionGroups: [
-      {
-        name: "Borda Recheada",
-        required: false,
-        items: [
-          { id: "a1", name: "Borda Catupiry Original", price: 12.00 },
-          { id: "a2", name: "Borda Cheddar Cremoso", price: 10.00 },
-          { id: "a3", name: "Borda Chocolate", price: 14.00 }
-        ]
-      }
-    ]
-  },
-  {
-    id: "p2",
-    name: "Pizza 4 Queijos Suprema",
-    category: "PIZZA",
-    price: 64.00,
-    sector: "PIZZERIA",
-    isPizza: true,
-  },
-  {
-    id: "p3",
-    name: "Pizza Frango c/ Catupiry",
-    category: "PIZZA",
-    price: 62.00,
-    sector: "PIZZERIA",
-    isPizza: true,
-  },
-  {
-    id: "p4",
-    name: "Hambúrguer Smash Bacon Double",
-    category: "BURGER",
-    price: 36.90,
-    sector: "GRILL",
-    additionGroups: [
-      {
-        name: "Adicionais no Lanche",
-        required: false,
-        items: [
-          { id: "a4", name: "Queijo Cheddar Extra", price: 5.00 },
-          { id: "a5", name: "Bacon Crocante Extra", price: 6.00 },
-          { id: "a6", name: "Maionese Verde Artesanal", price: 3.50 }
-        ]
-      }
-    ]
-  },
-  {
-    id: "p5",
-    name: "Picanha na Chapa 500g (Acompanha Fritas)",
-    category: "EXECUTIVE",
-    price: 119.00,
-    sector: "KITCHEN"
-  },
-  {
-    id: "p6",
-    name: "Filé de Mignon ao Molho Madeira",
-    category: "EXECUTIVE",
-    price: 78.50,
-    sector: "KITCHEN"
-  },
-  {
-    id: "p7",
-    name: "Porção Batata Frita c/ Cheddar e Bacon",
-    category: "PORTIONS",
-    price: 42.00,
-    sector: "KITCHEN"
-  },
-  {
-    id: "p8",
-    name: "Iscas de Peixe Empanadas",
-    category: "PORTIONS",
-    price: 54.00,
-    sector: "KITCHEN"
-  },
-  {
-    id: "p9",
-    name: "Chopp Artesanal IPA 500ml",
-    category: "DRINKS",
-    price: 16.00,
-    sector: "BAR"
-  },
-  {
-    id: "p10",
-    name: "Refrigerante Coca-Cola 350ml",
-    category: "DRINKS",
-    price: 7.50,
-    sector: "BAR"
-  },
-  {
-    id: "p11",
-    name: "Suco Natural de Laranja 500ml",
-    category: "DRINKS",
-    price: 12.00,
-    sector: "BAR"
-  },
-  {
-    id: "p12",
-    name: "Petit Gâteau c/ Sorvete de Creme",
-    category: "DESSERT",
-    price: 28.00,
-    sector: "KITCHEN"
-  }
-];
+const INITIAL_TABLES: Table[] = Array.from({ length: 16 }, (_, i) => ({
+  id: i + 1,
+  name: `Mesa ${i + 1}`,
+  status: "FREE",
+  capacity: 4,
+  peopleCount: 0,
+  items: []
+}));
 
-const INITIAL_TABLES: Table[] = Array.from({ length: 16 }, (_, i) => {
-  const tableNum = i + 1;
-  if (tableNum === 2) {
-    return {
-      id: tableNum,
-      name: `Mesa ${tableNum}`,
-      status: "OCCUPIED",
-      capacity: 4,
-      peopleCount: 3,
-      waiter: "Carlos Silva",
-      openTime: "12:15",
-      items: [
-        { id: "i1", productId: "p4", name: "Hambúrguer Smash Bacon Double", quantity: 2, unitPrice: 36.90, totalPrice: 73.80, sector: "GRILL", notes: "Sem cebola", status: "SERVED", timestamp: "12:18" },
-        { id: "i2", productId: "p9", name: "Chopp Artesanal IPA 500ml", quantity: 3, unitPrice: 16.00, totalPrice: 48.00, sector: "BAR", status: "SERVED", timestamp: "12:16" }
-      ]
-    };
-  }
-  if (tableNum === 5) {
-    return {
-      id: tableNum,
-      name: `Mesa ${tableNum}`,
-      status: "BILL_REQUESTED",
-      capacity: 6,
-      peopleCount: 4,
-      waiter: "Ana Oliveira",
-      openTime: "11:45",
-      items: [
-        { id: "i3", productId: "p5", name: "Picanha na Chapa 500g", quantity: 1, unitPrice: 119.00, totalPrice: 119.00, sector: "KITCHEN", status: "SERVED", timestamp: "11:50" },
-        { id: "i4", productId: "p10", name: "Refrigerante Coca-Cola 350ml", quantity: 4, unitPrice: 7.50, totalPrice: 30.00, sector: "BAR", status: "SERVED", timestamp: "11:48" }
-      ]
-    };
-  }
-  if (tableNum === 8) {
-    return {
-      id: tableNum,
-      name: `Mesa ${tableNum}`,
-      status: "RESERVED",
-      capacity: 2,
-      peopleCount: 0,
-      items: []
-    };
-  }
-  return {
-    id: tableNum,
-    name: `Mesa ${tableNum}`,
-    status: "FREE",
-    capacity: 4,
-    peopleCount: 0,
-    items: []
-  };
-});
-
-const INITIAL_COMMANDS: CommandOrder[] = [
-  {
-    id: "cmd-101",
-    code: "101",
-    customerName: "Bruno Henrique",
-    phone: "(11) 98822-1144",
-    waiter: "Carlos Silva",
-    openTime: "12:30",
-    status: "OPEN",
-    items: [
-      { id: "ci-1", productId: "p9", name: "Chopp Artesanal IPA 500ml", quantity: 2, unitPrice: 16.00, totalPrice: 32.00, sector: "BAR", status: "SERVED", timestamp: "12:32" },
-      { id: "ci-2", productId: "p7", name: "Porção Batata Frita c/ Cheddar e Bacon", quantity: 1, unitPrice: 42.00, totalPrice: 42.00, sector: "KITCHEN", status: "SENT", timestamp: "12:35" }
-    ]
-  },
-  {
-    id: "cmd-102",
-    code: "102",
-    customerName: "Mariana Costa",
-    phone: "(11) 97711-3322",
-    waiter: "Ana Oliveira",
-    openTime: "12:40",
-    status: "OPEN",
-    items: [
-      { id: "ci-3", productId: "p1", name: "Pizza Calabresa Especial", quantity: 1, unitPrice: 58.00, totalPrice: 58.00, sector: "PIZZERIA", status: "PREPARING", timestamp: "12:42" }
-    ]
-  },
-  {
-    id: "cmd-105",
-    code: "105",
-    customerName: "Fernanda Lima",
-    waiter: "Mateus Santos",
-    openTime: "12:10",
-    status: "BILL_REQUESTED",
-    items: [
-      { id: "ci-4", productId: "p6", name: "Filé de Mignon ao Molho Madeira", quantity: 1, unitPrice: 78.50, totalPrice: 78.50, sector: "KITCHEN", status: "SERVED", timestamp: "12:15" },
-      { id: "ci-5", productId: "p11", name: "Suco Natural de Laranja 500ml", quantity: 1, unitPrice: 12.00, totalPrice: 12.00, sector: "BAR", status: "SERVED", timestamp: "12:12" }
-    ]
-  }
-];
-
-const INITIAL_DELIVERIES: DeliveryOrder[] = [
-  {
-    id: "del-401",
-    code: "DEL-401",
-    customerName: "Rodrigo Mendonça",
-    customerPhone: "(11) 99123-4567",
-    address: "Rua Augusta, 1420 - Apt 82",
-    neighborhood: "Consolação",
-    deliveryFee: 10.00,
-    courier: "Marcos Motoboy",
-    status: "OUT_FOR_DELIVERY",
-    paymentMethod: "PIX",
-    createdAt: "12:20",
-    items: [
-      { id: "di-1", productId: "p1", name: "Pizza Calabresa Especial", quantity: 1, unitPrice: 58.00, totalPrice: 58.00, sector: "PIZZERIA", status: "SERVED", timestamp: "12:22" },
-      { id: "di-2", productId: "p10", name: "Refrigerante Coca-Cola 350ml", quantity: 2, unitPrice: 7.50, totalPrice: 15.00, sector: "BAR", status: "SERVED", timestamp: "12:22" }
-    ]
-  },
-  {
-    id: "del-402",
-    code: "DEL-402",
-    customerName: "Camila Ribeiro",
-    customerPhone: "(11) 98221-9988",
-    address: "Av. Paulista, 900 - Conj 41",
-    neighborhood: "Bela Vista",
-    deliveryFee: 12.00,
-    status: "PREPARING",
-    paymentMethod: "CARTAO_CREDITO",
-    createdAt: "12:45",
-    items: [
-      { id: "di-3", productId: "p4", name: "Hambúrguer Smash Bacon Double", quantity: 2, unitPrice: 36.90, totalPrice: 73.80, sector: "GRILL", status: "PREPARING", timestamp: "12:46" }
-    ]
-  }
-];
+const INITIAL_COMMANDS: CommandOrder[] = [];
+const INITIAL_DELIVERIES: DeliveryOrder[] = [];
 
 // ─── Main Component ─────────────────────────────────────────────────────────
 export default function RestaurantPdvPage() {
   const [mode, setMode] = useState<OrderMode>("TABLES");
   
+  // Real Products & Categories from Database
+  const [productsList, setProductsList] = useState<ProductItem[]>([]);
+  const [categoriesList, setCategoriesList] = useState<{ id: string; name: string; icon?: React.ReactNode }[]>(DEFAULT_CATEGORIES);
+
+  useEffect(() => {
+    async function loadRealProducts() {
+      try {
+        const res = await getProducts();
+        if (res.products && res.products.length > 0) {
+          const mapped: ProductItem[] = res.products.map((p: any) => {
+            const catName = p.category?.name || "Geral";
+            let sector: ProductionSector = "KITCHEN";
+            const catLower = catName.toLowerCase();
+            if (catLower.includes("bebida") || catLower.includes("refrigerante") || catLower.includes("suco") || catLower.includes("café")) {
+              sector = "BAR";
+            } else if (catLower.includes("chapa") || catLower.includes("carne") || catLower.includes("sanduíche") || catLower.includes("lanche")) {
+              sector = "GRILL";
+            }
+            return {
+              id: p.id,
+              name: p.name,
+              category: catName,
+              price: Number(p.price || 0),
+              sector,
+              isPizza: false,
+            };
+          });
+          setProductsList(mapped);
+
+          const cats = Array.from(new Set(mapped.map(m => m.category))).sort();
+          setCategoriesList([
+            { id: "ALL", name: "Todos os Itens", icon: <Utensils size={16} /> },
+            ...cats.map(c => ({ id: c, name: c, icon: <Tag size={16} /> }))
+          ]);
+        }
+      } catch (e) {
+        console.error("Erro ao carregar produtos:", e);
+      }
+    }
+    loadRealProducts();
+  }, []);
+
   // Data States
   const [tables, setTables] = useState<Table[]>(INITIAL_TABLES);
   const [commands, setCommands] = useState<CommandOrder[]>(INITIAL_COMMANDS);
@@ -524,7 +335,7 @@ export default function RestaurantPdvPage() {
 
     // Handle Pizza Multisabor
     if (modalProduct.isPizza && pizzaSecondaryFlavor) {
-      const secProd = PRODUCTS.find(p => p.id === pizzaSecondaryFlavor);
+      const secProd = productsList.find(p => p.id === pizzaSecondaryFlavor);
       if (secProd) {
         finalPrice = Math.max(modalProduct.price, secProd.price);
         finalName = `1/2 ${modalProduct.name} + 1/2 ${secProd.name}`;
@@ -717,7 +528,7 @@ export default function RestaurantPdvPage() {
     showNotification("✅ Venda finalizada e pagamento recebido!");
   };
 
-  const filteredProducts = PRODUCTS.filter(p => {
+  const filteredProducts = productsList.filter(p => {
     const matchesCat = selectedCategory === "ALL" || p.category === selectedCategory;
     const matchesSearch = p.name.toLowerCase().includes(productSearch.toLowerCase());
     return matchesCat && matchesSearch;
@@ -1111,7 +922,7 @@ export default function RestaurantPdvPage() {
 
               {/* Categorias Touch */}
               <div className="flex gap-2 overflow-x-auto pb-1 shrink-0 custom-scrollbar">
-                {CATEGORIES.map(cat => (
+                {categoriesList.map(cat => (
                   <button
                     key={cat.id}
                     onClick={() => setSelectedCategory(cat.id)}
@@ -1325,7 +1136,7 @@ export default function RestaurantPdvPage() {
                     className="w-full bg-[#e8f0fc] border border-amber-500/30 text-gray-900 px-3 py-2 rounded-xl text-xs outline-none font-semibold"
                   >
                     <option value="">Apenas Sabor Inteiro ({modalProduct.name})</option>
-                    {PRODUCTS.filter(p => p.isPizza && p.id !== modalProduct.id).map(p => (
+                    {productsList.filter(p => p.isPizza && p.id !== modalProduct.id).map(p => (
                       <option key={p.id} value={p.id}>+ 1/2 {p.name} (R$ {fmt(p.price)})</option>
                     ))}
                   </select>

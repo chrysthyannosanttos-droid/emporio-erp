@@ -46,21 +46,15 @@ async function ensureMobilePermissionSeeded() {
       },
     });
 
-    const linkedCount = await prisma.rolePermission.count({
-      where: { permissionId: perm.id },
+    const defaultRoles = await prisma.role.findMany({
+      where: { key: { in: ["ADMIN", "MANAGER", "SUPERVISOR", "OPERATOR", "CASHIER"] } },
+      select: { id: true },
     });
-
-    if (linkedCount === 0) {
-      const defaultRoles = await prisma.role.findMany({
-        where: { key: { in: ["ADMIN", "MANAGER", "SUPERVISOR"] } },
-        select: { id: true },
+    if (defaultRoles.length > 0) {
+      await prisma.rolePermission.createMany({
+        data: defaultRoles.map((r) => ({ roleId: r.id, permissionId: perm.id })),
+        skipDuplicates: true,
       });
-      if (defaultRoles.length > 0) {
-        await prisma.rolePermission.createMany({
-          data: defaultRoles.map((r) => ({ roleId: r.id, permissionId: perm.id })),
-          skipDuplicates: true,
-        });
-      }
     }
   } catch {
     // silencioso para não bloquear o fluxo do PDV
@@ -70,27 +64,67 @@ async function ensureMobilePermissionSeeded() {
 /** Verifica sessão + permissões do usuário para usar o PDV Mobile. */
 async function checkMobileAccess(): Promise<MobileAccess & { userId?: string; companyId?: string }> {
   const session = await getSession();
-  if (!session?.userId || !session.companyId || session.isSuperAdmin) {
+  if (!session?.userId) {
     return { allowed: false, reason: "Sessão expirada. Faça login novamente." };
   }
 
-  const sessionStatus = await validateActiveSession();
-  if (!sessionStatus.valid) {
+  // Resolver empresa caso não esteja expressa na sessão (ex.: SuperAdmin)
+  let companyId = session.companyId;
+  let companyName = session.companyName;
+  if (!companyId) {
+    const defaultComp =
+      (await prisma.company.findFirst({ where: { document: "65.522.409/0001-13" } })) ||
+      (await prisma.company.findFirst());
+    if (defaultComp) {
+      companyId = defaultComp.id;
+      companyName = defaultComp.name;
+    }
+  }
+
+  if (!companyId) {
+    return { allowed: false, reason: "Nenhuma empresa associada a esta conta." };
+  }
+
+  // SuperAdmin e Administradores possuem acesso total irrestrito ao PDV Mobile
+  const isAdmin = session.role === "ADMIN" || Boolean(session.isSuperAdmin);
+  if (isAdmin) {
     return {
-      allowed: false,
-      reason: sessionStatus.reason === "CONCURRENT_LOGIN"
-        ? "Esta conta foi conectada em outro dispositivo. Não é permitido acesso simultâneo."
-        : "Sessão expirada. Faça login novamente.",
+      allowed: true,
+      userId: session.userId,
+      companyId,
+      userName: session.name,
+      companyName: companyName || "Empório Agrobelém",
+      canDiscountLimited: true,
+      canDiscountUnlimited: true,
+    };
+  }
+
+  // Operadores e caixas têm acesso direto por perfil de função
+  const roleUpper = (session.role || "").toUpperCase();
+  const isCashierOrOp =
+    roleUpper === "OPERATOR" ||
+    roleUpper === "CASHIER" ||
+    roleUpper.includes("OPERADOR") ||
+    roleUpper.includes("CAIXA");
+
+  if (isCashierOrOp) {
+    return {
+      allowed: true,
+      userId: session.userId,
+      companyId,
+      userName: session.name,
+      companyName: companyName || "Empório Agrobelém",
+      canDiscountLimited: true,
+      canDiscountUnlimited: false,
     };
   }
 
   await ensureMobilePermissionSeeded();
 
-  const isAdmin = session.role === "ADMIN";
   const perms = await getUserEffectivePermissions(session.userId);
-  const has = (code: string) => isAdmin || perms.includes(code);
+  const has = (code: string) => perms.includes(code);
 
-  if (!has("pdv.mobile") || !has("pdv.sale")) {
+  if (!has("pdv.mobile") && !has("pdv.sale") && !has("pdv.access")) {
     return {
       allowed: false,
       reason: "Seu usuário não tem permissão para usar o PDV Mobile. Peça ao administrador para liberar em Configurações › Perfis & Setores.",
@@ -101,9 +135,9 @@ async function checkMobileAccess(): Promise<MobileAccess & { userId?: string; co
   return {
     allowed: true,
     userId: session.userId,
-    companyId: session.companyId,
+    companyId,
     userName: session.name,
-    companyName: session.companyName,
+    companyName: companyName || "Empório Agrobelém",
     canDiscountLimited: has("pdv.discount.limited"),
     canDiscountUnlimited: has("pdv.discount.unlimited"),
   };

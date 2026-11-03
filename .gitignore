@@ -62,3 +62,6 @@ apps/web/public/login-neon-ref.png
 .env.vercel.prod.tmp
 .env.vercel.tmp
 scratch/
+*.pfx
+certs/
+**/certs/

@@ -183,7 +183,9 @@ export async function login(formData: FormData) {
   // Se o usuário digitou "caixa" ou "operador", cria ou garante o caixa na hora
   if (username.toLowerCase() === "caixa" || username.toLowerCase() === "operador" || username === "1") {
     try {
-      const company = await prisma.company.findFirst();
+      const company =
+        (await prisma.company.findFirst({ where: { document: "65.522.409/0001-13" } })) ||
+        (await prisma.company.findFirst());
       if (company) {
         let cashier = await prisma.user.findFirst({
           where: { role: "OPERATOR", companyId: company.id }
@@ -331,6 +333,12 @@ export async function validateActiveSession(): Promise<{
     // Se o JWT ainda não tiver sessionToken (sessões legadas antes do update),
     // vincula o token atual ao banco para não deslogar bruscamente na primeira vez
     if (!session.sessionToken) {
+      return { valid: true, userName: session.name };
+    }
+
+    // Administradores e SuperAdmins possuem acesso multi-dispositivo garantido
+    // para permitir gerência e mobilidade operacional (celular, tablet e computador)
+    if (session.isSuperAdmin || session.role === "ADMIN") {
       return { valid: true, userName: session.name };
     }
 

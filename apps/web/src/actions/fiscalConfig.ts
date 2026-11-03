@@ -1,8 +1,11 @@
 "use server";
 
+import fs from "fs";
+import path from "path";
 import { prisma } from "@emporio/database";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/session";
+import { inspectPfxBuffer } from "./certificate";
 
 export async function getFiscalConfig() {
   try {
@@ -50,10 +53,31 @@ export async function saveFiscalConfig(formData: FormData) {
       companyId: companyId,
     };
 
+    const certFile = formData.get("certFile") as File | null;
     const certPassword = formData.get("certPassword") as string;
+
     if (certPassword) {
       data.certPassword = certPassword;
-      data.certUploaded = true;
+    }
+
+    if (certFile && certFile.size > 0) {
+      const buffer = Buffer.from(await certFile.arrayBuffer());
+      if (certPassword) {
+        const certInfo = await inspectPfxBuffer(buffer, certPassword);
+        if (certInfo.isValid) {
+          const certsDir = path.join(process.cwd(), "packages", "database", "certs");
+          if (!fs.existsSync(certsDir)) fs.mkdirSync(certsDir, { recursive: true });
+          const finalPath = path.join(certsDir, `cert_${companyId}.pfx`);
+          fs.writeFileSync(finalPath, buffer);
+          data.certPath = finalPath;
+          data.certExpiration = certInfo.validTo ? new Date(certInfo.validTo) : null;
+          data.certUploaded = true;
+        } else {
+          return { error: certInfo.error || "A senha informada não é válida para este certificado." };
+        }
+      } else {
+        return { error: "Para carregar o certificado, digite a senha do arquivo .pfx." };
+      }
     }
 
     await prisma.fiscalConfig.upsert({
@@ -63,6 +87,7 @@ export async function saveFiscalConfig(formData: FormData) {
     });
 
     revalidatePath("/settings");
+    revalidatePath("/invoices");
     return { success: true };
   } catch (err: any) {
     return { error: err.message || "Erro ao salvar configuração fiscal" };

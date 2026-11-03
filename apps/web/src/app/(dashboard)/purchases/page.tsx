@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { getProducts } from "@/actions/product";
 import { getSuppliers } from "@/actions/supplier";
+import { getOpenPurchaseOrders } from "@/actions/invoices";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 function fmt(v: number) { return v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
@@ -207,12 +208,7 @@ const STORES = [
   { id: "store-2", name: "Loja 2 - Filial Zona Sul" }
 ];
 
-const SUPPLIERS = [
-  { id: "1", name: "Distribuidora Norte LTDA",   quoteEmail: "cotacao@norte.com.br",         cnpj: "12.345.678/0001-99" },
-  { id: "2", name: "Bebidas Premium S.A.",         quoteEmail: "cotacao@bebidaspremium.com",   cnpj: "98.765.432/0001-11" },
-  { id: "3", name: "Limpeza Total Distribuidora",  quoteEmail: "cotacoes@limpezatotal.com",    cnpj: "11.222.333/0001-44" },
-  { id: "4", name: "Frios & Laticínios Nordeste",  quoteEmail: "compras@friosnordeste.com",    cnpj: "55.666.777/0001-88" },
-];
+const SUPPLIERS: any[] = [];
 
 type OrderStatus = "RECEIVED" | "PENDING" | "IN_TRANSIT" | "CANCELLED";
 interface Order {
@@ -245,31 +241,7 @@ interface ActiveQuote {
   responses: QuoteResponse[];
 }
 
-const INITIAL_ORDERS: Order[] = [
-  { id: "PC-001", storeName: "Loja 1 - Matriz Centro",  supplier: "Distribuidora Norte LTDA",   date: "10/06/2026", items: 12, total: 3450.00, status: "RECEIVED",    paymentCondition: "30 dias",       paymentDueDate: "2026-07-10" },
-  { id: "PC-002", storeName: "Loja 2 - Filial Zona Sul", supplier: "Bebidas Premium S.A.",       date: "12/06/2026", items: 6,  total: 1890.50, status: "PENDING",     paymentCondition: "À Vista" },
-  { id: "PC-003", storeName: "Loja 1 - Matriz Centro",  supplier: "Frios & Laticínios Nordeste", date: "14/06/2026", items: 8,  total: 2200.00, status: "IN_TRANSIT",  paymentCondition: "30/60 dias",    paymentDueDate: "2026-07-14" },
-];
-
-// Mock of a quote already with responses for demo
-const DEMO_QUOTE: ActiveQuote = {
-  id: "COTA-2026-001",
-  token: "COTA-2026-001",
-  deadline: addDays(5),
-  status: "COMPLETE",
-  products: [
-    { id: "p1", name: "Heineken Long Neck 330ml", qty: 24, unit: "UN" },
-    { id: "p2", name: "Skol Pilsen Lata 350ml",   qty: 48, unit: "UN" },
-    { id: "p3", name: "Coca-Cola 2L",             qty: 12, unit: "UN" },
-    { id: "p4", name: "Óleo de Soja Liza 900ml",  qty: 36, unit: "UN" },
-  ],
-  supplierIds: ["1", "2", "4"],
-  responses: [
-    { supplierId: "1", supplierName: "Distribuidora Norte LTDA",   paymentProposal: "30 dias",  prices: { p1: 4.50, p2: 2.80, p3: 8.90, p4: 6.20 } },
-    { supplierId: "2", supplierName: "Bebidas Premium S.A.",       paymentProposal: "À Vista",  prices: { p1: 4.20, p2: 2.95, p3: 8.60, p4: 6.50 } },
-    { supplierId: "4", supplierName: "Frios & Laticínios Nordeste", paymentProposal: "28 dias", prices: { p1: 4.60, p2: 2.75, p3: 9.10, p4: 5.90 } },
-  ]
-};
+const INITIAL_ORDERS: Order[] = [];
 
 const STATUS_CFG: Record<OrderStatus, { label: string; cls: string; icon: React.ReactNode }> = {
   RECEIVED:   { label: "Recebido",    cls: "bg-emerald-500/10 text-emerald-600 border-emerald-500/15", icon: <CheckCircle2 size={12} /> },
@@ -296,8 +268,8 @@ export default function PurchasesPage() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [receiveModal, setReceiveModal] = useState<Order | null>(null);
-  const [activeQuotes, setActiveQuotes] = useState<ActiveQuote[]>([DEMO_QUOTE]);
-  const [selectedAnalysisQuote, setSelectedAnalysisQuote] = useState<ActiveQuote>(DEMO_QUOTE);
+  const [activeQuotes, setActiveQuotes] = useState<ActiveQuote[]>([]);
+  const [selectedAnalysisQuote, setSelectedAnalysisQuote] = useState<ActiveQuote | null>(null);
   const [responseModalQuote, setResponseModalQuote] = useState<ActiveQuote | null>(null);
   const [copiedToken, setCopiedToken] = useState<string | null>(null);
 
@@ -309,7 +281,7 @@ export default function PurchasesPage() {
   const [quickSupplierEmail, setQuickSupplierEmail] = useState("");
 
   // New Order States
-  const [selectedSupplier, setSelectedSupplier] = useState(SUPPLIERS[0].name);
+  const [selectedSupplier, setSelectedSupplier] = useState("");
   const [expectedDate, setExpectedDate] = useState("");
   const [paymentCondition, setPaymentCondition] = useState("À Vista");
   const [paymentDueDate, setPaymentDueDate] = useState("");
@@ -1512,9 +1484,19 @@ export default function PurchasesPage() {
           {selectedAnalysisQuote && !selectedAnalysisQuote.responses.length && (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center space-y-2">
-                <Clock size={40} className="mx-auto text-slate-600" />
-                <p className="text-slate-500 font-semibold">Aguardando respostas dos fornecedores...</p>
-                <p className="text-slate-600 text-xs">Use o botão "Preencher Resposta" na aba de cotações para simular uma proposta.</p>
+                <Clock size={40} className="mx-auto text-slate-400" />
+                <p className="text-slate-600 font-semibold">Aguardando respostas dos fornecedores...</p>
+                <p className="text-slate-500 text-xs">As propostas recebidas aparecerão aqui automaticamente para cruzamento de menor preço.</p>
+              </div>
+            </div>
+          )}
+
+          {!selectedAnalysisQuote && (
+            <div className="flex-1 flex items-center justify-center py-20">
+              <div className="text-center space-y-2">
+                <BarChart2 size={40} className="mx-auto text-gray-300" />
+                <p className="text-gray-600 font-bold text-sm">Nenhuma cotação com propostas para análise</p>
+                <p className="text-gray-400 text-xs">Crie uma nova cotação na aba &quot;Cotações de Preço&quot; para comparar propostas dos seus fornecedores.</p>
               </div>
             </div>
           )}

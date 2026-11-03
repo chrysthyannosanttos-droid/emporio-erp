@@ -31,10 +31,10 @@ export function ConcurrentSessionWatcher() {
       }
     };
 
-    // Checagem periódica a cada 15 segundos
-    const interval = setInterval(checkSession, 15000);
+    // Checagem periódica a cada 60 segundos
+    const interval = setInterval(checkSession, 60000);
 
-    // Checagem imediata quando o usuário volta à aba do navegador
+    // Checagem quando o usuário volta à aba do navegador
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
         checkSession();
@@ -42,13 +42,11 @@ export function ConcurrentSessionWatcher() {
     };
 
     window.addEventListener("visibilitychange", handleVisibility);
-    window.addEventListener("focus", checkSession);
 
     return () => {
       isMounted = false;
       clearInterval(interval);
       window.removeEventListener("visibilitychange", handleVisibility);
-      window.removeEventListener("focus", checkSession);
     };
   }, []);
 

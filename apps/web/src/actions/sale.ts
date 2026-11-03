@@ -37,16 +37,23 @@ async function getOrCreateUser(companyId: string) {
  */
 async function resolveCompanyAndUser() {
   const session = await getSession();
-  if (session?.companyId && session.userId) {
-    const [company, user] = await Promise.all([
-      prisma.company.findUnique({ where: { id: session.companyId } }),
-      prisma.user.findFirst({ where: { id: session.userId, companyId: session.companyId } }),
-    ]);
-    if (company && user) return { company, user };
+  if (session?.companyId) {
+    const company = await prisma.company.findUnique({ where: { id: session.companyId } });
+    if (company) {
+      let user = session.userId
+        ? await prisma.user.findFirst({ where: { id: session.userId, companyId: company.id } })
+        : null;
+      if (!user) {
+        user = (await prisma.user.findFirst({ where: { companyId: company.id } })) || (await getOrCreateUser(company.id));
+      }
+      return { company, user };
+    }
   }
-  const company = await getOrCreateCompany();
-  const user = await getOrCreateUser(company.id);
-  return { company, user };
+  const defaultCompany =
+    (await prisma.company.findFirst({ where: { document: "65.522.409/0001-13" } })) ||
+    (await getOrCreateCompany());
+  const user = await getOrCreateUser(defaultCompany.id);
+  return { company: defaultCompany, user };
 }
 
 export async function createSale(data: {

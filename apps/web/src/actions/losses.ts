@@ -38,29 +38,9 @@ export async function getLossesAndExpirationsData() {
     const { company } = await ensureCompanyAndUser();
 
     const products = await prisma.product.findMany({
+      where: { companyId: company.id },
       orderBy: { name: "asc" },
     });
-
-    // Se ainda não houver nenhum lote cadastrado e existirem produtos, cria lotes iniciais reais no banco
-    const existingBatchCount = await prisma.productBatch.count();
-    if (existingBatchCount === 0 && products.length > 0) {
-      const sampleProducts = products.slice(0, Math.min(4, products.length));
-      const offsets = [4, 9, 14, 45];
-      for (let idx = 0; idx < sampleProducts.length; idx++) {
-        const p = sampleProducts[idx];
-        const exp = new Date();
-        exp.setDate(exp.getDate() + offsets[idx % offsets.length]);
-        await prisma.productBatch.create({
-          data: {
-            productId: p.id,
-            batchNumber: `L-${1020 + idx}`,
-            expirationDate: exp,
-            initialStock: Math.max(Number(p.stock) || 15, 10),
-            currentStock: Math.max(Number(p.stock) || 15, 10),
-          },
-        });
-      }
-    }
 
     const [batches, prodLogs, losses] = await Promise.all([
       prisma.productBatch.findMany({

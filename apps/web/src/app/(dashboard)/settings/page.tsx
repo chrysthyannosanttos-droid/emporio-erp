@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { CertificateCard } from "./_components/CertificateCard";
 import { getFiscalConfig, saveFiscalConfig } from "@/actions/fiscalConfig";
 import { getTenantCompanyInfo, updateTenantCompanyInfo } from "@/actions/company";
 import { setupDemonstrativoAndCleanReal } from "@/actions/maintenance";
@@ -161,6 +162,7 @@ export default function SettingsPage() {
                   setActiveTab={setActiveTab}
                   saving={saving}
                   onSubmit={handleGeralSave}
+                  onRefreshFiscal={() => getFiscalConfig().then(r => r.config && setFiscalData(r.config))}
                 />
               )}
               {activeTab === "custo-operacional" && <CustoOperacionalTab />}
@@ -174,6 +176,7 @@ export default function SettingsPage() {
                   setCertFile={setCertFile}
                   saving={saving}
                   onSubmit={handleFiscalSave}
+                  onRefreshFiscal={() => getFiscalConfig().then(r => r.config && setFiscalData(r.config))}
                 />
               )}
               {activeTab === "pagamentos" && <PagamentosTab />}
@@ -187,7 +190,7 @@ export default function SettingsPage() {
   );
 }
 
-function GeralTab({ company, fiscal, certFile, setCertFile, setActiveTab, saving, onSubmit }: any) {
+function GeralTab({ company, fiscal, certFile, setCertFile, setActiveTab, saving, onSubmit, onRefreshFiscal }: any) {
   const [runningClean, setRunningClean] = useState(false);
 
   const handleRunDemoAndClean = async () => {
@@ -246,79 +249,12 @@ function GeralTab({ company, fiscal, certFile, setCertFile, setActiveTab, saving
         />
       </div>
 
-      {/* 🔐 Seção de Importação do Certificado Digital A1 direto na Aba Geral */}
-      <div className="pt-5 border-t border-gray-200 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Shield className="text-blue-600" size={20} />
-            <h3 className="text-base font-bold text-gray-900">Certificado Digital A1 (.pfx / .p12)</h3>
-          </div>
-          <button
-            type="button"
-            onClick={() => setActiveTab("fiscal")}
-            className="text-xs text-blue-600 hover:text-blue-800 font-bold hover:underline flex items-center gap-1"
-          >
-            Ver aba Fiscal &amp; NF-e &rarr;
-          </button>
-        </div>
-
-        <div className="p-4 bg-blue-50/70 border border-blue-200 rounded-2xl text-xs text-blue-800 flex gap-3">
-          <Info size={18} className="shrink-0 mt-0.5 text-blue-600" />
-          <div className="leading-relaxed">
-            O certificado digital A1 é obrigatório para assinar <strong>NF-e, NFC-e</strong> e para a busca automática de notas no <strong>Radar SEFAZ DF-e</strong>. Você pode carregá-lo diretamente aqui ou na aba lateral <strong>Fiscal &amp; NF-e</strong>.
-          </div>
-        </div>
-
-        {/* Upload Box */}
-        <div className={`border-2 border-dashed rounded-2xl p-6 text-center transition-colors ${certFile || fiscal?.certUploaded ? "border-emerald-400 bg-emerald-50/50" : "border-gray-300 bg-gray-50/60 hover:border-blue-400 hover:bg-blue-50/30"}`}>
-          {certFile || fiscal?.certUploaded ? (
-            <div className="space-y-2">
-              <CheckCircle2 size={34} className="mx-auto text-emerald-600" />
-              <p className="text-emerald-800 font-bold text-sm">
-                {certFile ? certFile.name : "Certificado Digital A1 Instalado e Ativo"}
-              </p>
-              {fiscal?.certExpiration && (
-                <p className="text-gray-500 text-xs">Válido até: {new Date(fiscal.certExpiration).toLocaleDateString("pt-BR")}</p>
-              )}
-              <div className="flex items-center justify-center gap-3 pt-1">
-                <label className="text-blue-600 text-xs font-bold hover:underline cursor-pointer">
-                  Substituir Arquivo .pfx
-                  <input type="file" accept=".pfx,.p12" className="hidden" onChange={e => setCertFile(e.target.files?.[0] ?? null)} />
-                </label>
-                {certFile && (
-                  <button type="button" onClick={() => setCertFile(null)} className="text-red-500 text-xs hover:underline font-bold">
-                    Cancelar novo arquivo
-                  </button>
-                )}
-              </div>
-            </div>
-          ) : (
-            <label className="cursor-pointer block">
-              <input type="file" accept=".pfx,.p12" className="hidden" onChange={e => setCertFile(e.target.files?.[0] ?? null)} />
-              <Upload size={32} className="mx-auto text-gray-400 mb-2" />
-              <p className="text-gray-800 font-bold text-sm">Clique ou arraste seu arquivo .pfx ou .p12</p>
-              <p className="text-gray-500 text-xs mt-0.5">Certificado Digital modelo A1 (Serasa, Certisign, Soluti, etc.)</p>
-              <div className="mt-3 inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition-colors">
-                <Upload size={14} /> Selecionar Certificado (.pfx)
-              </div>
-            </label>
-          )}
-        </div>
-
-        {/* Senha do Certificado */}
-        <div>
-          <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1.5">
-            Senha do Certificado Digital A1
-          </label>
-          <input
-            type="password"
-            name="certPassword"
-            placeholder={fiscal?.certUploaded ? "•••••••• (Senha já configurada. Digite apenas se desejar alterar)" : "Digite a senha do arquivo .pfx"}
-            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 text-gray-900 rounded-xl outline-none focus:border-blue-500 focus:bg-white text-sm transition-all placeholder:text-gray-400"
-          />
-          <p className="text-gray-400 text-[11px] mt-1">A senha é armazenada de forma segura com criptografia.</p>
-        </div>
-      </div>
+      {/* Seção de Certificado Digital A1 com Indicador e Validação */}
+      <CertificateCard
+        fiscal={fiscal}
+        companyCnpj={company?.document}
+        onRefresh={onRefreshFiscal}
+      />
 
       <div className="pt-4 border-t border-gray-200">
         <button
@@ -366,7 +302,7 @@ function GeralTab({ company, fiscal, certFile, setCertFile, setActiveTab, saving
   );
 }
 
-function FiscalTab({ fiscal, company, env, setEnv, certFile, setCertFile, saving, onSubmit }: any) {
+function FiscalTab({ fiscal, company, env, setEnv, certFile, setCertFile, saving, onSubmit, onRefreshFiscal }: any) {
   return (
     <form onSubmit={onSubmit} className="space-y-5">
       <div className="flex items-center justify-between mb-2">
@@ -560,53 +496,11 @@ function FiscalTab({ fiscal, company, env, setEnv, certFile, setCertFile, saving
       </div>
 
       {/* Certificate */}
-      <div className="space-y-4">
-        <h3 className="text-gray-900 font-bold text-sm">🔐 Certificado Digital A1</h3>
-        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-700 flex gap-3">
-          <AlertTriangle size={18} className="shrink-0 mt-0.5 text-amber-500" />
-          <div>
-            Seu certificado digital é o arquivo <strong>.pfx</strong> gerado pela sua CA (Serasa, Certisign, Soluti, etc.). Ele é necessário para assinar digitalmente as notas fiscais.
-          </div>
-        </div>
-
-        <div className={`border-2 border-dashed rounded-2xl p-8 text-center transition-colors ${certFile || fiscal?.certUploaded ? "border-emerald-400 bg-emerald-50" : "border-gray-300 bg-gray-50 hover:border-blue-400 hover:bg-blue-50"}`}>
-          {certFile || fiscal?.certUploaded ? (
-            <div className="space-y-2">
-              <CheckCircle2 size={36} className="mx-auto text-emerald-500" />
-              <p className="text-emerald-700 font-bold">{certFile ? certFile.name : "Certificado Digital A1 Carregado"}</p>
-              {fiscal?.certExpiration && (
-                <p className="text-gray-500 text-xs">Válido até: {new Date(fiscal.certExpiration).toLocaleDateString("pt-BR")}</p>
-              )}
-              {certFile && (
-                <button type="button" onClick={() => setCertFile(null)} className="text-red-500 text-xs hover:underline">Remover</button>
-              )}
-            </div>
-          ) : (
-            <label className="cursor-pointer block">
-              <input type="file" accept=".pfx,.p12" className="hidden" onChange={e => setCertFile(e.target.files?.[0] ?? null)} />
-              <Upload size={36} className="mx-auto text-gray-400 mb-3" />
-              <p className="text-gray-700 font-bold">Clique para carregar o certificado</p>
-              <p className="text-gray-500 text-sm mt-1">Arquivos .pfx ou .p12 (certificado A1)</p>
-              <div className="mt-3 inline-flex items-center gap-2 bg-blue-50 text-blue-600 border border-blue-200 px-4 py-2 rounded-xl text-sm font-bold">
-                <Upload size={16} /> Selecionar Arquivo .pfx
-              </div>
-            </label>
-          )}
-        </div>
-
-        {(certFile || fiscal?.certUploaded) && (
-          <div>
-            <label className="block text-sm font-bold text-gray-700 mb-1.5">Senha do Certificado</label>
-            <input
-              type="password"
-              name="certPassword"
-              placeholder="••••••••"
-              className="w-full px-4 py-3 bg-gray-50 border border-gray-200 text-gray-900 rounded-xl outline-none focus:border-blue-500 focus:bg-white transition-all"
-            />
-            <p className="text-gray-400 text-xs mt-1.5">A senha é armazenada de forma segura e criptografada.</p>
-          </div>
-        )}
-      </div>
+      <CertificateCard
+        fiscal={fiscal}
+        companyCnpj={company?.document}
+        onRefresh={onRefreshFiscal}
+      />
 
       <div className="pt-4 border-t border-gray-200">
         <button

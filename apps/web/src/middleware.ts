@@ -43,9 +43,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // === Rota do Tenant: exige companyId e não pode ser Master ===
+  // === Rota do Tenant: exige companyId e não pode ser Master (exceto para rotas de PDV e PDV Mobile) ===
   if (session.isSuperAdmin) {
-    // Super admins não podem acessar rotas de tenant — manda pro master
+    if (pathname.startsWith("/pdv")) {
+      return NextResponse.next();
+    }
+    // Super admins não podem acessar outras rotas administrativas de tenant — manda pro master
     return NextResponse.redirect(new URL("/master", request.url));
   }
 

@@ -1,80 +1,37 @@
 export const dynamic = "force-dynamic";
 
 import {
-  ArrowUpRight, ArrowDownRight, DollarSign, Package, Users, ShoppingCart,
-  TrendingUp, Trophy, Target, AlertTriangle, CheckCircle2, Info, ChevronLeft,
-  ChevronRight, RefreshCcw, Landmark, Receipt, Scale, Kanban, ClipboardList,
-  BarChart2, Store, Settings, CreditCard
+  CreditCard,
+  BarChart2,
+  TrendingUp,
+  ShoppingCart,
+  Store,
 } from "lucide-react";
-import { getSellerPerformance } from "@/actions/seller";
-import {
-  getStoreRanking,
-  getCategoryMix,
-  getDashboardStats,
-  getSalesChartData,
-  getDashboardAlerts,
-  getWelcomeData,
-  getDashboardOverview
-} from "@/actions/dashboard";
 import { getCompanyModulesConfig } from "@/actions/modules";
+import { getDashboardOverview } from "@/actions/dashboard";
 import { getDistributorDashboardStats } from "@/actions/distributorDashboard";
+import { getSellerPerformance } from "@/actions/seller";
 import { getProductionOrders } from "@/actions/productionOrder";
 import { DistributorDashboard } from "./_components/DistributorDashboard";
 import { FactoryDashboard } from "./_components/FactoryDashboard";
 import { TopProductsCard } from "./_components/TopProductsCard";
 import { KpiCardsSection } from "./_components/KpiCardsSection";
-import { networkInterfaces } from "os";
-
-function getLocalIp() {
-  const nets = networkInterfaces();
-  for (const name of Object.keys(nets)) {
-    for (const net of nets[name] || []) {
-      if (net.family === 'IPv4' && !net.internal) {
-        return net.address;
-      }
-    }
-  }
-  return 'localhost';
-}
 
 export default async function Dashboard() {
-  const currentMonth = new Date().getMonth() + 1;
-  const currentYear = new Date().getFullYear();
-  const localIp = getLocalIp();
-
-  const [
-    { operationTypes },
-    { performance: sellers },
-    { stats },
-    { chartData, normalizedData },
-    { alerts },
-    welcomeData,
-    { ranking },
-    { mix },
-    { stats: distributorStats },
-    { orders: productionOrdersList, recipes: productionRecipesList },
-    overview
-  ] = await Promise.all([
-    getCompanyModulesConfig(),
-    getSellerPerformance(),
-    getDashboardStats(),
-    getSalesChartData(7),
-    getDashboardAlerts(),
-    getWelcomeData(),
-    getStoreRanking(currentMonth, currentYear),
-    getCategoryMix(currentMonth, currentYear),
-    getDistributorDashboardStats(),
-    getProductionOrders(),
-    getDashboardOverview(),
-  ]);
+  const { operationTypes } = await getCompanyModulesConfig();
 
   // Se a empresa for primariamente DISTRIBUTOR ou WHOLESALE, exibir o Dashboard de Distribuição
   if (operationTypes.includes("DISTRIBUTOR") || operationTypes.includes("WHOLESALE")) {
+    const [{ stats: distributorStats }, { performance: sellers }] = await Promise.all([
+      getDistributorDashboardStats(),
+      getSellerPerformance(),
+    ]);
     return <DistributorDashboard stats={distributorStats as any} sellers={sellers} />;
   }
 
   // Se a empresa for primariamente FACTORY ou PRODUCTION, exibir o Dashboard Industrial
   if (operationTypes.includes("FACTORY") || operationTypes.includes("PRODUCTION")) {
+    const { orders: productionOrdersList, recipes: productionRecipesList } = await getProductionOrders();
     const plannedTotal = productionOrdersList.reduce((acc: number, op: any) => acc + (op.plannedQty || 0), 0);
     const producedTotal = productionOrdersList.reduce((acc: number, op: any) => acc + (op.producedQty || 0), 0);
 
@@ -88,6 +45,8 @@ export default async function Dashboard() {
     );
   }
 
+  // Varejo / Empório: Consulta ultrarrápida (1 query agrupada no banco)
+  const overview = await getDashboardOverview();
   const { payments, recentMovements, storesPerformance, topProducts, kpis, soldItemsList, rupturesList } = overview;
   const totalPagamentos = payments.total || 0;
 

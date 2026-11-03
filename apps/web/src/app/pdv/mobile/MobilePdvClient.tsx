@@ -20,7 +20,6 @@ import {
   buildMailtoUrl,
   formatBRL,
 } from "@/lib/receiptFormat";
-import { ConcurrentSessionWatcher } from "@/components/ConcurrentSessionWatcher";
 
 interface CartLine {
   product: MobileProduct;
@@ -47,24 +46,29 @@ const parseNum = (text: string) => {
   return Number.isFinite(n) ? n : 0;
 };
 
-/* ───────────────────────── Leitor de código de barras (câmera) ───────────────────────── */
+/* ───────────────────────── Leitor de código de barras (câmera & teclado rápido) ───────────────────────── */
 function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: string) => void; onClose: () => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState("");
+  const [manualCode, setManualCode] = useState("");
+  const [hasCamera, setHasCamera] = useState(false);
+  const [useCamera, setUseCamera] = useState(true);
 
   useEffect(() => {
     let stream: MediaStream | null = null;
     let timer: ReturnType<typeof setInterval> | null = null;
     let stopped = false;
 
-    (async () => {
+    const startCamera = async () => {
       try {
         const Detector = (window as any).BarcodeDetector;
         if (!Detector) {
-          setError("Seu navegador não suporta leitura por câmera. Digite o código de barras na busca.");
+          setHasCamera(false);
+          setUseCamera(false);
           return;
         }
-        const detector = new Detector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128"] });
+        setHasCamera(true);
+        const detector = new Detector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39"] });
         stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { ideal: "environment" } },
           audio: false,
@@ -84,31 +88,99 @@ function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: string) =>
           } catch {}
         }, 250);
       } catch {
-        setError("Não foi possível acessar a câmera. Verifique a permissão do navegador.");
+        setHasCamera(false);
+        setUseCamera(false);
       }
-    })();
+    };
+
+    startCamera();
 
     return () => {
       stopped = true;
       if (timer) clearInterval(timer);
       stream?.getTracks().forEach((t) => t.stop());
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [onDetected]);
+
+  const handleManualSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const code = manualCode.trim();
+    if (code) {
+      onDetected(code);
+    }
+  };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black flex flex-col">
-      <div className="flex items-center justify-between p-4 text-white">
-        <p className="font-bold text-base">Aponte para o código de barras</p>
-        <button onClick={onClose} className="p-2 rounded-full bg-white/15" aria-label="Fechar leitor">
+    <div className="fixed inset-0 z-50 bg-slate-950/95 flex flex-col backdrop-blur-sm">
+      <div className="flex items-center justify-between p-4 text-white border-b border-slate-800">
+        <div>
+          <h2 className="font-bold text-base">Leitor de Código de Barras</h2>
+          <p className="text-xs text-slate-400">
+            {useCamera && hasCamera ? "Aponte a câmera para o código do produto" : "Digite o código de barras ou código interno"}
+          </p>
+        </div>
+        <button onClick={onClose} className="p-2 rounded-full bg-slate-800 hover:bg-slate-700 text-white" aria-label="Fechar leitor">
           <X size={22} />
         </button>
       </div>
-      <div className="flex-1 relative flex items-center justify-center">
-        <video ref={videoRef} playsInline muted className="absolute inset-0 w-full h-full object-cover" />
-        <div className="relative w-[78%] h-40 border-4 border-emerald-400 rounded-2xl shadow-[0_0_0_9999px_rgba(0,0,0,0.55)]" />
-      </div>
-      {error && <p className="p-4 text-center text-sm font-semibold text-amber-300 bg-black">{error}</p>}
+
+      {useCamera && hasCamera ? (
+        <div className="flex-1 relative flex items-center justify-center bg-black">
+          <video ref={videoRef} playsInline muted className="absolute inset-0 w-full h-full object-cover" />
+          <div className="relative w-[82%] h-44 border-4 border-emerald-400 rounded-2xl shadow-[0_0_0_9999px_rgba(0,0,0,0.65)] flex items-center justify-center">
+            <div className="w-full h-0.5 bg-red-500 animate-pulse opacity-80" />
+          </div>
+          <button
+            type="button"
+            onClick={() => setUseCamera(false)}
+            className="absolute bottom-6 bg-slate-900/90 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-full border border-slate-700 shadow-lg"
+          >
+            Digitar código manualmente
+          </button>
+        </div>
+      ) : (
+        <div className="flex-1 p-6 flex flex-col justify-center max-w-md mx-auto w-full">
+          <form onSubmit={handleManualSubmit} className="space-y-4">
+            <div className="text-center space-y-1 mb-4">
+              <ScanBarcode size={44} className="mx-auto text-blue-400" />
+              <h3 className="text-lg font-bold text-white">Código de Barras ou PLU</h3>
+              <p className="text-xs text-slate-400">Digite os números do código de barras (EAN-13) ou o código interno do produto</p>
+            </div>
+
+            <div className="space-y-2">
+              <input
+                type="tel"
+                autoFocus
+                value={manualCode}
+                onChange={(e) => setManualCode(e.target.value)}
+                placeholder="Ex: 7891000100103 ou 101"
+                className="w-full text-center text-2xl font-mono tracking-wider font-bold py-4 px-4 bg-slate-900 border-2 border-blue-500 rounded-2xl text-white placeholder:text-slate-600 focus:outline-none focus:ring-4 focus:ring-blue-500/20"
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={!manualCode.trim()}
+              className="w-full py-4 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-extrabold text-base rounded-2xl transition-all shadow-lg shadow-blue-600/30 flex items-center justify-center gap-2"
+            >
+              <Check size={20} />
+              <span>Adicionar Produto</span>
+            </button>
+
+            {hasCamera && (
+              <button
+                type="button"
+                onClick={() => setUseCamera(true)}
+                className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs rounded-xl"
+              >
+                Voltar para câmera
+              </button>
+            )}
+          </form>
+        </div>
+      )}
+
+      {error && <p className="p-3 text-center text-xs font-semibold text-amber-300 bg-black/80">{error}</p>}
     </div>
   );
 }
@@ -423,16 +495,15 @@ export function MobilePdvClient({ userName, companyName, canDiscountLimited, can
             className="w-full rounded-xl border border-slate-300 bg-white pl-10 pr-3 py-3 text-base text-slate-900 placeholder:text-slate-500 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-200"
           />
         </div>
-        {scannerSupported && (
-          <button
-            type="button"
-            onClick={() => setShowScanner(true)}
-            className="shrink-0 rounded-xl bg-blue-700 text-white px-4 flex items-center justify-center active:scale-95"
-            aria-label="Ler código de barras com a câmera"
-          >
-            <ScanBarcode size={22} />
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => setShowScanner(true)}
+          className="shrink-0 rounded-xl bg-blue-700 hover:bg-blue-600 text-white px-4 flex items-center justify-center active:scale-95 shadow-sm"
+          aria-label="Ler código de barras ou digitar PLU"
+          title="Ler código de barras ou digitar PLU"
+        >
+          <ScanBarcode size={22} />
+        </button>
       </form>
 
       {error && (
@@ -644,8 +715,6 @@ export function MobilePdvClient({ userName, companyName, canDiscountLimited, can
       )}
 
       {showScanner && <BarcodeScanner onDetected={handleBarcode} onClose={() => setShowScanner(false)} />}
-
-      <ConcurrentSessionWatcher />
     </div>
   );
 }

@@ -27,8 +27,10 @@ export default function LoginPage() {
     const formData = new FormData(e.currentTarget);
     const res = await login(formData);
 
-    if (res?.success && res.redirectUrl) {
-      window.location.href = res.redirectUrl;
+    if (res?.success) {
+      const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+      const callbackUrl = params?.get("callbackUrl");
+      window.location.href = callbackUrl || res.redirectUrl || "/";
     } else if (res?.error) {
       setError(res.error);
       setLoading(false);

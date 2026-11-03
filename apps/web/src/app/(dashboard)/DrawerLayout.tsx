@@ -18,6 +18,7 @@ import { WhatsNewModal } from "@/components/WhatsNewModal";
 import { AutoInstallLogo } from "@/components/AutoInstallLogo";
 import { CybertechBrand } from "@/components/CybertechBrand";
 import { ConcurrentSessionWatcher } from "@/components/ConcurrentSessionWatcher";
+import { DemoTourGuide } from "@/components/DemoTourGuide";
 
 interface DrawerLayoutProps {
   children: React.ReactNode;
@@ -60,6 +61,7 @@ const ROUTE_DEFINITIONS: Record<string, { title: string; iconName: string }> = {
   "/finance/reconciliation": { title: "Conciliação Bancária", iconName: "Landmark" },
   "/finance": { title: "Financeiro", iconName: "Wallet" },
   "/reports": { title: "Relatórios & BI", iconName: "FileText" },
+  "/guide": { title: "Guia & Demonstração", iconName: "BookOpen" },
   "/settings/terminals": { title: "Terminais PDV", iconName: "Monitor" },
   "/settings/modules": { title: "Lojas & Módulos", iconName: "Building2" },
   "/settings/users": { title: "Usuários", iconName: "Users" },
@@ -385,6 +387,12 @@ export function DrawerLayout({
           <NavItem href="/migration" icon={<RefreshCw size={16} />} label="Migração Saipos" active={pathname === "/migration"} onNavigate={handleNavigate} />
           <NavItem href="/settings" icon={<Settings size={16} />} label="Configurações Gerais" active={pathname === "/settings"} onNavigate={handleNavigate} />
         </div>
+
+        {/* TREINAMENTO & GUIA DO SISTEMA */}
+        <div className="space-y-0.5 pt-1">
+          <SectionLabel>TREINAMENTO & APRESENTAÇÃO</SectionLabel>
+          <NavItem href="/guide" icon={<BookOpen size={16} />} label="Guia & Demonstração" active={pathname === "/guide"} onNavigate={handleNavigate} />
+        </div>
       </nav>
 
       {/* Novidades & Logout */}
@@ -645,6 +653,9 @@ export function DrawerLayout({
 
       {/* Monitor de Acesso Simultâneo (Encerra sessão se outro aparelho logar) */}
       <ConcurrentSessionWatcher />
+
+      {/* Tour Interativo do Sistema e Apresentação */}
+      <DemoTourGuide isDemoUser={userName.toLowerCase().includes("demonstrativo")} />
     </div>
   );
 }

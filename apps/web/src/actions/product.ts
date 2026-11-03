@@ -875,8 +875,12 @@ async function applyPromoPrices(products: any[]) {
 
 export async function getProducts() {
   try {
+    const session = await getSession();
+    const companyId = session?.companyId;
     const products = await prisma.product.findMany({
-      orderBy: { createdAt: 'desc' }
+      where: companyId ? { companyId } : undefined,
+      include: { category: true },
+      orderBy: { name: 'asc' }
     });
     const serialized = products.map(serializeProduct);
     const withPromo = await applyPromoPrices(serialized);
@@ -1010,143 +1014,8 @@ export async function getProductsByCategory(categoryName: string) {
 }
 
 export async function seedSampleCategoryProducts() {
-  try {
-    const session = await getSession();
-    let companyId = session?.companyId;
-    if (!companyId) {
-      let company = await prisma.company.findFirst();
-      if (!company) {
-        company = await prisma.company.create({
-          data: { name: "Emporio Modelo", document: "12.345.678/0001-99" }
-        });
-      }
-      companyId = company.id;
-    }
-
-    const SAMPLE_CATEGORIES = [
-      {
-        name: "Bebidas",
-        products: [
-          { name: "Refrigerante Coca-Cola Lata 350ml", price: 5.50, cost: 3.20, barcode: "7894900010015", stock: 120, ncm: "2202.10.00", unit: "UN" },
-          { name: "Refrigerante Guaraná Antarctica 2L", price: 8.90, cost: 5.40, barcode: "7891991000821", stock: 80, ncm: "2202.10.00", unit: "UN" },
-          { name: "Cerveja Heineken Long Neck 330ml", price: 7.99, cost: 5.10, barcode: "7891055312783", stock: 150, ncm: "2203.00.00", unit: "UN" },
-          { name: "Água Mineral Crystal Sem Gás 500ml", price: 2.50, cost: 1.10, barcode: "7894900530018", stock: 200, ncm: "2201.10.00", unit: "UN" },
-          { name: "Suco de Laranja Integral Prats 900ml", price: 12.90, cost: 8.50, barcode: "7898944520023", stock: 45, ncm: "2009.89.90", unit: "UN" }
-        ]
-      },
-      {
-        name: "Alimentos",
-        products: [
-          { name: "Arroz Branco Tipo 1 Tio João 5kg", price: 29.90, cost: 22.50, barcode: "7896001000011", stock: 90, ncm: "1006.30.21", unit: "UN" },
-          { name: "Feijão Carioca Tipo 1 Camil 1kg", price: 8.90, cost: 5.80, barcode: "7896001000028", stock: 110, ncm: "0713.33.99", unit: "UN" },
-          { name: "Café Torrado e Moído Tradicional Pilão 500g", price: 17.50, cost: 12.00, barcode: "7896004000308", stock: 65, ncm: "0901.21.00", unit: "UN" },
-          { name: "Óleo de Soja Refinado Soya 900ml", price: 6.89, cost: 4.90, barcode: "7896005800114", stock: 140, ncm: "1507.90.11", unit: "UN" },
-          { name: "Biscoito Recheado Oreo Chocolate 90g", price: 3.80, cost: 2.20, barcode: "7622300742186", stock: 95, ncm: "1905.31.00", unit: "UN" }
-        ]
-      },
-      {
-        name: "Higiene",
-        products: [
-          { name: "Creme Dental Colgate Total 12 90g", price: 6.90, cost: 4.20, barcode: "7891035800071", stock: 85, ncm: "3306.10.00", unit: "UN" },
-          { name: "Sabonete em Barra Dove Original 90g", price: 4.50, cost: 2.60, barcode: "7891150006785", stock: 130, ncm: "3401.11.90", unit: "UN" },
-          { name: "Desodorante Rexona Aerosol Masculino 150ml", price: 15.90, cost: 9.90, barcode: "7791293022567", stock: 60, ncm: "3307.20.10", unit: "UN" },
-          { name: "Shampoo Pantene Restauração 400ml", price: 21.90, cost: 14.20, barcode: "7500435118934", stock: 40, ncm: "3305.10.00", unit: "UN" },
-          { name: "Papel Higiênico Neve Folha Dupla 12 Rolos", price: 24.90, cost: 16.80, barcode: "7896007543210", stock: 75, ncm: "4818.10.00", unit: "UN" }
-        ]
-      },
-      {
-        name: "Limpeza",
-        products: [
-          { name: "Detergente Líquido Ypê Neutro 500ml", price: 2.89, cost: 1.65, barcode: "7891022100139", stock: 180, ncm: "3402.20.00", unit: "UN" },
-          { name: "Sabão em Pó Omo Lavagem Perfeita 800g", price: 14.90, cost: 9.80, barcode: "7896000701018", stock: 70, ncm: "3401.19.00", unit: "UN" },
-          { name: "Água Sanitária Q-Boa 1L", price: 4.20, cost: 2.50, barcode: "7896003000019", stock: 95, ncm: "2828.90.11", unit: "UN" },
-          { name: "Desinfetante Pinho Sol Original 1L", price: 11.50, cost: 7.30, barcode: "7891035000129", stock: 55, ncm: "3808.94.19", unit: "UN" },
-          { name: "Amaciante de Roupas Comfort Concentrado 1L", price: 18.90, cost: 12.40, barcode: "7891150043216", stock: 50, ncm: "3809.91.90", unit: "UN" }
-        ]
-      },
-      {
-        name: "Utilidades",
-        products: [
-          { name: "Papel Alumínio Wyda 30cm x 7,5m", price: 5.90, cost: 3.60, barcode: "7896223300108", stock: 40, ncm: "7607.11.90", unit: "UN" },
-          { name: "Esponja Multiuso Scotch-Brite", price: 2.50, cost: 1.30, barcode: "7891040001012", stock: 160, ncm: "3924.90.00", unit: "UN" },
-          { name: "Copo Descartável 200ml Caixa c/ 100un", price: 6.50, cost: 3.80, barcode: "7898234123456", stock: 80, ncm: "3924.10.00", unit: "CX" },
-          { name: "Guardanapo de Papel Snob 50un", price: 3.90, cost: 2.10, barcode: "7896007541117", stock: 90, ncm: "4818.30.00", unit: "UN" },
-          { name: "Saco para Lixo Reforçado 50L c/ 10un", price: 8.90, cost: 5.20, barcode: "7898901234567", stock: 65, ncm: "3923.21.90", unit: "PCT" }
-        ]
-      }
-    ];
-
-    let insertedCount = 0;
-
-    for (const catData of SAMPLE_CATEGORIES) {
-      // Find or create category
-      let category = await prisma.category.findFirst({
-        where: {
-          name: { equals: catData.name, mode: 'insensitive' },
-          companyId
-        }
-      });
-
-      if (!category) {
-        category = await prisma.category.create({
-          data: {
-            name: catData.name,
-            companyId
-          }
-        });
-      }
-
-      for (const prod of catData.products) {
-        // Upsert product by barcode or name
-        const existing = await prisma.product.findFirst({
-          where: {
-            OR: [
-              { barcode: prod.barcode },
-              { name: prod.name }
-            ],
-            companyId
-          }
-        });
-
-        if (existing) {
-          await prisma.product.update({
-            where: { id: existing.id },
-            data: {
-              name: prod.name,
-              price: prod.price,
-              cost: prod.cost,
-              stock: prod.stock,
-              barcode: prod.barcode,
-              unit: prod.unit,
-              ncm: prod.ncm,
-              categoryId: category.id
-            }
-          });
-        } else {
-          await prisma.product.create({
-            data: {
-              name: prod.name,
-              price: prod.price,
-              cost: prod.cost,
-              stock: prod.stock,
-              barcode: prod.barcode,
-              unit: prod.unit,
-              ncm: prod.ncm,
-              categoryId: category.id,
-              companyId
-            }
-          });
-        }
-        insertedCount++;
-      }
-    }
-
-    revalidatePath("/stock");
-    revalidatePath("/pdv");
-    return { success: true, count: insertedCount };
-  } catch (err: any) {
-    return { error: err.message || "Erro ao gerar produtos de teste" };
-  }
+  // Desativado: o sistema utiliza exclusivamente os dados reais importados da empresa
+  return { success: true, count: 0 };
 }
 
 

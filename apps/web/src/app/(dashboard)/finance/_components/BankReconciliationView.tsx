@@ -129,151 +129,10 @@ export interface BankStatementItem {
 }
 
 const SAMPLE_BANK_ACCOUNTS: BankAccountItem[] = [
-  { id: "itau", bank: "Itaú Empresas (341)", agency: "0412", account: "45892-1", type: "BANCO_TRADICIONAL", balanceBank: 48920.40, balanceErp: 47695.50 },
-  { id: "bb", bank: "Banco do Brasil (001)", agency: "1290-X", account: "99812-3", type: "BANCO_TRADICIONAL", balanceBank: 22150.00, balanceErp: 22150.00 },
-  { id: "sicoob", bank: "Sicoob PJ (756)", agency: "3102", account: "14500-8", type: "BANCO_TRADICIONAL", balanceBank: 15430.80, balanceErp: 15430.80 },
-  { id: "stone-conta", bank: "Conta Stone PJ (197)", agency: "0001", account: "884120-9", type: "CONTA_MAQUINETA", balanceBank: 12680.00, balanceErp: 12680.00 },
-  { id: "pagbank-conta", bank: "PagBank / PagSeguro (290)", agency: "0001", account: "449102-9", type: "CONTA_MAQUINETA", balanceBank: 6410.50, balanceErp: 6410.50 },
+  { id: "principal", bank: "Conta Corrente PJ Principal", agency: "0001", account: "00000-0", type: "BANCO_TRADICIONAL", balanceBank: 0, balanceErp: 0 },
 ];
 
-const INITIAL_STATEMENT_ITEMS: BankStatementItem[] = [
-  {
-    id: "ofx-1",
-    fitId: "20261030001",
-    date: "30/10/2026",
-    description: "RECEBIMENTO PIX QR CODE - VENDAS PDV",
-    amount: 1820.50,
-    type: "CREDIT",
-    matchStatus: "SUGGESTED",
-    systemMatch: {
-      id: "sys-101",
-      title: "Fechamento PIX Caixa 01 — Turno Manhã",
-      category: "Vendas PDV",
-      date: "30/10/2026",
-      expectedAmount: 1820.50,
-      difference: 0,
-    },
-  },
-  {
-    id: "ofx-2",
-    fitId: "20261030002",
-    date: "30/10/2026",
-    description: "PAGTO TITULO BOLETO - DISTRIBUIDORA ABC LTDA",
-    amount: -8500.00,
-    type: "DEBIT",
-    matchStatus: "SUGGESTED",
-    systemMatch: {
-      id: "sys-102",
-      title: "NF #45892 — Distribuidora ABC (Contas a Pagar)",
-      category: "Fornecedores",
-      date: "30/10/2026",
-      expectedAmount: -8500.00,
-      difference: 0,
-    },
-  },
-  {
-    id: "ofx-3",
-    fitId: "20261030003",
-    date: "29/10/2026",
-    description: "LIQUIDACAO REDE CREDITO MASTERCARD/VISA",
-    amount: 4685.36,
-    type: "CREDIT",
-    matchStatus: "SUGGESTED",
-    systemMatch: {
-      id: "sys-103",
-      title: "Repasse Cartão Crédito (Visa/Master) — Lote #884",
-      category: "Vendas Cartão",
-      date: "29/10/2026",
-      expectedAmount: 4780.00,
-      difference: -94.64, // taxa MDR 1,98% descontada pela adquirente
-      cardBrandInfo: {
-        brand: "Visa / Mastercard",
-        modality: "CREDITO",
-        contractedRate: 1.98,
-        chargedRate: 1.98,
-        rateStatus: "OK",
-      },
-    },
-  },
-  {
-    id: "ofx-3b",
-    fitId: "20261030003B",
-    date: "29/10/2026",
-    description: "REPASSE STONE PAGAMENTOS - DEBITO BANDEIRA ELO",
-    amount: 2168.10,
-    type: "CREDIT",
-    matchStatus: "SUGGESTED",
-    systemMatch: {
-      id: "sys-103b",
-      title: "Repasse Cartão Débito (Elo) — Lote #885",
-      category: "Vendas Cartão",
-      date: "29/10/2026",
-      expectedAmount: 2200.00,
-      difference: -31.90, // cobrou 1,45% em vez de 1,15% contratado
-      cardBrandInfo: {
-        brand: "Elo (Stone)",
-        modality: "DEBITO",
-        contractedRate: 1.15,
-        chargedRate: 1.45,
-        rateStatus: "ABOVE_CONTRACT",
-      },
-    },
-  },
-  {
-    id: "ofx-4",
-    fitId: "20261030004",
-    date: "29/10/2026",
-    description: "DEBITO AUTOMATICO CPFL ENERGIA PAULISTA",
-    amount: -780.00,
-    type: "DEBIT",
-    matchStatus: "SUGGESTED",
-    systemMatch: {
-      id: "sys-104",
-      title: "Conta de Energia — CPFL (Contas a Pagar)",
-      category: "Utilidades",
-      date: "29/10/2026",
-      expectedAmount: -780.00,
-      difference: 0,
-    },
-  },
-  {
-    id: "ofx-5",
-    fitId: "20261030005",
-    date: "28/10/2026",
-    description: "TAR MANUTENCAO CONTA PJ PACOTE EMPRESARIAL",
-    amount: -89.90,
-    type: "DEBIT",
-    matchStatus: "UNMATCHED",
-    selectedCategory: "Tarifas Bancárias",
-  },
-  {
-    id: "ofx-6",
-    fitId: "20261030006",
-    date: "28/10/2026",
-    description: "PIX RECEBIDO - CLIENTE PEDRO ALVES CREDIARIO",
-    amount: 200.00,
-    type: "CREDIT",
-    matchStatus: "RECONCILED",
-    systemMatch: {
-      id: "sys-106",
-      title: "Crediário Parcela 2/6 — Pedro Alves",
-      category: "Contas a Receber",
-      date: "28/10/2026",
-      expectedAmount: 200.00,
-      difference: 0,
-    },
-  },
-  {
-    id: "ofx-7",
-    fitId: "20261030007",
-    date: "28/10/2026",
-    description: "IOF ADICIONAL OPERACAO",
-    amount: -14.50,
-    type: "DEBIT",
-    matchStatus: "UNMATCHED",
-    selectedCategory: "Impostos & Taxas",
-  },
-];
+const INITIAL_STATEMENT_ITEMS: BankStatementItem[] = [];
 
 function fmt(v: number) {
   return v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -603,67 +462,6 @@ export function BankReconciliationView() {
     reader.readAsText(file, "ISO-8859-1");
   };
 
-  // Gerar e baixar arquivo OFX de exemplo real para teste
-  const handleDownloadSampleOfx = () => {
-    const sampleOfx = `OFXHEADER:100
-DATA:OFXSGML
-VERSION:102
-SECURITY:NONE
-ENCODING:USASCII
-CHARSET:1252
-COMPRESSION:NONE
-OLDFILEUID:NONE
-NEWFILEUID:NONE
-
-<OFX>
-<BANKMSGSRSV1>
-<STMTTRNRS>
-<STMTRS>
-<BANKTRANLIST>
-<STMTTRN>
-<TRNTYPE>CREDIT
-<DTPOSTED>20261030100000
-<TRNAMT>2450.00
-<FITID>20261030991
-<MEMO>PIX RECEBIDO VENDAS CAIXA 01
-</STMTTRN>
-<STMTTRN>
-<TRNTYPE>CREDIT
-<DTPOSTED>20261030103000
-<TRNAMT>3920.80
-<FITID>20261030994
-<MEMO>LIQUIDACAO REDE CREDITO VISA LOTE 901
-</STMTTRN>
-<STMTTRN>
-<TRNTYPE>DEBIT
-<DTPOSTED>20261030110000
-<TRNAMT>-4120.00
-<FITID>20261030992
-<MEMO>PAGTO BOLETO FORNECEDOR AMBEV BEBIDAS
-</STMTTRN>
-<STMTTRN>
-<TRNTYPE>DEBIT
-<DTPOSTED>20261030120000
-<TRNAMT>-65.00
-<FITID>20261030993
-<MEMO>TARIFA BANCARIA PACOTE PJ
-</STMTTRN>
-</BANKTRANLIST>
-</STMTRS>
-</STMTTRNRS>
-</BANKMSGSRSV1>
-</OFX>`;
-
-    const blob = new Blob([sampleOfx], { type: "application/x-ofx" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "extrato_exemplo_banco.ofx";
-    a.click();
-    URL.revokeObjectURL(url);
-    showToast("Arquivo 'extrato_exemplo_banco.ofx' baixado! Você pode importá-lo acima.");
-  };
-
   // Conciliar 1 item
   const handleReconcileItem = (id: string) => {
     setItems(prev =>
@@ -899,14 +697,6 @@ NEWFILEUID:NONE
             >
               <Upload size={15} />
               <span>Selecionar Arquivo (.OFX / .CSV)</span>
-            </button>
-            <button
-              type="button"
-              onClick={handleDownloadSampleOfx}
-              className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold text-[11px] rounded-xl transition-colors cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap"
-            >
-              <Download size={12} />
-              <span>Baixar .OFX de Exemplo</span>
             </button>
           </div>
         </div>
@@ -1171,6 +961,18 @@ NEWFILEUID:NONE
               </div>
             );
           })}
+
+          {filteredItems.length === 0 && (
+            <div className="py-16 px-4 text-center flex flex-col items-center justify-center">
+              <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-3 border border-blue-100">
+                <FileText size={28} />
+              </div>
+              <h4 className="font-bold text-gray-800 text-sm">Nenhum lançamento no extrato para conciliar</h4>
+              <p className="text-xs text-gray-500 max-w-md mt-1">
+                Importe o arquivo <strong>.OFX</strong> ou <strong>.CSV</strong> do internet banking da sua conta PJ arrastando para a área de upload acima. O sistema fará o pareamento automático com o financeiro.
+              </p>
+            </div>
+          )}
         </div>
       </div>
 

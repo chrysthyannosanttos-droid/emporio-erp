@@ -422,39 +422,60 @@ export async function getDashboardOverview() {
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
 
-    // 1. Sales today
-    const salesToday = await prisma.sale.findMany({
-      where: {
-        companyId,
-        createdAt: { gte: today },
-        status: "COMPLETED",
-      },
-      include: {
-        items: {
-          include: {
-            product: {
-              include: { category: true },
+    // 7 dias atrás e início do mês
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const earliestDate = sevenDaysAgo < monthStart ? sevenDaysAgo : monthStart;
+
+    // Apenas 3 consultas simultâneas no banco ao invés de dezenas
+    const [salesList, ruptures, stores] = await Promise.all([
+      prisma.sale.findMany({
+        where: {
+          companyId,
+          createdAt: { gte: earliestDate },
+          status: "COMPLETED",
+        },
+        include: {
+          items: {
+            include: {
+              product: {
+                select: {
+                  id: true,
+                  name: true,
+                  cost: true,
+                  price: true,
+                  barcode: true,
+                  sku: true,
+                  category: { select: { name: true } },
+                },
+              },
             },
           },
+          payments: true,
+          customer: { select: { name: true } },
         },
-        payments: true,
-        user: { select: { name: true } },
-        customer: { select: { name: true } },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.product.findMany({
+        where: {
+          companyId,
+          stock: { lte: 0 },
+        },
+        include: {
+          category: { select: { name: true } },
+        },
+        take: 20,
+      }),
+      prisma.store.findMany({
+        where: { companyId },
+        orderBy: { createdAt: "asc" },
+      }),
+    ]);
 
-    // 2. Sales yesterday
-    const salesYesterday = await prisma.sale.findMany({
-      where: {
-        companyId,
-        createdAt: { gte: yesterday, lt: today },
-        status: "COMPLETED",
-      },
-      include: {
-        items: true,
-      },
-    });
+    // Separação em memória (0ms de latência)
+    const salesToday = salesList.filter((s) => s.createdAt >= today);
+    const salesYesterday = salesList.filter((s) => s.createdAt >= yesterday && s.createdAt < today);
 
     const faturamentoHoje = salesToday.reduce((acc, s) => acc + Number(s.total || 0), 0);
     const faturamentoOntem = salesYesterday.reduce((acc, s) => acc + Number(s.total || 0), 0);
@@ -463,8 +484,8 @@ export async function getDashboardOverview() {
       : 0;
 
     let totalCostHoje = 0;
-    salesToday.forEach(s => {
-      s.items.forEach(it => {
+    salesToday.forEach((s) => {
+      s.items.forEach((it) => {
         const cost = Number(it.product?.cost || 0);
         totalCostHoje += cost * it.quantity;
       });
@@ -483,50 +504,35 @@ export async function getDashboardOverview() {
     const itensVendidosOntem = salesYesterday.reduce((acc, s) => acc + s.items.reduce((sum, it) => sum + it.quantity, 0), 0);
     const itensTrend = itensVendidosOntem > 0 ? ((itensVendidosHoje - itensVendidosOntem) / itensVendidosOntem) * 100 : 0;
 
-    // 3. Last 7 days daily sales for sparkline
-    const sparklineDays = 7;
+    // Sparkline 7 dias calculada direto em memória
     const sparklineFat: number[] = [];
-    for (let i = sparklineDays - 1; i >= 0; i--) {
+    for (let i = 6; i >= 0; i--) {
       const dStart = new Date(today);
       dStart.setDate(dStart.getDate() - i);
       const dEnd = new Date(dStart);
       dEnd.setDate(dEnd.getDate() + 1);
-      const daySales = await prisma.sale.aggregate({
-        _sum: { total: true },
-        where: {
-          companyId,
-          createdAt: { gte: dStart, lt: dEnd },
-          status: "COMPLETED",
-        },
-      });
-      sparklineFat.push(Number(daySales._sum.total || 0));
+
+      const dayTotal = salesList
+        .filter((s) => s.createdAt >= dStart && s.createdAt < dEnd)
+        .reduce((sum, s) => sum + Number(s.total || 0), 0);
+      sparklineFat.push(dayTotal);
     }
 
-    // 4. Rupturas (Produtos com estoque <= 0)
-    const ruptures = await prisma.product.findMany({
-      where: {
-        companyId,
-        stock: { lte: 0 },
-      },
-      include: {
-        category: true,
-      },
-      take: 20,
-    });
+    // Rupturas
     const rupturasCount = ruptures.length;
-    const rupturesList = ruptures.map(p => ({
+    const rupturesList = ruptures.map((p) => ({
       id: p.id,
       name: p.name,
       category: p.category?.name || "Geral",
       code: p.barcode || p.sku || "S/N",
       stock: p.stock,
       minStock: 5,
-      supplier: p.brand || "Fornecedor",
+      supplier: "Fornecedor",
       lastSale: "Sem vendas recentes",
       lossEst: `R$ ${Number(p.price).toFixed(2)}`,
     }));
 
-    // 5. Sold Items List for Modal
+    // Itens vendidos hoje (Modal)
     const soldItemsMap = new Map<string, {
       id: string;
       name: string;
@@ -537,8 +543,8 @@ export async function getDashboardOverview() {
       code: string;
     }>();
 
-    salesToday.forEach(s => {
-      s.items.forEach(it => {
+    salesToday.forEach((s) => {
+      s.items.forEach((it) => {
         const existing = soldItemsMap.get(it.productId);
         const itemTotal = Number(it.total || 0);
         if (existing) {
@@ -559,7 +565,7 @@ export async function getDashboardOverview() {
     });
     const soldItemsList = Array.from(soldItemsMap.values()).sort((a, b) => b.qty - a.qty);
 
-    // 6. Payment Methods Breakdown
+    // Formas de Pagamento Hoje
     const payments = {
       dinheiro: 0,
       debito: 0,
@@ -569,8 +575,8 @@ export async function getDashboardOverview() {
       total: 0,
     };
 
-    salesToday.forEach(s => {
-      s.payments.forEach(p => {
+    salesToday.forEach((s) => {
+      s.payments.forEach((p) => {
         const amt = Number(p.amount || 0);
         const method = (p.paymentMethod || "").toUpperCase();
         payments.total += amt;
@@ -588,8 +594,8 @@ export async function getDashboardOverview() {
       });
     });
 
-    // 7. Recent Movements
-    const recentMovements = salesToday.slice(0, 5).map(s => {
+    // Movimentações Recentes
+    const recentMovements = salesToday.slice(0, 5).map((s) => {
       const timeDiff = Math.max(1, Math.round((Date.now() - s.createdAt.getTime()) / 60000));
       const timeText = timeDiff < 60 ? `${timeDiff} min atrás` : `${Math.round(timeDiff / 60)}h atrás`;
       return {
@@ -602,11 +608,7 @@ export async function getDashboardOverview() {
       };
     });
 
-    // 8. Stores Performance
-    const stores = await prisma.store.findMany({
-      where: { companyId },
-      orderBy: { createdAt: "asc" },
-    });
+    // Performance das Lojas
     const storesPerformance = stores.map((st, idx) => ({
       name: st.name || st.tradeName || `Loja ${idx + 1}`,
       val: `R$ ${faturamentoHoje.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
@@ -614,34 +616,18 @@ export async function getDashboardOverview() {
       width: countVendasHoje > 0 ? "100%" : "0%",
     }));
 
-    // 9. Top Products (day, week, month)
-    const weekStart = new Date(today);
-    weekStart.setDate(weekStart.getDate() - 7);
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-
-    const weekItems = await prisma.saleItem.findMany({
-      where: {
-        sale: { companyId, createdAt: { gte: weekStart }, status: "COMPLETED" },
-      },
-      include: { product: true },
-    });
-
-    const monthItems = await prisma.saleItem.findMany({
-      where: {
-        sale: { companyId, createdAt: { gte: monthStart }, status: "COMPLETED" },
-      },
-      include: { product: true },
-    });
-
-    function aggregateTop(items: typeof weekItems) {
+    // Top Produtos (Dia, Semana, Mês em memória)
+    function aggregateTop(salesSubset: typeof salesList) {
       const m = new Map<string, { rank: number; icon: string; name: string; val: number; qty: number }>();
-      items.forEach(it => {
-        const p = it.product;
-        if (!p) return;
-        const cur = m.get(p.id) || { rank: 0, icon: "📦", name: p.name, val: 0, qty: 0 };
-        cur.val += Number(it.total || 0);
-        cur.qty += it.quantity;
-        m.set(p.id, cur);
+      salesSubset.forEach((s) => {
+        s.items.forEach((it) => {
+          const p = it.product;
+          if (!p) return;
+          const cur = m.get(p.id) || { rank: 0, icon: "📦", name: p.name, val: 0, qty: 0 };
+          cur.val += Number(it.total || 0);
+          cur.qty += it.quantity;
+          m.set(p.id, cur);
+        });
       });
       return Array.from(m.values())
         .sort((a, b) => b.val - a.val)
@@ -663,8 +649,8 @@ export async function getDashboardOverview() {
         val: `R$ ${p.total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
         pct: `${p.qty} un`,
       })),
-      week: aggregateTop(weekItems),
-      month: aggregateTop(monthItems),
+      week: aggregateTop(salesList.filter((s) => s.createdAt >= sevenDaysAgo)),
+      month: aggregateTop(salesList.filter((s) => s.createdAt >= monthStart)),
     };
 
     return {

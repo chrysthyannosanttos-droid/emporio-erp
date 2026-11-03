@@ -26,55 +26,7 @@ interface Ticket {
   items: TicketItem[];
 }
 
-const INITIAL_TICKETS: Ticket[] = [
-  {
-    id: "T-101",
-    tableOrOrder: "Mesa 02",
-    waiter: "Carlos Silva",
-    sector: "GRILL",
-    status: "PREPARING",
-    createdAt: new Date(Date.now() - 18 * 60 * 1000), // 18 min ago
-    items: [
-      { name: "Hambúrguer Smash Bacon Double", quantity: 2, notes: "Sem cebola", additions: ["+ Cheddar Extra"] },
-      { name: "Batata Frita Especial", quantity: 1, notes: "Crocante" }
-    ]
-  },
-  {
-    id: "T-102",
-    tableOrOrder: "Mesa 05",
-    waiter: "Ana Oliveira",
-    sector: "PIZZERIA",
-    status: "NEW",
-    createdAt: new Date(Date.now() - 6 * 60 * 1000), // 6 min ago
-    items: [
-      { name: "Pizza 1/2 Calabresa + 1/2 4 Queijos", quantity: 1, notes: "Massa fina", additions: ["+ Borda Catupiry"] }
-    ]
-  },
-  {
-    id: "T-103",
-    tableOrOrder: "Balcão #44",
-    waiter: "Mateus Santos",
-    sector: "KITCHEN",
-    status: "NEW",
-    createdAt: new Date(Date.now() - 28 * 60 * 1000), // 28 min ago (Atrasado!)
-    items: [
-      { name: "Picanha na Chapa 500g", quantity: 1, notes: "Carne ao ponto" },
-      { name: "Porção de Farofa da Casa", quantity: 1 }
-    ]
-  },
-  {
-    id: "T-104",
-    tableOrOrder: "Mesa 09",
-    waiter: "Carlos Silva",
-    sector: "BAR",
-    status: "READY",
-    createdAt: new Date(Date.now() - 12 * 60 * 1000), // 12 min ago
-    items: [
-      { name: "Chopp Artesanal IPA 500ml", quantity: 3 },
-      { name: "Suco Natural de Laranja 500ml", quantity: 1, notes: "Sem açúcar" }
-    ]
-  }
-];
+const INITIAL_TICKETS: Ticket[] = [];
 
 export default function RestaurantKdsPage() {
   const [tickets, setTickets] = useState<Ticket[]>(INITIAL_TICKETS);

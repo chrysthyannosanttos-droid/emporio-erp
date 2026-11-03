@@ -2,6 +2,7 @@
 
 import { prisma } from "@emporio/database";
 import { revalidatePath } from "next/cache";
+import { getSession } from "@/lib/session";
 
 function addDays(offset: number): Date {
   const d = new Date();
@@ -25,6 +26,11 @@ function toBrDate(d: Date): string {
 }
 
 async function ensureCompany() {
+  const session = await getSession();
+  if (session?.companyId) {
+    const c = await prisma.company.findUnique({ where: { id: session.companyId } });
+    if (c) return c;
+  }
   let company = await prisma.company.findFirst();
   if (!company) {
     company = await prisma.company.create({
@@ -40,134 +46,6 @@ async function ensureCompany() {
 export async function getFinanceData() {
   try {
     const company = await ensureCompany();
-
-    const count = await prisma.transaction.count({
-      where: { companyId: company.id },
-    });
-
-    if (count === 0) {
-      await prisma.transaction.createMany({
-        data: [
-          // Contas a Pagar
-          {
-            companyId: company.id,
-            type: "PAYABLE",
-            description: "Boleto Fornecedor Bebidas & Insumos — Lote #104",
-            provider: "Ambev S/A",
-            category: "Fornecedores",
-            amount: 4120.0,
-            dueDate: addDays(0),
-            status: "PENDING",
-          },
-          {
-            companyId: company.id,
-            type: "PAYABLE",
-            description: "Insumos Produção Doces & Embalagens Freezer",
-            provider: "Distribuidora Doces & Cia",
-            category: "Fornecedores",
-            amount: 1850.0,
-            dueDate: addDays(2),
-            status: "PENDING",
-          },
-          {
-            companyId: company.id,
-            type: "PAYABLE",
-            description: "Fornecedor Carnes & Cortes Nobres Resfriados",
-            provider: "Frigorífico Boi Dourado",
-            category: "Fornecedores",
-            amount: 6400.0,
-            dueDate: addDays(3),
-            status: "PENDING",
-          },
-          {
-            companyId: company.id,
-            type: "PAYABLE",
-            description: "Conta de Energia Elétrica (Freezers / Câmaras)",
-            provider: "Concessionária Energia",
-            category: "Utilidades",
-            amount: 980.0,
-            dueDate: addDays(0),
-            status: "PENDING",
-          },
-          {
-            companyId: company.id,
-            type: "PAYABLE",
-            description: "Aluguel do Ponto Comercial",
-            provider: "Imobiliária Central",
-            category: "Aluguel",
-            amount: 3200.0,
-            dueDate: addDays(10),
-            status: "PENDING",
-          },
-          // Contas a Receber
-          {
-            companyId: company.id,
-            type: "RECEIVABLE",
-            description: "Repasse Cartão POS (Débito / Crédito) — D+1",
-            provider: " Stone / Rede Adquirente",
-            category: "Cartões",
-            amount: 4685.36,
-            dueDate: addDays(0),
-            status: "PENDING",
-          },
-          {
-            companyId: company.id,
-            type: "RECEIVABLE",
-            description: "Encomenda de Doces e Congelados — Cliente Corporativo",
-            provider: "Restaurante & Eventos Sol",
-            category: "Vendas",
-            amount: 940.0,
-            dueDate: addDays(0),
-            status: "PENDING",
-          },
-          {
-            companyId: company.id,
-            type: "RECEIVABLE",
-            description: "Repasse Cartão Crédito Elo / Hipercard",
-            provider: "PagBank / Cielo",
-            category: "Cartões",
-            amount: 2168.1,
-            dueDate: addDays(2),
-            status: "PENDING",
-          },
-          {
-            companyId: company.id,
-            type: "RECEIVABLE",
-            description: "Crediário / Fiado Cliente — Pedro Alves",
-            provider: "Pedro Alves",
-            category: "Crediário",
-            amount: 450.0,
-            dueDate: addDays(3),
-            status: "PENDING",
-          },
-          // Movimentações de Fluxo de Caixa já realizadas
-          {
-            companyId: company.id,
-            type: "INFLOW",
-            description: "Vendas Balcão & Conveniência — Turno Manhã",
-            provider: "PDV Caixa 01",
-            category: "Vendas",
-            amount: 4820.5,
-            dueDate: addDays(0),
-            paymentDate: addDays(0),
-            status: "PAID",
-            paymentMethod: "Múltiplos",
-          },
-          {
-            companyId: company.id,
-            type: "OUTFLOW",
-            description: "Compra de Embalagens a Vácuo e Potes para Doces",
-            provider: "Embalagens Express",
-            category: "Fornecedores",
-            amount: 640.0,
-            dueDate: addDays(-1),
-            paymentDate: addDays(-1),
-            status: "PAID",
-            paymentMethod: "PIX",
-          },
-        ],
-      });
-    }
 
     const [allTx, recentSales, cashRegisters] = await Promise.all([
       prisma.transaction.findMany({

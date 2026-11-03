@@ -7,8 +7,6 @@ export default function TaxGridPage() {
   const [rules, setRules] = useState([
     { id: '1', ncm: '2204.*', origin: 'SP', dest: 'AL', cst: '00', icms: 19.0, pis: 1.65, cofins: 7.6, ibs: 0, cbs: 0, is: 0 },
     { id: '2', ncm: '1905.90.90', origin: 'AL', dest: 'AL', cst: '40', icms: 0, pis: 0, cofins: 0, ibs: 0, cbs: 0, is: 0 },
-    // Mock Reforma Tributária (Alíquotas de transição teste)
-    { id: '3', ncm: '2203.00.00', origin: 'AL', dest: 'AL', cst: '60', icms: 19.0, pis: 0, cofins: 0, ibs: 1.2, cbs: 0.8, is: 5.0 },
   ]);
 
   const [isOpen, setIsOpen] = useState(false);

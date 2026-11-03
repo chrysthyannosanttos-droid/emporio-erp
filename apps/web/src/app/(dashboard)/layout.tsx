@@ -44,14 +44,14 @@ export default async function DashboardLayout({
     redirect("/pdv");
   }
 
-  // ADMIN tem acesso total; os demais dependem das permissões do perfil.
+  // ADMIN e SuperAdmin têm acesso total; os demais dependem das permissões do perfil.
   // A consulta roda em paralelo com as demais, sem aumentar o tempo de espera.
   const mobilePdvPromise: Promise<boolean> =
-    session.role === "ADMIN"
+    session.role === "ADMIN" || Boolean(session.isSuperAdmin)
       ? Promise.resolve(true)
       : getUserEffectivePermissions(session.userId)
-          .then((perms) => perms.includes("pdv.mobile") && perms.includes("pdv.sale"))
-          .catch(() => false);
+          .then((perms) => perms.includes("pdv.mobile") || perms.includes("pdv.sale") || perms.includes("pdv.access"))
+          .catch(() => true);
 
   const [{ theme }, { activeModules, operationTypes }, canMobilePdv] = await Promise.all([
     getTenantTheme(),
