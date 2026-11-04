@@ -71,7 +71,21 @@ export async function getPriceTableItems(priceTableId: string) {
       orderBy: { product: { name: "asc" } },
     });
 
-    return { items };
+    const serializedItems = items.map((it) => ({
+      ...it,
+      price: Number(it.price || 0),
+      minQty: Number(it.minQty || 0),
+      maxDiscount: Number(it.maxDiscount || 0),
+      product: it.product
+        ? {
+            ...it.product,
+            price: Number(it.product.price || 0),
+            cost: Number(it.product.cost || 0),
+          }
+        : null,
+    }));
+
+    return { items: serializedItems };
   } catch (err: any) {
     return { error: err.message || "Erro ao buscar itens da tabela", items: [] };
   }

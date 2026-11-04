@@ -80,6 +80,7 @@ model Company {
   productionOrders  ProductionOrder[]
   assets            Asset[]
   assetMaintenances AssetMaintenance[]
+  cois              Coi[]
 
   plan           Plan?    @relation(fields: [planId], references: [id])
 
@@ -1752,4 +1753,55 @@ model AssetAudit {
 
   @@index([companyId, assetId])
   @@map("asset_audits")
+}
+
+// ─────────────────────────────────────────────
+// CÓDIGOS DE OPERAÇÃO INTERNA (COI) / MOVIMENTOS
+// ─────────────────────────────────────────────
+
+model Coi {
+  id                 String   @id @default(uuid())
+  code               String   // Ex: "001", "002", "101", "103"
+  name               String   // Ex: "Entrada por Compra de Fornecedor"
+  description        String?  // Ex: "Entrada com acréscimo de estoque e geração de Contas a Pagar"
+  type               String   // "IN" (Entrada) ou "OUT" (Saída)
+  stockMovement      String   // "ADD" (Soma +), "SUBTRACT" (Subtrai -), "NONE" (Não altera)
+  financialImpact    String   // "PAYABLE" (Contas a Pagar), "RECEIVABLE" (Contas a Receber), "EXPENSE" (Despesa / Perda), "NONE" (Sem Financeiro)
+  defaultCfop        String?  // Ex: "1.102", "5.102", "5.927", "5.949"
+  costCenter         String?  // Ex: "MERCADORIAS", "PERDAS", "DESPESAS_LOJA", "PRODUÇÃO"
+  requiresApproval   Boolean  @default(false) // Se requer autorização de gerente/supervisor
+  active             Boolean  @default(true)
+  isSystemStandard   Boolean  @default(false) // Se é padrão de fábrica
+
+  companyId          String
+  company            Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  movements          CoiMovement[]
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([companyId, code])
+  @@index([companyId, type])
+  @@map("cois")
+}
+
+model CoiMovement {
+  id           String   @id @default(uuid())
+  coiId        String
+  coi          Coi      @relation(fields: [coiId], references: [id], onDelete: Cascade)
+  productId    String
+  productName  String
+  quantity     Float
+  unitCost     Decimal  @default(0)
+  totalCost    Decimal  @default(0)
+  notes        String?
+  operatorName String
+  companyId    String
+
+  createdAt    DateTime @default(now())
+
+  @@index([companyId, coiId])
+  @@index([companyId, productId])
+  @@map("coi_movements")
 }

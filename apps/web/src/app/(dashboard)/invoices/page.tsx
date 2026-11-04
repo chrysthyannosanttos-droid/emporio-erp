@@ -6,8 +6,9 @@ import {
   Package, Search, ChevronRight, GitMerge, Loader2, RefreshCw,
   Receipt, Calendar, Truck, Hash, ArrowRight, Plus, ClipboardCheck,
   Radio, Eye, Download, ShieldCheck, Sparkles, Building2, Printer,
-  FileX, Ban, HelpCircle, Check, MessageSquare
+  FileX, Ban, HelpCircle, Check, MessageSquare, Sliders
 } from "lucide-react";
+import { getCois, type CoiDTO } from "@/actions/coi";
 import {
   confirmStockEntry,
   getStockEntries,
@@ -102,6 +103,20 @@ const REASONS_REFUSAL = [
   "Nota fiscal emitida indevidamente contra este CNPJ"
 ];
 
+function detectSuggestedCoiCode(items: Array<{ cfop?: string | null }>): string {
+  const cfop = String(items[0]?.cfop || "").trim();
+  if (cfop.startsWith("5910") || cfop.startsWith("6910") || cfop.startsWith("1910") || cfop.startsWith("2910")) {
+    return "002"; // Bonificação / Brinde
+  }
+  if (cfop.startsWith("5152") || cfop.startsWith("6152") || cfop.startsWith("1152") || cfop.startsWith("2152")) {
+    return "006"; // Transferência entre lojas
+  }
+  if (cfop.startsWith("5202") || cfop.startsWith("6202") || cfop.startsWith("1202") || cfop.startsWith("2202")) {
+    return "005"; // Devolução / Troca
+  }
+  return "001"; // Entrada por Compra de Fornecedor
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function InvoicesPage() {
   const [activeTab, setActiveTab] = useState<TabType>("radar");
@@ -111,6 +126,8 @@ export default function InvoicesPage() {
   const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
   const [selectedPO, setSelectedPO] = useState<string>("");
   const [matchedPO, setMatchedPO] = useState<any | null>(null);
+  const [cois, setCois] = useState<CoiDTO[]>([]);
+  const [selectedCoi, setSelectedCoi] = useState<string>("");
   const [recentEntries, setRecentEntries] = useState<any[]>([]);
   const [errorMsg, setErrorMsg] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
@@ -143,6 +160,7 @@ export default function InvoicesPage() {
   const loadData = async () => {
     getStockEntries().then(r => setRecentEntries((r as any).entries || []));
     getOpenPurchaseOrders().then(r => setPurchaseOrders((r as any).orders || []));
+    getCois("IN").then(r => setCois((r as any).cois || []));
     loadRadar();
   };
 
@@ -232,6 +250,9 @@ export default function InvoicesPage() {
       });
 
       setItems(itemsWithMatch);
+      const suggestedCode = detectSuggestedCoiCode(rawItems);
+      const matchedCoi = cois.find(c => c.code === suggestedCode) || cois.find(c => c.code === "001") || cois[0];
+      if (matchedCoi) setSelectedCoi(matchedCoi.id);
       setStep("reviewing");
     } catch (err: any) {
       setStep("error");
@@ -353,6 +374,9 @@ export default function InvoicesPage() {
 
       setParsed(data);
       setItems(itemsWithMatch);
+      const suggestedCode = detectSuggestedCoiCode(data.items);
+      const matchedCoi = cois.find(c => c.code === suggestedCode) || cois.find(c => c.code === "001") || cois[0];
+      if (matchedCoi) setSelectedCoi(matchedCoi.id);
       setStep("reviewing");
     } catch (err: any) {
       setStep("error");
@@ -380,6 +404,7 @@ export default function InvoicesPage() {
         supplierCnpj: parsed.supplier.cnpj,
         totalAmount: parsed.totalAmount,
         purchaseOrderId: selectedPO || null,
+        coiId: selectedCoi || null,
         items: items.map(i => ({
           productId: i.matchedProductId || null,
           productName: i.productName,
@@ -412,6 +437,7 @@ export default function InvoicesPage() {
     setItems([]);
     setSelectedPO("");
     setMatchedPO(null);
+    setSelectedCoi("");
     setStep("idle");
     setErrorMsg("");
   };
@@ -942,6 +968,52 @@ export default function InvoicesPage() {
                     Chave: {parsed.accessKey}
                   </p>
                 </div>
+              </div>
+
+              {/* REGRA DO CÓDIGO DE OPERAÇÃO INTERNA (COI) */}
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-black text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <Sliders size={14} className="text-emerald-600" />
+                    Código de Operação Interna (COI) &amp; Regra Fiscal/Estoque
+                  </label>
+                  {selectedCoi && (
+                    <span className="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                      <CheckCircle2 size={12} /> Sugerido pelo CFOP da nota fiscal
+                    </span>
+                  )}
+                </div>
+
+                {cois.length === 0 ? (
+                  <p className="text-xs text-gray-400 italic">Carregando operações...</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {cois.map(coi => {
+                      const isSelected = selectedCoi === coi.id;
+                      return (
+                        <button
+                          key={coi.id}
+                          type="button"
+                          onClick={() => setSelectedCoi(coi.id)}
+                          className={`text-xs font-bold px-3 py-2 rounded-xl border transition-all flex items-center gap-2 ${
+                            isSelected
+                              ? "bg-emerald-600 text-white border-emerald-600 shadow-md shadow-emerald-500/20 ring-2 ring-emerald-500/30"
+                              : "bg-white text-gray-700 border-gray-200 hover:border-emerald-400"
+                          }`}
+                        >
+                          {isSelected && <CheckCircle2 size={13} />}
+                          <span className="font-mono font-black">{coi.code}</span>
+                          <span>{coi.name}</span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-bold ${
+                            isSelected ? "bg-white/20 text-white" : "bg-gray-100 text-gray-500"
+                          }`}>
+                            {coi.financialImpact === "PAYABLE" ? "Contas a Pagar" : coi.financialImpact === "EXPENSE" ? "Despesa" : "Sem Financeiro"}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* REGRA DO PEDIDO DE COMPRA */}

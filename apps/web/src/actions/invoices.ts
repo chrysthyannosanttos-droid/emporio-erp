@@ -127,6 +127,7 @@ export async function confirmStockEntry(data: {
   supplierCnpj: string;
   totalAmount: number;
   purchaseOrderId: string | null;
+  coiId?: string | null;
   items: Array<{
     productId: string | null;
     productName: string;
@@ -284,8 +285,44 @@ export async function confirmStockEntry(data: {
       }
     }
 
+    // 6. Registrar Movimentação no COI (Código de Operação Interna)
+    try {
+      let coi = null;
+      if (data.coiId) {
+        coi = await prisma.coi.findUnique({ where: { id: data.coiId } });
+      }
+      if (!coi) {
+        // Fallback para COI padrão de entrada 001
+        coi = await prisma.coi.findFirst({
+          where: { companyId: session.companyId, code: "001" },
+        });
+      }
+
+      if (coi) {
+        for (const { productId, item } of itemsToCreate) {
+          if (!productId) continue;
+          await prisma.coiMovement.create({
+            data: {
+              coiId: coi.id,
+              productId,
+              productName: item.productName,
+              quantity: item.quantity,
+              unitCost: item.unitCost,
+              totalCost: Number(item.quantity) * Number(item.unitCost),
+              operatorName: session.name || "Entrada NF-e",
+              companyId: session.companyId,
+              notes: `Entrada NF-e ${data.invoiceNum} - Fornecedor: ${data.supplierName || supplier?.name || "Fornecedor"}`,
+            },
+          });
+        }
+      }
+    } catch (coiErr) {
+      console.error("Erro ao registrar CoiMovement na entrada de nota:", coiErr);
+    }
+
     revalidatePath("/invoices");
     revalidatePath("/stock");
+    revalidatePath("/coi");
     revalidatePath("/pricing");
     revalidatePath("/expirations");
 
@@ -320,7 +357,17 @@ export async function matchProducts(items: Array<{ barcode: string | null; name:
       });
     }
 
-    return { idx, match: found };
+    const serializedMatch = found
+      ? {
+          id: found.id,
+          name: found.name,
+          barcode: found.barcode,
+          price: Number(found.price || 0),
+          cost: Number(found.cost || 0),
+        }
+      : null;
+
+    return { idx, match: serializedMatch };
   }));
 
   return { matches };

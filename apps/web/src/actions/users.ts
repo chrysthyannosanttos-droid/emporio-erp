@@ -568,44 +568,78 @@ export async function getPdvOperators(companyIdParam?: string) {
 }
 
 /**
- * Valida o PIN do operador ou fiscal de caixa
+ * Valida o PIN ou a senha do operador ou fiscal de caixa
  */
 export async function verifyPdvPin(data: { userId?: string; userName?: string; pin: string }) {
   try {
     const session = await getSession();
     const companyId = session?.companyId;
 
-    let user;
+    let user: any = null;
+    const searchVal = data.userName?.trim();
+
     if (data.userId) {
       user = await prisma.user.findUnique({ where: { id: data.userId } });
-    } else if (data.userName) {
+    } else if (searchVal) {
       user = await prisma.user.findFirst({
         where: {
-          name: data.userName,
+          OR: [
+            { name: { equals: searchVal, mode: "insensitive" } },
+            { email: { equals: searchVal, mode: "insensitive" } },
+          ],
           ...(companyId ? { companyId } : {}),
         },
       });
+
+      if (!user) {
+        user = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { name: { equals: searchVal, mode: "insensitive" } },
+              { email: { equals: searchVal, mode: "insensitive" } },
+            ],
+          },
+        });
+      }
     }
 
     if (!user) {
       // Fallback para PIN padrão de teste em ambiente offline ou de demonstração
       if (data.pin === "1234") {
-        return { success: true, verified: true, role: "OPERATOR", userName: data.userName || "Operador" };
+        return { success: true, verified: true, role: "OPERATOR", userName: searchVal || "Operador" };
       }
       return { success: false, error: "Usuário não localizado." };
     }
 
-    // Se o usuário não tem PIN configurado, permite o PIN padrão 1234
-    if (!user.pin) {
-      if (data.pin === "1234") {
-        return { success: true, verified: true, role: user.role, userName: user.name };
+    let isValid = false;
+
+    // 1. Tenta validar pelo PIN do PDV
+    if (user.pin) {
+      try {
+        isValid = await bcrypt.compare(data.pin, user.pin);
+      } catch {}
+      if (!isValid && user.pin === data.pin) {
+        isValid = true;
       }
-      return { success: false, error: "PIN incorreto. Defina um PIN de 4 dígitos nas configurações de usuários." };
     }
 
-    const isValid = await bcrypt.compare(data.pin, user.pin);
+    // 2. Se não bateu pelo PIN, tenta validar pela senha principal da conta
+    if (!isValid && user.password) {
+      try {
+        isValid = await bcrypt.compare(data.pin, user.password);
+      } catch {}
+      if (!isValid && user.password === data.pin) {
+        isValid = true;
+      }
+    }
+
+    // 3. Fallback se não tiver PIN configurado
+    if (!isValid && !user.pin && data.pin === "1234") {
+      isValid = true;
+    }
+
     if (!isValid) {
-      return { success: false, error: "PIN inválido." };
+      return { success: false, error: "Senha ou PIN incorreto." };
     }
 
     return {
@@ -616,7 +650,7 @@ export async function verifyPdvPin(data: { userId?: string; userName?: string; p
       role: user.role,
     };
   } catch (err: any) {
-    return { success: false, error: err.message || "Erro ao validar PIN." };
+    return { success: false, error: err.message || "Erro ao validar credenciais." };
   }
 }
 

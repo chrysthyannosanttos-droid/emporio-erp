@@ -8,7 +8,8 @@ import {
   TrendingDown, Package, Clock, User, Users, ChevronRight, Monitor,
   DollarSign, BarChart2, LogOut, RefreshCw, Zap, Download, Settings,
   Maximize2, Minimize2, Wifi, Volume2, Battery, Barcode, Tag, Key,
-  Smartphone, Share2, MessageCircle, Mail, Copy, ExternalLink, Printer
+  Smartphone, Share2, MessageCircle, Mail, Copy, ExternalLink, Printer,
+  Lock, Eye, EyeOff
 } from "lucide-react";
 import {
   buildReceiptText,
@@ -401,8 +402,10 @@ function SelectCashierScreen({ onSelect, autoCaixa }: { onSelect: (session: Cash
   const [selectedTerminal, setSelectedTerminal] = useState<CashierSession | null>(null);
   const [configuredTerminalNum, setConfiguredTerminalNum] = useState<string | null>(null);
   const [isChangingTerminal, setIsChangingTerminal] = useState(false);
-  const [selectedOperator, setSelectedOperator] = useState(OPERATORS[0].name);
-  const [operatorPin, setOperatorPin] = useState("");
+  const [operatorLogin, setOperatorLogin] = useState("");
+  const [operatorPassword, setOperatorPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState("");
   const [pausedMap, setPausedMap] = useState<Record<string, any>>({});
   const time = useClock();
@@ -434,7 +437,6 @@ function SelectCashierScreen({ onSelect, autoCaixa }: { onSelect: (session: Cash
     getPdvOperators().then(res => {
       if (res.operators && res.operators.length > 0) {
         setOperatorsList(res.operators);
-        setSelectedOperator(res.operators[0].name);
         try {
           localStorage.setItem("CYBERTECH_PDV_OPERATORS", JSON.stringify(res.operators));
         } catch {}
@@ -445,7 +447,6 @@ function SelectCashierScreen({ onSelect, autoCaixa }: { onSelect: (session: Cash
             const parsed = JSON.parse(cached);
             if (parsed.length > 0) {
               setOperatorsList(parsed);
-              setSelectedOperator(parsed[0].name);
             }
           } catch {}
         }
@@ -457,7 +458,6 @@ function SelectCashierScreen({ onSelect, autoCaixa }: { onSelect: (session: Cash
           const parsed = JSON.parse(cached);
           if (parsed.length > 0) {
             setOperatorsList(parsed);
-            setSelectedOperator(parsed[0].name);
           }
         } catch {}
       }
@@ -559,41 +559,59 @@ function SelectCashierScreen({ onSelect, autoCaixa }: { onSelect: (session: Cash
       localStorage.setItem("EMPORIO_TERMINAL_CAIXA", cx.number.toString());
     } catch { }
     setIsChangingTerminal(false);
-    setOperatorPin("");
+    setOperatorPassword("");
     setLoginError("");
   };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedTerminal) return;
-    if (operatorPin.length < 4) {
-      setLoginError("Digite o PIN de 4 dígitos");
+
+    const opLogin = operatorLogin.trim();
+    if (!opLogin) {
+      setLoginError("Informe o usuário ou login");
       return;
     }
 
+    if (!operatorPassword.trim()) {
+      setLoginError("Digite sua senha ou PIN de acesso");
+      return;
+    }
+
+    setIsLoggingIn(true);
     setLoginError("");
-    const verifyRes = await verifyPdvPin({ userName: selectedOperator, pin: operatorPin });
-    if (!verifyRes.success) {
-      setLoginError(verifyRes.error || "PIN incorreto");
-      return;
-    }
 
-    const paused = pausedMap[selectedOperator];
-    if (paused) {
-      const updated = { ...pausedMap };
-      delete updated[selectedOperator];
-      setPausedMap(updated);
-      try {
-        localStorage.setItem("EMPORIO_PAUSED_SESSIONS", JSON.stringify(updated));
-      } catch { }
-    }
+    try {
+      const verifyRes = await verifyPdvPin({ userName: opLogin, pin: operatorPassword.trim() });
+      if (!verifyRes.success) {
+        setIsLoggingIn(false);
+        setLoginError(verifyRes.error || "Usuário ou senha incorretos.");
+        return;
+      }
 
-    onSelect({
-      ...selectedTerminal,
-      operator: selectedOperator,
-      sales: paused?.session?.sales || selectedTerminal.sales,
-      initialBalance: paused?.session?.initialBalance || (selectedTerminal.initialBalance || 200)
-    }, paused);
+      const confirmedOperatorName = verifyRes.userName || opLogin;
+      const paused = pausedMap[confirmedOperatorName] || pausedMap[opLogin];
+      if (paused) {
+        const updated = { ...pausedMap };
+        delete updated[confirmedOperatorName];
+        delete updated[opLogin];
+        setPausedMap(updated);
+        try {
+          localStorage.setItem("EMPORIO_PAUSED_SESSIONS", JSON.stringify(updated));
+        } catch { }
+      }
+
+      setIsLoggingIn(false);
+      onSelect({
+        ...selectedTerminal,
+        operator: confirmedOperatorName,
+        sales: paused?.session?.sales || selectedTerminal.sales,
+        initialBalance: paused?.session?.initialBalance || (selectedTerminal.initialBalance || 200)
+      }, paused);
+    } catch (err: any) {
+      setIsLoggingIn(false);
+      setLoginError(err.message || "Erro de conexão ao autenticar.");
+    }
   };
 
   const downloadShortcut = (cx: CashierSession, e: React.MouseEvent) => {
@@ -636,7 +654,7 @@ function SelectCashierScreen({ onSelect, autoCaixa }: { onSelect: (session: Cash
       {/* DEDICATED DIRECT LOGIN SCREEN (When terminal is configured) */}
       {selectedTerminal && !isChangingTerminal ? (
         <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6 animate-in fade-in duration-200">
-          <div className="bg-white border border-gray-200 rounded-3xl p-8 shadow-2xl max-w-lg w-full text-gray-800 space-y-6">
+          <div className="bg-white border border-gray-200 rounded-3xl p-8 shadow-2xl max-w-md w-full text-gray-800 space-y-6">
 
             {/* Header info */}
             <div className="text-center space-y-2 pb-4 border-b border-gray-100">
@@ -646,80 +664,103 @@ function SelectCashierScreen({ onSelect, autoCaixa }: { onSelect: (session: Cash
                 {terminalConfig?.companyName ? ` — ${terminalConfig.companyName}` : ""}
               </div>
               <h2 className="text-2xl font-black text-gray-900 tracking-tight">Identificação do Operador</h2>
-              <p className="text-xs text-gray-500">Selecione seu usuário e digite o PIN para abrir as vendas.</p>
+              <p className="text-xs text-gray-500">Informe seu login e senha para iniciar o atendimento.</p>
             </div>
 
-            <form onSubmit={handleLoginSubmit} className="space-y-5">
+            <form onSubmit={handleLoginSubmit} className="space-y-4">
+              {/* Usuário / Login */}
               <div>
-                <label className="block text-xs font-black text-gray-700 uppercase tracking-wider mb-2">
-                  Selecione o Operador de Caixa
+                <label className="block text-xs font-black text-gray-700 uppercase tracking-wider mb-1.5">
+                  Usuário / Login
                 </label>
-                <div className="grid grid-cols-2 gap-2.5">
-                  {operatorsList.map(op => {
-                    const hasPaused = !!pausedMap[op.name];
-                    return (
-                      <button
-                        key={op.name}
-                        type="button"
-                        onClick={() => {
-                          setSelectedOperator(op.name);
-                          setOperatorPin("");
-                          setLoginError("");
-                        }}
-                        className={`p-3 rounded-2xl border text-left transition-all cursor-pointer relative ${selectedOperator === op.name
-                            ? "border-blue-600 bg-blue-50/70 text-blue-900 shadow-sm ring-2 ring-blue-500/20"
-                            : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300"
-                          }`}
-                      >
-                        {hasPaused && (
-                          <span className="absolute -top-1.5 -right-1 bg-amber-500 text-white text-[9px] font-black px-2 py-0.5 rounded-full shadow-xs">
-                            Pausado
-                          </span>
-                        )}
-                        <div className="font-extrabold text-sm">{op.name}</div>
-                        <div className="text-[11px] text-gray-500 font-medium">{op.role}</div>
-                      </button>
-                    );
-                  })}
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                    <User size={18} />
+                  </div>
+                  <input
+                    type="text"
+                    value={operatorLogin}
+                    onChange={e => {
+                      setOperatorLogin(e.target.value);
+                      setLoginError("");
+                    }}
+                    placeholder="Digite seu usuário ou e-mail"
+                    autoFocus
+                    required
+                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border-2 border-gray-200 focus:border-blue-600 focus:bg-white rounded-2xl outline-none font-semibold text-gray-900 text-sm shadow-2xs transition-all placeholder:text-gray-400"
+                  />
                 </div>
               </div>
 
-              {pausedMap[selectedOperator] && (
-                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 text-xs text-amber-900 flex items-center gap-3">
+              {/* Senha / PIN */}
+              <div>
+                <label className="block text-xs font-black text-gray-700 uppercase tracking-wider mb-1.5">
+                  Senha / PIN de Acesso
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
+                    <Lock size={18} />
+                  </div>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={operatorPassword}
+                    onChange={e => {
+                      setOperatorPassword(e.target.value);
+                      setLoginError("");
+                    }}
+                    placeholder="Digite sua senha ou PIN"
+                    required
+                    className="w-full pl-10 pr-11 py-3 bg-gray-50 border-2 border-gray-200 focus:border-blue-600 focus:bg-white rounded-2xl outline-none font-semibold text-gray-900 text-sm shadow-2xs transition-all placeholder:text-gray-400"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    tabIndex={-1}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Turno pausado detectado */}
+              {operatorLogin.trim() && pausedMap[operatorLogin.trim()] && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 text-xs text-amber-900 flex items-center gap-3">
                   <span className="text-xl">🔄</span>
                   <div>
                     <strong className="font-bold">Turno pausado detectado!</strong>
                     <p className="text-[11px] text-amber-800">
-                      Seu carrinho ({pausedMap[selectedOperator].cart?.length || 0} itens) e sessão anterior serão restaurados.
+                      Seu carrinho anterior e vendas serão restaurados ao entrar.
                     </p>
                   </div>
                 </div>
               )}
 
-              <div>
-                <label className="block text-xs font-black text-gray-700 uppercase tracking-wider mb-1.5">
-                  Senha / PIN de Acesso (4 dígitos)
-                </label>
-                <input
-                  type="password"
-                  maxLength={4}
-                  value={operatorPin}
-                  onChange={e => setOperatorPin(e.target.value)}
-                  placeholder="••••"
-                  autoFocus
-                  className="w-full text-center tracking-[0.8em] text-3xl font-mono font-black py-3 bg-gray-50 border-2 border-gray-300 focus:border-blue-600 focus:bg-white rounded-2xl outline-none shadow-2xs transition-all"
-                />
-                {loginError && (
-                  <p className="text-xs font-bold text-rose-600 mt-1.5 text-center">{loginError}</p>
-                )}
-                <p className="text-[11px] text-gray-400 text-center mt-1">Dica de teste: use o PIN padrão 1234</p>
-              </div>
+              {/* Mensagem de Erro */}
+              {loginError && (
+                <div className="bg-rose-50 border border-rose-200 rounded-2xl p-3 text-xs font-bold text-rose-700 flex items-center gap-2">
+                  <AlertCircle size={16} className="shrink-0 text-rose-600" />
+                  <span>{loginError}</span>
+                </div>
+              )}
 
+              {/* Botão de Entrar */}
               <button
                 type="submit"
-                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-sm uppercase tracking-wider rounded-2xl transition-all shadow-md shadow-blue-500/20 cursor-pointer flex items-center justify-center gap-2"
+                disabled={isLoggingIn}
+                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-extrabold text-sm uppercase tracking-wider rounded-2xl transition-all shadow-md shadow-blue-500/20 cursor-pointer flex items-center justify-center gap-2"
               >
-                <Check size={18} /> Entrar no Caixa {String(selectedTerminal.number).padStart(2, "0")}
+                {isLoggingIn ? (
+                  <>
+                    <RefreshCw size={18} className="animate-spin" />
+                    <span>Entrando...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check size={18} />
+                    <span>Entrar no Caixa {String(selectedTerminal.number).padStart(2, "0")}</span>
+                  </>
+                )}
               </button>
             </form>
 

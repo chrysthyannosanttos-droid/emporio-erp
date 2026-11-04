@@ -556,3 +556,123 @@ export async function addAssetMaintenance(data: {
     return { success: false, error: err.message || "Erro ao registrar manutenção." };
   }
 }
+
+/**
+ * Busca produtos do catálogo para puxar / converter em Ativo Imobilizado
+ */
+export async function searchProductsForAsset(query: string) {
+  try {
+    const { companyId } = await resolveTenantContext();
+    const q = (query || "").trim();
+
+    const where: any = { companyId };
+    if (q) {
+      where.OR = [
+        { name: { contains: q, mode: "insensitive" } },
+        { barcode: { contains: q } },
+        { internalCode: { contains: q } },
+      ];
+    }
+
+    const products = await prisma.product.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        barcode: true,
+        internalCode: true,
+        price: true,
+        cost: true,
+        unit: true,
+        stock: true,
+        category: { select: { name: true } },
+      },
+      take: 20,
+      orderBy: { name: "asc" },
+    });
+
+    return {
+      products: products.map((p) => ({
+        id: p.id,
+        name: p.name,
+        barcode: p.barcode,
+        internalCode: p.internalCode,
+        price: Number(p.price || 0),
+        cost: Number(p.cost || (Number(p.price || 0) * 0.6)),
+        unit: p.unit,
+        stock: Number(p.stock || 0),
+        categoryName: p.category?.name || "Sem categoria",
+      })),
+    };
+  } catch (err: any) {
+    return { products: [], error: err.message };
+  }
+}
+
+/**
+ * Converte um item do estoque/catálogo diretamente para o Ativo Imobilizado
+ */
+export async function convertProductToAsset(input: {
+  productId: string;
+  code?: string;
+  location: string;
+  category: string;
+  condition?: string;
+  depreciationRate?: number;
+  removeFromStock?: boolean;
+}): Promise<{ success: boolean; asset?: AssetDTO; error?: string }> {
+  try {
+    const { companyId } = await resolveTenantContext();
+
+    const product = await prisma.product.findFirst({
+      where: { id: input.productId, companyId },
+    });
+
+    if (!product) {
+      return { success: false, error: "Produto não encontrado no catálogo." };
+    }
+
+    let finalCode = input.code?.trim();
+    if (!finalCode) {
+      const count = await (prisma as any).asset.count({ where: { companyId } });
+      finalCode = `PAT-${String(count + 1).padStart(4, "0")}`;
+    }
+
+    const acqVal = Number(product.cost || product.price || 0);
+    const rate = Number(input.depreciationRate || 10);
+
+    const asset = await (prisma as any).asset.create({
+      data: {
+        companyId,
+        code: finalCode,
+        name: product.name,
+        category: input.category || "EQUIPMENT",
+        location: input.location || "SALÃO DE VENDAS",
+        condition: input.condition || "GOOD",
+        status: "ACTIVE",
+        acquisitionDate: new Date(),
+        acquisitionValue: acqVal,
+        currentValue: acqVal,
+        depreciationRate: rate,
+        usefulLifeMonths: 120,
+        notes: `Importado a partir do produto cadastrado (PLU ${product.internalCode || "-"}, EAN ${product.barcode || "-"})`,
+        qrCode: `AGROBELEM:PAT:${finalCode}`,
+      },
+    });
+
+    // Se solicitado, remove 1 unidade do estoque de revenda
+    if (input.removeFromStock && Number(product.stock || 0) > 0) {
+      await prisma.product.update({
+        where: { id: product.id },
+        data: { stock: Math.max(0, Number(product.stock || 0) - 1) },
+      });
+    }
+
+    revalidatePath("/assets");
+    return { success: true, asset: formatAsset(asset) };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Erro ao converter produto em imobilizado." };
+  }
+}
+
+

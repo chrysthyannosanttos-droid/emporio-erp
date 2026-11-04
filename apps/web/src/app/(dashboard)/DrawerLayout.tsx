@@ -48,11 +48,14 @@ const ROUTE_DEFINITIONS: Record<string, { title: string; iconName: string }> = {
   "/distribution/orders": { title: "Pedidos", iconName: "ClipboardList" },
   "/customers": { title: "Clientes", iconName: "Users" },
   "/invoices": { title: "Entrada de Notas", iconName: "Receipt" },
+  "/fiscal/decretos": { title: "Decretos AL & NCMs", iconName: "Scale" },
+  "/decretos": { title: "Decretos AL & NCMs", iconName: "Scale" },
   "/labels": { title: "Etiquetas", iconName: "Tag" },
   "/scales": { title: "Balanças (Toledo MGV6)", iconName: "Scale" },
   "/expirations": { title: "Validades", iconName: "Calendar" },
   "/stock": { title: "Estoque", iconName: "Landmark" },
   "/stock/inventory": { title: "Balanço & Inventário", iconName: "ClipboardCheck" },
+  "/coi": { title: "Operações Internas (COI)", iconName: "Sliders" },
   "/assets": { title: "Ativo Imobilizado", iconName: "Shield" },
   "/stock/new": { title: "Cadastrar Produto", iconName: "Package" },
   "/purchases": { title: "Pedidos de Compra & Cotações", iconName: "ClipboardList" },
@@ -118,6 +121,7 @@ function renderTabIcon(iconName: string, size = 14) {
     case "ArrowLeftRight": return <ArrowLeftRight size={size} />;
     case "Hammer": return <Hammer size={size} />;
     case "Scale": return <Scale size={size} />;
+    case "Sliders": return <Sliders size={size} />;
     case "RefreshCw": return <RefreshCw size={size} />;
     case "Globe": return <Globe size={size} />;
     case "Smartphone": return <Smartphone size={size} />;
@@ -350,10 +354,12 @@ export function DrawerLayout({
           <SectionLabel>PRODUTOS & ESTOQUE</SectionLabel>
           {hasModule("STOCK") && <NavItem href="/stock" icon={<Landmark size={16} />} label="Estoque & Produtos" active={pathname === "/stock"} onNavigate={handleNavigate} />}
           {hasModule("STOCK") && <NavItem href="/stock/inventory" icon={<ClipboardCheck size={16} />} label="Balanço & Inventário" active={pathname === "/stock/inventory"} onNavigate={handleNavigate} />}
+          <NavItem href="/coi" icon={<Sliders size={16} />} label="Operações de Estoque (COI)" active={pathname === "/coi"} onNavigate={handleNavigate} />
           <NavItem href="/assets" icon={<Shield size={16} />} label="Ativo Imobilizado" active={pathname === "/assets"} onNavigate={handleNavigate} />
           <NavItem href="/stock/new" icon={<Package size={16} />} label="Cadastrar Produto" active={pathname === "/stock/new"} onNavigate={handleNavigate} />
           <NavItem href="/purchases" icon={<ClipboardList size={16} />} label="Pedidos de Compra & Cotações" active={pathname?.startsWith("/purchases")} onNavigate={handleNavigate} />
           <NavItem href="/invoices" icon={<Receipt size={16} />} label="Entrada de Notas & XML" active={pathname === "/invoices"} onNavigate={handleNavigate} />
+          <NavItem href="/fiscal/decretos" icon={<Scale size={16} />} label="Decretos AL & NCMs" active={pathname?.startsWith("/fiscal/decretos") || pathname === "/decretos"} onNavigate={handleNavigate} />
           <NavItem href="/pricing" icon={<Percent size={16} />} label="Precificação & Margens" active={pathname === "/pricing"} onNavigate={handleNavigate} />
           <NavItem href="/labels" icon={<Tag size={16} />} label="Impressão de Etiquetas" active={pathname === "/labels"} onNavigate={handleNavigate} />
           <NavItem href="/scales" icon={<Scale size={16} />} label="Balanças (Toledo MGV6)" active={pathname === "/scales"} onNavigate={handleNavigate} />

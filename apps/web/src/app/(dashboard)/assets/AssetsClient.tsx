@@ -5,12 +5,13 @@ import {
   Shield, Package, Search, Plus, Filter, QrCode, Camera, Printer,
   Wrench, CheckCircle2, AlertTriangle, Clock, RefreshCw, X, Check,
   ChevronRight, ArrowUpDown, Trash2, Edit2, History, MapPin, Zap,
-  DollarSign, FileText, ArrowLeft, Smartphone
+  DollarSign, FileText, ArrowLeft, Smartphone, PackagePlus
 } from "lucide-react";
 import Link from "next/link";
 import {
   AssetDTO, AssetStats, createAsset, updateAsset,
-  registerAssetAudit, addAssetMaintenance, getAssetDetails
+  registerAssetAudit, addAssetMaintenance, getAssetDetails,
+  searchProductsForAsset, convertProductToAsset
 } from "@/actions/assets";
 
 interface Props {
@@ -104,6 +105,73 @@ export function AssetsClient({ initialAssets, initialStats }: Props) {
     setAssetStatusActive: true,
   });
   const [savingMaintenance, setSavingMaintenance] = useState(false);
+
+  // Puxar do Catálogo de Produtos
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [importSearch, setImportSearch] = useState("");
+  const [catalogProducts, setCatalogProducts] = useState<any[]>([]);
+  const [loadingCatalog, setLoadingCatalog] = useState(false);
+  const [selectedCatalogProduct, setSelectedCatalogProduct] = useState<any | null>(null);
+  const [importForm, setImportForm] = useState({
+    location: "SALÃO DE VENDAS",
+    category: "AUTOMATION_IT",
+    condition: "GOOD",
+    depreciationRate: "10",
+    removeFromStock: false,
+  });
+  const [savingImport, setSavingImport] = useState(false);
+
+  // Busca produtos no catálogo ao abrir modal
+  useEffect(() => {
+    if (!isImportModalOpen) return;
+    let cancelled = false;
+    setLoadingCatalog(true);
+    const timer = setTimeout(async () => {
+      const res = await searchProductsForAsset(importSearch);
+      if (!cancelled) {
+        setCatalogProducts(res.products || []);
+        setLoadingCatalog(false);
+      }
+    }, 200);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [importSearch, isImportModalOpen]);
+
+  const handleConfirmImport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedCatalogProduct) return;
+
+    setSavingImport(true);
+    const res = await convertProductToAsset({
+      productId: selectedCatalogProduct.id,
+      location: importForm.location,
+      category: importForm.category,
+      condition: importForm.condition,
+      depreciationRate: parseFloat(importForm.depreciationRate) || 10,
+      removeFromStock: importForm.removeFromStock,
+    });
+
+    setSavingImport(false);
+    if (res.success && res.asset) {
+      setAssets((prev) => [res.asset!, ...prev]);
+      setStats((prev) => ({
+        ...prev,
+        totalAssets: prev.totalAssets + 1,
+        totalAcquisitionValue: prev.totalAcquisitionValue + (res.asset?.acquisitionValue || 0),
+        totalCurrentValue: prev.totalCurrentValue + (res.asset?.currentValue || 0),
+      }));
+      setIsImportModalOpen(false);
+      setSelectedCatalogProduct(null);
+      setFeedback({
+        type: "success",
+        message: `Item "${selectedCatalogProduct.name}" tombado com sucesso na plaqueta ${res.asset.code}!`,
+      });
+    } else {
+      setFeedback({ type: "error", message: res.error || "Erro ao importar item." });
+    }
+  };
 
   // Auditoria móvel
   const [scannedLocation, setScannedLocation] = useState("SALÃO DE VENDAS");
@@ -331,6 +399,21 @@ export function AssetsClient({ initialAssets, initialStats }: Props) {
           >
             <Printer size={16} />
             <span>Etiquetas QR</span>
+          </button>
+
+          {/* Puxar do Catálogo de Produtos */}
+          <button
+            type="button"
+            onClick={() => {
+              setIsImportModalOpen(true);
+              setImportSearch("");
+              setSelectedCatalogProduct(null);
+            }}
+            className="px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-extrabold text-xs sm:text-sm rounded-xl sm:rounded-2xl shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+            title="Selecionar um item cadastrado nos produtos para tombar como Ativo Imobilizado"
+          >
+            <PackagePlus size={16} />
+            <span>Puxar do Catálogo</span>
           </button>
 
           {/* Novo Bem */}
@@ -1320,6 +1403,166 @@ export function AssetsClient({ initialAssets, initialStats }: Props) {
           </div>
         </div>
       )}
+
+      {/* MODAL 6: PUXAR DO CATÁLOGO DE PRODUTOS / ESTOQUE */}
+      {isImportModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-5 sm:p-6 shadow-2xl space-y-4 my-8 max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                  <PackagePlus size={20} className="text-indigo-600" />
+                  <span>Puxar Item do Catálogo / Estoque</span>
+                </h3>
+                <p className="text-xs text-slate-400">
+                  Selecione um produto cadastrado para tombar como Ativo Imobilizado.
+                </p>
+              </div>
+              <button onClick={() => setIsImportModalOpen(false)} className="p-1.5 text-slate-400 hover:text-slate-700">
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmImport} className="space-y-4">
+              {/* Barra de Busca de Produtos */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 block">
+                  1. Localizar Produto no Catálogo
+                </label>
+                <div className="relative">
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    autoFocus
+                    value={importSearch}
+                    onChange={(e) => setImportSearch(e.target.value)}
+                    placeholder="Buscar por nome, código interno (PLU) ou código de barras..."
+                    className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:border-indigo-600 outline-none"
+                  />
+                  {loadingCatalog && (
+                    <RefreshCw size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-indigo-600 animate-spin" />
+                  )}
+                </div>
+              </div>
+
+              {/* Lista de Seleção de Produtos */}
+              <div className="border border-slate-200 rounded-2xl max-h-52 overflow-y-auto divide-y divide-slate-100 bg-slate-50">
+                {catalogProducts.length === 0 ? (
+                  <p className="p-4 text-center text-xs text-slate-400">
+                    {loadingCatalog ? "Carregando catálogo..." : "Nenhum produto encontrado com esse nome."}
+                  </p>
+                ) : (
+                  catalogProducts.map((p) => {
+                    const isSelected = selectedCatalogProduct?.id === p.id;
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => setSelectedCatalogProduct(p)}
+                        className={`p-2.5 flex items-center justify-between cursor-pointer transition-colors text-xs ${
+                          isSelected ? "bg-indigo-50 border-l-4 border-indigo-600" : "hover:bg-white"
+                        }`}
+                      >
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-mono text-[10px] font-bold px-1.5 py-0.5 bg-slate-200 text-slate-700 rounded">
+                              PLU #{p.internalCode || "SEM PLU"}
+                            </span>
+                            <span className="font-bold text-slate-900">{p.name}</span>
+                          </div>
+                          <span className="text-[10px] text-slate-400 block">
+                            Cat: {p.categoryName} • Estoque Atual: {p.stock} {p.unit}
+                          </span>
+                        </div>
+                        <div className="text-right shrink-0 ml-2">
+                          <span className="font-bold text-slate-800 block">
+                            R$ {p.cost.toFixed(2)}
+                          </span>
+                          <span className="text-[9px] text-slate-400">custo</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Item Selecionado e Configurações de Tombamento */}
+              {selectedCatalogProduct && (
+                <div className="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-2xl space-y-3 animate-in zoom-in-95">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-black text-indigo-900">
+                      Item Selecionado: {selectedCatalogProduct.name}
+                    </span>
+                    <span className="text-xs font-mono font-bold text-indigo-700">
+                      R$ {selectedCatalogProduct.cost.toFixed(2)}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div>
+                      <label className="font-bold text-slate-700 block mb-1">Setor Destino *</label>
+                      <select
+                        value={importForm.location}
+                        onChange={(e) => setImportForm({ ...importForm, location: e.target.value })}
+                        className="w-full px-2.5 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-white"
+                      >
+                        {COMMON_LOCATIONS.map((loc) => (
+                          <option key={loc} value={loc}>{loc}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="font-bold text-slate-700 block mb-1">Categoria Patrimonial</label>
+                      <select
+                        value={importForm.category}
+                        onChange={(e) => setImportForm({ ...importForm, category: e.target.value })}
+                        className="w-full px-2.5 py-2 rounded-xl border border-slate-300 text-xs font-bold bg-white"
+                      >
+                        <option value="AUTOMATION_IT">Balanças & PDV / TI</option>
+                        <option value="REFRIGERATION">Refrigeração & Frio</option>
+                        <option value="FOOD_PRODUCTION">Gastronomia & Cozinha</option>
+                        <option value="FURNITURE">Mobiliário & Gôndolas</option>
+                        <option value="VEHICLE">Veículos & Logística</option>
+                        <option value="BUILDING">Predial & Outros</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="pt-1">
+                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-800 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={importForm.removeFromStock}
+                        onChange={(e) => setImportForm({ ...importForm, removeFromStock: e.target.checked })}
+                        className="rounded text-indigo-600"
+                      />
+                      <span>Dar baixa de 1 unidade no estoque de revenda</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setIsImportModalOpen(false)}
+                  className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={!selectedCatalogProduct || savingImport}
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-extrabold text-xs rounded-xl shadow-md flex items-center gap-1.5 cursor-pointer"
+                >
+                  {savingImport ? <RefreshCw size={14} className="animate-spin" /> : <Check size={14} />}
+                  <span>Confirmar Tombamento</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1449,3 +1692,4 @@ function AssetCameraScanner({
     </div>
   );
 }
+

@@ -404,5 +404,13 @@ export async function getPublicCompany(companyId: string) {
     return { company: null, licenseIssue: true };
   }
 
+  if (company && (company as any).products) {
+    (company as any).products = (company as any).products.map((p: any) => ({
+      ...p,
+      price: Number(p.price || 0),
+      stock: Number(p.stock || 0),
+    }));
+  }
+
   return { company };
 }
