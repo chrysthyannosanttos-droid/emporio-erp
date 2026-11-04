@@ -884,9 +884,27 @@ export default function TerminalsPage() {
             </div>
 
             <div className="space-y-3 text-xs">
+              {/* Instalador Executavel Desktop */}
+              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
+                <span className="font-bold text-emerald-950 text-sm block mb-1">
+                  1. Instalador Desktop (.exe) - Recomendado para Caixas Físicos
+                </span>
+                <p className="text-emerald-800 text-[11px] leading-relaxed mb-3">
+                  Aplicativo desktop completo com suporte integrado a impressoras térmicas, balanças e operação offline nativa.
+                </p>
+                <a
+                  href="/api/pdv/installer/download"
+                  download="Emporio-PDV-Setup-2.0.0.exe"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm transition-all"
+                >
+                  <Download size={14} />
+                  Baixar Emporio PDV Setup (.exe)
+                </a>
+              </div>
+
               <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-4">
                 <span className="font-bold text-blue-900 text-sm block mb-1">
-                  1. Modo Kiosk em Tela Cheia (Recomendado)
+                  2. Modo Kiosk em Tela Cheia (Navegador)
                 </span>
                 <p className="text-blue-800 text-[11px] leading-relaxed mb-3">
                   Crie um atalho no Windows com o comando abaixo para iniciar o PDV travado em tela cheia, sem barra de abas ou navegação do Windows:
@@ -904,7 +922,7 @@ export default function TerminalsPage() {
 
               <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
                 <span className="font-bold text-gray-900 text-sm block mb-1">
-                  2. Acesso Direto Web
+                  3. Acesso Direto Web
                 </span>
                 <p className="text-gray-600 text-[11px] leading-relaxed">
                   Basta abrir o navegador no link <span className="font-mono text-blue-600 font-bold">/pdv</span>. Ao abrir pela primeira vez, o PDV pede o Código de Ativação e se auto-configura.

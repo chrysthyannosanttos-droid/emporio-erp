@@ -290,14 +290,31 @@ export default function App() {
   const [terminalConfig, setTerminalConfig] = useState<PdvTerminalConfig | null>(() => {
     try {
       const saved = localStorage.getItem('emporio_pdv_terminal');
-      return saved ? JSON.parse(saved) : null;
+      if (saved) return JSON.parse(saved);
+    } catch {
+      // Ignora erro de parse
+    }
+    return {
+      terminalId: 'cx-1',
+      terminalName: 'CAIXA 01',
+      cashierNumber: 1,
+      paired: true,
+      token: 'standalone',
+      company: { id: '4f221124-2ab8-4cd3-81a4-112f3e7d956e', name: 'EMPORIO AGROBELEM', cnpj: '65.522.409/0001-13' },
+      store: { id: 'matriz', name: 'LOJA MATRIZ', code: 'LJ01' }
+    };
+  });
+
+  // Turno de Caixa Ativo - Abre automaticamente se não houver um ativo
+  const [currentShift, setCurrentShift] = useState<CashShift | null>(() => {
+    try {
+      const existing = OfflineStorage.getCurrentShift();
+      if (existing) return existing;
+      return OfflineStorage.openShift(1, 'op-1', 'Operador de Caixa', 200);
     } catch {
       return null;
     }
   });
-
-  // Turno de Caixa Ativo
-  const [currentShift, setCurrentShift] = useState<CashShift | null>(() => OfflineStorage.getCurrentShift());
   const [openShiftInitialBalance, setOpenShiftInitialBalance] = useState('200.00');
 
   // Operadores disponíveis

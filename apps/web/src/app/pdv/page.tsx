@@ -561,6 +561,7 @@ function SelectCashierScreen({ onSelect, autoCaixa }: { onSelect: (session: Cash
     setIsChangingTerminal(false);
     setOperatorPassword("");
     setLoginError("");
+    onSelect(cx);
   };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
@@ -784,100 +785,18 @@ function SelectCashierScreen({ onSelect, autoCaixa }: { onSelect: (session: Cash
             </div>
           </div>
         </div>
-      ) : !showManualSelection ? (
-        /* TELA DE ATIVAÇÃO ONLINE DO TERMINAL POR CÓDIGO */
-        <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-6 animate-in fade-in duration-200">
-          <div className="bg-white border border-gray-200 rounded-3xl p-8 shadow-2xl max-w-md w-full text-center space-y-6">
-            <div className="w-16 h-16 rounded-2xl bg-blue-50 border-2 border-blue-200 text-blue-600 flex items-center justify-center mx-auto text-2xl font-black shadow-xs">
-              <Key size={30} className="text-blue-600" />
-            </div>
-
-            <div>
-              <span className="text-[10px] font-black uppercase tracking-widest text-blue-700 bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
-                Ativação de Terminal PDV
-              </span>
-              <h2 className="text-2xl font-black text-gray-900 mt-2">Vincular Caixa à Nuvem</h2>
-              <p className="text-xs text-gray-500 mt-1">
-                Digite o Código de Ativação gerado na sua Central em Nuvem. O número do caixa e a loja serão baixados automaticamente pela internet.
-              </p>
-            </div>
-
-            <form onSubmit={handleActivationSubmit} className="space-y-4">
-              <div>
-                <input
-                  type="text"
-                  value={activationCodeInput}
-                  onChange={e => {
-                    setActivationCodeInput(e.target.value.toUpperCase());
-                    setActivationError("");
-                  }}
-                  placeholder="EX: CYBER-7419"
-                  autoFocus
-                  className="w-full text-center tracking-widest text-2xl font-mono font-black py-3 bg-gray-50 border-2 border-blue-400 focus:border-blue-600 focus:bg-white rounded-2xl outline-none shadow-inner uppercase"
-                />
-                {activationError && (
-                  <p className="text-xs font-bold text-rose-600 mt-2">{activationError}</p>
-                )}
-              </div>
-
-              <button
-                type="submit"
-                disabled={isActivating || !activationCodeInput.trim()}
-                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-extrabold text-xs uppercase tracking-wider rounded-2xl transition-all shadow-md shadow-blue-500/20 cursor-pointer flex items-center justify-center gap-2"
-              >
-                {isActivating ? (
-                  <>
-                    <RefreshCw size={14} className="animate-spin" />
-                    <span>Conectando à Nuvem...</span>
-                  </>
-                ) : (
-                  <>
-                    <Wifi size={14} />
-                    <span>Ativar e Sincronizar Caixa ➔</span>
-                  </>
-                )}
-              </button>
-            </form>
-
-            <div className="pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
-              {selectedTerminal && (
-                <button
-                  type="button"
-                  onClick={() => setIsChangingTerminal(false)}
-                  className="font-bold text-gray-500 hover:text-gray-700 cursor-pointer"
-                >
-                  ← Voltar
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setShowManualSelection(true)}
-                className="font-bold text-blue-600 hover:underline cursor-pointer ml-auto"
-              >
-                Modo Demonstração / Seleção Manual
-              </button>
-            </div>
-          </div>
-        </div>
       ) : (
-        /* TERMINAL CONFIGURATION / SELECTION GRID MANUAL */
+        /* SELEÇÃO DIRETA DO TERMINAL SEM CÓDIGO DE ATIVAÇÃO */
         <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-8 animate-in fade-in duration-150">
           <div className="w-full max-w-5xl">
             <div className="text-center mb-8">
               <span className="text-xs font-black text-blue-600 uppercase tracking-widest bg-blue-50 px-3 py-1 rounded-full border border-blue-200">
-                Seleção Manual de Terminal
+                Seleção de Caixa PDV
               </span>
-              <h1 className="text-gray-900 text-3xl font-black tracking-tight mt-2 mb-1">Qual é o número deste Caixa?</h1>
+              <h1 className="text-gray-900 text-3xl font-black tracking-tight mt-2 mb-1">Selecione o Caixa para Iniciar</h1>
               <p className="text-gray-500 text-sm">
-                Selecione um número de caixa ou volte para ativar via Código de Nuvem.
+                Clique no caixa desejado para entrar imediatamente no sistema de vendas.
               </p>
-              <button
-                type="button"
-                onClick={() => setShowManualSelection(false)}
-                className="mt-2 text-xs font-bold text-blue-600 hover:underline cursor-pointer"
-              >
-                ← Voltar para Ativação por Código
-              </button>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
@@ -946,8 +865,48 @@ function PDVContainer() {
   // Splash Screen desativada para carregamento instantâneo do PDV
   const [showSplash, setShowSplash] = useState(false);
 
-  // Session
-  const [session, setSession] = useState<CashierSession | null>(null);
+  // Session - Inicia diretamente no PDV pronto para vendas
+  const [session, setSession] = useState<CashierSession | null>(() => {
+    let savedNum = 1;
+    let savedOp = "Operador de Caixa";
+    if (typeof window !== "undefined") {
+      try {
+        const savedCaixa = localStorage.getItem("EMPORIO_TERMINAL_CAIXA");
+        if (savedCaixa) savedNum = parseInt(savedCaixa, 10) || 1;
+        const savedConfig = localStorage.getItem("CYBERTECH_TERMINAL_CONFIG");
+        if (savedConfig) {
+          const parsed = JSON.parse(savedConfig);
+          if (parsed.cashierNumber) savedNum = parsed.cashierNumber;
+          if (parsed.companyName) savedOp = parsed.companyName;
+        }
+      } catch { }
+    }
+    return {
+      id: `cx-${savedNum}`,
+      number: savedNum,
+      operator: savedOp,
+      openedAt: new Date(),
+      initialBalance: 200,
+      sales: [],
+      withdrawals: [],
+      supplements: []
+    };
+  });
+
+  useEffect(() => {
+    // Sincroniza catálogo offline em segundo plano para operação ultrarrápida
+    syncOfflineCatalog();
+
+    // Obtém nome do operador autenticado na sessão web
+    fetch("/api/auth/session-check")
+      .then(res => res.json())
+      .then(data => {
+        if (data.valid && data.userName) {
+          setSession(prev => prev ? { ...prev, operator: data.userName } : null);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Cart
   const [cart, setCart] = useState<CartItem[]>([]);
