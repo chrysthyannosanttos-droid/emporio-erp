@@ -20,6 +20,7 @@ import {
   InventoryProduct,
   InventoryStats
 } from "@/actions/inventory";
+import { loadZXingScript, decodeBarcodeFromImage } from "@/lib/barcode-scanner";
 
 interface Props {
   initialStats: InventoryStats;
@@ -323,25 +324,20 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
       const dataUrl = e.target?.result as string;
       setPhotoPreview(dataUrl);
 
-      // 1. Tentar detectar código de barras na foto com API nativa do navegador
-      if (typeof window !== "undefined" && "BarcodeDetector" in window) {
-        try {
-          const barcodeDetector = new (window as any).BarcodeDetector({
-            formats: ["ean_13", "ean_8", "upc_a", "code_128", "qr_code"],
-          });
-          const img = new Image();
-          img.src = dataUrl;
-          img.onload = async () => {
-            try {
-              const detected = await barcodeDetector.detect(img);
-              if (detected && detected.length > 0 && detected[0].rawValue) {
-                setNewProdBarcode(detected[0].rawValue);
-                setNoBarcodeFlag(false);
-              }
-            } catch {}
-          };
-        } catch {}
-      }
+      // 1. Tentar detectar código de barras na foto (nativamente ou via ZXing)
+      try {
+        const img = new Image();
+        img.src = dataUrl;
+        img.onload = async () => {
+          try {
+            const detected = await decodeBarcodeFromImage(img);
+            if (detected) {
+              setNewProdBarcode(detected);
+              setNoBarcodeFlag(false);
+            }
+          } catch {}
+        };
+      } catch {}
 
       // 2. Chamar IA para ler imagem e sugerir descrição, unidade e preço
       try {
@@ -1659,46 +1655,60 @@ function CameraScannerModal({
   onContinuousToggle: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState("");
+  const [statusMessage, setStatusMessage] = useState("Iniciando câmera...");
   const [manualCode, setManualCode] = useState("");
-  const [hasCamera, setHasCamera] = useState(false);
+  const [hasCamera, setHasCamera] = useState(true);
   const [useCamera, setUseCamera] = useState(true);
+  const [loadingCamera, setLoadingCamera] = useState(true);
   const [lastBip, setLastBip] = useState<string | null>(null);
   const [hasTorch, setHasTorch] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
+  const [isProcessingPhoto, setIsProcessingPhoto] = useState(false);
   const mediaStreamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
     let stream: MediaStream | null = null;
     let timer: ReturnType<typeof setInterval> | null = null;
     let stopped = false;
+    let zxingReader: any = null;
 
     const startCamera = async () => {
+      setLoadingCamera(true);
+      setError("");
+      setStatusMessage("Solicitando permissão de câmera...");
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setError("Este navegador não suporta streaming direto de vídeo. Use o botão de foto abaixo.");
+        setHasCamera(false);
+        setUseCamera(false);
+        setLoadingCamera(false);
+        return;
+      }
+
       try {
-        const Detector = (window as any).BarcodeDetector;
-        if (!Detector) {
-          setHasCamera(false);
-          setUseCamera(false);
-          return;
+        // Tentar obter a câmera traseira do celular (environment)
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: {
+              facingMode: { ideal: "environment" },
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            },
+            audio: false,
+          });
+        } catch {
+          // Se falhou por restrições avançadas, tenta genérica
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false,
+          });
         }
-
-        setHasCamera(true);
-        const detector = new Detector({
-          formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "qr_code"],
-        });
-
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: "environment" },
-            width: { ideal: 1280 },
-            height: { ideal: 720 },
-          },
-          audio: false,
-        });
 
         mediaStreamRef.current = stream;
 
-        // Verifica suporte a lanterna (flash) no smartphone
+        // Suporte à lanterna no smartphone
         const track = stream.getVideoTracks()[0];
         const capabilities = (track as any)?.getCapabilities?.();
         if (capabilities && "torch" in capabilities) {
@@ -1707,39 +1717,102 @@ function CameraScannerModal({
 
         if (stopped || !videoRef.current) return;
         videoRef.current.srcObject = stream;
+        videoRef.current.setAttribute("playsinline", "true");
+        videoRef.current.setAttribute("muted", "true");
         await videoRef.current.play();
 
+        setHasCamera(true);
+        setUseCamera(true);
+        setLoadingCamera(false);
+        setStatusMessage("Aponte para o código de barras ou etiqueta");
+
+        // Inicializar decodificadores:
+        // Prioridade 1: BarcodeDetector nativo
+        let nativeDetector: any = null;
+        if (typeof window !== "undefined" && "BarcodeDetector" in window) {
+          try {
+            nativeDetector = new (window as any).BarcodeDetector({
+              formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39", "qr_code"],
+            });
+          } catch {
+            nativeDetector = null;
+          }
+        }
+
+        // Prioridade 2: Carregar ZXing caso não tenha detector nativo
+        if (!nativeDetector) {
+          loadZXingScript().then((ZXing) => {
+            if (ZXing && !stopped) {
+              zxingReader = new ZXing.BrowserMultiFormatReader();
+            }
+          });
+        }
+
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
         let cooldown = false;
+
+        const handleFoundCode = (detected: string) => {
+          if (!detected || cooldown) return;
+          cooldown = true;
+          setLastBip(detected);
+          triggerBipFeedback();
+          onDetected(detected);
+          setTimeout(() => {
+            cooldown = false;
+          }, 1500);
+        };
+
         timer = setInterval(async () => {
           if (!videoRef.current || videoRef.current.readyState < 2 || cooldown) return;
-          try {
-            const codes = await detector.detect(videoRef.current);
-            if (codes.length > 0 && codes[0].rawValue) {
-              const detected = codes[0].rawValue;
-              setLastBip(detected);
-              triggerBipFeedback();
-              cooldown = true;
-              onDetected(detected);
-              setTimeout(() => {
-                cooldown = false;
-              }, 1200);
-            }
-          } catch {}
-        }, 200);
-      } catch {
+
+          // 1. Tentar ler com BarcodeDetector nativo
+          if (nativeDetector) {
+            try {
+              const codes = await nativeDetector.detect(videoRef.current);
+              if (codes && codes.length > 0 && codes[0].rawValue) {
+                handleFoundCode(codes[0].rawValue.trim());
+                return;
+              }
+            } catch {}
+          }
+
+          // 2. Tentar ler com ZXing via canvas
+          if (zxingReader && ctx && videoRef.current) {
+            try {
+              const v = videoRef.current;
+              if (v.videoWidth > 0 && v.videoHeight > 0) {
+                canvas.width = v.videoWidth;
+                canvas.height = v.videoHeight;
+                ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+                const res = zxingReader.decodeFromCanvas(canvas);
+                if (res && res.getText()) {
+                  handleFoundCode(res.getText().trim());
+                  return;
+                }
+              }
+            } catch {}
+          }
+        }, 250);
+      } catch (err: any) {
+        console.error("Erro câmera:", err);
         setHasCamera(false);
         setUseCamera(false);
+        setLoadingCamera(false);
+        setError("Não foi possível acessar a câmera ao vivo. Você pode tirar uma foto do produto ou digitar o código abaixo.");
       }
     };
 
-    startCamera();
+    if (useCamera) {
+      startCamera();
+    }
 
     return () => {
       stopped = true;
       if (timer) clearInterval(timer);
       stream?.getTracks().forEach((t) => t.stop());
     };
-  }, [onDetected]);
+  }, [useCamera, onDetected]);
 
   const toggleTorch = async () => {
     try {
@@ -1760,6 +1833,42 @@ function CameraScannerModal({
       onDetected(manualCode.trim());
       setManualCode("");
       if (!continuous) onClose();
+    }
+  };
+
+  const handlePhotoCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsProcessingPhoto(true);
+    setStatusMessage("Lendo foto do produto...");
+    setError("");
+
+    try {
+      const imgUrl = URL.createObjectURL(file);
+      const img = new Image();
+      img.src = imgUrl;
+      await new Promise((res, rej) => {
+        img.onload = res;
+        img.onerror = rej;
+      });
+
+      const detected = await decodeBarcodeFromImage(img);
+      URL.revokeObjectURL(imgUrl);
+
+      if (detected) {
+        setLastBip(detected);
+        triggerBipFeedback();
+        onDetected(detected);
+        if (!continuous) onClose();
+      } else {
+        setError("Nenhum código de barras foi identificado na foto. Aproxime a câmera e garanta boa iluminação.");
+      }
+    } catch {
+      setError("Erro ao ler a foto. Tente novamente ou digite o código.");
+    } finally {
+      setIsProcessingPhoto(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -1819,10 +1928,23 @@ function CameraScannerModal({
 
       {useCamera && hasCamera ? (
         <div className="flex-1 relative flex items-center justify-center bg-black overflow-hidden select-none">
-          <video ref={videoRef} playsInline muted className="absolute inset-0 w-full h-full object-cover" />
-          
+          <video
+            ref={videoRef}
+            playsInline
+            autoPlay
+            muted
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+
+          {loadingCamera && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950/85 text-white z-20 gap-3">
+              <RefreshCw className="w-8 h-8 animate-spin text-blue-400" />
+              <p className="text-sm font-semibold">{statusMessage}</p>
+            </div>
+          )}
+
           {/* Mira de leitura de código centralizada */}
-          <div className="relative w-[88%] max-w-xs sm:max-w-md h-44 sm:h-52 border-4 border-emerald-400 rounded-3xl shadow-[0_0_0_9999px_rgba(0,0,0,0.65)] flex items-center justify-center">
+          <div className="relative w-[88%] max-w-xs sm:max-w-md h-44 sm:h-52 border-4 border-emerald-400 rounded-3xl shadow-[0_0_0_9999px_rgba(0,0,0,0.65)] flex items-center justify-center pointer-events-none">
             <div className="w-full h-0.5 bg-red-500 animate-pulse opacity-90 shadow-sm" />
             {lastBip && (
               <div className="absolute -top-11 bg-emerald-600 text-white text-xs font-bold px-3 py-1 rounded-full animate-bounce shadow-lg">
@@ -1831,18 +1953,48 @@ function CameraScannerModal({
             )}
           </div>
 
-          <div className="absolute bottom-6 flex items-center gap-3">
+          {/* Ações inferiores na tela da câmera */}
+          <div className="absolute bottom-6 inset-x-4 flex items-center justify-center gap-2 sm:gap-3 z-30">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={handlePhotoCapture}
+            />
+
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isProcessingPhoto}
+              className="bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white text-xs sm:text-sm font-bold px-4 py-3 rounded-2xl border border-emerald-400 shadow-xl flex items-center gap-2 active:scale-95 transition-all cursor-pointer"
+            >
+              <Camera size={18} />
+              <span>{isProcessingPhoto ? "Lendo Foto..." : "Tirar Foto"}</span>
+            </button>
+
             <button
               type="button"
               onClick={() => setUseCamera(false)}
-              className="bg-slate-900/90 hover:bg-slate-800 text-white text-xs font-bold px-4 py-2.5 rounded-full border border-slate-700 shadow-lg active:scale-95"
+              className="bg-slate-900/90 hover:bg-slate-800 text-white text-xs sm:text-sm font-bold px-4 py-3 rounded-2xl border border-slate-700 shadow-xl flex items-center gap-2 active:scale-95 transition-all cursor-pointer"
             >
-              Digitar PLU / Código Manual
+              <ScanBarcode size={18} />
+              <span>Digitar Código</span>
             </button>
           </div>
         </div>
       ) : (
         <div className="flex-1 p-4 sm:p-6 flex flex-col justify-center max-w-md mx-auto w-full">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handlePhotoCapture}
+          />
+
           <form onSubmit={handleManualSubmit} className="space-y-4">
             <div className="text-center space-y-1 mb-2">
               <ScanBarcode size={42} className="mx-auto text-blue-400" />
@@ -1871,20 +2023,32 @@ function CameraScannerModal({
               <span>Localizar e Lançar</span>
             </button>
 
-            {hasCamera && (
-              <button
-                type="button"
-                onClick={() => setUseCamera(true)}
-                className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs rounded-xl active:scale-95"
-              >
-                Voltar para Câmera
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isProcessingPhoto}
+              className="w-full py-3 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/40 text-emerald-400 font-bold text-xs sm:text-sm rounded-xl flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer"
+            >
+              <Camera size={16} />
+              <span>{isProcessingPhoto ? "Lendo Foto..." : "Tirar Foto do Código com a Câmera"}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setUseCamera(true);
+                setHasCamera(true);
+              }}
+              className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs rounded-xl active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <RefreshCw size={14} />
+              <span>Abrir Câmera ao Vivo</span>
+            </button>
           </form>
         </div>
       )}
 
-      {error && <p className="p-2 text-center text-xs font-semibold text-amber-300 bg-black/80">{error}</p>}
+      {error && <p className="p-3 text-center text-xs font-semibold text-amber-300 bg-black/90 border-t border-amber-500/30">{error}</p>}
     </div>
   );
 }

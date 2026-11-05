@@ -11,6 +11,7 @@ import {
   lookupMobileBarcode,
   createMobileSale,
 } from "@/actions/mobilePdv";
+import { loadZXingScript } from "@/lib/barcode-scanner";
 import type { MobileProduct } from "@/actions/mobilePdv";
 import {
   ReceiptData,
@@ -51,39 +52,89 @@ function BarcodeScanner({ onDetected, onClose }: { onDetected: (code: string) =>
   const videoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState("");
   const [manualCode, setManualCode] = useState("");
-  const [hasCamera, setHasCamera] = useState(false);
+  const [hasCamera, setHasCamera] = useState(true);
   const [useCamera, setUseCamera] = useState(true);
 
   useEffect(() => {
     let stream: MediaStream | null = null;
     let timer: ReturnType<typeof setInterval> | null = null;
     let stopped = false;
+    let zxingReader: any = null;
 
     const startCamera = async () => {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setHasCamera(false);
+        setUseCamera(false);
+        return;
+      }
+
       try {
-        const Detector = (window as any).BarcodeDetector;
-        if (!Detector) {
-          setHasCamera(false);
-          setUseCamera(false);
-          return;
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } },
+            audio: false,
+          });
+        } catch {
+          stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: false,
+          });
         }
-        setHasCamera(true);
-        const detector = new Detector({ formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39"] });
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: { ideal: "environment" } },
-          audio: false,
-        });
+
         if (stopped || !videoRef.current) return;
         videoRef.current.srcObject = stream;
+        videoRef.current.setAttribute("playsinline", "true");
+        videoRef.current.setAttribute("muted", "true");
         await videoRef.current.play();
+
+        setHasCamera(true);
+        setUseCamera(true);
+
+        let detector: any = null;
+        if (typeof window !== "undefined" && "BarcodeDetector" in window) {
+          try {
+            detector = new (window as any).BarcodeDetector({
+              formats: ["ean_13", "ean_8", "upc_a", "upc_e", "code_128", "code_39"],
+            });
+          } catch {}
+        }
+
+        if (!detector) {
+          loadZXingScript().then((ZXing) => {
+            if (ZXing && !stopped) {
+              zxingReader = new ZXing.BrowserMultiFormatReader();
+            }
+          });
+        }
+
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
 
         timer = setInterval(async () => {
           if (!videoRef.current || videoRef.current.readyState < 2) return;
           try {
-            const codes = await detector.detect(videoRef.current);
-            if (codes.length > 0 && codes[0].rawValue) {
-              if (timer) clearInterval(timer);
-              onDetected(codes[0].rawValue);
+            if (detector) {
+              const codes = await detector.detect(videoRef.current);
+              if (codes.length > 0 && codes[0].rawValue) {
+                if (timer) clearInterval(timer);
+                onDetected(codes[0].rawValue.trim());
+                return;
+              }
+            }
+
+            if (zxingReader && ctx && videoRef.current) {
+              const v = videoRef.current;
+              if (v.videoWidth > 0 && v.videoHeight > 0) {
+                canvas.width = v.videoWidth;
+                canvas.height = v.videoHeight;
+                ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+                const res = zxingReader.decodeFromCanvas(canvas);
+                if (res && res.getText()) {
+                  if (timer) clearInterval(timer);
+                  onDetected(res.getText().trim());
+                  return;
+                }
+              }
             }
           } catch {}
         }, 250);
