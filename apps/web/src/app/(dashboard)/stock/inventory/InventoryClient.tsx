@@ -1184,11 +1184,32 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
 
             {/* Conteúdo rolável */}
             <form onSubmit={handleCreateProductSubmit} className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1 text-slate-800">
-              {/* Alerta de Erro */}
+              {/* Alerta de Erro ou Item Já Cadastrado */}
               {photoError && (
-                <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center gap-2">
-                  <AlertTriangle size={16} className="shrink-0 text-rose-600" />
-                  <span>{photoError}</span>
+                <div className={`p-3.5 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 ${
+                  photoError.includes("já contém cadastro")
+                    ? "bg-amber-50 border-amber-300 text-amber-950"
+                    : "bg-rose-50 border-rose-200 text-rose-800"
+                }`}>
+                  <div className="flex items-center gap-2 text-xs font-bold">
+                    <AlertTriangle size={18} className={photoError.includes("já contém cadastro") ? "text-amber-600 shrink-0" : "text-rose-600 shrink-0"} />
+                    <span>{photoError}</span>
+                  </div>
+
+                  {photoError.includes("já contém cadastro") && newProdBarcode && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const code = newProdBarcode;
+                        setIsPhotoModalOpen(false);
+                        handleCodeLookup(code);
+                      }}
+                      className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shrink-0 active:scale-95 transition-all flex items-center gap-1 shadow-sm"
+                    >
+                      <Check size={14} />
+                      <span>Lançar Este Item no Balanço</span>
+                    </button>
+                  )}
                 </div>
               )}
 

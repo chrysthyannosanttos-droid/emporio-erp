@@ -577,7 +577,7 @@ export async function createProductFromInventoryAction(data: CreateInventoryProd
       if (existing) {
         return {
           success: false,
-          error: `O código de barras "${barcode}" já pertence ao produto: ${existing.name}`,
+          error: `Item já contém cadastro! O código de barras "${barcode}" já pertence ao produto: ${existing.name}`,
         };
       }
     }
@@ -660,6 +660,16 @@ export async function createProductFromInventoryAction(data: CreateInventoryProd
       product: formatProduct(newProd),
     };
   } catch (err: any) {
+    if (err?.code === "P2002" || err?.message?.includes("Unique constraint")) {
+      const msg = String(err?.message || JSON.stringify(err?.meta || ""));
+      if (msg.includes("barcode")) {
+        return { success: false, error: "Item já contém cadastro! Este código de barras já está em uso na sua empresa." };
+      }
+      if (msg.includes("internalCode")) {
+        return { success: false, error: "Item já contém cadastro! Este código interno (PLU) já pertence a outro produto." };
+      }
+      return { success: false, error: "Item já contém cadastro no sistema." };
+    }
     return {
       success: false,
       error: err.message || "Erro ao cadastrar produto.",
