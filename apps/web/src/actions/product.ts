@@ -71,7 +71,8 @@ export async function createProduct(formData: FormData) {
     }
     const companyId = session.companyId;
 
-    // Se informou código de barras, verifica se já existe na mesma empresa
+    // Se informou código de barras ou interno, verifica se já existe na empresa para atualizar (permitindo recadastro)
+    let existingProductId: string | null = null;
     const cleanBarcode = barcode?.trim() || null;
     if (cleanBarcode) {
       const existingWithBarcode = await prisma.product.findFirst({
@@ -79,24 +80,17 @@ export async function createProduct(formData: FormData) {
         select: { id: true, name: true, internalCode: true }
       });
       if (existingWithBarcode) {
-        return {
-          error: `Item já contém cadastro! O código "${cleanBarcode}" já pertence ao produto "${existingWithBarcode.name}"${existingWithBarcode.internalCode ? ` (PLU ${existingWithBarcode.internalCode})` : ""}.`,
-          existingProductId: existingWithBarcode.id,
-        };
+        existingProductId = existingWithBarcode.id;
       }
     }
 
-    // Se informou código de balança / interno, verifica duplicidade na mesma empresa
-    if (internalCode) {
+    if (!existingProductId && internalCode) {
       const existingWithCode = await prisma.product.findFirst({
         where: { internalCode, companyId },
         select: { id: true, name: true, barcode: true }
       });
       if (existingWithCode) {
-        return {
-          error: `Item já contém cadastro! O código de balança ${internalCode} já está cadastrado para o produto "${existingWithCode.name}".`,
-          existingProductId: existingWithCode.id,
-        };
+        existingProductId = existingWithCode.id;
       }
     }
 
@@ -138,87 +132,115 @@ export async function createProduct(formData: FormData) {
     const maxStock = formData.get("maxStock") ? parseFloat(formData.get("maxStock") as string) : null;
     const leadTimeDays = parseInt(formData.get("leadTimeDays") as string, 10) || 0;
 
-    await prisma.product.create({
-      data: {
-        name,
-        barcode: barcode || undefined,
-        price,
-        cost,
-        stock,
-        ncm: ncm || null,
-        cest: cest || null,
-        cfop: cfop || null,
-        cst: cst || null,
-        origin: origin || "0",
-        icmsRate,
-        icmsRedBaseRate,
-        cstPis,
-        pisRate,
-        cstCofins,
-        cofinsRate,
-        cstIpi,
-        ipiRate,
-        fecoepRate,
-        ibsRate,
-        cbsRate,
-        isRate,
-        cfopIn: cfopIn || null,
-        cstIn: cstIn || null,
-        icmsRateIn,
-        icmsRedBaseRateIn,
-        fecoepRateIn,
-        cstPisIn,
-        pisRateIn,
-        cstCofinsIn,
-        cofinsRateIn,
-        cstIpiIn,
-        ipiRateIn,
-        unit,
-        isSelfProduced,
-        sendToScale,
-        scaleDays,
-        scaleDept,
-        internalCode: internalCode || null,
-        parentProductId,
-        categoryId: categoryId || undefined,
-        companyId,
-        // Novos campos multissetoriais
-        sku,
-        brand,
-        manufacturer,
-        unitPurchase,
-        unitSale,
-        unitConvFactor,
-        packagingType,
-        unitsPerPack,
-        minOrderQty,
-        grossWeight,
-        netWeight,
-        width,
-        height,
-        depth,
-        isRawMaterial,
-        isFinishedGood,
-        isPackaging,
-        minStock,
-        maxStock,
-        leadTimeDays,
-      }
-    });
+    const productData = {
+      name,
+      barcode: barcode || undefined,
+      price,
+      cost,
+      stock,
+      ncm: ncm || null,
+      cest: cest || null,
+      cfop: cfop || null,
+      cst: cst || null,
+      origin: origin || "0",
+      icmsRate,
+      icmsRedBaseRate,
+      cstPis,
+      pisRate,
+      cstCofins,
+      cofinsRate,
+      cstIpi,
+      ipiRate,
+      fecoepRate,
+      ibsRate,
+      cbsRate,
+      isRate,
+      cfopIn: cfopIn || null,
+      cstIn: cstIn || null,
+      icmsRateIn,
+      icmsRedBaseRateIn,
+      fecoepRateIn,
+      cstPisIn,
+      pisRateIn,
+      cstCofinsIn,
+      cofinsRateIn,
+      cstIpiIn,
+      ipiRateIn,
+      unit,
+      isSelfProduced,
+      sendToScale,
+      scaleDays,
+      scaleDept,
+      internalCode: internalCode || null,
+      parentProductId,
+      categoryId: categoryId || undefined,
+      companyId,
+      // Novos campos multissetoriais
+      sku,
+      brand,
+      manufacturer,
+      unitPurchase,
+      unitSale,
+      unitConvFactor,
+      packagingType,
+      unitsPerPack,
+      minOrderQty,
+      grossWeight,
+      netWeight,
+      width,
+      height,
+      depth,
+      isRawMaterial,
+      isFinishedGood,
+      isPackaging,
+      minStock,
+      maxStock,
+      leadTimeDays,
+      createdAt: new Date(), // Considera cadastro feito de ontem pra hoje conforme regra do balanço
+    };
+
+    if (existingProductId) {
+      // Atualiza o cadastro existente para validar com a contagem atual
+      await prisma.product.update({
+        where: { id: existingProductId },
+        data: productData,
+      });
+    } else {
+      await prisma.product.create({
+        data: productData,
+      });
+    }
 
     revalidatePath("/stock");
     revalidatePath("/scales");
-    return { success: true };
+    return { success: true, updated: Boolean(existingProductId) };
   } catch (err: any) {
+    // Fail-safe: se der erro de unique constraint, localiza o existente e atualiza
     if (err?.code === "P2002" || err?.message?.includes("Unique constraint")) {
-      const msg = String(err?.message || JSON.stringify(err?.meta || ""));
-      if (msg.includes("barcode")) {
-        return { error: "Item já contém cadastro! Este código de barras já está em uso na sua empresa." };
-      }
-      if (msg.includes("internalCode")) {
-        return { error: "Item já contém cadastro! Este código de balança/PLU já pertence a outro produto." };
-      }
-      return { error: "Item já contém cadastro no sistema." };
+      try {
+        const session = await getSession();
+        const compId = session?.companyId;
+        const cleanBar = (formData.get("barcode") as string)?.trim() || null;
+        if (compId && cleanBar) {
+          const dup = await prisma.product.findFirst({
+            where: { barcode: cleanBar, companyId: compId },
+          });
+          if (dup) {
+            await prisma.product.update({
+              where: { id: dup.id },
+              data: {
+                name: formData.get("name") as string,
+                price: parseFloat(formData.get("price") as string) || 0,
+                stock: parseFloat(formData.get("stock") as string) || 0,
+                unit: (formData.get("unit") as string) || "UN",
+                createdAt: new Date(),
+              },
+            });
+            revalidatePath("/stock");
+            return { success: true, updated: true };
+          }
+        }
+      } catch {}
     }
     return { error: err.message || "Erro ao criar produto" };
   }
@@ -486,27 +508,50 @@ export async function getProductInfoByAiBarcode(barcode: string) {
     return { success: false, error: "Código de barras inválido." };
   }
 
-  // 0. Verifica primeiro se o item já existe cadastrado na base da empresa
+  // 0. Se o item já existe na base da empresa, carrega os dados existentes para permitir recadastrar/atualizar
   try {
     const session = await getSession();
     if (session?.companyId) {
       const existing = await prisma.product.findFirst({
         where: { barcode: cleanBarcode, companyId: session.companyId },
-        select: { id: true, name: true, price: true, stock: true, internalCode: true, unit: true },
+        select: {
+          id: true,
+          name: true,
+          price: true,
+          cost: true,
+          stock: true,
+          internalCode: true,
+          unit: true,
+          ncm: true,
+          cest: true,
+          cfop: true,
+          cst: true,
+          brand: true,
+          categoryId: true,
+          category: { select: { name: true } },
+        },
       });
       if (existing) {
         return {
-          success: false,
+          success: true,
           alreadyExists: true,
+          source: "Cadastro Existente (Recadastrar)",
+          name: existing.name,
+          price: Number(existing.price),
+          cost: existing.cost ? Number(existing.cost) : 0,
+          stock: existing.stock,
+          unit: existing.unit || "UN",
+          ncm: existing.ncm || "",
+          cest: existing.cest || "",
+          cfop: existing.cfop || "5102",
+          cst: existing.cst || "102",
+          brand: existing.brand || "",
+          categorySuggested: existing.category?.name || "",
           existingProduct: {
             id: existing.id,
             name: existing.name,
-            price: Number(existing.price),
-            stock: existing.stock,
             internalCode: existing.internalCode,
-            unit: existing.unit,
           },
-          error: `Item já contém cadastro! O código "${cleanBarcode}" já pertence ao produto "${existing.name}"${existing.internalCode ? ` (PLU ${existing.internalCode})` : ""}.`,
         };
       }
     }

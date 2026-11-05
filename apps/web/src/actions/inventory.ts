@@ -563,58 +563,6 @@ export async function createProductFromInventoryAction(data: CreateInventoryProd
     let barcode = data.barcode ? data.barcode.trim() : null;
     let internalCode = data.internalCode ? data.internalCode.trim() : null;
 
-    // Se nenhum dos dois foi informado, gera automaticamente um código interno
-    if (!barcode && !internalCode) {
-      const nextRes = await getNextInternalCodeAction();
-      internalCode = nextRes.code;
-    }
-
-    // Se tiver código de barras, verifica unicidade
-    if (barcode) {
-      const existing = await prisma.product.findFirst({
-        where: { barcode, companyId },
-      });
-      if (existing) {
-        return {
-          success: false,
-          error: `Item já contém cadastro! O código de barras "${barcode}" já pertence ao produto: ${existing.name}`,
-        };
-      }
-    }
-
-    // Se tiver código interno, verifica unicidade
-    if (internalCode) {
-      const existing = await prisma.product.findFirst({
-        where: { internalCode, companyId },
-      });
-      if (existing) {
-        // Se já existe, pega o próximo livre
-        const nextRes = await getNextInternalCodeAction();
-        internalCode = nextRes.code;
-      }
-    }
-
-    // Salvar foto do produto em disco se fornecida
-    let imageUrl: string | null = null;
-    if (data.photoBase64 && data.photoBase64.length > 50) {
-      try {
-        const uploadDir = path.join(process.cwd(), "public", "uploads", "products");
-        if (!fs.existsSync(uploadDir)) {
-          fs.mkdirSync(uploadDir, { recursive: true });
-        }
-        const fileName = `prod_${Date.now()}_${Math.floor(Math.random() * 1000)}.jpg`;
-        const filePath = path.join(uploadDir, fileName);
-
-        let pureData = data.photoBase64;
-        if (pureData.includes(",")) pureData = pureData.split(",")[1];
-
-        fs.writeFileSync(filePath, Buffer.from(pureData, "base64"));
-        imageUrl = `/uploads/products/${fileName}`;
-      } catch (err) {
-        console.warn("Aviso ao salvar foto do produto:", err);
-      }
-    }
-
     // Categoria
     let categoryId: string | null = null;
     if (data.categoryName) {
@@ -627,6 +575,78 @@ export async function createProductFromInventoryAction(data: CreateInventoryProd
         });
       }
       categoryId = cat.id;
+    }
+
+    const price = Number(data.price) > 0 ? Number(data.price) : 0;
+    const cost = Number(data.cost) > 0 ? Number(data.cost) : price * 0.6;
+    const countedStock = Math.max(0, Number(data.countedStock || 0));
+
+    // Se tiver código de barras e já existir na base, atualiza e valida para a contagem atual
+    if (barcode) {
+      const existing = await prisma.product.findFirst({
+        where: { barcode, companyId },
+      });
+      if (existing) {
+        const updatedProd = await prisma.product.update({
+          where: { id: existing.id },
+          data: {
+            name,
+            unit: (data.unit || existing.unit || "UN").toUpperCase().trim(),
+            price: price > 0 ? price : Number(existing.price),
+            cost: Number(data.cost) > 0 ? cost : (existing.cost ? Number(existing.cost) : cost),
+            stock: countedStock,
+            categoryId: categoryId || existing.categoryId,
+            createdAt: new Date(), // Revalida o cadastro para constar no período atual de balanço
+          },
+          include: { category: true },
+        });
+
+        revalidatePath("/stock/inventory");
+        revalidatePath("/stock");
+        revalidatePath("/pdv");
+
+        return {
+          success: true,
+          product: formatProduct(updatedProd),
+        };
+      }
+    }
+
+    // Se nenhum dos dois foi informado, gera automaticamente um código interno
+    if (!barcode && !internalCode) {
+      const nextRes = await getNextInternalCodeAction();
+      internalCode = nextRes.code;
+    }
+
+    // Se tiver código interno e já existir
+    if (internalCode) {
+      const existing = await prisma.product.findFirst({
+        where: { internalCode, companyId },
+      });
+      if (existing) {
+        const updatedProd = await prisma.product.update({
+          where: { id: existing.id },
+          data: {
+            name,
+            unit: (data.unit || existing.unit || "UN").toUpperCase().trim(),
+            price: price > 0 ? price : Number(existing.price),
+            cost: Number(data.cost) > 0 ? cost : (existing.cost ? Number(existing.cost) : cost),
+            stock: countedStock,
+            categoryId: categoryId || existing.categoryId,
+            createdAt: new Date(),
+          },
+          include: { category: true },
+        });
+
+        revalidatePath("/stock/inventory");
+        revalidatePath("/stock");
+        revalidatePath("/pdv");
+
+        return {
+          success: true,
+          product: formatProduct(updatedProd),
+        };
+      }
     }
 
     const price = Number(data.price) > 0 ? Number(data.price) : 0;
