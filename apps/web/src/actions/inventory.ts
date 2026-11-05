@@ -3,6 +3,8 @@
 import { prisma } from "@emporio/database";
 import { getSession } from "@/lib/session";
 import { revalidatePath } from "next/cache";
+import fs from "fs";
+import path from "path";
 
 export interface InventoryProduct {
   id: string;
@@ -237,12 +239,14 @@ export async function getInventoryStats(): Promise<InventoryStats> {
 export async function applyInventoryAdjustments(input: {
   items: InventoryAdjustmentItem[];
   defaultReason?: string;
+  inactivateUncounted?: boolean;
 }): Promise<{
   success: boolean;
   totalAdjusted: number;
   surplusCount: number;
   deficitCount: number;
   financialImpact: number;
+  uncountedProcessed?: number;
   error?: string;
 }> {
   try {
@@ -338,6 +342,43 @@ export async function applyInventoryAdjustments(input: {
           }
         }
       }
+
+      // Regra de Balanço: se solicitado, retira/zera cadastros antigos que não foram inventariados neste lote
+      let uncountedProcessed = 0;
+      if (input.inactivateUncounted) {
+        const uncountedProducts = await tx.product.findMany({
+          where: {
+            companyId,
+            id: { notIn: productIds },
+          },
+          include: {
+            _count: {
+              select: {
+                saleItems: true,
+                stockEntryItems: true,
+                orderItems: true,
+              },
+            },
+          },
+        });
+
+        for (const p of uncountedProducts) {
+          // Se não possui nenhum histórico fiscal/venda vinculado, exclui o cadastro antigo
+          if (p._count.saleItems === 0 && p._count.stockEntryItems === 0 && p._count.orderItems === 0) {
+            try {
+              await tx.product.delete({ where: { id: p.id } });
+              uncountedProcessed++;
+            } catch {
+              await tx.product.update({ where: { id: p.id }, data: { stock: 0 } });
+              uncountedProcessed++;
+            }
+          } else {
+            // Se possui histórico, zera o estoque para manter integridade relacional
+            await tx.product.update({ where: { id: p.id }, data: { stock: 0 } });
+            uncountedProcessed++;
+          }
+        }
+      }
     });
 
     revalidatePath("/stock");
@@ -361,6 +402,267 @@ export async function applyInventoryAdjustments(input: {
       deficitCount: 0,
       financialImpact: 0,
       error: err.message || "Erro ao processar balanço no banco de dados.",
+    };
+  }
+}
+
+/**
+ * Sugere o próximo código interno (PLU) livre para produtos sem código de barras
+ */
+export async function getNextInternalCodeAction(): Promise<{ success: boolean; code: string; error?: string }> {
+  try {
+    const { companyId } = await resolveTenantContext();
+    const products = await prisma.product.findMany({
+      where: { companyId, internalCode: { not: null } },
+      select: { internalCode: true },
+    });
+
+    let maxCode = 1000;
+    for (const p of products) {
+      if (p.internalCode) {
+        const num = parseInt(p.internalCode, 10);
+        if (!isNaN(num) && num >= maxCode && num < 999999) {
+          maxCode = num;
+        }
+      }
+    }
+
+    const nextCode = String(maxCode + 1);
+    return { success: true, code: nextCode };
+  } catch (err: any) {
+    return { success: false, code: "1001", error: err.message };
+  }
+}
+
+/**
+ * Analisa a foto da embalagem do produto com IA para sugerir nome, marca, unidade e código
+ */
+export async function analyzeProductPhotoAction(input: {
+  base64Image: string;
+  apiKey?: string;
+}): Promise<{
+  success: boolean;
+  suggestedName?: string;
+  brand?: string;
+  suggestedUnit?: string;
+  detectedBarcode?: string | null;
+  suggestedPrice?: number | null;
+  suggestedCategory?: string;
+  error?: string;
+}> {
+  try {
+    const key = input.apiKey || process.env.GEMINI_API_KEY || "";
+    if (!key) {
+      return {
+        success: false,
+        error: "Chave Gemini API não configurada.",
+      };
+    }
+
+    let pureBase64 = input.base64Image;
+    let mimeType = "image/jpeg";
+
+    if (input.base64Image.includes(",")) {
+      const parts = input.base64Image.split(",");
+      const meta = parts[0];
+      pureBase64 = parts[1];
+      const match = meta.match(/:(.*?);/);
+      if (match) mimeType = match[1];
+    }
+
+    const promptText = `Você é um assistente de cadastramento de produtos de supermercado, atacado e empório brasileiro.
+Analise detalhadamente a foto desta embalagem/rótulo e extraia com precisão:
+1. suggestedName: Título comercial padronizado em CAIXA ALTA (ex: 'LEITE CONDENSADO MOÇA 395G', 'QUEIJO COALHO FAZENDA 500G', 'BISCOITO PASSATEMPO CHOCOLATE 130G'). Deve ser limpo, profissional e conter tamanho/peso se visível.
+2. brand: Nome da marca principal (ex: 'Nestlé', 'Itambé', 'Sadia').
+3. suggestedUnit: Escolha a melhor unidade comercial entre: 'UN', 'KG', 'LT', 'CX', 'PCT' ou 'BDJ'.
+4. detectedBarcode: Se houver código de barras EAN-13 / EAN-8 com numeração legível na imagem, informe somente os dígitos. Se não tiver ou não estiver visível, retorne null.
+5. suggestedPrice: Preço se estiver impresso em etiqueta de preço na embalagem, senão null.
+6. suggestedCategory: Categoria de supermercado adequada (ex: Laticínios, Mercearia, Carnes, Bebidas, Higiene, Limpeza, Hortifrúti).
+
+Responda em formato JSON estrito com estas chaves exatas.`;
+
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { text: promptText },
+              {
+                inline_data: {
+                  mime_type: mimeType,
+                  data: pureBase64,
+                },
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          response_mime_type: "application/json",
+          temperature: 0.2,
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      return { success: false, error: `Falha na API de visão (${res.status}): ${errText}` };
+    }
+
+    const json = await res.json();
+    const candidateText = json.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!candidateText) {
+      return { success: false, error: "Nenhuma resposta gerada pela IA." };
+    }
+
+    const parsed = JSON.parse(candidateText);
+    return {
+      success: true,
+      suggestedName: parsed.suggestedName || "",
+      brand: parsed.brand || "",
+      suggestedUnit: (parsed.suggestedUnit || "UN").toUpperCase(),
+      detectedBarcode: parsed.detectedBarcode || null,
+      suggestedPrice: parsed.suggestedPrice ? Number(parsed.suggestedPrice) : null,
+      suggestedCategory: parsed.suggestedCategory || "",
+    };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Erro ao processar imagem com IA." };
+  }
+}
+
+export interface CreateInventoryProductInput {
+  name: string;
+  barcode?: string | null;
+  internalCode?: string | null;
+  unit: string;
+  countedStock: number;
+  price?: number;
+  cost?: number;
+  categoryName?: string;
+  ncm?: string;
+  photoBase64?: string;
+}
+
+/**
+ * Cadastra um novo produto diretamente pelo balanço e já insere na contagem
+ */
+export async function createProductFromInventoryAction(data: CreateInventoryProductInput): Promise<{
+  success: boolean;
+  product?: InventoryProduct;
+  error?: string;
+}> {
+  try {
+    const { companyId } = await resolveTenantContext();
+
+    const name = data.name.trim().toUpperCase();
+    if (!name) {
+      return { success: false, error: "Nome do produto é obrigatório." };
+    }
+
+    let barcode = data.barcode ? data.barcode.trim() : null;
+    let internalCode = data.internalCode ? data.internalCode.trim() : null;
+
+    // Se nenhum dos dois foi informado, gera automaticamente um código interno
+    if (!barcode && !internalCode) {
+      const nextRes = await getNextInternalCodeAction();
+      internalCode = nextRes.code;
+    }
+
+    // Se tiver código de barras, verifica unicidade
+    if (barcode) {
+      const existing = await prisma.product.findFirst({
+        where: { barcode, companyId },
+      });
+      if (existing) {
+        return {
+          success: false,
+          error: `O código de barras "${barcode}" já pertence ao produto: ${existing.name}`,
+        };
+      }
+    }
+
+    // Se tiver código interno, verifica unicidade
+    if (internalCode) {
+      const existing = await prisma.product.findFirst({
+        where: { internalCode, companyId },
+      });
+      if (existing) {
+        // Se já existe, pega o próximo livre
+        const nextRes = await getNextInternalCodeAction();
+        internalCode = nextRes.code;
+      }
+    }
+
+    // Salvar foto do produto em disco se fornecida
+    let imageUrl: string | null = null;
+    if (data.photoBase64 && data.photoBase64.length > 50) {
+      try {
+        const uploadDir = path.join(process.cwd(), "public", "uploads", "products");
+        if (!fs.existsSync(uploadDir)) {
+          fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        const fileName = `prod_${Date.now()}_${Math.floor(Math.random() * 1000)}.jpg`;
+        const filePath = path.join(uploadDir, fileName);
+
+        let pureData = data.photoBase64;
+        if (pureData.includes(",")) pureData = pureData.split(",")[1];
+
+        fs.writeFileSync(filePath, Buffer.from(pureData, "base64"));
+        imageUrl = `/uploads/products/${fileName}`;
+      } catch (err) {
+        console.warn("Aviso ao salvar foto do produto:", err);
+      }
+    }
+
+    // Categoria
+    let categoryId: string | null = null;
+    if (data.categoryName) {
+      let cat = await prisma.category.findFirst({
+        where: { name: { equals: data.categoryName.trim(), mode: "insensitive" }, companyId },
+      });
+      if (!cat) {
+        cat = await prisma.category.create({
+          data: { name: data.categoryName.trim(), companyId },
+        });
+      }
+      categoryId = cat.id;
+    }
+
+    const price = Number(data.price) > 0 ? Number(data.price) : 0;
+    const cost = Number(data.cost) > 0 ? Number(data.cost) : price * 0.6;
+    const countedStock = Math.max(0, Number(data.countedStock || 0));
+
+    const newProd = await prisma.product.create({
+      data: {
+        name,
+        barcode,
+        internalCode,
+        unit: (data.unit || "UN").toUpperCase().trim(),
+        price,
+        cost,
+        stock: countedStock,
+        categoryId,
+        companyId,
+        ncm: data.ncm || null,
+        cfop: "5102",
+        csosn: "102",
+      },
+      include: { category: true },
+    });
+
+    revalidatePath("/stock/inventory");
+    revalidatePath("/stock");
+    revalidatePath("/pdv");
+
+    return {
+      success: true,
+      product: formatProduct(newProd),
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err.message || "Erro ao cadastrar produto.",
     };
   }
 }

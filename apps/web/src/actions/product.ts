@@ -71,13 +71,32 @@ export async function createProduct(formData: FormData) {
     }
     const companyId = session.companyId;
 
+    // Se informou código de barras, verifica se já existe na mesma empresa
+    const cleanBarcode = barcode?.trim() || null;
+    if (cleanBarcode) {
+      const existingWithBarcode = await prisma.product.findFirst({
+        where: { barcode: cleanBarcode, companyId },
+        select: { id: true, name: true, internalCode: true }
+      });
+      if (existingWithBarcode) {
+        return {
+          error: `Item já contém cadastro! O código "${cleanBarcode}" já pertence ao produto "${existingWithBarcode.name}"${existingWithBarcode.internalCode ? ` (PLU ${existingWithBarcode.internalCode})` : ""}.`,
+          existingProductId: existingWithBarcode.id,
+        };
+      }
+    }
+
     // Se informou código de balança / interno, verifica duplicidade na mesma empresa
     if (internalCode) {
       const existingWithCode = await prisma.product.findFirst({
-        where: { internalCode, companyId }
+        where: { internalCode, companyId },
+        select: { id: true, name: true, barcode: true }
       });
       if (existingWithCode) {
-        return { error: `O código de balança ${internalCode} já está cadastrado para o produto "${existingWithCode.name}".` };
+        return {
+          error: `Item já contém cadastro! O código de balança ${internalCode} já está cadastrado para o produto "${existingWithCode.name}".`,
+          existingProductId: existingWithCode.id,
+        };
       }
     }
 
@@ -191,6 +210,16 @@ export async function createProduct(formData: FormData) {
     revalidatePath("/scales");
     return { success: true };
   } catch (err: any) {
+    if (err?.code === "P2002" || err?.message?.includes("Unique constraint")) {
+      const msg = String(err?.message || JSON.stringify(err?.meta || ""));
+      if (msg.includes("barcode")) {
+        return { error: "Item já contém cadastro! Este código de barras já está em uso na sua empresa." };
+      }
+      if (msg.includes("internalCode")) {
+        return { error: "Item já contém cadastro! Este código de balança/PLU já pertence a outro produto." };
+      }
+      return { error: "Item já contém cadastro no sistema." };
+    }
     return { error: err.message || "Erro ao criar produto" };
   }
 }
@@ -224,6 +253,19 @@ export async function updateProduct(productId: string, formData: FormData) {
       return { error: "Nome e Preço são obrigatórios e válidos" };
     }
 
+    if (barcode) {
+      const existingBarcode = await prisma.product.findFirst({
+        where: {
+          barcode,
+          companyId,
+          id: { not: productId }
+        }
+      });
+      if (existingBarcode) {
+        return { error: `Item já contém cadastro! O código "${barcode}" já pertence ao produto "${existingBarcode.name}".` };
+      }
+    }
+
     if (internalCode) {
       const existing = await prisma.product.findFirst({
         where: {
@@ -233,7 +275,7 @@ export async function updateProduct(productId: string, formData: FormData) {
         }
       });
       if (existing) {
-        return { error: `O código de balança ${internalCode} já pertence ao produto "${existing.name}".` };
+        return { error: `Item já contém cadastro! O código de balança ${internalCode} já pertence ao produto "${existing.name}".` };
       }
     }
 
@@ -259,6 +301,16 @@ export async function updateProduct(productId: string, formData: FormData) {
     revalidatePath("/scales");
     return { success: true };
   } catch (err: any) {
+    if (err?.code === "P2002" || err?.message?.includes("Unique constraint")) {
+      const msg = String(err?.message || JSON.stringify(err?.meta || ""));
+      if (msg.includes("barcode")) {
+        return { error: "Item já contém cadastro! Este código de barras já está em uso na sua empresa." };
+      }
+      if (msg.includes("internalCode")) {
+        return { error: "Item já contém cadastro! Este código de balança/PLU já pertence a outro produto." };
+      }
+      return { error: "Item já contém cadastro no sistema." };
+    }
     return { error: err.message || "Erro ao atualizar produto" };
   }
 }
@@ -433,6 +485,32 @@ export async function getProductInfoByAiBarcode(barcode: string) {
   if (!cleanBarcode || cleanBarcode.length < 5) {
     return { success: false, error: "Código de barras inválido." };
   }
+
+  // 0. Verifica primeiro se o item já existe cadastrado na base da empresa
+  try {
+    const session = await getSession();
+    if (session?.companyId) {
+      const existing = await prisma.product.findFirst({
+        where: { barcode: cleanBarcode, companyId: session.companyId },
+        select: { id: true, name: true, price: true, stock: true, internalCode: true, unit: true },
+      });
+      if (existing) {
+        return {
+          success: false,
+          alreadyExists: true,
+          existingProduct: {
+            id: existing.id,
+            name: existing.name,
+            price: Number(existing.price),
+            stock: existing.stock,
+            internalCode: existing.internalCode,
+            unit: existing.unit,
+          },
+          error: `Item já contém cadastro! O código "${cleanBarcode}" já pertence ao produto "${existing.name}"${existing.internalCode ? ` (PLU ${existing.internalCode})` : ""}.`,
+        };
+      }
+    }
+  } catch {}
 
   let resultTemplate: any = null;
 

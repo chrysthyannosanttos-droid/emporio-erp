@@ -6,13 +6,17 @@ import {
   AlertTriangle, ArrowUpDown, RefreshCw, Save, FileText,
   X, CheckCircle2, ChevronRight, Package, Sparkles, Filter,
   TrendingDown, TrendingUp, DollarSign, Layers, ArrowLeft,
-  Zap, Smartphone
+  Zap, Smartphone, Upload, Image as ImageIcon, Hash, CheckSquare, Square,
+  HelpCircle, ShieldCheck, Tag
 } from "lucide-react";
 import Link from "next/link";
 import {
   searchInventoryProducts,
   lookupInventoryItem,
   applyInventoryAdjustments,
+  getNextInternalCodeAction,
+  analyzeProductPhotoAction,
+  createProductFromInventoryAction,
   InventoryProduct,
   InventoryStats
 } from "@/actions/inventory";
@@ -82,6 +86,32 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
   const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [reason, setReason] = useState("Balanço Periódico de Estoque");
+
+  // Modal de Cadastro Rápido por Foto / IA no Balanço
+  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [analyzingPhoto, setAnalyzingPhoto] = useState(false);
+  const [aiAnalysisDone, setAiAnalysisDone] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+
+  // Campos do produto a cadastrar
+  const [newProdName, setNewProdName] = useState("");
+  const [newProdUnit, setNewProdUnit] = useState("UN");
+  const [newProdCategory, setNewProdCategory] = useState("Geral");
+  const [newProdPrice, setNewProdPrice] = useState("");
+  const [newProdCost, setNewProdCost] = useState("");
+  const [newProdStock, setNewProdStock] = useState("1");
+
+  // Flag de Código de Barras (true = SEM código de barras / usa código interno)
+  const [noBarcodeFlag, setNoBarcodeFlag] = useState(false);
+  const [newProdBarcode, setNewProdBarcode] = useState("");
+  const [newProdInternalCode, setNewProdInternalCode] = useState("");
+  const [loadingInternalCode, setLoadingInternalCode] = useState(false);
+  const [creatingProduct, setCreatingProduct] = useState(false);
+
+  // Modal de Finalização do Balanço com a Regra dos Antigos
+  const [showFinalizeModal, setShowFinalizeModal] = useState(false);
+  const [inactivateUncounted, setInactivateUncounted] = useState(true);
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const quantityInputRef = useRef<HTMLInputElement>(null);
@@ -247,20 +277,156 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
     };
   }, [batchItems]);
 
-  // Grava o balanço no banco
-  const handleFinalizeInventory = async () => {
+  // Abrir modal de cadastro por foto
+  const openPhotoModal = async () => {
+    setPhotoPreview(null);
+    setAnalyzingPhoto(false);
+    setAiAnalysisDone(false);
+    setPhotoError(null);
+    setNewProdName("");
+    setNewProdUnit("UN");
+    setNewProdCategory("Geral");
+    setNewProdPrice("");
+    setNewProdCost("");
+    setNewProdStock("1");
+    setNoBarcodeFlag(false);
+    setNewProdBarcode("");
+    setNewProdInternalCode("");
+    setIsPhotoModalOpen(true);
+  };
+
+  // Alternar flag de produto SEM código de barras
+  const handleToggleNoBarcode = async (noBarcode: boolean) => {
+    setNoBarcodeFlag(noBarcode);
+    if (noBarcode) {
+      setNewProdBarcode("");
+      if (!newProdInternalCode) {
+        setLoadingInternalCode(true);
+        const res = await getNextInternalCodeAction();
+        setLoadingInternalCode(false);
+        if (res.success) {
+          setNewProdInternalCode(res.code);
+        }
+      }
+    }
+  };
+
+  // Processar seleção ou foto do produto
+  const handlePhotoSelect = (file: File) => {
+    if (!file) return;
+    setPhotoError(null);
+    setAnalyzingPhoto(true);
+    setAiAnalysisDone(false);
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const dataUrl = e.target?.result as string;
+      setPhotoPreview(dataUrl);
+
+      // 1. Tentar detectar código de barras na foto com API nativa do navegador
+      if (typeof window !== "undefined" && "BarcodeDetector" in window) {
+        try {
+          const barcodeDetector = new (window as any).BarcodeDetector({
+            formats: ["ean_13", "ean_8", "upc_a", "code_128", "qr_code"],
+          });
+          const img = new Image();
+          img.src = dataUrl;
+          img.onload = async () => {
+            try {
+              const detected = await barcodeDetector.detect(img);
+              if (detected && detected.length > 0 && detected[0].rawValue) {
+                setNewProdBarcode(detected[0].rawValue);
+                setNoBarcodeFlag(false);
+              }
+            } catch {}
+          };
+        } catch {}
+      }
+
+      // 2. Chamar IA para ler imagem e sugerir descrição, unidade e preço
+      try {
+        const res = await analyzeProductPhotoAction({ base64Image: dataUrl });
+        if (res.success) {
+          if (res.suggestedName) setNewProdName(res.suggestedName);
+          if (res.suggestedUnit) setNewProdUnit(res.suggestedUnit);
+          if (res.suggestedCategory) setNewProdCategory(res.suggestedCategory);
+          if (res.suggestedPrice) setNewProdPrice(String(res.suggestedPrice));
+          if (res.detectedBarcode && !newProdBarcode) {
+            setNewProdBarcode(res.detectedBarcode);
+            setNoBarcodeFlag(false);
+          }
+          setAiAnalysisDone(true);
+        } else {
+          setAiAnalysisDone(true);
+          if (res.error && !res.error.includes("Chave Gemini")) {
+            setPhotoError(res.error);
+          }
+        }
+      } catch (err: any) {
+        setPhotoError(err.message || "Erro ao analisar imagem.");
+      } finally {
+        setAnalyzingPhoto(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Submeter cadastro do produto e adicionar direto ao balanço
+  const handleCreateProductSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = newProdName.trim();
+    if (!name) {
+      setPhotoError("O nome / descrição do produto é obrigatório.");
+      return;
+    }
+
+    const countedStock = parseFloat(newProdStock.replace(",", "."));
+    if (isNaN(countedStock) || countedStock < 0) {
+      setPhotoError("Informe uma quantidade contada válida.");
+      return;
+    }
+
+    setCreatingProduct(true);
+    setPhotoError(null);
+
+    const price = newProdPrice ? parseFloat(newProdPrice.replace(",", ".")) : 0;
+    const cost = newProdCost ? parseFloat(newProdCost.replace(",", ".")) : undefined;
+
+    const res = await createProductFromInventoryAction({
+      name,
+      barcode: noBarcodeFlag ? null : newProdBarcode.trim() || null,
+      internalCode: noBarcodeFlag ? newProdInternalCode.trim() || null : null,
+      unit: newProdUnit,
+      countedStock,
+      price: isNaN(price) ? 0 : price,
+      cost: cost && !isNaN(cost) ? cost : undefined,
+      categoryName: newProdCategory.trim() || undefined,
+      photoBase64: photoPreview || undefined,
+    });
+
+    setCreatingProduct(false);
+
+    if (res.success && res.product) {
+      registerProductCount(res.product, countedStock, false);
+      setIsPhotoModalOpen(false);
+      setSaveSuccess(`Produto "${res.product.name}" cadastrado e adicionado ao balanço!`);
+      setTimeout(() => setSaveSuccess(null), 4000);
+    } else {
+      setPhotoError(res.error || "Erro ao cadastrar produto.");
+    }
+  };
+
+  // Abrir modal de finalização do balanço
+  const handleFinalizeInventory = () => {
     if (batchItems.length === 0) {
       setErrorMessage("Nenhum item na lista de balanço para gravar.");
       return;
     }
+    setShowFinalizeModal(true);
+  };
 
-    const confirmMsg = `Confirma o lançamento do balanço para ${batchItems.length} produtos?\n` +
-      `Sobras: ${batchSummary.surplusCount} itens (+R$ ${batchSummary.surplusValue.toFixed(2)})\n` +
-      `Faltas: ${batchSummary.deficitCount} itens (-R$ ${batchSummary.deficitValue.toFixed(2)})\n` +
-      `Impacto Líquido: R$ ${batchSummary.totalNetImpact.toFixed(2)}`;
-
-    if (!window.confirm(confirmMsg)) return;
-
+  // Executar a gravação final do balanço
+  const confirmFinalizeInventory = async () => {
     setSaving(true);
     setErrorMessage(null);
 
@@ -273,12 +439,17 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
     const res = await applyInventoryAdjustments({
       items: payload,
       defaultReason: reason,
+      inactivateUncounted,
     });
 
     setSaving(false);
+    setShowFinalizeModal(false);
 
     if (res.success) {
-      setSaveSuccess(`Balanço aplicado com sucesso! ${res.totalAdjusted} produtos atualizados no estoque.`);
+      setSaveSuccess(
+        `Balanço gravado com sucesso! ${res.totalAdjusted} produtos atualizados no estoque.` +
+        (inactivateUncounted ? " Cadastros antigos não inventariados foram retirados/zerados conforme solicitado." : "")
+      );
       setBatchItems([]);
       setStats((prev) => ({
         ...prev,
@@ -445,16 +616,28 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
             )}
           </form>
 
-          {/* Botão de Leitor de Câmera */}
-          <button
-            type="button"
-            onClick={() => setShowScanner(true)}
-            className="w-full sm:w-auto px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm rounded-xl sm:rounded-2xl shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2 active:scale-95 transition-all shrink-0 cursor-pointer"
-            title="Abrir câmera do celular ou webcam para bipar"
-          >
-            <Camera size={18} />
-            <span>Ler com a Câmera</span>
-          </button>
+          {/* Botões de Leitura e Cadastro */}
+          <div className="flex flex-col sm:flex-row items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowScanner(true)}
+              className="w-full sm:w-auto px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-sm rounded-xl sm:rounded-2xl shadow-lg shadow-blue-600/25 flex items-center justify-center gap-2 active:scale-95 transition-all shrink-0 cursor-pointer"
+              title="Abrir câmera do celular ou webcam para bipar"
+            >
+              <Camera size={18} />
+              <span>Ler com a Câmera</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={openPhotoModal}
+              className="w-full sm:w-auto px-4 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-sm rounded-xl sm:rounded-2xl shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 active:scale-95 transition-all shrink-0 cursor-pointer"
+              title="Tirar foto do produto para a IA identificar nome, unidade e cadastrar no balanço"
+            >
+              <Sparkles size={18} className="animate-pulse" />
+              <span>Cadastrar por Foto (IA)</span>
+            </button>
+          </div>
         </div>
 
         {/* Card de Produto Selecionado para Edição Rápida de Quantidade */}
@@ -971,6 +1154,472 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
           }}
           onClose={() => setShowScanner(false)}
         />
+      )}
+
+      {/* MODAL DE CADASTRO POR FOTO / IA (MOBILE FIRST & RESPONSIVO) */}
+      {isPhotoModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150 overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-xl w-full border border-slate-200 overflow-hidden my-auto max-h-[92vh] flex flex-col">
+            {/* Cabeçalho */}
+            <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+                  <Sparkles size={20} className="animate-pulse" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base sm:text-lg">Cadastrar Produto por Foto (IA)</h3>
+                  <p className="text-xs text-slate-400">
+                    Tire a foto do rótulo/embalagem para sugerir dados e cadastrar no balanço
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsPhotoModalOpen(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Conteúdo rolável */}
+            <form onSubmit={handleCreateProductSubmit} className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1 text-slate-800">
+              {/* Alerta de Erro */}
+              {photoError && (
+                <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center gap-2">
+                  <AlertTriangle size={16} className="shrink-0 text-rose-600" />
+                  <span>{photoError}</span>
+                </div>
+              )}
+
+              {/* SEÇÃO 1: FOTO DO PRODUTO */}
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-500 flex items-center justify-between">
+                  <span>1. Foto da Embalagem / Rótulo</span>
+                  {analyzingPhoto && (
+                    <span className="text-emerald-600 flex items-center gap-1 font-bold animate-pulse text-[11px]">
+                      <RefreshCw size={12} className="animate-spin" /> IA lendo rótulo...
+                    </span>
+                  )}
+                </label>
+
+                {photoPreview ? (
+                  <div className="relative rounded-2xl border-2 border-emerald-300 bg-slate-50 p-2 flex items-center gap-3">
+                    <img
+                      src={photoPreview}
+                      alt="Prévia da Foto"
+                      className="w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-xl border border-slate-200 shrink-0"
+                    />
+                    <div className="flex-1 space-y-1">
+                      {analyzingPhoto ? (
+                        <div className="text-xs text-emerald-700 font-semibold flex items-center gap-1.5 animate-pulse">
+                          <Sparkles size={14} className="text-emerald-500" />
+                          <span>Identificando nome, marca e unidade...</span>
+                        </div>
+                      ) : aiAnalysisDone ? (
+                        <div className="text-xs text-emerald-700 font-bold flex items-center gap-1">
+                          <CheckCircle2 size={15} className="text-emerald-600" />
+                          <span>Rótulo lido com sucesso pela IA!</span>
+                        </div>
+                      ) : (
+                        <div className="text-xs text-slate-500 font-medium">
+                          Foto capturada. Você pode preencher ou ajustar os dados abaixo.
+                        </div>
+                      )}
+                      <label className="inline-block cursor-pointer text-xs font-bold text-blue-600 hover:text-blue-700 underline mt-1">
+                        Tirar outra foto
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          onChange={(e) => e.target.files?.[0] && handlePhotoSelect(e.target.files[0])}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed border-slate-300 hover:border-emerald-500 rounded-2xl p-4 sm:p-6 text-center transition-colors bg-slate-50/50">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                        <Camera size={24} />
+                      </div>
+                      <span className="text-sm font-bold text-slate-800">
+                        Fotografar Produto com a Câmera
+                      </span>
+                      <p className="text-xs text-slate-400 max-w-xs">
+                        A IA vai ler a embalagem e preencher o nome padronizado, unidade e código.
+                      </p>
+
+                      <div className="flex flex-wrap items-center justify-center gap-2 mt-2">
+                        <label className="cursor-pointer px-4 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-600/20 active:scale-95 transition-all flex items-center gap-1.5">
+                          <Camera size={16} />
+                          <span>Abrir Câmera</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            capture="environment"
+                            onChange={(e) => e.target.files?.[0] && handlePhotoSelect(e.target.files[0])}
+                            className="hidden"
+                          />
+                        </label>
+
+                        <label className="cursor-pointer px-4 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl active:scale-95 transition-all flex items-center gap-1.5">
+                          <Upload size={16} />
+                          <span>Galeria / Arquivo</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => e.target.files?.[0] && handlePhotoSelect(e.target.files[0])}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* SEÇÃO 2: DADOS DO PRODUTO (NOME, UNIDADE, CATEGORIA) */}
+              <div className="space-y-3 pt-1 border-t border-slate-100">
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-1">
+                    Nome / Descrição Comercial *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={newProdName}
+                    onChange={(e) => setNewProdName(e.target.value.toUpperCase())}
+                    placeholder="Ex: LEITE CONDENSADO MOÇA 395G"
+                    className="w-full px-3.5 py-2.5 rounded-xl border-2 border-slate-200 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-100 text-sm font-bold text-slate-900 uppercase placeholder:normal-case placeholder:font-normal outline-none transition-all"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    Sugerido automaticamente pela IA. Você pode editar se desejar.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-1">
+                      Unidade de Medida *
+                    </label>
+                    <select
+                      value={newProdUnit}
+                      onChange={(e) => setNewProdUnit(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl border-2 border-slate-200 focus:border-emerald-600 text-sm font-bold text-slate-900 bg-white outline-none"
+                    >
+                      <option value="UN">UN - Unidade</option>
+                      <option value="KG">KG - Quilo</option>
+                      <option value="LT">LT - Litro</option>
+                      <option value="CX">CX - Caixa</option>
+                      <option value="PCT">PCT - Pacote</option>
+                      <option value="BDJ">BDJ - Bandeja</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-1">
+                      Categoria
+                    </label>
+                    <input
+                      type="text"
+                      value={newProdCategory}
+                      onChange={(e) => setNewProdCategory(e.target.value)}
+                      placeholder="Ex: Mercearia, Laticínios"
+                      className="w-full px-3 py-2.5 rounded-xl border-2 border-slate-200 focus:border-emerald-600 text-sm font-medium text-slate-900 outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-1">
+                      Preço de Venda (R$)
+                    </label>
+                    <input
+                      type="text"
+                      value={newProdPrice}
+                      onChange={(e) => setNewProdPrice(e.target.value)}
+                      placeholder="0,00"
+                      className="w-full px-3 py-2.5 rounded-xl border-2 border-slate-200 focus:border-emerald-600 text-sm font-bold text-slate-900 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-1">
+                      Preço de Custo (R$)
+                    </label>
+                    <input
+                      type="text"
+                      value={newProdCost}
+                      onChange={(e) => setNewProdCost(e.target.value)}
+                      placeholder="Opcional"
+                      className="w-full px-3 py-2.5 rounded-xl border-2 border-slate-200 focus:border-emerald-600 text-sm font-medium text-slate-900 outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* SEÇÃO 3: CÓDIGO DE BARRAS OU CÓDIGO INTERNO (FLAG) */}
+              <div className="space-y-3 pt-2 border-t border-slate-100">
+                <div
+                  onClick={() => handleToggleNoBarcode(!noBarcodeFlag)}
+                  className={`p-3 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between ${
+                    noBarcodeFlag
+                      ? "bg-amber-50/90 border-amber-400 text-amber-950"
+                      : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <div className={`w-5 h-5 rounded-md flex items-center justify-center border ${
+                      noBarcodeFlag ? "bg-amber-600 border-amber-600 text-white" : "border-slate-400 bg-white"
+                    }`}>
+                      {noBarcodeFlag && <Check size={14} />}
+                    </div>
+                    <div>
+                      <span className="text-xs sm:text-sm font-bold block">
+                        Produto NÃO possui Código de Barras
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        O sistema vai gerar e sugerir um Código Interno (PLU) livre
+                      </span>
+                    </div>
+                  </div>
+                  <Tag size={18} className={noBarcodeFlag ? "text-amber-600" : "text-slate-400"} />
+                </div>
+
+                {noBarcodeFlag ? (
+                  /* Modo SEM Código de Barras: Exibe Código Interno Sugerido */
+                  <div className="bg-amber-500/10 border border-amber-300 p-3.5 rounded-2xl space-y-1.5 animate-in zoom-in-95">
+                    <label className="text-xs font-bold uppercase tracking-wider text-amber-900 flex items-center justify-between">
+                      <span>Código Interno (PLU) Sugerido</span>
+                      {loadingInternalCode && <RefreshCw size={12} className="animate-spin text-amber-700" />}
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={newProdInternalCode}
+                        onChange={(e) => setNewProdInternalCode(e.target.value)}
+                        placeholder="Ex: 8128"
+                        className="flex-1 px-3.5 py-2.5 rounded-xl border-2 border-amber-400 text-base font-mono font-black text-amber-950 bg-white outline-none focus:ring-4 focus:ring-amber-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setLoadingInternalCode(true);
+                          const res = await getNextInternalCodeAction();
+                          setLoadingInternalCode(false);
+                          if (res.success) setNewProdInternalCode(res.code);
+                        }}
+                        className="px-3 py-2.5 rounded-xl bg-amber-200 hover:bg-amber-300 text-amber-900 font-bold text-xs flex items-center gap-1 active:scale-95 transition-all"
+                        title="Gerar outro código sequencial"
+                      >
+                        <RefreshCw size={14} />
+                        <span>Novo PLU</span>
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-amber-800">
+                      Código sequencial único para identificar o produto no PDV e balança Toledo.
+                    </p>
+                  </div>
+                ) : (
+                  /* Modo COM Código de Barras */
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block">
+                      Código de Barras (EAN-13 / EAN-8)
+                    </label>
+                    <input
+                      type="text"
+                      value={newProdBarcode}
+                      onChange={(e) => setNewProdBarcode(e.target.value.trim())}
+                      placeholder="Bipe com o leitor ou digite o código de barras"
+                      className="w-full px-3.5 py-2.5 rounded-xl border-2 border-slate-200 focus:border-emerald-600 font-mono text-sm font-bold text-slate-900 outline-none"
+                    />
+                    <p className="text-[11px] text-slate-400">
+                      Se a foto continha o código legível, ele já foi preenchido acima.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* SEÇÃO 4: QUANTIDADE CONTADA NO BALANÇO */}
+              <div className="pt-2 border-t border-slate-100 bg-emerald-50/70 p-3.5 rounded-2xl border border-emerald-200 space-y-1.5">
+                <label className="text-xs font-black uppercase tracking-wider text-emerald-900 block">
+                  Quantidade Física Contada no Balanço *
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    step={newProdUnit === "KG" ? "0.001" : "1"}
+                    required
+                    value={newProdStock}
+                    onChange={(e) => setNewProdStock(e.target.value)}
+                    className="flex-1 px-4 py-2.5 rounded-xl border-2 border-emerald-500 text-lg font-black text-slate-900 bg-white outline-none focus:ring-4 focus:ring-emerald-200 text-center"
+                    placeholder="Qtd"
+                  />
+                  <span className="font-extrabold text-sm text-emerald-800 px-2">
+                    {newProdUnit}
+                  </span>
+                </div>
+                <p className="text-[11px] text-emerald-700">
+                  O produto será cadastrado no sistema já com essa quantidade na contagem do balanço.
+                </p>
+              </div>
+
+              {/* BOTÕES DE AÇÃO */}
+              <div className="flex items-center gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsPhotoModalOpen(false)}
+                  className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition-all"
+                >
+                  Cancelar
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={creatingProduct}
+                  className="flex-1 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer"
+                >
+                  {creatingProduct ? (
+                    <>
+                      <RefreshCw size={16} className="animate-spin" />
+                      <span>Cadastrando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check size={18} />
+                      <span>Cadastrar e Incluir no Balanço</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONFIRMAÇÃO & FINALIZAÇÃO DO BALANÇO (COM REGRA DOS ANTIGOS) */}
+      {showFinalizeModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-lg w-full border border-slate-200 overflow-hidden text-slate-800 animate-in zoom-in-95">
+            <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+                  <Save size={20} />
+                </div>
+                <div>
+                  <h3 className="font-black text-base sm:text-lg">Gravar Balanço no Estoque</h3>
+                  <p className="text-xs text-slate-400">
+                    Confirme o encerramento da contagem e aplicação no banco
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowFinalizeModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-4 sm:p-6 space-y-4">
+              {/* Resumo da Contagem */}
+              <div className="grid grid-cols-2 gap-2.5 text-xs">
+                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+                  <span className="text-slate-500 block font-bold">Total Itens Contados</span>
+                  <strong className="text-base text-slate-900">{batchSummary.totalItems} produtos</strong>
+                </div>
+                <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200">
+                  <span className="text-slate-500 block font-bold">Impacto Líquido</span>
+                  <strong className={`text-base ${batchSummary.totalNetImpact >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                    {batchSummary.totalNetImpact >= 0 ? "+" : ""}R$ {batchSummary.totalNetImpact.toFixed(2)}
+                  </strong>
+                </div>
+                <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-100 flex items-center justify-between">
+                  <span>Sobras (+):</span>
+                  <strong>{batchSummary.surplusCount} itens</strong>
+                </div>
+                <div className="p-2.5 rounded-xl bg-rose-50 text-rose-800 border border-rose-100 flex items-center justify-between">
+                  <span>Faltas (-):</span>
+                  <strong>{batchSummary.deficitCount} itens</strong>
+                </div>
+              </div>
+
+              {/* REGRA SOLICITADA PELO USUÁRIO: RETIRAR CADASTROS ANTIGOS NÃO CONTADOS */}
+              <div
+                onClick={() => setInactivateUncounted(!inactivateUncounted)}
+                className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
+                  inactivateUncounted
+                    ? "bg-amber-50/90 border-amber-400 text-amber-950"
+                    : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                <div className="flex items-start gap-3">
+                  <div className={`w-5 h-5 rounded-md flex items-center justify-center border mt-0.5 shrink-0 ${
+                    inactivateUncounted ? "bg-amber-600 border-amber-600 text-white" : "border-slate-400 bg-white"
+                  }`}>
+                    {inactivateUncounted && <Check size={14} />}
+                  </div>
+                  <div className="space-y-1">
+                    <span className="text-xs sm:text-sm font-extrabold block">
+                      Manter apenas estes produtos e retirar cadastros antigos não inventariados
+                    </span>
+                    <p className="text-[11px] text-slate-600 leading-relaxed">
+                      Conforme a nova regra de balanço: produtos que não foram apurados nesta contagem física serão retirados do catálogo ativo (ou terão estoque zerado se já houver histórico fiscal/venda).
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Motivo do Ajuste */}
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-600 block mb-1">
+                  Motivo / Observação da Auditoria
+                </label>
+                <input
+                  type="text"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="Ex: Balanço Periódico de Estoque"
+                  className="w-full px-3.5 py-2.5 rounded-xl border-2 border-slate-200 focus:border-emerald-600 text-sm font-medium outline-none"
+                />
+              </div>
+
+              {/* Botões */}
+              <div className="flex items-center gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowFinalizeModal(false)}
+                  className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm rounded-xl transition-all"
+                >
+                  Voltar
+                </button>
+
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={confirmFinalizeInventory}
+                  className="flex-1 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white font-extrabold text-xs sm:text-sm rounded-xl shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer"
+                >
+                  {saving ? (
+                    <>
+                      <RefreshCw size={16} className="animate-spin" />
+                      <span>Gravando Balanço...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={18} />
+                      <span>Confirmar e Gravar Balanço</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -33,6 +33,7 @@ export default function NewProductPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [existingProduct, setExistingProduct] = useState<{ id: string; name: string; internalCode?: string | null } | null>(null);
 
   // AI states
   const [aiLoading, setAiLoading] = useState(false);
@@ -309,8 +310,15 @@ export default function NewProductPage() {
       }
 
       setAiSuccess(`Produto identificado via ${res.source || "Base Pública"}!`);
+      setExistingProduct(null);
     } else {
-      setAiError("Produto não encontrado nas bases públicas. Preencha manualmente.");
+      if ((res as any).alreadyExists) {
+        setAiError((res as any).error || "Item já contém cadastro no sistema!");
+        setExistingProduct((res as any).existingProduct || null);
+      } else {
+        setAiError("Produto não encontrado nas bases públicas. Preencha manualmente.");
+        setExistingProduct(null);
+      }
     }
     setAiLoading(false);
   }
@@ -389,6 +397,9 @@ export default function NewProductPage() {
 
     if (result.error) {
       setError(result.error);
+      if ((result as any).existingProductId) {
+        setExistingProduct({ id: (result as any).existingProductId, name });
+      }
       setLoading(false);
     } else {
       router.push("/stock");
@@ -433,18 +444,56 @@ export default function NewProductPage() {
         </div>
 
         <div className="p-6">
-          {error && (
-            <div className="mb-6 text-red-600 text-xs font-semibold flex items-center gap-1.5 border-b border-red-200 pb-3 bg-red-50 p-3 rounded-xl">
-              <AlertCircle size={16} />
-              {error}
-            </div>
-          )}
+          {/* Alerta de Item Já Cadastrado (Duplicidade Amigável) */}
+          {(error?.includes("já contém cadastro") || aiError?.includes("já contém cadastro")) ? (
+            <div className="mb-6 p-4 rounded-2xl border-2 border-amber-400 bg-amber-50/95 text-amber-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md shadow-amber-900/5 animate-in slide-in-from-top-2">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-xl bg-amber-500/20 text-amber-700 shrink-0 mt-0.5">
+                  <AlertCircle size={20} />
+                </div>
+                <div>
+                  <h4 className="font-black text-sm text-amber-900">Item Já Contém Cadastro!</h4>
+                  <p className="text-xs text-amber-800 font-semibold mt-0.5">
+                    {error || aiError}
+                  </p>
+                  <p className="text-[11px] text-amber-700 mt-1">
+                    Para evitar duplicidade de estoque e preço, localize o item existente no estoque para atualizar sua quantidade.
+                  </p>
+                </div>
+              </div>
 
-          {aiError && (
-            <div className="mb-6 text-red-600 text-xs font-semibold flex items-center gap-1.5 border-b border-red-200 pb-3 bg-red-50 p-3 rounded-xl">
-              <AlertCircle size={16} />
-              {aiError}
+              <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-end">
+                <Link
+                  href={`/stock?search=${encodeURIComponent(barcode || "")}`}
+                  className="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-amber-600/25 active:scale-95 transition-all"
+                >
+                  <Search size={14} />
+                  <span>Ver no Estoque</span>
+                </Link>
+                <Link
+                  href="/stock/inventory"
+                  className="px-3.5 py-2.5 rounded-xl bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold text-xs flex items-center gap-1 active:scale-95 transition-all"
+                >
+                  <span>Lançar Balanço</span>
+                </Link>
+              </div>
             </div>
+          ) : (
+            <>
+              {error && (
+                <div className="mb-6 text-red-700 text-xs font-bold flex items-center gap-2 border border-red-200 bg-red-50 p-3.5 rounded-xl">
+                  <AlertCircle size={16} className="shrink-0 text-red-600" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              {aiError && (
+                <div className="mb-6 text-red-700 text-xs font-bold flex items-center gap-2 border border-red-200 bg-red-50 p-3.5 rounded-xl">
+                  <AlertCircle size={16} className="shrink-0 text-red-600" />
+                  <span>{aiError}</span>
+                </div>
+              )}
+            </>
           )}
 
           {aiSuccess && (
