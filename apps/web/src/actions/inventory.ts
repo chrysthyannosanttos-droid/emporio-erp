@@ -649,10 +649,6 @@ export async function createProductFromInventoryAction(data: CreateInventoryProd
       }
     }
 
-    const price = Number(data.price) > 0 ? Number(data.price) : 0;
-    const cost = Number(data.cost) > 0 ? Number(data.cost) : price * 0.6;
-    const countedStock = Math.max(0, Number(data.countedStock || 0));
-
     const newProd = await prisma.product.create({
       data: {
         name,
