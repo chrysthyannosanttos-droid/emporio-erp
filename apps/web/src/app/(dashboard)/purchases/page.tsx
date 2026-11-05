@@ -1,14 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import {
   ShoppingCart, Plus, Search, X, Save, FileText, Truck, Calendar,
   BarChart2, CheckCircle2, Clock, AlertTriangle, Building, Mail,
-  Send, Loader2, Tag, TrendingDown, Star, ChevronRight, Bell, CreditCard, Receipt, ArrowLeft, Copy, ExternalLink, Zap, Edit3
+  Send, Loader2, Tag, TrendingDown, Star, ChevronRight, Bell, CreditCard, Receipt, ArrowLeft, Copy, ExternalLink, Zap, Edit3, Settings
 } from "lucide-react";
 import { getProducts } from "@/actions/product";
 import { getSuppliers } from "@/actions/supplier";
 import { getOpenPurchaseOrders } from "@/actions/invoices";
+import { sendQuotationEmailAction } from "@/actions/emailConfig";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 function fmt(v: number) { return v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
@@ -335,7 +337,39 @@ export default function PurchasesPage() {
   };
 
   const handleResendQuote = async (quoteId: string) => {
-    alert(`Cotação ${quoteId} reenviada com sucesso para todos os fornecedores pendentes!`);
+    const q = activeQuotes.find(item => item.id === quoteId);
+    if (!q) return;
+
+    let sent = 0;
+    const errors: string[] = [];
+
+    for (const suppId of q.supplierIds) {
+      const supp = localSuppliers.find(s => s.id === suppId);
+      if (!supp) continue;
+      const email = supp.quoteEmail && supp.quoteEmail !== "---" ? supp.quoteEmail : null;
+      if (!email) {
+        errors.push(`${supp.name}: sem e-mail cadastrado`);
+        continue;
+      }
+
+      const res = await sendQuotationEmailAction({
+        quoteId: q.id,
+        quoteToken: q.token,
+        deadline: q.deadline,
+        supplierEmail: email,
+        supplierName: supp.name,
+        products: q.products,
+      });
+
+      if (res.success) sent++;
+      else errors.push(`${supp.name}: ${res.error}`);
+    }
+
+    if (sent > 0) {
+      alert(`✅ Cotação ${quoteId} reenviada com sucesso para ${sent} fornecedor(es)!${errors.length ? ` (Avisos: ${errors.join(", ")})` : ""}`);
+    } else {
+      alert(`⚠️ Falha ao reenviar cotação: ${errors.join("; ")}`);
+    }
   };
 
   const handleSaveSupplierResponse = (quoteId: string, response: QuoteResponse) => {
@@ -526,15 +560,49 @@ export default function PurchasesPage() {
       return;
     }
     setSendingQuote(true);
-    setQuoteSentStatus("Gerando links únicos por fornecedor...");
-    await new Promise(r => setTimeout(r, 1200));
-    setQuoteSentStatus("Formatando e-mails personalizados...");
-    await new Promise(r => setTimeout(r, 1300));
-    
-    const suppNames = selectedQuoteSuppliers.map(id => SUPPLIERS.find(s => s.id === id)?.name ?? id);
+    setQuoteSentStatus("Preparando dados e links do portal...");
+
+    const quoteId = `COTA-${Date.now().toString().slice(-6)}`;
+    const quoteToken = quoteId;
+
+    let sentCount = 0;
+    const errors: string[] = [];
+
+    for (const suppId of selectedQuoteSuppliers) {
+      const supp = localSuppliers.find(s => s.id === suppId);
+      const name = supp?.name || suppId;
+      const email = supp?.quoteEmail && supp.quoteEmail !== "---" ? supp.quoteEmail : null;
+
+      if (!email) {
+        errors.push(`${name} (sem e-mail cadastrado)`);
+        continue;
+      }
+
+      setQuoteSentStatus(`Disparando e-mail para ${name} (${email})...`);
+      const emailRes = await sendQuotationEmailAction({
+        quoteId,
+        quoteToken,
+        deadline: quoteDeadline,
+        supplierEmail: email,
+        supplierName: name,
+        products: quoteProducts.map(p => ({
+          id: p.id,
+          name: p.name,
+          qty: Number(p.qty) || 1,
+          unit: p.unit || "UN",
+        })),
+      });
+
+      if (emailRes.success) {
+        sentCount++;
+      } else {
+        errors.push(`${name}: ${emailRes.error}`);
+      }
+    }
+
     const newQuote: ActiveQuote = {
-      id: `COTA-${Date.now().toString().slice(-6)}`,
-      token: `COTA-${Date.now().toString().slice(-6)}`,
+      id: quoteId,
+      token: quoteToken,
       deadline: quoteDeadline,
       status: "AWAITING",
       products: quoteProducts.map(p => ({
@@ -547,14 +615,19 @@ export default function PurchasesPage() {
       responses: [],
     };
     setActiveQuotes(prev => [newQuote, ...prev]);
-    setQuoteSentStatus(`✅ Cotação disparada para: ${suppNames.join(", ")}! Aguardando respostas...`);
+
+    if (sentCount > 0) {
+      setQuoteSentStatus(`✅ Cotação disparada com sucesso para ${sentCount} fornecedor(es)!${errors.length ? ` (Avisos: ${errors.join(", ")})` : ""}`);
+    } else {
+      setQuoteSentStatus(`⚠️ Cotação gerada, mas e-mails não foram disparados. ${errors.length ? errors.join("; ") : "Configure o SMTP em Configurações > E-mail & Disparos."}`);
+    }
     setSendingQuote(false);
 
     setTimeout(() => {
       setQuoteProducts([]);
       setSelectedQuoteSuppliers([]);
       setQuoteSentStatus(null);
-    }, 5000);
+    }, 7000);
   };
 
   const handleCreateOrderFromBestQuote = (quote: ActiveQuote) => {
@@ -1255,10 +1328,20 @@ export default function PurchasesPage() {
                 <h3 className="text-base font-black text-gray-900 flex items-center gap-2"><Mail size={15}/> Produtos na Cotação</h3>
                 <p className="text-[10px] text-slate-500 mt-0.5">Busque produtos e defina quantidades/unidades de medida.</p>
               </div>
-              <button onClick={handleSendQuotation} disabled={!quoteProducts.length || !selectedQuoteSuppliers.length || sendingQuote}
-                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-blue-500/20 active:scale-95 transition-all">
-                {sendingQuote ? <><Loader2 size={12} className="animate-spin"/> Enviando...</> : <><Send size={12}/> Disparar Cotação por E-mail</>}
-              </button>
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/settings?tab=email"
+                  className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all"
+                  title="Configurar servidor SMTP e e-mail de envio"
+                >
+                  <Settings size={14} className="text-slate-600" />
+                  <span className="hidden sm:inline">Configurar E-mail</span>
+                </Link>
+                <button onClick={handleSendQuotation} disabled={!quoteProducts.length || !selectedQuoteSuppliers.length || sendingQuote}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-blue-500/20 active:scale-95 transition-all">
+                  {sendingQuote ? <><Loader2 size={12} className="animate-spin"/> Enviando...</> : <><Send size={12}/> Disparar Cotação por E-mail</>}
+                </button>
+              </div>
             </div>
 
             <div className="relative mb-3 shrink-0">

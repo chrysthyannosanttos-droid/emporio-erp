@@ -10,12 +10,14 @@
   },
   "dependencies": {
     "@emporio/database": "*",
+    "@types/nodemailer": "^8.0.2",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "jose": "^6.2.3",
     "lucide-react": "^1.17.0",
     "next": "16.2.9",
     "node-forge": "^1.3.1",
+    "nodemailer": "^10.3.1",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "tailwind-merge": "^3.6.0"

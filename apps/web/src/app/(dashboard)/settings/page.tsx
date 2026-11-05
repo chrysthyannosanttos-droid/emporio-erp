@@ -7,6 +7,7 @@ import { getTenantCompanyInfo, updateTenantCompanyInfo } from "@/actions/company
 import { setupDemonstrativoAndCleanReal } from "@/actions/maintenance";
 import { TenantUsersManager } from "./TenantUsersManager";
 import { CustoOperacionalTab } from "./CustoOperacionalTab";
+import { EmailConfigTab } from "./EmailConfigTab";
 import {
   loadPdvPaymentConfig,
   savePdvPaymentConfig,
@@ -29,12 +30,14 @@ import {
   Building2,
   Loader2,
   Calculator,
+  Mail,
 } from "lucide-react";
 
 const TABS = [
   { id: "geral", label: "Geral", icon: <SettingsIcon size={18} /> },
   { id: "custo-operacional", label: "Custo Operacional", icon: <Calculator size={18} /> },
   { id: "usuarios", label: "Usuários e Perfis", icon: <User size={18} /> },
+  { id: "email", label: "E-mail & Disparos", icon: <Mail size={18} /> },
   { id: "fiscal", label: "Fiscal & NF-e", icon: <FileText size={18} /> },
   { id: "pagamentos", label: "Pagamentos e PIX", icon: <CreditCard size={18} /> },
   { id: "seguranca", label: "Segurança", icon: <Shield size={18} /> },
@@ -52,6 +55,14 @@ export default function SettingsPage() {
   const [errorMsg, setErrorMsg] = useState("");
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab");
+      if (tabParam && TABS.some((t) => t.id === tabParam)) {
+        setActiveTab(tabParam);
+      }
+    }
+
     async function loadData() {
       setLoading(true);
       const [cRes, fRes] = await Promise.all([
@@ -181,6 +192,7 @@ export default function SettingsPage() {
               )}
               {activeTab === "pagamentos" && <PagamentosTab />}
               {activeTab === "usuarios" && <UsuariosTab />}
+              {activeTab === "email" && <EmailConfigTab />}
               {activeTab === "seguranca" && <SegurancaTab />}
             </>
           )}
