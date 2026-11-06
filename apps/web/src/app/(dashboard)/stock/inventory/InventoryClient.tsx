@@ -57,7 +57,7 @@ function triggerBipFeedback() {
         navigator.vibrate([40]);
       }
     }
-  } catch {}
+  } catch { }
 }
 
 export function InventoryClient({ initialStats, initialProducts }: Props) {
@@ -335,9 +335,9 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
               setNewProdBarcode(detected);
               setNoBarcodeFlag(false);
             }
-          } catch {}
+          } catch { }
         };
-      } catch {}
+      } catch { }
 
       // 2. Chamar IA para ler imagem e sugerir descrição, unidade e preço
       try {
@@ -499,11 +499,10 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
           <button
             type="button"
             onClick={() => setCountMode("INCREMENTAL")}
-            className={`flex-1 sm:flex-initial px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-              countMode === "INCREMENTAL"
+            className={`flex-1 sm:flex-initial px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${countMode === "INCREMENTAL"
                 ? "bg-emerald-600 text-white shadow-md shadow-emerald-950"
                 : "text-slate-400 hover:text-white"
-            }`}
+              }`}
             title="A cada bip no leitor ou câmera, soma +1 unidade"
           >
             <Plus size={14} />
@@ -512,11 +511,10 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
           <button
             type="button"
             onClick={() => setCountMode("DIRECT")}
-            className={`flex-1 sm:flex-initial px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-              countMode === "DIRECT"
+            className={`flex-1 sm:flex-initial px-3 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${countMode === "DIRECT"
                 ? "bg-blue-600 text-white shadow-md shadow-blue-950"
                 : "text-slate-400 hover:text-white"
-            }`}
+              }`}
             title="Abre campo para digitar a quantidade contada completa"
           >
             <ArrowUpDown size={14} />
@@ -780,33 +778,29 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
           <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-bold w-full sm:w-auto overflow-x-auto">
             <button
               onClick={() => setBatchFilter("ALL")}
-              className={`flex-1 sm:flex-initial px-2.5 py-1.5 rounded-lg transition-all ${
-                batchFilter === "ALL" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
-              }`}
+              className={`flex-1 sm:flex-initial px-2.5 py-1.5 rounded-lg transition-all ${batchFilter === "ALL" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"
+                }`}
             >
               Todos ({batchItems.length})
             </button>
             <button
               onClick={() => setBatchFilter("SURPLUS")}
-              className={`flex-1 sm:flex-initial px-2.5 py-1.5 rounded-lg transition-all ${
-                batchFilter === "SURPLUS" ? "bg-emerald-600 text-white shadow-sm" : "text-emerald-700 hover:bg-emerald-50"
-              }`}
+              className={`flex-1 sm:flex-initial px-2.5 py-1.5 rounded-lg transition-all ${batchFilter === "SURPLUS" ? "bg-emerald-600 text-white shadow-sm" : "text-emerald-700 hover:bg-emerald-50"
+                }`}
             >
               Sobras ({batchSummary.surplusCount})
             </button>
             <button
               onClick={() => setBatchFilter("DEFICIT")}
-              className={`flex-1 sm:flex-initial px-2.5 py-1.5 rounded-lg transition-all ${
-                batchFilter === "DEFICIT" ? "bg-rose-600 text-white shadow-sm" : "text-rose-700 hover:bg-rose-50"
-              }`}
+              className={`flex-1 sm:flex-initial px-2.5 py-1.5 rounded-lg transition-all ${batchFilter === "DEFICIT" ? "bg-rose-600 text-white shadow-sm" : "text-rose-700 hover:bg-rose-50"
+                }`}
             >
               Faltas ({batchSummary.deficitCount})
             </button>
             <button
               onClick={() => setBatchFilter("MATCH")}
-              className={`flex-1 sm:flex-initial px-2.5 py-1.5 rounded-lg transition-all ${
-                batchFilter === "MATCH" ? "bg-blue-600 text-white shadow-sm" : "text-blue-700 hover:bg-blue-50"
-              }`}
+              className={`flex-1 sm:flex-initial px-2.5 py-1.5 rounded-lg transition-all ${batchFilter === "MATCH" ? "bg-blue-600 text-white shadow-sm" : "text-blue-700 hover:bg-blue-50"
+                }`}
             >
               Exatos ({batchSummary.matchCount})
             </button>
@@ -1018,9 +1012,8 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
                           )}
                         </td>
                         <td className="py-3 px-4 text-right">
-                          <span className={`font-mono font-bold ${
-                            isSurplus ? "text-emerald-700" : isDeficit ? "text-rose-700" : "text-slate-400"
-                          }`}>
+                          <span className={`font-mono font-bold ${isSurplus ? "text-emerald-700" : isDeficit ? "text-rose-700" : "text-slate-400"
+                            }`}>
                             {item.financialImpact > 0 ? "+" : ""}
                             R$ {item.financialImpact.toFixed(2).replace(".", ",")}
                           </span>
@@ -1105,9 +1098,8 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
             <span className="text-[10px] uppercase font-bold text-slate-500 block">
               {batchSummary.totalItems} {batchSummary.totalItems === 1 ? "item" : "itens"} | Balanço Líquido
             </span>
-            <span className={`text-sm font-black font-mono ${
-              batchSummary.totalNetImpact > 0 ? "text-emerald-600" : batchSummary.totalNetImpact < 0 ? "text-rose-600" : "text-slate-900"
-            }`}>
+            <span className={`text-sm font-black font-mono ${batchSummary.totalNetImpact > 0 ? "text-emerald-600" : batchSummary.totalNetImpact < 0 ? "text-rose-600" : "text-slate-900"
+              }`}>
               {batchSummary.totalNetImpact > 0 ? "+" : ""}R$ {batchSummary.totalNetImpact.toFixed(2).replace(".", ",")}
             </span>
           </div>
@@ -1182,11 +1174,10 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
             <form onSubmit={handleCreateProductSubmit} className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1 text-slate-800">
               {/* Alerta de Erro ou Item Já Cadastrado */}
               {photoError && (
-                <div className={`p-3.5 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 ${
-                  photoError.includes("já contém cadastro")
+                <div className={`p-3.5 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 ${photoError.includes("já contém cadastro")
                     ? "bg-amber-50 border-amber-300 text-amber-950"
                     : "bg-rose-50 border-rose-200 text-rose-800"
-                }`}>
+                  }`}>
                   <div className="flex items-center gap-2 text-xs font-bold">
                     <AlertTriangle size={18} className={photoError.includes("já contém cadastro") ? "text-amber-600 shrink-0" : "text-rose-600 shrink-0"} />
                     <span>{photoError}</span>
@@ -1382,16 +1373,14 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
               <div className="space-y-3 pt-2 border-t border-slate-100">
                 <div
                   onClick={() => handleToggleNoBarcode(!noBarcodeFlag)}
-                  className={`p-3 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between ${
-                    noBarcodeFlag
+                  className={`p-3 rounded-2xl border-2 cursor-pointer transition-all flex items-center justify-between ${noBarcodeFlag
                       ? "bg-amber-50/90 border-amber-400 text-amber-950"
                       : "bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className={`w-5 h-5 rounded-md flex items-center justify-center border ${
-                      noBarcodeFlag ? "bg-amber-600 border-amber-600 text-white" : "border-slate-400 bg-white"
-                    }`}>
+                    <div className={`w-5 h-5 rounded-md flex items-center justify-center border ${noBarcodeFlag ? "bg-amber-600 border-amber-600 text-white" : "border-slate-400 bg-white"
+                      }`}>
                       {noBarcodeFlag && <Check size={14} />}
                     </div>
                     <div>
@@ -1568,16 +1557,14 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
               {/* REGRA SOLICITADA PELO USUÁRIO: RETIRAR CADASTROS ANTIGOS NÃO CONTADOS */}
               <div
                 onClick={() => setInactivateUncounted(!inactivateUncounted)}
-                className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
-                  inactivateUncounted
+                className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${inactivateUncounted
                     ? "bg-amber-50/90 border-amber-400 text-amber-950"
                     : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                }`}
+                  }`}
               >
                 <div className="flex items-start gap-3">
-                  <div className={`w-5 h-5 rounded-md flex items-center justify-center border mt-0.5 shrink-0 ${
-                    inactivateUncounted ? "bg-amber-600 border-amber-600 text-white" : "border-slate-400 bg-white"
-                  }`}>
+                  <div className={`w-5 h-5 rounded-md flex items-center justify-center border mt-0.5 shrink-0 ${inactivateUncounted ? "bg-amber-600 border-amber-600 text-white" : "border-slate-400 bg-white"
+                    }`}>
                     {inactivateUncounted && <Check size={14} />}
                   </div>
                   <div className="space-y-1">
@@ -1774,7 +1761,7 @@ function CameraScannerModal({
                 handleFoundCode(codes[0].rawValue.trim());
                 return;
               }
-            } catch {}
+            } catch { }
           }
 
           // 2. Tentar ler com ZXing via canvas
@@ -1791,7 +1778,7 @@ function CameraScannerModal({
                   return;
                 }
               }
-            } catch {}
+            } catch { }
           }
         }, 250);
       } catch (err: any) {
@@ -1823,7 +1810,7 @@ function CameraScannerModal({
         });
         setTorchOn(!torchOn);
       }
-    } catch {}
+    } catch { }
   };
 
   const handleManualSubmit = (e: React.FormEvent) => {
@@ -1894,9 +1881,8 @@ function CameraScannerModal({
             <button
               type="button"
               onClick={toggleTorch}
-              className={`p-2 rounded-xl border text-xs font-bold transition-all ${
-                torchOn ? "bg-amber-500 text-slate-950 border-amber-400" : "bg-slate-800 text-slate-300 border-slate-700"
-              }`}
+              className={`p-2 rounded-xl border text-xs font-bold transition-all ${torchOn ? "bg-amber-500 text-slate-950 border-amber-400" : "bg-slate-800 text-slate-300 border-slate-700"
+                }`}
               title="Ligar/Desligar Lanterna"
             >
               <Zap size={16} />
@@ -1907,11 +1893,10 @@ function CameraScannerModal({
           <button
             type="button"
             onClick={onContinuousToggle}
-            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all border ${
-              continuous
+            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all border ${continuous
                 ? "bg-emerald-600 text-white border-emerald-500 shadow-sm"
                 : "bg-slate-800 text-slate-400 border-slate-700"
-            }`}
+              }`}
           >
             {continuous ? "Contínuo" : "1 Bip"}
           </button>

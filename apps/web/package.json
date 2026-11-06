@@ -11,6 +11,7 @@
   "dependencies": {
     "@emporio/database": "*",
     "@types/nodemailer": "^8.0.2",
+    "@zxing/library": "^0.23.0",
     "bcryptjs": "^3.0.3",
     "clsx": "^2.1.1",
     "jose": "^6.2.3",
