@@ -44,6 +44,17 @@ export default async function RootLayout({
         style={theme?.backgroundSistema ? { backgroundImage: `url(${theme.backgroundSistema})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}}
       >
         {children}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js').catch(function(){});
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   );

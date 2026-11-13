@@ -24,7 +24,8 @@ import {
   ShieldCheck,
   ChevronRight,
   ExternalLink,
-  Target
+  Target,
+  Tag
 } from "lucide-react";
 
 type TabKey = "PITCH" | "DASHBOARD" | "PDV" | "STOCK" | "FINANCE" | "FISCAL" | "RESTAURANT";

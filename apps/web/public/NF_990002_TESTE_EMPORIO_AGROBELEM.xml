@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
+  <NFe xmlns="http://www.portalfiscal.inf.br/nfe">
+    <infNFe Id="NFe15261112345678000276550010009900021100000022" versao="4.00">
+      <ide><cUF>15</cUF><natOp>VENDA DE MERCADORIA (TESTE HOMOLOGACAO)</natOp><mod>55</mod><serie>1</serie><nNF>990002</nNF><dhEmi>2026-11-10T08:15:00-03:00</dhEmi><tpNF>1</tpNF><tpAmb>2</tpAmb><finNFe>1</finNFe></ide>
+      <emit><CNPJ>12345678000276</CNPJ><xNome>RED BULL DISTRIBUIDORA NORTE (TESTE)</xNome><enderEmit><xLgr>Rod. BR-316, 1500 - Ananindeua/PA</xLgr><UF>PA</UF></enderEmit><IE>ISENTO</IE><CRT>3</CRT></emit>
+      <dest><CNPJ>65522409000113</CNPJ><xNome>EMPORIO AGROBELEM LTDA</xNome></dest>
+      <det nItem="1">
+        <prod>
+          <cProd>611269991000</cProd><cEAN>611269991000</cEAN>
+          <xProd>RED BULL ENERGY DRINK RED BULL 250ML(24)           CX/24</xProd>
+          <NCM>22029900</NCM><CFOP>5405</CFOP>
+          <uCom>CX</uCom><qCom>1.0000</qCom><vUnCom>200.6400</vUnCom><vProd>200.64</vProd>
+          <cEANTrib>611269991000</cEANTrib><uTrib>UN</uTrib><qTrib>24.0000</qTrib><vUnTrib>8.3600</vUnTrib>
+          <indTot>1</indTot>
+          <rastro><nLote>LT-990002-1</nLote><qLote>24.000</qLote><dFab>2026-10-01</dFab><dVal>2027-03-28</dVal></rastro>
+        </prod>
+        <imposto><ICMS><ICMS00><orig>0</orig><CST>00</CST><modBC>3</modBC><vBC>200.64</vBC><pICMS>12.00</pICMS><vICMS>24.08</vICMS></ICMS00></ICMS></imposto>
+      </det>
+      <det nItem="2">
+        <prod>
+          <cProd>611269101713</cProd><cEAN>611269101713</cEAN>
+          <xProd>RED BULL SUGAR FREE RED BULL 250ML(24)           CX/24</xProd>
+          <NCM>22029900</NCM><CFOP>5405</CFOP>
+          <uCom>CX</uCom><qCom>1.0000</qCom><vUnCom>200.6400</vUnCom><vProd>200.64</vProd>
+          <cEANTrib>611269101713</cEANTrib><uTrib>UN</uTrib><qTrib>24.0000</qTrib><vUnTrib>8.3600</vUnTrib>
+          <indTot>1</indTot>
+          <rastro><nLote>LT-990002-2</nLote><qLote>24.000</qLote><dFab>2026-10-01</dFab><dVal>2027-04-28</dVal></rastro>
+        </prod>
+        <imposto><ICMS><ICMS00><orig>0</orig><CST>00</CST><modBC>3</modBC><vBC>200.64</vBC><pICMS>12.00</pICMS><vICMS>24.08</vICMS></ICMS00></ICMS></imposto>
+      </det>
+      <total><ICMSTot><vBC>401.28</vBC><vICMS>48.16</vICMS><vProd>401.28</vProd><vNF>401.28</vNF></ICMSTot></total>
+    </infNFe>
+  </NFe>
+  <protNFe versao="4.00"><infProt><tpAmb>2</tpAmb><chNFe>15261112345678000276550010009900021100000022</chNFe><dhRecbto>2026-11-10T08:15:00-03:00</dhRecbto><nProt>1152600990002</nProt><cStat>100</cStat><xMotivo>Autorizado o uso da NF-e (HOMOLOGACAO TESTE)</xMotivo></infProt></protNFe>
+</nfeProc>

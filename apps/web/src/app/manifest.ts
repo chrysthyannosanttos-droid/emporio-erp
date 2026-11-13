@@ -1,12 +1,12 @@
 import type { MetadataRoute } from "next";
 
-// Permite "Adicionar à tela inicial" no celular/tablet: abre o PDV Mobile em tela cheia, como um app.
+// Permite "Adicionar à tela inicial" no celular/tablet: abre o sistema ERP completo na tela inicial.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Cybertech PDV Mobile",
-    short_name: "PDV Mobile",
-    description: "PDV para celular e tablet com envio de cupom por WhatsApp, SMS e e-mail.",
-    start_url: "/pdv/mobile",
+    name: "Cybertech RP",
+    short_name: "Cybertech",
+    description: "Sistema ERP, Estoque, Produção e PDV Multi-setor",
+    start_url: "/",
     scope: "/",
     display: "standalone",
     orientation: "portrait",

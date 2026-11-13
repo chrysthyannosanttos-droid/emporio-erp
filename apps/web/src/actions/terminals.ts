@@ -105,8 +105,7 @@ export async function createTerminalActivation(data: {
           select: {
             id: true,
             name: true,
-            tradeName: true,
-            document: true,
+            cnpj: true,
           },
         },
       },

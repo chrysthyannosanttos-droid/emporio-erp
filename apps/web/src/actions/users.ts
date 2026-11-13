@@ -20,6 +20,72 @@ function toPlain<T>(obj: T): T {
   );
 }
 
+/** Garante a existência da permissão "pdv.mobile" no catálogo e retorna seu registro. */
+async function ensureMobilePdvPermission(db: any = prisma) {
+  return db.permission.upsert({
+    where: { code: "pdv.mobile" },
+    update: {},
+    create: {
+      code: "pdv.mobile",
+      name: "PDV Mobile (Celular/Tablet)",
+      module: "Frente de Caixa (PDV)",
+      description: "Usar o PDV pelo celular ou tablet e enviar o cupom digital por WhatsApp, e-mail ou SMS",
+    },
+  });
+}
+
+/**
+ * Grava ou remove explicitamente a UserPermission para "pdv.mobile".
+ * Se o perfil base do usuário já tiver "pdv.mobile" herdada e allow=false, grava granted=false para revogar.
+ * Se o perfil base não tiver e allow=false, remove qualquer registro de UserPermission.
+ */
+async function syncMobilePdvUserPermission(
+  db: any,
+  userId: string,
+  mobilePermId: string,
+  allow: boolean,
+  roleId: string | null | undefined,
+  roleKey: string
+) {
+  await db.userPermission.deleteMany({
+    where: { userId, permissionId: mobilePermId },
+  });
+
+  if (roleKey === "ADMIN") {
+    return;
+  }
+
+  if (allow) {
+    await db.userPermission.create({
+      data: {
+        userId,
+        permissionId: mobilePermId,
+        storeId: null,
+        granted: true,
+      },
+    });
+    return;
+  }
+
+  // Se a role herdada tiver pdv.mobile, cria revogação explícita (granted: false)
+  if (roleId) {
+    const inherited = await db.rolePermission.findFirst({
+      where: { roleId, permissionId: mobilePermId },
+      select: { id: true },
+    });
+    if (inherited) {
+      await db.userPermission.create({
+        data: {
+          userId,
+          permissionId: mobilePermId,
+          storeId: null,
+          granted: false,
+        },
+      });
+    }
+  }
+}
+
 export async function getCurrentUserSession() {
   try {
     const session = await getSession();
@@ -30,6 +96,10 @@ export async function getCurrentUserSession() {
       isSuperAdmin: Boolean(session.isSuperAdmin),
       name: session.name,
       isAdmin: session.role === "ADMIN" || Boolean(session.isSuperAdmin),
+      isCristiano:
+        Boolean(session.isSuperAdmin) ||
+        session.name?.toLowerCase().includes("cristiano") ||
+        Boolean(session.email?.toLowerCase().includes("cristiano")),
     };
   } catch (err) {
     return null;
@@ -69,23 +139,73 @@ export async function listTenantUsers(filters?: {
       };
     }
 
-    const users = await prisma.user.findMany({
-      where,
-      orderBy: [{ role: "asc" }, { createdAt: "desc" }],
-      include: {
-        userStores: {
-          include: { store: true }
-        },
-        roleRelation: {
-          select: { id: true, name: true, key: true }
-        },
-        userPermissions: {
-          select: { id: true, permissionId: true, granted: true }
-        },
+    const mobilePerm = await ensureMobilePdvPermission();
+
+    const [users, rolesWithMobile] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        orderBy: [{ role: "asc" }, { createdAt: "desc" }],
+        include: {
+          userStores: {
+            include: { store: true }
+          },
+          roleRelation: {
+            select: { id: true, name: true, key: true }
+          },
+          userPermissions: {
+            select: {
+              id: true,
+              permissionId: true,
+              granted: true,
+              storeId: true,
+              permission: { select: { code: true } },
+            }
+          },
+          auditLogs: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { createdAt: true, ipAddress: true, terminal: true }
+          },
+        }
+      }),
+      prisma.rolePermission.findMany({
+        where: { permissionId: mobilePerm.id },
+        include: { role: { select: { id: true, key: true, companyId: true } } },
+      }),
+    ]);
+
+    const roleIdsWithMobile = new Set(rolesWithMobile.map((rp) => rp.roleId));
+    const roleKeysWithMobile = new Set(
+      rolesWithMobile
+        .filter((rp) => rp.role.companyId === session.companyId || rp.role.companyId === null)
+        .map((rp) => rp.role.key)
+    );
+
+    const enrichedUsers = users.map((u) => {
+      let hasMobilePdv = false;
+      if (u.role === "ADMIN") {
+        hasMobilePdv = true;
+      } else {
+        const mobileOverrides = u.userPermissions.filter(
+          (up) => up.permissionId === mobilePerm.id || up.permission?.code === "pdv.mobile"
+        );
+        if (mobileOverrides.length > 0) {
+          const globalOverride = mobileOverrides.find((up) => !up.storeId) ?? mobileOverrides[0];
+          hasMobilePdv = Boolean(globalOverride.granted);
+        } else if (u.roleId) {
+          hasMobilePdv = roleIdsWithMobile.has(u.roleId);
+        } else {
+          hasMobilePdv = roleKeysWithMobile.has(u.role);
+        }
       }
+
+      return {
+        ...u,
+        hasMobilePdv,
+      };
     });
 
-    return { users: toPlain(users) };
+    return { users: toPlain(enrichedUsers), mobilePermissionId: mobilePerm.id };
   } catch (err: any) {
     return { users: [], error: err.message };
   }
@@ -167,10 +287,12 @@ export async function createTenantUser(data: {
   role: string;
   storeIds?: string[];
   defaultStoreId?: string;
+  allowMobilePdv?: boolean;
 }) {
   try {
     const session = await getSession();
-    if (!session?.companyId) {
+    const companyId = session?.companyId;
+    if (!session || !companyId) {
       return { error: "Sessão inválida." };
     }
 
@@ -195,53 +317,78 @@ export async function createTenantUser(data: {
       return { error: "Este e-mail já está sendo utilizado por outro usuário." };
     }
 
-    // Buscar Role correspondente
-    const roleObj = await prisma.role.findFirst({
-      where: {
-        key: role,
-        OR: [{ companyId: session.companyId }, { companyId: null }]
-      }
-    });
+    // Buscar Role correspondente (prioriza role da própria empresa)
+    const roleObj =
+      (await prisma.role.findFirst({
+        where: { key: role, companyId },
+      })) ||
+      (await prisma.role.findFirst({
+        where: { key: role, companyId: null },
+      }));
 
     const hashedPassword = await bcrypt.hash(password, 10);
     const hashedPin = pin ? await bcrypt.hash(pin, 10) : null;
+    const mobilePerm = await ensureMobilePdvPermission();
 
-    const newUser = await prisma.user.create({
-      data: {
-        companyId: session.companyId,
-        name,
-        email,
-        password: hashedPassword,
-        pin: hashedPin,
-        role,
-        roleId: roleObj?.id || null,
-        active: true,
-      }
-    });
-
-    // Vincular Lojas
-    if (data.storeIds && data.storeIds.length > 0) {
-      const defaultStoreId = data.defaultStoreId || data.storeIds[0];
-      await prisma.userStore.createMany({
-        data: data.storeIds.map(storeId => ({
-          userId: newUser.id,
-          storeId,
-          isDefault: storeId === defaultStoreId,
-        }))
+    const newUser = await prisma.$transaction(async (tx) => {
+      const created = await tx.user.create({
+        data: {
+          companyId,
+          name,
+          email,
+          password: hashedPassword,
+          pin: hashedPin,
+          role,
+          roleId: roleObj?.id || null,
+          active: true,
+        },
       });
-    }
+
+      // Vincular Lojas
+      if (data.storeIds && data.storeIds.length > 0) {
+        const defaultStoreId = data.defaultStoreId || data.storeIds[0];
+        await tx.userStore.createMany({
+          data: data.storeIds.map((storeId) => ({
+            userId: created.id,
+            storeId,
+            isDefault: storeId === defaultStoreId,
+          })),
+        });
+      }
+
+      // Grava/remove explicitamente UserPermission para "pdv.mobile"
+      if (data.allowMobilePdv !== undefined) {
+        await syncMobilePdvUserPermission(
+          tx,
+          created.id,
+          mobilePerm.id,
+          Boolean(data.allowMobilePdv),
+          roleObj?.id,
+          role
+        );
+      }
+
+      return created;
+    });
 
     await logAudit({
       operation: "users.manage",
       action: "CREATE",
       entity: "User",
       entityId: newUser.id,
-      newValue: JSON.stringify({ name, email, role, stores: data.storeIds }),
+      newValue: JSON.stringify({
+        name,
+        email,
+        role,
+        stores: data.storeIds,
+        allowMobilePdv: data.allowMobilePdv,
+      }),
       reason: "Cadastro de novo usuário no sistema",
     });
 
     revalidatePath("/settings/users");
     revalidatePath("/users");
+    revalidatePath("/settings");
     return { success: true, user: newUser };
   } catch (err: any) {
     return { error: err.message || "Erro ao criar usuário." };
@@ -260,6 +407,7 @@ export async function updateTenantUser(
     storeIds?: string[];
     defaultStoreId?: string;
     customPermissions?: { permissionId: string; granted: boolean; storeId?: string }[];
+    allowMobilePdv?: boolean;
   }
 ) {
   try {
@@ -311,16 +459,20 @@ export async function updateTenantUser(
       }
     }
 
-    // Atualizar roleId correspondente
-    const roleObj = await prisma.role.findFirst({
-      where: {
-        key: data.role,
-        OR: [{ companyId: session.companyId }, { companyId: null }]
-      }
-    });
+    // Atualizar roleId correspondente (prioriza role da própria empresa)
+    const roleObj =
+      (await prisma.role.findFirst({
+        where: { key: data.role, companyId: session.companyId },
+      })) ||
+      (await prisma.role.findFirst({
+        where: { key: data.role, companyId: null },
+      }));
     if (roleObj) {
       updateData.roleId = roleObj.id;
     }
+
+    const mobilePerm = await ensureMobilePdvPermission();
+    const effectiveRoleId = roleObj?.id || oldUser.roleId;
 
     await prisma.$transaction(async (tx) => {
       // 1. Atualizar dados principais
@@ -358,6 +510,18 @@ export async function updateTenantUser(
           });
         }
       }
+
+      // 4. Sincronização explícita da permissão "pdv.mobile" via toggle dedicado
+      if (data.allowMobilePdv !== undefined) {
+        await syncMobilePdvUserPermission(
+          tx,
+          userId,
+          mobilePerm.id,
+          Boolean(data.allowMobilePdv),
+          effectiveRoleId,
+          data.role
+        );
+      }
     });
 
     await logAudit({
@@ -366,15 +530,78 @@ export async function updateTenantUser(
       entity: "User",
       entityId: userId,
       oldValue: JSON.stringify({ name: oldUser.name, role: oldUser.role, active: oldUser.active }),
-      newValue: JSON.stringify({ name: data.name, role: data.role, active: data.active, customPermsCount: data.customPermissions?.length }),
+      newValue: JSON.stringify({
+        name: data.name,
+        role: data.role,
+        active: data.active,
+        allowMobilePdv: data.allowMobilePdv,
+        customPermsCount: data.customPermissions?.length,
+      }),
       reason: `Atualização de cadastro e permissões de ${data.name}`,
     });
 
     revalidatePath("/settings/users");
     revalidatePath("/users");
+    revalidatePath("/settings");
     return { success: true };
   } catch (err: any) {
     return { error: err.message || "Erro ao atualizar usuário." };
+  }
+}
+
+/** Alterna explicitamente a permissão "pdv.mobile" de um usuário sem alterar o restante do cadastro. */
+export async function setUserMobilePdvAccess(userId: string, allow: boolean) {
+  try {
+    const session = await getSession();
+    if (!session?.companyId) {
+      return { error: "Sessão inválida." };
+    }
+
+    const isAdmin = session.role === "ADMIN" || Boolean(session.isSuperAdmin);
+    if (!isAdmin && session.role !== "MANAGER") {
+      return { error: "Apenas administradores e gerentes podem alterar o acesso ao PDV Mobile." };
+    }
+
+    const user = await prisma.user.findFirst({
+      where: { id: userId, companyId: session.companyId },
+      select: { id: true, name: true, role: true, roleId: true },
+    });
+    if (!user) {
+      return { error: "Usuário não encontrado." };
+    }
+    if (user.role === "ADMIN") {
+      return { success: true };
+    }
+
+    const mobilePerm = await ensureMobilePdvPermission();
+    const roleObj = user.roleId
+      ? { id: user.roleId }
+      : (await prisma.role.findFirst({
+          where: { key: user.role, companyId: session.companyId },
+          select: { id: true },
+        })) ||
+        (await prisma.role.findFirst({
+          where: { key: user.role, companyId: null },
+          select: { id: true },
+        }));
+
+    await syncMobilePdvUserPermission(prisma, user.id, mobilePerm.id, allow, roleObj?.id, user.role);
+
+    await logAudit({
+      operation: "users.manage",
+      action: "UPDATE",
+      entity: "User",
+      entityId: user.id,
+      newValue: JSON.stringify({ allowMobilePdv: allow }),
+      reason: `${allow ? "Liberação" : "Bloqueio"} do Acesso ao Caixa Mobile (PDV Mobile) para ${user.name}`,
+    });
+
+    revalidatePath("/settings/users");
+    revalidatePath("/users");
+    revalidatePath("/settings");
+    return { success: true };
+  } catch (err: any) {
+    return { error: err.message || "Erro ao alterar permissão de PDV Mobile." };
   }
 }
 
@@ -651,6 +878,83 @@ export async function verifyPdvPin(data: { userId?: string; userName?: string; p
     };
   } catch (err: any) {
     return { success: false, error: err.message || "Erro ao validar credenciais." };
+  }
+}
+
+/**
+ * Valida um PIN ou senha de autorização (Admin, Gerente, Supervisor ou operador com PIN)
+ * da empresa atual para liberar operações sensíveis no PDV, como Crediário de Funcionário.
+ */
+export async function verifySupervisorPin(pin: string) {
+  try {
+    const cleanPin = String(pin || "").trim();
+    if (!cleanPin) {
+      return { success: false, error: "Informe o PIN ou senha de autorização." };
+    }
+
+    const session = await getSession();
+    const companyId = session?.companyId;
+
+    const users = await prisma.user.findMany({
+      where: {
+        active: true,
+        ...(companyId ? { companyId } : {}),
+      },
+      select: {
+        id: true,
+        name: true,
+        role: true,
+        pin: true,
+        password: true,
+      },
+    });
+
+    // Prioriza gerentes/admins/supervisores primeiro, depois demais colaboradores
+    const ordered = [...users].sort((a, b) => {
+      const rank = (r: string) =>
+        r === "ADMIN" ? 0 : r === "MANAGER" ? 1 : r === "SUPERVISOR" ? 2 : 3;
+      return rank(a.role) - rank(b.role);
+    });
+
+    for (const u of ordered) {
+      let valid = false;
+      if (u.pin) {
+        try {
+          valid = await bcrypt.compare(cleanPin, u.pin);
+        } catch {}
+        if (!valid && u.pin === cleanPin) valid = true;
+      }
+      if (!valid && u.password) {
+        try {
+          valid = await bcrypt.compare(cleanPin, u.password);
+        } catch {}
+        if (!valid && u.password === cleanPin) valid = true;
+      }
+      if (valid) {
+        return {
+          success: true,
+          verified: true,
+          userId: u.id,
+          userName: u.name,
+          role: u.role,
+        };
+      }
+    }
+
+    // Fallback padrão caso nenhum usuário possua PIN cadastrado no ambiente
+    const hasCustomPins = users.some((u) => Boolean(u.pin));
+    if (!hasCustomPins && cleanPin === "1234") {
+      return {
+        success: true,
+        verified: true,
+        userName: session?.name || "Supervisor",
+        role: session?.role || "SUPERVISOR",
+      };
+    }
+
+    return { success: false, error: "PIN/Senha de autorização inválido." };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Erro ao validar PIN." };
   }
 }
 

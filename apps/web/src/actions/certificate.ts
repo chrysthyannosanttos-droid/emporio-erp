@@ -6,6 +6,7 @@ import forge from "node-forge";
 import { prisma } from "@emporio/database";
 import { getSession } from "@/lib/session";
 import { revalidatePath } from "next/cache";
+import { loadCertificateBuffer, parseSefazMetadata } from "@/lib/sefazClient";
 
 export interface CertificateInfo {
   isValid: boolean;
@@ -154,10 +155,10 @@ export async function getCurrentCertificateStatus(): Promise<CertificateInfo> {
       };
     }
 
-    // Se temos o arquivo salvo no certPath
-    if (fiscal.certPath && fs.existsSync(fiscal.certPath)) {
-      const buffer = fs.readFileSync(fiscal.certPath);
-      return inspectPfxBuffer(buffer, fiscal.certPassword || "");
+    // Se temos o buffer do certificado (local ou Base64 na nuvem)
+    const pfxBuffer = loadCertificateBuffer(fiscal);
+    if (pfxBuffer) {
+      return inspectPfxBuffer(pfxBuffer, fiscal.certPassword || "");
     }
 
     // Se o arquivo estiver em Downloads (caso o usuário tenha acabado de baixar ou testar)
@@ -224,12 +225,10 @@ export async function validateAndUploadCertificate(formData: FormData): Promise<
       const arrayBuffer = await file.arrayBuffer();
       buffer = Buffer.from(arrayBuffer);
     } else {
-      // Tenta ler do certPath existente
+      // Tenta ler do certificado existente (local ou Base64 salvo no banco)
       const fiscal = await prisma.fiscalConfig.findUnique({ where: { companyId } });
-      if (fiscal?.certPath && fs.existsSync(fiscal.certPath)) {
-        buffer = fs.readFileSync(fiscal.certPath);
-      } else {
-        // Fallback para arquivo em Downloads se existir
+      buffer = loadCertificateBuffer(fiscal);
+      if (!buffer) {
         const downloadCert = "C:\\Users\\tisup\\Downloads\\certificado_digital.pfx";
         if (fs.existsSync(downloadCert)) {
           buffer = fs.readFileSync(downloadCert);
@@ -268,13 +267,23 @@ export async function validateAndUploadCertificate(formData: FormData): Promise<
       };
     }
 
-    // Salva o arquivo .pfx de forma persistente
-    const certsDir = path.join(process.cwd(), "packages", "database", "certs");
-    if (!fs.existsSync(certsDir)) {
-      fs.mkdirSync(certsDir, { recursive: true });
-    }
-    const finalPath = path.join(certsDir, `cert_${companyId}.pfx`);
-    fs.writeFileSync(finalPath, buffer);
+    // Salva o arquivo .pfx localmente quando possível e em Base64 no banco para funcionar na nuvem
+    let finalPath = `cert_${companyId}.pfx`;
+    try {
+      const certsDir = path.join(process.cwd(), "packages", "database", "certs");
+      if (!fs.existsSync(certsDir)) {
+        fs.mkdirSync(certsDir, { recursive: true });
+      }
+      finalPath = path.join(certsDir, `cert_${companyId}.pfx`);
+      fs.writeFileSync(finalPath, buffer);
+    } catch {}
+
+    const existing = await prisma.fiscalConfig.findUnique({ where: { companyId } });
+    const prevMeta = parseSefazMetadata(existing?.emitterEndpoint);
+    const emitterEndpoint = JSON.stringify({
+      ...prevMeta,
+      certBase64: buffer.toString("base64"),
+    });
 
     // Atualiza fiscalConfig no banco
     await prisma.fiscalConfig.upsert({
@@ -284,6 +293,7 @@ export async function validateAndUploadCertificate(formData: FormData): Promise<
         certPassword: password,
         certExpiration: certInfo.validTo ? new Date(certInfo.validTo) : null,
         certUploaded: true,
+        emitterEndpoint,
       },
       create: {
         companyId,
@@ -293,6 +303,7 @@ export async function validateAndUploadCertificate(formData: FormData): Promise<
         certPassword: password,
         certExpiration: certInfo.validTo ? new Date(certInfo.validTo) : null,
         certUploaded: true,
+        emitterEndpoint,
       },
     });
 

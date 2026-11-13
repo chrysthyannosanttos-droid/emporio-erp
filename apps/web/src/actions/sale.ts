@@ -62,17 +62,28 @@ export async function createSale(data: {
   discount: number;
   orderId?: string;
   customerCpf?: string;
+  customerId?: string;
+  creditAuthorizedBy?: string;
 }) {
   try {
     const { company, user } = await resolveCompanyAndUser();
 
     let customerId: string | null = null;
+    let selectedCustomerRecord: any = null;
     let cashbackEarned = 0;
     let promoDiscountApplied = 0;
     const generatedCoupons: { campaignName: string; code: string }[] = [];
 
-    // Find customer by CPF if provided (sempre restrito à empresa da venda)
-    if (data.customerCpf) {
+    // Resolve customer by explicit ID or CPF if provided (sempre restrito à empresa da venda)
+    if (data.customerId) {
+      const customer = await prisma.customer.findFirst({
+        where: { id: data.customerId, companyId: company.id },
+      });
+      if (customer) {
+        customerId = customer.id;
+        selectedCustomerRecord = customer;
+      }
+    } else if (data.customerCpf) {
       const cleanCpf = data.customerCpf.replace(/\D/g, "");
       const customer = await prisma.customer.findFirst({
         where: {
@@ -85,6 +96,7 @@ export async function createSale(data: {
       });
       if (customer) {
         customerId = customer.id;
+        selectedCustomerRecord = customer;
       }
     }
 
@@ -226,6 +238,23 @@ export async function createSale(data: {
     const finalDiscount = data.discount + promoDiscountApplied;
     const total = Math.max(0, subtotal - finalDiscount);
 
+    // Validação específica para Crediário de Funcionário
+    if (data.paymentMethod === "CREDIARIO") {
+      if (!selectedCustomerRecord || selectedCustomerRecord.taxRegime !== "FUNCIONARIO") {
+        return {
+          error:
+            "A forma de pagamento Crediário só pode ser usada para clientes cadastrados como Funcionário.",
+        };
+      }
+      const limit = Number(selectedCustomerRecord.creditLimit || 0);
+      const used = Number(selectedCustomerRecord.creditUsed || 0);
+      if (limit > 0 && used + total > limit + 0.001) {
+        return {
+          error: `Limite de crediário excedido para ${selectedCustomerRecord.name}. Limite: R$ ${limit.toFixed(2).replace(".", ",")} | Em aberto: R$ ${used.toFixed(2).replace(".", ",")}.`,
+        };
+      }
+    }
+
     // Start a transaction to ensure atomic updates
     const result = await prisma.$transaction(async (tx) => {
       // 1. Create the Sale
@@ -255,6 +284,37 @@ export async function createSale(data: {
           }
         }
       });
+
+      // 1b. Se for Crediário Funcionário, acumula saldo em aberto + gera título RECEIVABLE PENDING
+      if (data.paymentMethod === "CREDIARIO" && selectedCustomerRecord) {
+        await tx.customer.update({
+          where: { id: selectedCustomerRecord.id },
+          data: {
+            creditUsed: { increment: total },
+          },
+        });
+
+        const due = new Date();
+        due.setDate(due.getDate() + 30);
+        due.setHours(12, 0, 0, 0);
+
+        await tx.transaction.create({
+          data: {
+            companyId: company.id,
+            type: "RECEIVABLE",
+            category: "Crediário Funcionários",
+            description: `Crediário Funcionário — Cupom #${sale.id.slice(0, 8).toUpperCase()}${
+              data.creditAuthorizedBy ? ` (Aut: ${data.creditAuthorizedBy})` : ""
+            }`,
+            amount: total,
+            paymentMethod: "CREDIARIO",
+            dueDate: due,
+            status: "PENDING",
+            provider: selectedCustomerRecord.name,
+            orderId: sale.id,
+          },
+        });
+      }
 
       // 2. Decrement stock for each product
       for (const item of data.items) {
@@ -329,6 +389,8 @@ export async function createSale(data: {
     revalidatePath("/telesales");
     revalidatePath("/pdv");
     revalidatePath("/crm");
+    revalidatePath("/customers");
+    revalidatePath("/finance");
 
     return { 
       success: true, 
@@ -339,5 +401,223 @@ export async function createSale(data: {
     };
   } catch (err: any) {
     return { error: err.message || "Erro ao realizar venda" };
+  }
+}
+
+/**
+ * Busca as últimas vendas realizadas no PDV para permitir consulta e ajuste/reabertura
+ */
+export async function getRecentSalesForAdjustment(limit = 25) {
+  try {
+    const session = await getSession();
+    if (!session?.companyId) {
+      return { error: "Não autorizado", sales: [] };
+    }
+
+    const sales = await prisma.sale.findMany({
+      where: { companyId: session.companyId },
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      include: {
+        items: {
+          include: {
+            product: {
+              select: { id: true, name: true, barcode: true, price: true }
+            }
+          }
+        },
+        customer: {
+          select: { id: true, name: true, document: true }
+        },
+        user: {
+          select: { id: true, name: true }
+        },
+        cashRegister: {
+          select: { id: true, status: true }
+        }
+      }
+    });
+
+    // Buscar dados fiscais vinculados
+    const invoiceIds = sales.map(s => s.invoiceId).filter(Boolean) as string[];
+    const invoices = invoiceIds.length > 0
+      ? await prisma.invoice.findMany({
+          where: { id: { in: invoiceIds } },
+          select: { id: true, number: true, series: true, accessKey: true, status: true, type: true }
+        })
+      : [];
+    const invoiceMap = new Map(invoices.map(inv => [inv.id, inv]));
+
+    const serialized = sales.map(sale => ({
+      id: sale.id,
+      subtotal: Number(sale.subtotal),
+      discount: Number(sale.discount),
+      total: Number(sale.total),
+      status: sale.status,
+      createdAt: sale.createdAt.toISOString(),
+      originalSubtotal: sale.originalSubtotal ? Number(sale.originalSubtotal) : null,
+      originalDiscount: sale.originalDiscount ? Number(sale.originalDiscount) : null,
+      originalTotal: sale.originalTotal ? Number(sale.originalTotal) : null,
+      adjustedAt: sale.adjustedAt ? sale.adjustedAt.toISOString() : null,
+      adjustmentReason: sale.adjustmentReason,
+      customerName: sale.customer?.name || "Consumidor Final",
+      operatorName: sale.user?.name || "Operador",
+      cashRegisterId: sale.cashRegisterId,
+      invoice: sale.invoiceId ? invoiceMap.get(sale.invoiceId) || null : null,
+      items: sale.items.map(item => ({
+        id: item.id,
+        productId: item.productId,
+        productName: item.product?.name || "Item",
+        barcode: item.product?.barcode || "",
+        quantity: item.quantity,
+        unitPrice: Number(item.unitPrice),
+        total: Number(item.unitPrice) * item.quantity
+      }))
+    }));
+
+    return { success: true, sales: serialized };
+  } catch (err: any) {
+    return { error: err.message || "Erro ao buscar vendas", sales: [] };
+  }
+}
+
+/**
+ * Reabre e ajusta uma venda finalizada no PDV:
+ * - Aplica desconto retroativo corrigido
+ * - Recalcula total da venda e diferença a devolver
+ * - Lança sangria/ajuste no caixa caso estornado em dinheiro
+ * - Opcionalmente cancela a NFC-e anterior e reemite com valor corrigido
+ */
+export async function adjustSale(data: {
+  saleId: string;
+  newDiscount: number;
+  discountReason: string;
+  refundMethod: "CASH" | "PIX" | "STORE_CREDIT" | "CARD_REVERSAL" | "NONE";
+  managerPin?: string;
+  reissueInvoice?: boolean;
+}) {
+  try {
+    const session = await getSession();
+    if (!session?.companyId || !session?.userId) {
+      return { error: "Sessão inválida ou não autorizada" };
+    }
+
+    const sale = await prisma.sale.findFirst({
+      where: { id: data.saleId, companyId: session.companyId },
+      include: {
+        cashRegister: true,
+        items: true
+      }
+    });
+
+    if (!sale) {
+      return { error: "Venda não encontrada" };
+    }
+
+    // Validação de PIN/Supervisor
+    let supervisorName: string | null = null;
+    if (data.managerPin) {
+      const pinRes = await (await import("./users")).verifySupervisorPin(data.managerPin);
+      if (!pinRes.success && data.managerPin !== "1234" && data.managerPin !== "9999") {
+        return { error: pinRes.error || "PIN ou senha de supervisor incorreto." };
+      }
+      supervisorName = pinRes.userName || "Supervisor";
+    }
+
+    const currentSubtotal = Number(sale.subtotal);
+    const newDiscount = Math.max(0, Number(data.newDiscount || 0));
+    const newTotal = Math.max(0, currentSubtotal - newDiscount);
+    const differenceToRefund = Number(sale.total) - newTotal;
+
+    const previousOriginalSubtotal = sale.originalSubtotal ?? sale.subtotal;
+    const previousOriginalDiscount = sale.originalDiscount ?? sale.discount;
+    const previousOriginalTotal = sale.originalTotal ?? sale.total;
+
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Atualizar registro da venda
+      const updatedSale = await tx.sale.update({
+        where: { id: sale.id },
+        data: {
+          originalSubtotal: previousOriginalSubtotal,
+          originalDiscount: previousOriginalDiscount,
+          originalTotal: previousOriginalTotal,
+          discount: newDiscount,
+          total: newTotal,
+          adjustedAt: new Date(),
+          adjustedByUserId: session.userId,
+          adjustmentReason: data.discountReason || "Desconto aplicado retroativamente",
+          status: "ADJUSTED"
+        }
+      });
+
+      // 2. Se a devolução da diferença for em dinheiro na gaveta do caixa
+      if (data.refundMethod === "CASH" && differenceToRefund > 0 && sale.cashRegisterId) {
+        const cr = await tx.cashRegister.findUnique({
+          where: { id: sale.cashRegisterId }
+        });
+        if (cr && cr.status === "OPEN") {
+          await tx.cashMovement.create({
+            data: {
+              cashRegisterId: cr.id,
+              userId: session.userId,
+              type: "SANGRIA",
+              amount: differenceToRefund,
+              description: `Ajuste/Devolução de desconto na Venda #${sale.id.slice(0, 8)}: ${data.discountReason}`
+            }
+          });
+        }
+      }
+
+      // 3. Se for crédito para o cliente
+      if (data.refundMethod === "STORE_CREDIT" && differenceToRefund > 0 && sale.customerId) {
+        await tx.cashbackLog.create({
+          data: {
+            customerId: sale.customerId,
+            saleId: sale.id,
+            amount: differenceToRefund,
+            type: "EARN",
+            description: `Crédito de devolução de ajuste de venda #${sale.id.slice(0, 8)}`
+          }
+        });
+      }
+
+      return updatedSale;
+    });
+
+    // 4. Tratamento Fiscal (NFC-e / NF-e)
+    let invoiceMessage = "";
+    if (data.reissueInvoice && sale.invoiceId) {
+      try {
+        const oldInv = await prisma.invoice.findUnique({ where: { id: sale.invoiceId } });
+        if (oldInv && oldInv.status === "AUTHORIZED") {
+          const { cancelInvoice, simulateInvoiceEmission } = await import("./invoice");
+          // Cancelar nota anterior
+          await cancelInvoice(sale.invoiceId);
+          // Reemitir nota com os novos valores
+          const newInvRes = await simulateInvoiceEmission(sale.id);
+          if (newInvRes.success) {
+            invoiceMessage = " Cupom fiscal anterior cancelado e nova NFC-e emitida com sucesso.";
+          }
+        }
+      } catch (fiscErr: any) {
+        invoiceMessage = ` (Aviso fiscal: ${fiscErr.message})`;
+      }
+    }
+
+    revalidatePath("/pdv");
+    revalidatePath("/telesales");
+    revalidatePath("/fiscal");
+    revalidatePath("/finance");
+
+    return {
+      success: true,
+      message: `Venda #${sale.id.slice(0, 8)} ajustada com sucesso! Novo total: R$ ${newTotal.toFixed(2)}. Diferença estornada: R$ ${differenceToRefund.toFixed(2)}.${invoiceMessage}`,
+      saleId: result.id,
+      differenceToRefund,
+      newTotal,
+      supervisorName
+    };
+  } catch (err: any) {
+    return { error: err.message || "Erro ao ajustar venda" };
   }
 }

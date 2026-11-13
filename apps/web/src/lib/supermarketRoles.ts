@@ -97,7 +97,6 @@ export const SUPERMARKET_DEFAULT_ROLES = [
       "pdv.reprint",
       "pdv.offline_force",
       "pdv.supervisor_auth",
-      "pdv.mobile",
       "fiscal.emit",
     ]
   },
@@ -161,7 +160,7 @@ export const SUPERMARKET_DEFAULT_ROLES = [
     permissionCodes: [
       "pdv.access", "pdv.sale", "pdv.price_check", "pdv.discount.limited", "pdv.discount.unlimited",
       "pdv.cancel_item", "pdv.cancel_sale", "pdv.withdrawal", "pdv.supplement", "pdv.closing",
-      "pdv.reprint", "pdv.offline_force", "pdv.supervisor_auth", "pdv.mobile",
+      "pdv.reprint", "pdv.offline_force", "pdv.supervisor_auth",
       "stock.view", "stock.create_edit", "stock.costs.view", "stock.pricing.change", "stock.inventory",
       "stock.invoices.import", "stock.losses", "stock.labels", "stock.suppliers",
       "scale.view", "scale.export", "scale.config",

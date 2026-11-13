@@ -418,14 +418,15 @@ export async function getDashboardOverview() {
     }
 
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
+    // Horário oficial do Brasil (America/Sao_Paulo - UTC-3) para cálculo correto das métricas
+    const spDateStr = now.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
+    const today = new Date(`${spDateStr}T00:00:00-03:00`);
+    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
 
-    // 7 dias atrás e início do mês
-    const sevenDaysAgo = new Date(today);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    // 7 dias atrás e início do mês (horário de Brasília)
+    const sevenDaysAgo = new Date(today.getTime() - 6 * 24 * 60 * 60 * 1000);
+    const [spYear, spMonth] = spDateStr.split("-").map(Number);
+    const monthStart = new Date(`${spYear}-${String(spMonth).padStart(2, "0")}-01T00:00:00-03:00`);
     const earliestDate = sevenDaysAgo < monthStart ? sevenDaysAgo : monthStart;
 
     // Apenas 3 consultas simultâneas no banco ao invés de dezenas
@@ -507,10 +508,8 @@ export async function getDashboardOverview() {
     // Sparkline 7 dias calculada direto em memória
     const sparklineFat: number[] = [];
     for (let i = 6; i >= 0; i--) {
-      const dStart = new Date(today);
-      dStart.setDate(dStart.getDate() - i);
-      const dEnd = new Date(dStart);
-      dEnd.setDate(dEnd.getDate() + 1);
+      const dStart = new Date(today.getTime() - i * 24 * 60 * 60 * 1000);
+      const dEnd = new Date(dStart.getTime() + 24 * 60 * 60 * 1000);
 
       const dayTotal = salesList
         .filter((s) => s.createdAt >= dStart && s.createdAt < dEnd)
@@ -609,7 +608,8 @@ export async function getDashboardOverview() {
     });
 
     // Performance das Lojas
-    const storesPerformance = stores.map((st, idx) => ({
+    const storesList = stores.length > 0 ? stores : [{ name: "Loja Matriz - Empório & Conveniência" }];
+    const storesPerformance = storesList.map((st: any, idx: number) => ({
       name: st.name || st.tradeName || `Loja ${idx + 1}`,
       val: `R$ ${faturamentoHoje.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`,
       pct: countVendasHoje > 0 ? "100%" : "0%",

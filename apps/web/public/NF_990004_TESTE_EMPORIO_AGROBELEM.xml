@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
+  <NFe xmlns="http://www.portalfiscal.inf.br/nfe">
+    <infNFe Id="NFe15261163310411001922550010009900041100000044" versao="4.00">
+      <ide><cUF>15</cUF><natOp>VENDA DE MERCADORIA (TESTE HOMOLOGACAO)</natOp><mod>55</mod><serie>1</serie><nNF>990004</nNF><dhEmi>2026-11-09T11:05:00-03:00</dhEmi><tpNF>1</tpNF><tpAmb>2</tpAmb><finNFe>1</finNFe></ide>
+      <emit><CNPJ>63310411001922</CNPJ><xNome>TRES CORACOES ALIMENTOS SA (TESTE)</xNome><enderEmit><xLgr>Rua 01-QD 1273, 493 - Maceio/AL</xLgr><UF>PA</UF></enderEmit><IE>ISENTO</IE><CRT>3</CRT></emit>
+      <dest><CNPJ>65522409000113</CNPJ><xNome>EMPORIO AGROBELEM LTDA</xNome></dest>
+      <det nItem="1">
+        <prod>
+          <cProd>7896005805718</cProd><cEAN>7896005805718</cEAN>
+          <xProd>CAPSULA CAFE TRES ESPRESSO ATENTO 10X8G</xProd>
+          <NCM>09012100</NCM><CFOP>6102</CFOP>
+          <uCom>DIS</uCom><qCom>10.0000</qCom><vUnCom>18.2300</vUnCom><vProd>182.30</vProd>
+          <cEANTrib>7896005805718</cEANTrib><uTrib>DIS</uTrib><qTrib>10.0000</qTrib><vUnTrib>18.2300</vUnTrib>
+          <indTot>1</indTot>
+          <rastro><nLote>LT-990004-1</nLote><qLote>10.000</qLote><dFab>2026-10-01</dFab><dVal>2027-03-28</dVal></rastro>
+        </prod>
+        <imposto><ICMS><ICMS00><orig>0</orig><CST>00</CST><modBC>3</modBC><vBC>182.30</vBC><pICMS>12.00</pICMS><vICMS>21.88</vICMS></ICMS00></ICMS></imposto>
+      </det>
+      <det nItem="2">
+        <prod>
+          <cProd>7896005809518</cProd><cEAN>7896005809518</cEAN>
+          <xProd>CLASSIC Bebida Láctea Uht Cappuccino Classic 3 Corações Frasco 260ml 260ml</xProd>
+          <NCM>04012010</NCM><CFOP>6102</CFOP>
+          <uCom>UN</uCom><qCom>12.0000</qCom><vUnCom>5.7900</vUnCom><vProd>69.48</vProd>
+          <cEANTrib>7896005809518</cEANTrib><uTrib>UN</uTrib><qTrib>12.0000</qTrib><vUnTrib>5.7900</vUnTrib>
+          <indTot>1</indTot>
+          <rastro><nLote>LT-990004-2</nLote><qLote>12.000</qLote><dFab>2026-10-01</dFab><dVal>2027-04-28</dVal></rastro>
+        </prod>
+        <imposto><ICMS><ICMS00><orig>0</orig><CST>00</CST><modBC>3</modBC><vBC>69.48</vBC><pICMS>12.00</pICMS><vICMS>8.34</vICMS></ICMS00></ICMS></imposto>
+      </det>
+      <det nItem="3">
+        <prod>
+          <cProd>7896045115471</cProd><cEAN>7896045115471</cEAN>
+          <xProd>Barra Proteina 3 Coracoes Capuccino Classic 15g</xProd>
+          <NCM>19049000</NCM><CFOP>6102</CFOP>
+          <uCom>UN</uCom><qCom>20.0000</qCom><vUnCom>6.4400</vUnCom><vProd>128.80</vProd>
+          <cEANTrib>7896045115471</cEANTrib><uTrib>UN</uTrib><qTrib>20.0000</qTrib><vUnTrib>6.4400</vUnTrib>
+          <indTot>1</indTot>
+          <rastro><nLote>LT-990004-3</nLote><qLote>20.000</qLote><dFab>2026-10-01</dFab><dVal>2027-05-28</dVal></rastro>
+        </prod>
+        <imposto><ICMS><ICMS00><orig>0</orig><CST>00</CST><modBC>3</modBC><vBC>128.80</vBC><pICMS>12.00</pICMS><vICMS>15.46</vICMS></ICMS00></ICMS></imposto>
+      </det>
+      <det nItem="4">
+        <prod>
+          <cProd>7896045103713</cProd><cEAN>7896045103713</cEAN>
+          <xProd>Cafe drip coffee santa clara reserva da familia 10g</xProd>
+          <NCM>21069090</NCM><CFOP>6102</CFOP>
+          <uCom>UN</uCom><qCom>30.0000</qCom><vUnCom>1.8900</vUnCom><vProd>56.70</vProd>
+          <cEANTrib>7896045103713</cEANTrib><uTrib>UN</uTrib><qTrib>30.0000</qTrib><vUnTrib>1.8900</vUnTrib>
+          <indTot>1</indTot>
+          <rastro><nLote>LT-990004-4</nLote><qLote>30.000</qLote><dFab>2026-10-01</dFab><dVal>2027-06-28</dVal></rastro>
+        </prod>
+        <imposto><ICMS><ICMS00><orig>0</orig><CST>00</CST><modBC>3</modBC><vBC>56.70</vBC><pICMS>12.00</pICMS><vICMS>6.80</vICMS></ICMS00></ICMS></imposto>
+      </det>
+      <total><ICMSTot><vBC>437.28</vBC><vICMS>52.48</vICMS><vProd>437.28</vProd><vNF>437.28</vNF></ICMSTot></total>
+    </infNFe>
+  </NFe>
+  <protNFe versao="4.00"><infProt><tpAmb>2</tpAmb><chNFe>15261163310411001922550010009900041100000044</chNFe><dhRecbto>2026-11-09T11:05:00-03:00</dhRecbto><nProt>1152600990004</nProt><cStat>100</cStat><xMotivo>Autorizado o uso da NF-e (HOMOLOGACAO TESTE)</xMotivo></infProt></protNFe>
+</nfeProc>

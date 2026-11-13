@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, User, AlertCircle, Store, UserCheck } from "lucide-react";
+import { ArrowLeft, Save, User, AlertCircle, Store, UserCheck, Briefcase } from "lucide-react";
 import Link from "next/link";
 import { createCustomer } from "@/actions/customer";
 
@@ -10,9 +10,10 @@ export default function NewCustomerPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [customerType, setCustomerType] = useState<"CONSUMIDOR_FINAL" | "REVENDA">(
+  const [customerType, setCustomerType] = useState<"CONSUMIDOR_FINAL" | "REVENDA" | "FUNCIONARIO">(
     "CONSUMIDOR_FINAL"
   );
+  const [creditLimit, setCreditLimit] = useState("");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -21,6 +22,9 @@ export default function NewCustomerPage() {
 
     const formData = new FormData(e.currentTarget);
     formData.set("customerType", customerType);
+    if (customerType === "FUNCIONARIO") {
+      formData.set("creditLimit", creditLimit || "0");
+    }
     const result = await createCustomer(formData);
 
     if (result.error) {
@@ -71,13 +75,13 @@ export default function NewCustomerPage() {
             </div>
           </div>
 
-          {/* FLAG: CONSUMIDOR FINAL vs CLIENTE REVENDA */}
+          {/* FLAG: CONSUMIDOR FINAL vs CLIENTE REVENDA vs FUNCIONÁRIO */}
           <div>
             <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-2">
               Tipo / Classificação do Cliente *
             </label>
             <input type="hidden" name="customerType" value={customerType} />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <button
                 type="button"
                 onClick={() => setCustomerType("CONSUMIDOR_FINAL")}
@@ -127,11 +131,63 @@ export default function NewCustomerPage() {
                     Cliente Revenda / Parceiro
                   </span>
                   <span className="block text-[11px] text-gray-500 mt-0.5">
-                    Compra doces, carnes ou mercadorias para revender (entra no Relatório de Revenda).
+                    Compra mercadorias para revender (Relatório de Revenda).
+                  </span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCustomerType("FUNCIONARIO")}
+                className={`p-4 rounded-2xl border-2 text-left transition-all flex items-start gap-3 cursor-pointer ${
+                  customerType === "FUNCIONARIO"
+                    ? "border-amber-600 bg-amber-50/80 shadow-xs"
+                    : "border-gray-200 bg-gray-50/60 hover:border-gray-300"
+                }`}
+              >
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                    customerType === "FUNCIONARIO"
+                      ? "bg-amber-600 text-white"
+                      : "bg-white text-gray-500 border border-gray-200"
+                  }`}
+                >
+                  <Briefcase size={20} />
+                </div>
+                <div>
+                  <span className="block text-sm font-black text-gray-900">
+                    Funcionário (Crediário)
+                  </span>
+                  <span className="block text-[11px] text-gray-500 mt-0.5">
+                    Libera compra em aberto no Crediário pelo PDV.
                   </span>
                 </div>
               </button>
             </div>
+
+            {customerType === "FUNCIONARIO" && (
+              <div className="mt-4 p-4 rounded-2xl bg-amber-50 border border-amber-200 flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
+                <div>
+                  <span className="block text-xs font-black text-amber-900 uppercase">
+                    Limite de Crediário (Opcional)
+                  </span>
+                  <span className="text-[11px] text-amber-700">
+                    Deixe 0 ou vazio para permitir compras sem teto fixo.
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 bg-white border border-amber-300 rounded-xl px-3 py-2">
+                  <span className="text-xs font-bold text-amber-800">R$</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={creditLimit}
+                    onChange={(e) => setCreditLimit(e.target.value.replace(/[^0-9.,]/g, ""))}
+                    placeholder="0,00"
+                    className="w-28 text-right font-mono font-black text-sm text-gray-900 outline-none bg-transparent"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="space-y-4">

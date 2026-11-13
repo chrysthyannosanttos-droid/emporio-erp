@@ -12,7 +12,7 @@ import {
   Sliders, Settings, Search, Calendar, HelpCircle, Hexagon,
   CreditCard, TrendingDown, TrendingUp, Building2, Monitor,
   Plus, Pin, PinOff, Sparkles, Receipt, RefreshCw, Globe, Smartphone,
-  ClipboardCheck
+  ClipboardCheck, BedDouble
 } from "lucide-react";
 import { logout, switchToMaster } from "@/actions/auth";
 import { WhatsNewModal } from "@/components/WhatsNewModal";
@@ -31,6 +31,7 @@ interface DrawerLayoutProps {
   operationTypes?: string[];
   canMobilePdv?: boolean;
   isMasterEligible?: boolean;
+  isCristiano?: boolean;
 }
 
 interface WorkspaceTab {
@@ -44,6 +45,8 @@ const ROUTE_DEFINITIONS: Record<string, { title: string; iconName: string }> = {
   "/": { title: "Dashboard", iconName: "LayoutDashboard" },
   "/pdv": { title: "PDV Caixa", iconName: "Store" },
   "/pdv/mobile": { title: "PDV Mobile", iconName: "Smartphone" },
+  "/ecommerce": { title: "Cardápio Digital", iconName: "ShoppingBag" },
+  "/comandas": { title: "Comandas / Quartos", iconName: "BedDouble" },
   "/contracts": { title: "Contratos de Venda", iconName: "FileText" },
   "/distribution/orders": { title: "Pedidos", iconName: "ClipboardList" },
   "/customers": { title: "Clientes", iconName: "Users" },
@@ -53,6 +56,8 @@ const ROUTE_DEFINITIONS: Record<string, { title: string; iconName: string }> = {
   "/labels": { title: "Etiquetas", iconName: "Tag" },
   "/scales": { title: "Balanças (Toledo MGV6)", iconName: "Scale" },
   "/expirations": { title: "Validades", iconName: "Calendar" },
+  "/losses": { title: "Avarias & Perdas", iconName: "AlertTriangle" },
+  "/production": { title: "Produção Própria", iconName: "Hammer" },
   "/stock": { title: "Estoque", iconName: "Landmark" },
   "/stock/inventory": { title: "Balanço & Inventário", iconName: "ClipboardCheck" },
   "/coi": { title: "Operações Internas (COI)", iconName: "Sliders" },
@@ -125,6 +130,9 @@ function renderTabIcon(iconName: string, size = 14) {
     case "RefreshCw": return <RefreshCw size={size} />;
     case "Globe": return <Globe size={size} />;
     case "Smartphone": return <Smartphone size={size} />;
+    case "ShoppingBag": return <ShoppingBag size={size} />;
+    case "AlertTriangle": return <AlertTriangle size={size} />;
+    case "BedDouble": return <BedDouble size={size} />;
     default: return <FileText size={size} />;
   }
 }
@@ -139,6 +147,7 @@ export function DrawerLayout({
   operationTypes = [],
   canMobilePdv = false,
   isMasterEligible = false,
+  isCristiano = false,
 }: DrawerLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -200,7 +209,11 @@ export function DrawerLayout({
   }, []);
 
   const hasModule = (code: string) => {
-    return activeModules.length === 0 || activeModules.includes(code);
+    if (isCristiano) return true;
+    if (activeModules && activeModules.length > 0) {
+      return activeModules.includes(code);
+    }
+    return true;
   };
 
   useEffect(() => {
@@ -344,9 +357,15 @@ export function DrawerLayout({
           <SectionLabel>VENDAS & COMERCIAL</SectionLabel>
           {hasModule("PDV") && <NavItem href="/pdv" icon={<Store size={16} />} label="PDV Caixa" active={pathname === "/pdv"} onNavigate={handleNavigate} />}
           {hasModule("PDV") && canMobilePdv && <NavItem href="/pdv/mobile" icon={<Smartphone size={16} />} label="PDV Mobile" active={pathname === "/pdv/mobile"} onNavigate={handleNavigate} />}
-          <NavItem href="/distribution/orders" icon={<ClipboardList size={16} />} label="Pedidos" active={pathname?.startsWith("/distribution/orders")} onNavigate={handleNavigate} />
-          <NavItem href="/contracts" icon={<FileText size={16} />} label="Contratos de Venda" active={pathname === "/contracts"} onNavigate={handleNavigate} />
-          <NavItem href="/customers" icon={<Users size={16} />} label="Clientes" active={pathname === "/customers"} onNavigate={handleNavigate} />
+          {hasModule("ECOMMERCE") && <NavItem href="/ecommerce" icon={<ShoppingBag size={16} />} label="Cardápio Digital" active={pathname?.startsWith("/ecommerce")} onNavigate={handleNavigate} />}
+          {hasModule("HOTEL_TABS") && (
+            <NavItem href="/comandas" icon={<BedDouble size={16} />} label="Comandas / Quartos" active={pathname?.startsWith("/comandas")} onNavigate={handleNavigate} />
+          )}
+          {hasModule("DISTRIBUTION_ORDERS") && <NavItem href="/distribution/orders" icon={<ClipboardList size={16} />} label="Pedidos" active={pathname?.startsWith("/distribution/orders")} onNavigate={handleNavigate} />}
+          {(isCristiano || hasModule("CONTRACTS")) && (
+            <NavItem href="/contracts" icon={<FileText size={16} />} label="Contratos de Venda" active={pathname === "/contracts"} onNavigate={handleNavigate} />
+          )}
+          {hasModule("CRM") && <NavItem href="/customers" icon={<Users size={16} />} label="Clientes" active={pathname === "/customers"} onNavigate={handleNavigate} />}
         </div>
 
         {/* PRODUTOS & ESTOQUE */}
@@ -354,17 +373,19 @@ export function DrawerLayout({
           <SectionLabel>PRODUTOS & ESTOQUE</SectionLabel>
           {hasModule("STOCK") && <NavItem href="/stock" icon={<Landmark size={16} />} label="Estoque & Produtos" active={pathname === "/stock"} onNavigate={handleNavigate} />}
           {hasModule("STOCK") && <NavItem href="/stock/inventory" icon={<ClipboardCheck size={16} />} label="Balanço & Inventário" active={pathname === "/stock/inventory"} onNavigate={handleNavigate} />}
-          <NavItem href="/coi" icon={<Sliders size={16} />} label="Operações de Estoque (COI)" active={pathname === "/coi"} onNavigate={handleNavigate} />
-          <NavItem href="/assets" icon={<Shield size={16} />} label="Ativo Imobilizado" active={pathname === "/assets"} onNavigate={handleNavigate} />
-          <NavItem href="/stock/new" icon={<Package size={16} />} label="Cadastrar Produto" active={pathname === "/stock/new"} onNavigate={handleNavigate} />
-          <NavItem href="/purchases" icon={<ClipboardList size={16} />} label="Pedidos de Compra & Cotações" active={pathname?.startsWith("/purchases")} onNavigate={handleNavigate} />
-          <NavItem href="/invoices" icon={<Receipt size={16} />} label="Entrada de Notas & XML" active={pathname === "/invoices"} onNavigate={handleNavigate} />
-          <NavItem href="/fiscal/decretos" icon={<Scale size={16} />} label="Decretos AL & NCMs" active={pathname?.startsWith("/fiscal/decretos") || pathname === "/decretos"} onNavigate={handleNavigate} />
-          <NavItem href="/pricing" icon={<Percent size={16} />} label="Precificação & Margens" active={pathname === "/pricing"} onNavigate={handleNavigate} />
-          <NavItem href="/labels" icon={<Tag size={16} />} label="Impressão de Etiquetas" active={pathname === "/labels"} onNavigate={handleNavigate} />
-          <NavItem href="/scales" icon={<Scale size={16} />} label="Balanças (Toledo MGV6)" active={pathname === "/scales"} onNavigate={handleNavigate} />
-          <NavItem href="/expirations" icon={<Calendar size={16} />} label="Controle de Validades" active={pathname === "/expirations"} onNavigate={handleNavigate} />
-          <NavItem href="/suppliers" icon={<Truck size={16} />} label="Fornecedores" active={pathname === "/suppliers"} onNavigate={handleNavigate} />
+          {hasModule("COI") && <NavItem href="/coi" icon={<Sliders size={16} />} label="Operações de Estoque (COI)" active={pathname === "/coi"} onNavigate={handleNavigate} />}
+          {hasModule("LOSSES") && <NavItem href="/losses" icon={<AlertTriangle size={16} />} label="Avarias & Perdas" active={pathname?.startsWith("/losses")} onNavigate={handleNavigate} />}
+          {hasModule("PRODUCTION") && <NavItem href="/production" icon={<Hammer size={16} />} label="Produção Própria" active={pathname?.startsWith("/production")} onNavigate={handleNavigate} />}
+          {hasModule("ASSETS") && <NavItem href="/assets" icon={<Shield size={16} />} label="Ativo Imobilizado" active={pathname === "/assets"} onNavigate={handleNavigate} />}
+          {hasModule("STOCK") && <NavItem href="/stock/new" icon={<Package size={16} />} label="Cadastrar Produto" active={pathname === "/stock/new"} onNavigate={handleNavigate} />}
+          {hasModule("PURCHASES") && <NavItem href="/purchases" icon={<ClipboardList size={16} />} label="Pedidos de Compra & Cotações" active={pathname?.startsWith("/purchases")} onNavigate={handleNavigate} />}
+          {hasModule("FISCAL_RADAR") && <NavItem href="/invoices" icon={<Receipt size={16} />} label="Entrada de Notas & XML" active={pathname === "/invoices"} onNavigate={handleNavigate} />}
+          {hasModule("FISCAL") && <NavItem href="/fiscal/decretos" icon={<Scale size={16} />} label="Decretos AL & NCMs" active={pathname?.startsWith("/fiscal/decretos") || pathname === "/decretos"} onNavigate={handleNavigate} />}
+          {hasModule("PRICING") && <NavItem href="/pricing" icon={<Percent size={16} />} label="Precificação & Margens" active={pathname === "/pricing"} onNavigate={handleNavigate} />}
+          {hasModule("LABELS") && <NavItem href="/labels" icon={<Tag size={16} />} label="Impressão de Etiquetas" active={pathname === "/labels"} onNavigate={handleNavigate} />}
+          {hasModule("SCALES") && <NavItem href="/scales" icon={<Scale size={16} />} label="Balanças (Toledo MGV6)" active={pathname === "/scales"} onNavigate={handleNavigate} />}
+          {hasModule("EXPIRATIONS") && <NavItem href="/expirations" icon={<Calendar size={16} />} label="Controle de Validades" active={pathname === "/expirations"} onNavigate={handleNavigate} />}
+          {hasModule("SUPPLIERS") && <NavItem href="/suppliers" icon={<Truck size={16} />} label="Fornecedores" active={pathname === "/suppliers"} onNavigate={handleNavigate} />}
           {hasModule("MERCADOLOGICO") && <NavItem href="/mercadologico" icon={<FolderTree size={16} />} label="Categorias" active={pathname === "/mercadologico"} onNavigate={handleNavigate} />}
         </div>
 
@@ -382,20 +403,23 @@ export function DrawerLayout({
         <div className="space-y-0.5">
           <SectionLabel>FINANCEIRO</SectionLabel>
           {hasModule("FINANCE") && <NavItem href="/finance" icon={<Wallet size={16} />} label="Financeiro Completo" active={pathname === "/finance"} onNavigate={handleNavigate} />}
-          <NavItem href="/finance/reconciliation" icon={<Landmark size={16} />} label="Conciliação Bancária" active={pathname?.startsWith("/finance/reconciliation")} onNavigate={handleNavigate} />
-          <NavItem href="/finance/cash-closings" icon={<Receipt size={16} />} label="Fechamento & Tesouraria" active={pathname?.startsWith("/finance/cash-closings")} onNavigate={handleNavigate} />
+          {hasModule("RECONCILIATION") && <NavItem href="/finance/reconciliation" icon={<Landmark size={16} />} label="Conciliação Bancária" active={pathname?.startsWith("/finance/reconciliation")} onNavigate={handleNavigate} />}
+          {hasModule("CASH_CLOSINGS") && <NavItem href="/finance/cash-closings" icon={<Receipt size={16} />} label="Fechamento & Tesouraria" active={pathname?.startsWith("/finance/cash-closings")} onNavigate={handleNavigate} />}
           {hasModule("REPORTS") && <NavItem href="/reports" icon={<FileText size={16} />} label="Relatórios & BI" active={pathname === "/reports"} onNavigate={handleNavigate} />}
         </div>
 
         {/* CONFIGURAÇÕES */}
         <div className="space-y-0.5">
           <SectionLabel>CONFIGURAÇÕES</SectionLabel>
+          {isCristiano && (
+            <NavItem href="/audit" icon={<ShieldAlert size={16} />} label="Log Auditoria & Segurança" active={pathname === "/audit" || pathname === "/settings/audit"} onNavigate={handleNavigate} />
+          )}
           <NavItem href="/settings/terminals" icon={<Monitor size={16} />} label="Terminais PDV" active={pathname === "/settings/terminals"} onNavigate={handleNavigate} />
           <NavItem href="/settings/modules" icon={<Building2 size={16} />} label="Lojas & Módulos" active={pathname === "/settings/modules"} onNavigate={handleNavigate} />
           <NavItem href="/settings/users" icon={<Users size={16} />} label="Usuários" active={pathname === "/settings/users"} onNavigate={handleNavigate} />
           <NavItem href="/settings/roles" icon={<Shield size={16} />} label="Perfis & Setores" active={pathname === "/settings/roles"} onNavigate={handleNavigate} />
           <NavItem href="/settings/integrations" icon={<Globe size={16} />} label="Integrações & IP Nuvem" active={pathname === "/settings/integrations"} onNavigate={handleNavigate} />
-          <NavItem href="/migration" icon={<RefreshCw size={16} />} label="Migração Saipos" active={pathname === "/migration"} onNavigate={handleNavigate} />
+          {hasModule("MIGRATION") && <NavItem href="/migration" icon={<RefreshCw size={16} />} label="Migração Saipos" active={pathname === "/migration"} onNavigate={handleNavigate} />}
           <NavItem href="/settings" icon={<Settings size={16} />} label="Configurações Gerais" active={pathname === "/settings"} onNavigate={handleNavigate} />
         </div>
 

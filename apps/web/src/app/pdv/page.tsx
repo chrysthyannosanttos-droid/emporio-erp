@@ -9,7 +9,7 @@ import {
   DollarSign, BarChart2, LogOut, RefreshCw, Zap, Download, Settings,
   Maximize2, Minimize2, Wifi, Volume2, Battery, Barcode, Tag, Key,
   Smartphone, Share2, MessageCircle, Mail, Copy, ExternalLink, Printer,
-  Lock, Eye, EyeOff
+  Lock, Eye, EyeOff, ShieldCheck, BedDouble, Briefcase
 } from "lucide-react";
 import {
   buildReceiptText,
@@ -27,17 +27,21 @@ import {
   getFullCatalogForOfflineSync
 } from "@/actions/product";
 import { getOrderById, getOrders } from "@/actions/order";
+import { getHotelTabsWorkspace, addItemsToRoomTab, closeRoomTabFutureSale } from "@/actions/hotelTabs";
 import { createSale } from "@/actions/sale";
 import { saveCashClosing } from "@/actions/cashClosing";
 import { useHotkeys, hotkeyLabels, PDVHotkeys, defaultHotkeys } from "@/hooks/useHotkeys";
 import { PdvSplashScreen } from "@/components/PdvSplashScreen";
 import { CybertechBrand } from "@/components/CybertechBrand";
 import { PdvConfigModal } from "@/components/PdvConfigModal";
+import { PdvAdjustSaleModal } from "@/components/PdvAdjustSaleModal";
 import { ConcurrentSessionWatcher } from "@/components/ConcurrentSessionWatcher";
 import { playScannerBeep } from "@/lib/pdvHardwareConfig";
 import { activateTerminalOnline } from "@/actions/terminals";
-import { getPdvOperators, verifyPdvPin } from "@/actions/users";
+import { getPdvOperators, verifyPdvPin, verifySupervisorPin } from "@/actions/users";
+import { getCustomers } from "@/actions/customer";
 import { logout } from "@/actions/auth";
+import { testSefazConnectionAction } from "@/actions/fiscalConfig";
 import {
   loadPdvPaymentConfig,
   savePdvPaymentConfig,
@@ -117,6 +121,7 @@ const PAYMENT_LABELS: Record<string, string> = {
   CREDIT_CARD: "Crédito",
   DEBIT_CARD: "Débito",
   VOUCHER: "Voucher",
+  CREDIARIO: "Crediário Funcionário",
 };
 
 const PAYMENT_COLORS: Record<string, string> = {
@@ -125,6 +130,7 @@ const PAYMENT_COLORS: Record<string, string> = {
   CREDIT_CARD: "text-violet-500",
   DEBIT_CARD: "text-blue-500",
   VOUCHER: "text-amber-500",
+  CREDIARIO: "text-amber-600",
 };
 
 /* ─────────────────────────────────────────────
@@ -1037,12 +1043,122 @@ function PDVContainer() {
   }, [selectedCategory]);
 
   // Modals & Config
-  const [modal, setModal] = useState<"" | "payment" | "success" | "order" | "closing" | "withdrawal" | "pricecheck" | "cpf" | "hotkeys" | "quantity">("");
+  const [modal, setModal] = useState<"" | "payment" | "success" | "order" | "closing" | "withdrawal" | "pricecheck" | "cpf" | "hotkeys" | "quantity" | "sefaz" | "roomlaunch">("");
   const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [quantityPromptInput, setQuantityPromptInput] = useState("1");
   const [ordersList, setOrdersList] = useState<OrderListItem[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
+
+  // Comandas de Quartos (exclusivo empresas habilitadas, ex: Empório / Fazenda Belém)
+  const [hotelTabsEnabled, setHotelTabsEnabled] = useState(false);
+  const [hotelRooms, setHotelRooms] = useState<any[]>([]);
+  const [hotelCustomers, setHotelCustomers] = useState<any[]>([]);
+  const [selectedLaunchRoomId, setSelectedLaunchRoomId] = useState("");
+  const [launchingToRoom, setLaunchingToRoom] = useState(false);
+  const [orderModalTab, setOrderModalTab] = useState<"orders" | "rooms">("orders");
+  const [pdvRoomPayMethod, setPdvRoomPayMethod] = useState("FATURADO");
+  const [pdvClosingRoomBusy, setPdvClosingRoomBusy] = useState(false);
+  const [pdvRoomFeedback, setPdvRoomFeedback] = useState("");
+
+  const refreshHotelTabs = useCallback(async () => {
+    try {
+      const res = await getHotelTabsWorkspace();
+      if (res?.enabled && Array.isArray(res.rooms) && res.rooms.length > 0) {
+        setHotelTabsEnabled(true);
+        setHotelRooms(res.rooms);
+        setHotelCustomers(res.customers || []);
+        setSelectedLaunchRoomId((prev) => prev || res.rooms[0]?.id || "");
+      } else {
+        setHotelTabsEnabled(false);
+        setHotelRooms([]);
+        setHotelCustomers([]);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (session) {
+      refreshHotelTabs();
+    }
+  }, [session, refreshHotelTabs]);
+
+  // Status Real SEFAZ-AL (SVRS)
+  const [sefazLiveStatus, setSefazLiveStatus] = useState<{
+    checking: boolean;
+    ok: boolean;
+    cStat: string;
+    xMotivo: string;
+    latencyMs?: number;
+    dhRecbto?: string;
+    environment?: string;
+    subjectCn?: string;
+    error?: string;
+    lastChecked?: string;
+  }>({
+    checking: false,
+    ok: true,
+    cStat: "107",
+    xMotivo: "Serviço em Operação",
+  });
+
+  const handleCheckSefazStatus = useCallback(async () => {
+    setSefazLiveStatus(prev => ({ ...prev, checking: true }));
+    try {
+      const res: any = await testSefazConnectionAction();
+      if (res && res.ok) {
+        setSefazLiveStatus({
+          checking: false,
+          ok: true,
+          cStat: res.cStat || "107",
+          xMotivo: res.xMotivo || "Serviço em Operação",
+          latencyMs: res.latencyMs,
+          dhRecbto: res.dhRecbto,
+          environment: res.environment || "producao",
+          subjectCn: res.subjectCn,
+          lastChecked: new Date().toLocaleTimeString("pt-BR"),
+        });
+      } else {
+        setSefazLiveStatus({
+          checking: false,
+          ok: false,
+          cStat: res?.cStat || "ERR",
+          xMotivo: res?.xMotivo || res?.error || "Falha na comunicação com a SEFAZ",
+          error: res?.error,
+          lastChecked: new Date().toLocaleTimeString("pt-BR"),
+        });
+      }
+    } catch (err: any) {
+      setSefazLiveStatus({
+        checking: false,
+        ok: false,
+        cStat: "ERR",
+        xMotivo: err.message || "Erro de conexão",
+        error: err.message,
+        lastChecked: new Date().toLocaleTimeString("pt-BR"),
+      });
+    }
+  }, []);
+
+  // Consulta status real da SEFAZ ao carregar o PDV
+  useEffect(() => {
+    handleCheckSefazStatus();
+  }, [handleCheckSefazStatus]);
+
+  // Registro do Service Worker para cache offline e contingência PWA
+  useEffect(() => {
+    if (typeof window !== "undefined" && "serviceWorker" in navigator) {
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then((reg) => {
+          console.log("[PWA] Service Worker registrado com sucesso:", reg.scope);
+        })
+        .catch((err) => {
+          console.warn("[PWA] Falha ao registrar Service Worker:", err);
+        });
+    }
+  }, []);
 
   // Fullscreen helper
   const toggleFullscreen = () => {
@@ -1237,8 +1353,28 @@ function PDVContainer() {
   const [priceCheckResult, setPriceCheckResult] = useState<any>(null);
   const [priceCheckLoading, setPriceCheckLoading] = useState(false);
 
-  // CPF
+  // CPF & Cliente / Funcionário (Crediário)
   const [cpfInput, setCpfInput] = useState("");
+  const [customersList, setCustomersList] = useState<any[]>([]);
+  const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
+  const [customerSearchInput, setCustomerSearchInput] = useState("");
+  const [customerModalFilter, setCustomerModalFilter] = useState<"ALL" | "FUNCIONARIO">("ALL");
+  const [crediarioPin, setCrediarioPin] = useState("");
+  const [crediarioError, setCrediarioError] = useState("");
+  const [verifyingCrediario, setVerifyingCrediario] = useState(false);
+
+  const loadPdvCustomers = useCallback(async () => {
+    try {
+      const res = await getCustomers();
+      if (Array.isArray(res.customers)) {
+        setCustomersList(res.customers);
+      }
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    loadPdvCustomers();
+  }, [loadPdvCustomers]);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const discountInputRef = useRef<HTMLInputElement>(null);
@@ -1262,14 +1398,28 @@ function PDVContainer() {
     const now = new Date();
     const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-    const payLabels: Record<string, string> = { MONEY: 'Dinheiro', PIX: 'PIX', CREDIT_CARD: 'Cartão Crédito', DEBIT_CARD: 'Cartão Débito', VOUCHER: 'Voucher' };
+    const payLabels: Record<string, string> = { MONEY: 'Dinheiro', PIX: 'PIX', CREDIT_CARD: 'Cartão Crédito', DEBIT_CARD: 'Cartão Débito', VOUCHER: 'Voucher', CREDIARIO: 'Crediário Funcionário (Em Aberto)' };
     const itemRows = cartItems.map(i => {
       const n = i.name.length > 24 ? i.name.substring(0, 24) : i.name;
-      return `<tr><td>${n}</td><td style="text-align:center">${i.quantity}</td><td style="text-align:right">${fmtBRL(i.price)}</td><td style="text-align:right">${fmtBRL(i.quantity * i.price)}</td></tr>`;
+      const qtyFmt = String(Math.round(Number(i.quantity || 0) * 1000) / 1000).replace('.', ',');
+      return `<tr><td>${n}</td><td style="text-align:center">${qtyFmt}</td><td style="text-align:right">${fmtBRL(i.price)}</td><td style="text-align:right">${fmtBRL(i.quantity * i.price)}</td></tr>`;
     }).join('');
 
     const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Cupom</title>
-<style>@page{size:80mm auto;margin:0}*{margin:0;padding:0;box-sizing:border-box}body{font-family:'Courier New',monospace;font-size:12px;width:80mm;padding:4mm;color:#000;background:#fff}.center{text-align:center}.bold{font-weight:bold}.sep{border-top:1px dashed #000;margin:6px 0}.store{font-size:16px;font-weight:900;letter-spacing:2px}table{width:100%;border-collapse:collapse}th,td{padding:2px 0;font-size:11px}th{border-bottom:1px solid #000}.total-row td{font-size:14px;font-weight:900;padding-top:4px}.footer{font-size:9px;margin-top:10px}</style>
+<style>
+@page{size:80mm auto;margin:0}
+*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color:#000!important}
+body{font-family:'Courier New',monospace;font-size:13px;font-weight:700;width:80mm;padding:4mm 2mm;color:#000!important;background:#fff!important;margin:0}
+.center{text-align:center}
+.bold{font-weight:900}
+.sep{border-top:1px dashed #000;margin:6px 0}
+.store{font-size:16px;font-weight:900;letter-spacing:1px}
+table{width:100%;border-collapse:collapse}
+th,td{padding:2px 0;font-size:12px;color:#000!important}
+th{border-bottom:1px solid #000}
+.total-row td{font-size:15px;font-weight:900;padding-top:4px}
+.footer{font-size:10px;margin-top:8px}
+</style>
 </head><body>
 <div class="center"><div class="store">CYBERTECH RP</div><div>CNPJ: 00.000.000/0001-00</div><div>Rua Principal, 100 - Centro</div></div>
 <div class="sep"></div>
@@ -1287,7 +1437,7 @@ ${saleDiscount > 0 ? `<tr><td>Desconto</td><td style="text-align:right">-${fmtBR
 <div>Forma Pgto: ${payLabels[salePay] || salePay}</div>
 ${(salePay === 'CREDIT_CARD' || salePay === 'DEBIT_CARD' || salePay === 'VOUCHER') ? `<div>Adm POS: ${posAcquirer} | Bandeira: ${posBrand}</div><div>Aut/NSU: ${posAuthCode || 'N/I'}${salePay === 'CREDIT_CARD' ? ` | Parc: ${posInstallments}x` : ''}</div>` : ''}
 ${salePay === 'MONEY' ? `<div>Recebido: R$ ${fmtBRL(saleGiven)}</div><div class="bold">Troco: R$ ${fmtBRL(saleChange)}</div>` : ''}
-${cpfInput ? `<div class="sep"></div><div>CPF na Nota: ${cpfInput}</div>` : ''}
+${selectedCustomer ? `<div class="sep"></div><div>Cliente: ${selectedCustomer.name}</div>${selectedCustomer.document ? `<div>CPF/CNPJ: ${selectedCustomer.document}</div>` : ''}${salePay === 'CREDIARIO' ? `<div style="margin-top:14px;border-top:1px solid #000;padding-top:3px;text-align:center;font-size:10px;">Assinatura do Funcionário</div>` : ''}` : cpfInput ? `<div class="sep"></div><div>CPF na Nota: ${cpfInput}</div>` : ''}
 ${cashbackEarned > 0 ? `<div class="sep"></div><div class="center bold">FIDELIDADE CRM</div><div class="center bold" style="font-size:14px;color:#000;">CASHBACK CREDITADO: R$ ${fmtBRL(cashbackEarned)}</div>` : ''}
 ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
   <div class="sep"></div>
@@ -1512,6 +1662,13 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
         return;
       }
 
+      // F11 / Shift+F8: Ajustar e Reabrir Venda Recente
+      if (e.key === "F11" || (e.shiftKey && e.key === "F8")) {
+        e.preventDefault();
+        setIsAdjustModalOpen(true);
+        return;
+      }
+
       // ESC: Cancelar cupom atual
       if (e.key === "Escape" || match(hotkeys.cancel)) {
         e.preventDefault();
@@ -1528,12 +1685,12 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
         return;
       }
 
-      // Multiplicação rápida por '*' no campo de busca de produto
+      // Multiplicação rápida por '*' no campo de busca de produto (suporta peso fracionado ex: 0,350*)
       if (e.key === "*" && isInputActive && document.activeElement === inputRef.current) {
-        const val = parseInt(barcodeInput);
+        const val = parseFloat(barcodeInput.replace(",", "."));
         if (!isNaN(val) && val > 0) {
           e.preventDefault();
-          setMultiplier(val);
+          setMultiplier(Math.round(val * 1000) / 1000);
           setBarcodeInput("");
         }
         return;
@@ -1569,11 +1726,11 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
     if (!query) return;
 
     let inlineQty: number | undefined = undefined;
-    const match = query.match(/^(\d+)[*xX](.+)$/);
+    const match = query.match(/^(\d+(?:[.,]\d+)?)[*xX](.+)$/);
     if (match) {
-      inlineQty = parseInt(match[1]);
+      inlineQty = Math.round(parseFloat(match[1].replace(",", ".")) * 1000) / 1000;
       query = match[2];
-      if (inlineQty > 0) setMultiplier(inlineQty);
+      if (!isNaN(inlineQty) && inlineQty > 0) setMultiplier(inlineQty);
     }
 
     // Toledo MGV6 scale barcode decoder (13 digits starting with 2)
@@ -1663,13 +1820,67 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
     setErrorMessage(`EAN ${query} não encontrado no banco nem na internet`);
   };
 
+  const [cartQtyDraft, setCartQtyDraft] = useState<Record<string, string>>({});
+  const [cartBrlMode, setCartBrlMode] = useState<Record<string, string>>({});
+
+  const isFractionalPdvUnit = (u?: string, productName?: string) => {
+    const unit = (u || "").trim().toUpperCase();
+    if (
+      unit === "KG" ||
+      unit === "L" ||
+      unit === "LT" ||
+      unit === "G" ||
+      unit === "GR" ||
+      unit === "ML" ||
+      unit === "M" ||
+      unit === "MT"
+    ) {
+      return true;
+    }
+    if (productName) {
+      return /\b(KG|GR|GRAMA|GRAMAS|LITRO|LITROS|ML|METRO|METROS|MT)\b|\/KG|\(KG\)|\(L\)/i.test(
+        productName
+      );
+    }
+    return false;
+  };
+
+  const roundPdvQty = (n: number) => Math.round(Number(n || 0) * 1000) / 1000;
+
+  const formatPdvQty = (q: number, unit?: string, productName?: string) => {
+    const rounded = roundPdvQty(q);
+    if (isFractionalPdvUnit(unit, productName) && rounded % 1 !== 0) {
+      return rounded.toFixed(3).replace(".", ",");
+    }
+    return String(rounded).replace(".", ",");
+  };
+
+  const setCartQtyByBRL = (id: string, rawBrl: string) => {
+    const sanitized = rawBrl.replace(/[^0-9.,]/g, "");
+    setCartBrlMode(prev => ({ ...prev, [id]: sanitized }));
+    const parsedBrl = parseFloat(sanitized.replace(",", "."));
+    const target = cart.find(i => i.id === id);
+    if (!target || !Number.isFinite(parsedBrl) || parsedBrl <= 0 || target.price <= 0) return;
+    const nextQty = Math.max(0.001, roundPdvQty(parsedBrl / target.price));
+    setCartQtyDraft(prev => {
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
+    setCart(prev => prev.map(i => (i.id === id ? { ...i, quantity: nextQty } : i)));
+  };
+
   const addToCart = (product: any, qty?: number) => {
     playScannerBeep();
-    const quantityToAdd = qty || multiplier;
+    const quantityToAdd = roundPdvQty(qty || multiplier);
+    const prodUnit = product.unit || "UN";
     setCart(prev => {
       const existing = prev.find(i => i.id === product.id);
-      if (existing) return prev.map(i => i.id === product.id ? { ...i, quantity: i.quantity + quantityToAdd } : i);
-      return [...prev, { id: product.id, name: product.name, price: Number(product.price), quantity: quantityToAdd, barcode: product.barcode || "" }];
+      if (existing) {
+        const nextQty = roundPdvQty(existing.quantity + quantityToAdd);
+        return prev.map(i => i.id === product.id ? { ...i, quantity: nextQty, unit: i.unit || prodUnit } : i);
+      }
+      return [...prev, { id: product.id, name: product.name, price: Number(product.price), quantity: quantityToAdd, barcode: product.barcode || "", unit: prodUnit }];
     });
     setMultiplier(1);
     setBarcodeInput("");
@@ -1682,13 +1893,42 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
   };
 
   const updateQty = (id: string, delta: number) => {
-    setCart(prev => prev.map(i => i.id === id ? { ...i, quantity: Math.max(0, i.quantity + delta) } : i).filter(i => i.quantity > 0));
+    setCartQtyDraft(prev => {
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
+    setCart(prev => prev.map(i => i.id === id ? { ...i, quantity: roundPdvQty(Math.max(0, i.quantity + delta)) } : i).filter(i => i.quantity > 0));
+  };
+
+  const setExactCartQty = (id: string, rawText: string, commit = false) => {
+    const sanitized = rawText.replace(/[^0-9.,]/g, "");
+    if (!commit) {
+      setCartQtyDraft(prev => ({ ...prev, [id]: sanitized }));
+      const parsed = parseFloat(sanitized.replace(",", "."));
+      if (Number.isFinite(parsed) && parsed > 0) {
+        setCart(prev => prev.map(i => i.id === id ? { ...i, quantity: roundPdvQty(parsed) } : i));
+      }
+      return;
+    }
+    setCartQtyDraft(prev => {
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
+    const parsed = parseFloat(sanitized.replace(",", "."));
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      setCart(prev => prev.filter(i => i.id !== id));
+    } else {
+      setCart(prev => prev.map(i => i.id === id ? { ...i, quantity: roundPdvQty(parsed) } : i));
+    }
   };
 
   const removeItem = (id: string) => setCart(prev => prev.filter(i => i.id !== id));
 
   const clearSale = useCallback(() => {
-    setCart([]); setDiscountInput("0"); setLinkedOrderId(null);
+    setCart([]); setCartQtyDraft({}); setCartBrlMode({}); setDiscountInput("0"); setLinkedOrderId(null);
+    setSelectedCustomer(null); setCpfInput(""); setCrediarioPin(""); setCrediarioError(""); setPaymentMethod("MONEY");
     setBarcodeInput(""); setErrorMessage(""); setAmountGiven("");
     if (typeof window !== "undefined" && window.location.search) {
       router.replace("/pdv");
@@ -1696,17 +1936,108 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
     setTimeout(() => inputRef.current?.focus(), 150);
   }, [router]);
 
-  const openOrderModal = async () => {
-    setModal("order"); setLoadingOrders(true);
-    const { orders } = await getOrders();
-    if (orders) setOrdersList(orders.filter((o: any) => o.status === "DRAFT" || o.status === "CONFIRMED"));
-    setLoadingOrders(false);
+  const openOrderModal = async (initialTab: "orders" | "rooms" = "orders") => {
+    setOrderModalTab(initialTab);
+    setModal("order");
+    setLoadingOrders(true);
+    try {
+      const [{ orders }] = await Promise.all([
+        getOrders(),
+        hotelTabsEnabled ? refreshHotelTabs() : Promise.resolve(),
+      ]);
+      if (orders) setOrdersList(orders.filter((o: any) => o.status === "DRAFT" || o.status === "CONFIRMED"));
+    } finally {
+      setLoadingOrders(false);
+    }
+  };
+
+  const handleLaunchCartToRoom = async () => {
+    if (!selectedLaunchRoomId || cart.length === 0) return;
+    setLaunchingToRoom(true);
+    try {
+      const res = await addItemsToRoomTab({
+        roomId: selectedLaunchRoomId,
+        items: cart.map((i) => ({ productId: i.id, quantity: i.quantity })),
+      });
+      if (res.error) {
+        setErrorMessage(res.error);
+      } else {
+        await refreshHotelTabs();
+        setModal("");
+        clearSale();
+        setPdvRoomFeedback(`Itens lançados em ${res.roomName || "Quarto"} para fechamento futuro!`);
+        setTimeout(() => setPdvRoomFeedback(""), 4500);
+      }
+    } finally {
+      setLaunchingToRoom(false);
+    }
+  };
+
+  const handleCloseHotelRoomsFromPdv = async (roomIds: string[]) => {
+    if (roomIds.length === 0) return;
+    setPdvClosingRoomBusy(true);
+    try {
+      const res = await closeRoomTabFutureSale({
+        roomIds,
+        paymentMethod: pdvRoomPayMethod,
+        discount: 0,
+      });
+      if (res.error || !res.summary) {
+        alert(res.error || "Não foi possível fechar a comanda.");
+        return;
+      }
+      const s = res.summary;
+      await refreshHotelTabs();
+      if (session && pdvRoomPayMethod !== "FATURADO") {
+        const mappedMethod = pdvRoomPayMethod === "DINHEIRO" ? "MONEY" : pdvRoomPayMethod;
+        setSession((prev) =>
+          prev
+            ? {
+                ...prev,
+                sales: [
+                  ...prev.sales,
+                  { id: s.saleId, total: s.total, paymentMethod: mappedMethod, at: new Date() },
+                ],
+              }
+            : prev
+        );
+      }
+
+      const receipt: ReceiptData = {
+        saleId: s.saleId,
+        number: shortSaleNumber(s.saleId),
+        createdAt: s.closedAt || new Date().toISOString(),
+        companyName: s.companyName || "Empório",
+        companyDocument: "",
+        operatorName: session?.operator || "Operador",
+        paymentMethod: pdvRoomPayMethod,
+        subtotal: s.subtotal,
+        discount: s.discount,
+        total: s.total,
+        items: (s.items || []).map((it: any) => ({
+          name: it.name,
+          unit: it.unit || "UN",
+          quantity: it.quantity,
+          unitPrice: it.unitPrice,
+          total: it.total,
+        })),
+      };
+      setLastReceiptData(receipt);
+      setLastSaleId(s.saleId);
+      setModal("success");
+      setPdvRoomFeedback(
+        `Comanda fechada (${(s.roomsClosed || []).join(", ")}) — R$ ${fmt(Number(s.total || 0))}`
+      );
+      setTimeout(() => setPdvRoomFeedback(""), 5000);
+    } finally {
+      setPdvClosingRoomBusy(false);
+    }
   };
 
   const handleImportOrder = async (orderId: string) => {
     const { order, error } = await getOrderById(orderId);
     if (error || !order) { setErrorMessage(error || "Pedido não encontrado"); return; }
-    setCart(order.items.map((i: any) => ({ id: i.product.id, name: i.product.name, price: Number(i.unitPrice), quantity: i.quantity, barcode: i.product.barcode || "" })));
+    setCart(order.items.map((i: any) => ({ id: i.product.id, name: i.product.name, price: Number(i.unitPrice), quantity: Number(i.quantity), barcode: i.product.barcode || "", unit: i.product.unit || "UN" })));
     setDiscountInput(String(order.discount || 0));
     setLinkedOrderId(order.id);
     setModal("");
@@ -1732,6 +2063,27 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
     const disc = parseFloat(discountInput) || 0;
     const saleGiven = parseFloat(amountGiven) || 0;
     const saleChange = paymentMethod === "MONEY" && saleGiven >= total ? saleGiven - total : 0;
+
+    let creditAuthorizedBy: string | undefined = undefined;
+    if (paymentMethod === "CREDIARIO") {
+      if (!selectedCustomer || selectedCustomer.customerType !== "FUNCIONARIO") {
+        setCrediarioError("Selecione um funcionário cadastrado (F8) para liberar o Crediário.");
+        return;
+      }
+      if (isOfflineMode || (typeof navigator !== "undefined" && !navigator.onLine)) {
+        setCrediarioError("Crediário de funcionário exige conexão online para validar PIN e saldo.");
+        return;
+      }
+      setVerifyingCrediario(true);
+      setCrediarioError("");
+      const pinCheck = await verifySupervisorPin(crediarioPin);
+      setVerifyingCrediario(false);
+      if (!pinCheck.success) {
+        setCrediarioError(pinCheck.error || "PIN de confirmação inválido.");
+        return;
+      }
+      creditAuthorizedBy = pinCheck.userName || "Supervisor";
+    }
 
     let res: any;
     const isActuallyOffline = isOfflineMode || (typeof navigator !== "undefined" && !navigator.onLine);
@@ -1769,7 +2121,9 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
           paymentMethod,
           discount: disc,
           orderId: linkedOrderId || undefined,
-          customerCpf: cpfInput || undefined
+          customerCpf: cpfInput || selectedCustomer?.document || undefined,
+          customerId: selectedCustomer?.id || undefined,
+          creditAuthorizedBy,
         });
       } catch {
         // Fallback instantâneo para contingência offline caso caia a rede na finalização
@@ -1818,6 +2172,7 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
         companyName: "Cybertech RP",
         companyDocument: "",
         operatorName: session?.operator || "Operador",
+        customerName: selectedCustomer?.name || undefined,
         paymentMethod,
         subtotal,
         discount: finalDiscount,
@@ -1833,6 +2188,9 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
         })),
       };
       setLastReceiptData(snapshotReceipt);
+      if (paymentMethod === "CREDIARIO") {
+        loadPdvCustomers();
+      }
       setSharePhone("");
       setShareEmail("");
       setCopiedLink(false);
@@ -1883,6 +2241,8 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
       setLastSaleId(res.saleId);
       setModal("success");
       setCart([]);
+      setCartQtyDraft({});
+      setCartBrlMode({});
       setDiscountInput("0");
       setLinkedOrderId(null);
       setBarcodeInput("");
@@ -1890,6 +2250,11 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
       setAmountGiven("");
       setPosAuthCode("");
       setPosInstallments("1");
+      setCrediarioPin("");
+      setCrediarioError("");
+      setSelectedCustomer(null);
+      setCpfInput("");
+      setPaymentMethod("MONEY");
     } else {
       alert("Erro ao finalizar: " + (res.error || "Desconhecido"));
     }
@@ -2059,24 +2424,42 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
               <CybertechBrand size="md" />
             </div>
 
-            {/* Online status */}
+            {/* Online status SEFAZ */}
             <button
               type="button"
-              onClick={() => {
-                if (isOfflineMode) {
-                  alert(`Conexão reestabelecida! Transmitindo ${contingencySales.length} NFC-e emitidas em contingência offline para a SEFAZ...`);
-                  setContingencySales([]);
-                }
-                setIsOfflineMode(prev => !prev);
-              }}
-              className={`flex items-center gap-1.5 border px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-bold transition-all active:scale-95 shrink-0 ${isOfflineMode
-                ? "bg-red-50 border-red-300 text-red-600"
-                : "bg-green-50 border-green-300 text-green-600"
-                }`}
+              onClick={() => setModal("sefaz")}
+              title="Clique para abrir o Monitor Fiscal SEFAZ-AL"
+              className={`flex items-center gap-1.5 border px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-bold transition-all active:scale-95 shrink-0 ${
+                isOfflineMode
+                  ? "bg-amber-50 border-amber-300 text-amber-700 hover:bg-amber-100"
+                  : sefazLiveStatus.ok
+                  ? "bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100"
+                  : "bg-rose-50 border-rose-300 text-rose-700 hover:bg-rose-100"
+              }`}
             >
-              <span className={`w-2 h-2 rounded-full shrink-0 ${isOfflineMode ? "bg-red-500 animate-pulse" : "bg-green-500"}`}></span>
-              <span className="hidden sm:inline">{isOfflineMode ? `Contingência (${contingencySales.length})` : "Online (SEFAZ)"}</span>
-              <span className="sm:hidden">{isOfflineMode ? "Offline" : "Online"}</span>
+              <span
+                className={`w-2 h-2 rounded-full shrink-0 ${
+                  isOfflineMode
+                    ? "bg-amber-500 animate-pulse"
+                    : sefazLiveStatus.checking
+                    ? "bg-blue-500 animate-ping"
+                    : sefazLiveStatus.ok
+                    ? "bg-emerald-500"
+                    : "bg-rose-500"
+                }`}
+              />
+              <span className="hidden sm:inline">
+                {isOfflineMode
+                  ? `Contingência (${contingencySales.length})`
+                  : sefazLiveStatus.checking
+                  ? "Consultando SEFAZ..."
+                  : sefazLiveStatus.ok
+                  ? `SEFAZ Online (${sefazLiveStatus.latencyMs ? `${sefazLiveStatus.latencyMs}ms` : "107"})`
+                  : "SEFAZ Instável"}
+              </span>
+              <span className="sm:hidden">
+                {isOfflineMode ? "Contingência" : sefazLiveStatus.ok ? "SEFAZ OK" : "SEFAZ Off"}
+              </span>
             </button>
 
             {linkedOrderId && (
@@ -2164,9 +2547,9 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
             <div className="px-3 sm:px-5 pt-3 sm:pt-4 pb-2 sm:pb-3 flex flex-col gap-2 shrink-0 relative z-20">
               <div className="flex gap-2 items-center">
                 <form onSubmit={handleProductSubmit} className="flex-1 relative">
-                  {multiplier > 1 && (
+                  {roundPdvQty(multiplier) !== 1 && (
                     <div className="absolute right-12 top-1/2 -translate-y-1/2 bg-blue-600 text-white text-[11px] font-black px-2.5 py-1 rounded-lg shadow-sm animate-in zoom-in duration-150">
-                      {multiplier} x
+                      {String(roundPdvQty(multiplier)).replace(".", ",")} x
                     </div>
                   )}
                   <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -2238,7 +2621,7 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
                   {viewMode === "catalog" ? (
                     <>
                       <ShoppingCart size={15} />
-                      <span>Carrinho ({cart.reduce((a, b) => a + b.quantity, 0)})</span>
+                      <span>Carrinho ({String(roundPdvQty(cart.reduce((a, b) => a + b.quantity, 0))).replace(".", ",")})</span>
                     </>
                   ) : (
                     <>
@@ -2255,6 +2638,14 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
               <div className="mx-3 sm:mx-5 mb-2 text-red-600 text-xs font-semibold bg-red-50 border border-red-200 px-3 py-2 rounded-lg flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
                 <AlertCircle size={13} className="shrink-0" />
                 <span>{errorMessage}</span>
+              </div>
+            )}
+
+            {/* Feedback lançamento / fechamento de quarto */}
+            {pdvRoomFeedback && (
+              <div className="mx-3 sm:mx-5 mb-2 text-emerald-800 text-xs font-bold bg-emerald-50 border border-emerald-200 px-3 py-2 rounded-lg flex items-center gap-2 animate-in fade-in slide-in-from-top-2">
+                <Check size={14} className="shrink-0 text-emerald-600" />
+                <span>{pdvRoomFeedback}</span>
               </div>
             )}
 
@@ -2312,7 +2703,11 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
                   <>
                     {/* Lista de Cards para Mobile (< md) */}
                     <div className="md:hidden space-y-2">
-                      {cart.map((item, i) => (
+                      {cart.map((item, i) => {
+                        const frac = isFractionalPdvUnit(item.unit, item.name);
+                        const step = frac ? 0.1 : 1;
+                        const unitUpper = (item.unit || (frac ? "KG" : "UN")).toUpperCase();
+                        return (
                         <div
                           key={item.id}
                           className="bg-white border border-gray-200 rounded-2xl p-3 shadow-2xs flex flex-col gap-2"
@@ -2336,25 +2731,66 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
                             </button>
                           </div>
 
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            {(frac
+                              ? [
+                                  { label: unitUpper === "KG" ? "100g" : "0,1", val: 0.1 },
+                                  { label: unitUpper === "KG" ? "250g" : "0,25", val: 0.25 },
+                                  { label: unitUpper === "KG" ? "500g" : "0,5", val: 0.5 },
+                                  { label: unitUpper === "KG" ? "1kg" : "1", val: 1 },
+                                ]
+                              : [
+                                  { label: "0,25", val: 0.25 },
+                                  { label: "0,5", val: 0.5 },
+                                ]
+                            ).map((p) => (
+                              <button
+                                key={p.label}
+                                type="button"
+                                onClick={() => setExactCartQty(item.id, String(p.val), true)}
+                                className="px-2 py-0.5 rounded-md bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-bold border border-blue-200"
+                              >
+                                {p.label}
+                              </button>
+                            ))}
+                            <div className="ml-auto flex items-center gap-1 bg-emerald-50 border border-emerald-200 rounded-md px-1.5 py-0.5">
+                              <span className="text-[10px] font-bold text-emerald-700">R$</span>
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={cartBrlMode[item.id] ?? ""}
+                                onChange={(e) => setCartQtyByBRL(item.id, e.target.value)}
+                                placeholder="Valor"
+                                className="w-12 bg-transparent text-[11px] font-mono font-bold text-emerald-800 outline-none"
+                              />
+                            </div>
+                          </div>
+
                           <div className="flex items-center justify-between pt-1 border-t border-gray-100">
                             <span className="text-xs text-gray-500 font-mono">
-                              R$ {fmt(item.price)} / un
+                              R$ {fmt(item.price)} / {unitUpper.toLowerCase()}
                             </span>
 
                             <div className="flex items-center bg-gray-100 rounded-xl border border-gray-200 p-0.5">
                               <button
                                 type="button"
-                                onClick={() => updateQty(item.id, -1)}
+                                onClick={() => updateQty(item.id, -step)}
                                 className="w-7 h-7 rounded-lg bg-white hover:bg-gray-50 flex items-center justify-center text-gray-700 shadow-2xs"
                               >
                                 <Minus size={13} />
                               </button>
-                              <span className="w-9 text-center text-gray-900 font-black text-sm font-mono">
-                                {item.quantity}
-                              </span>
+                              <input
+                                type="text"
+                                inputMode="decimal"
+                                value={cartQtyDraft[item.id] ?? formatPdvQty(item.quantity, item.unit, item.name)}
+                                onChange={(e) => setExactCartQty(item.id, e.target.value, false)}
+                                onBlur={(e) => setExactCartQty(item.id, e.target.value, true)}
+                                aria-label={`Quantidade de ${item.name}`}
+                                className="w-16 text-center text-gray-900 font-black text-sm font-mono bg-white rounded-md mx-0.5 py-0.5 border border-gray-200 focus:border-blue-500 outline-none"
+                              />
                               <button
                                 type="button"
-                                onClick={() => updateQty(item.id, 1)}
+                                onClick={() => updateQty(item.id, step)}
                                 className="w-7 h-7 rounded-lg bg-white hover:bg-gray-50 flex items-center justify-center text-gray-700 shadow-2xs"
                               >
                                 <Plus size={13} />
@@ -2366,7 +2802,7 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
                             </span>
                           </div>
                         </div>
-                      ))}
+                      );})}
                     </div>
 
                     {/* Tabela Completa para Desktop/Tablet (>= md) */}
@@ -2377,29 +2813,82 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
                             <th className="px-4 py-3 w-12 text-center">#</th>
                             <th className="px-4 py-3">Produto</th>
                             <th className="px-4 py-3 text-center">Código</th>
-                            <th className="px-4 py-3 text-center w-28">Qtd</th>
+                            <th className="px-4 py-3 text-center w-36">Qtd / Peso</th>
                             <th className="px-4 py-3 text-right w-32">Valor Un.</th>
                             <th className="px-4 py-3 text-right w-36">Valor Total</th>
                             <th className="w-12" />
                           </tr>
                         </thead>
                         <tbody>
-                          {cart.map((item, i) => (
+                          {cart.map((item, i) => {
+                            const frac = isFractionalPdvUnit(item.unit, item.name);
+                            const step = frac ? 0.1 : 1;
+                            const unitUpper = (item.unit || (frac ? "KG" : "UN")).toUpperCase();
+                            return (
                             <tr key={item.id} className="border-b border-gray-100 hover:bg-blue-50/40 transition-colors group">
                               <td className="px-4 py-3 text-gray-400 font-medium text-xs text-center">{String(i + 1).padStart(3, "0")}</td>
                               <td className="px-4 py-3">
                                 <div className="text-gray-800 font-semibold text-sm leading-tight">{item.name}</div>
+                                <div className="flex flex-wrap items-center gap-1 mt-1">
+                                  {(frac
+                                    ? [
+                                        { label: unitUpper === "KG" ? "100g" : "0,1", val: 0.1 },
+                                        { label: unitUpper === "KG" ? "250g" : "0,25", val: 0.25 },
+                                        { label: unitUpper === "KG" ? "500g" : "0,5", val: 0.5 },
+                                        { label: unitUpper === "KG" ? "1kg" : "1", val: 1 },
+                                      ]
+                                    : [
+                                        { label: "0,25", val: 0.25 },
+                                        { label: "0,5", val: 0.5 },
+                                      ]
+                                  ).map((p) => (
+                                    <button
+                                      key={p.label}
+                                      type="button"
+                                      onClick={() => setExactCartQty(item.id, String(p.val), true)}
+                                      className="px-1.5 py-0.5 rounded bg-blue-50 hover:bg-blue-100 text-blue-700 text-[10px] font-bold border border-blue-200 cursor-pointer"
+                                    >
+                                      {p.label}
+                                    </button>
+                                  ))}
+                                  <div className="inline-flex items-center gap-1 bg-emerald-50 border border-emerald-200 rounded px-1.5 py-0.5 ml-1" title="Digite o valor em reais para calcular o peso/fração automaticamente">
+                                    <span className="text-[10px] font-bold text-emerald-700">R$</span>
+                                    <input
+                                      type="text"
+                                      inputMode="decimal"
+                                      value={cartBrlMode[item.id] ?? ""}
+                                      onChange={(e) => setCartQtyByBRL(item.id, e.target.value)}
+                                      placeholder="por R$"
+                                      className="w-12 bg-transparent text-[10px] font-mono font-bold text-emerald-800 outline-none placeholder:text-emerald-600/60"
+                                    />
+                                  </div>
+                                </div>
                               </td>
                               <td className="px-4 py-3 text-center">
                                 <span className="text-gray-400 text-xs font-mono">{item.barcode}</span>
                               </td>
                               <td className="px-4 py-3">
                                 <div className="flex items-center justify-center bg-gray-50 rounded-lg border border-gray-200 p-0.5 w-fit mx-auto">
-                                  <button onClick={() => updateQty(item.id, -1)} className="w-6 h-6 rounded-md hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors">
+                                  <button onClick={() => updateQty(item.id, -step)} className="w-6 h-6 rounded-md hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors">
                                     <Minus size={11} />
                                   </button>
-                                  <span className="w-8 text-center text-gray-800 font-bold text-sm">{item.quantity}</span>
-                                  <button onClick={() => updateQty(item.id, 1)} className="w-6 h-6 rounded-md hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors">
+                                  <input
+                                    type="text"
+                                    inputMode="decimal"
+                                    value={cartQtyDraft[item.id] ?? formatPdvQty(item.quantity, item.unit, item.name)}
+                                    onChange={(e) => setExactCartQty(item.id, e.target.value, false)}
+                                    onBlur={(e) => setExactCartQty(item.id, e.target.value, true)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.currentTarget.blur();
+                                        setTimeout(() => inputRef.current?.focus(), 20);
+                                      }
+                                    }}
+                                    aria-label={`Quantidade de ${item.name}`}
+                                    className="w-16 text-center text-gray-800 font-bold text-sm font-mono bg-white rounded mx-0.5 py-0.5 border border-gray-200 focus:border-blue-500 outline-none"
+                                  />
+                                  <span className="text-[10px] font-bold text-gray-400 pr-1">{unitUpper}</span>
+                                  <button onClick={() => updateQty(item.id, step)} className="w-6 h-6 rounded-md hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors">
                                     <Plus size={11} />
                                   </button>
                                 </div>
@@ -2412,7 +2901,7 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
                                 </button>
                               </td>
                             </tr>
-                          ))}
+                          );})}
                         </tbody>
                       </table>
                     </div>
@@ -2460,7 +2949,7 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
                           >
                             {inCart && (
                               <span className="absolute -top-2 -right-2 bg-emerald-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-xs">
-                                {inCart.quantity}x
+                                {formatPdvQty(inCart.quantity, inCart.unit, inCart.name)}x
                               </span>
                             )}
                             <div>
@@ -2514,21 +3003,42 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
 
               <button
                 type="button"
-                onClick={() => setModal("cpf")}
-                className="flex items-center gap-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-2.5 py-1.5 text-[11px] font-bold text-gray-700 shrink-0"
+                onClick={() => { loadPdvCustomers(); setModal("cpf"); }}
+                className={`flex items-center gap-1 border rounded-xl px-2.5 py-1.5 text-[11px] font-bold shrink-0 ${
+                  selectedCustomer?.customerType === "FUNCIONARIO"
+                    ? "bg-amber-50 border-amber-300 text-amber-900"
+                    : "bg-gray-50 hover:bg-gray-100 border-gray-200 text-gray-700"
+                }`}
               >
-                <User size={12} className="text-blue-600" />
-                <span className="truncate max-w-[90px]">{cpfInput || "CPF/Cliente"}</span>
+                {selectedCustomer?.customerType === "FUNCIONARIO" ? (
+                  <Briefcase size={12} className="text-amber-600" />
+                ) : (
+                  <User size={12} className="text-blue-600" />
+                )}
+                <span className="truncate max-w-[110px]">
+                  {selectedCustomer?.name || cpfInput || "Cliente / Func."}
+                </span>
               </button>
 
               <button
                 type="button"
-                onClick={openOrderModal}
+                onClick={() => openOrderModal("orders")}
                 className="flex items-center gap-1 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl px-2.5 py-1.5 text-[11px] font-bold text-gray-700 shrink-0"
               >
                 <Download size={12} className="text-blue-600" />
                 <span>Pedido</span>
               </button>
+
+              {hotelTabsEnabled && hotelRooms.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => (cart.length > 0 ? setModal("roomlaunch") : openOrderModal("rooms"))}
+                  className="flex items-center gap-1 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl px-2.5 py-1.5 text-[11px] font-bold text-indigo-700 shrink-0"
+                >
+                  <BedDouble size={12} className="text-indigo-600" />
+                  <span>{cart.length > 0 ? "Lançar Quarto" : "Quartos"}</span>
+                </button>
+              )}
 
               <button
                 type="button"
@@ -2545,7 +3055,7 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
               <div className="flex-1 bg-gradient-to-r from-blue-700 via-blue-600 to-blue-500 rounded-2xl px-3.5 py-2.5 text-white flex items-center justify-between shadow-sm">
                 <div>
                   <span className="text-[9px] font-black uppercase tracking-wider text-blue-100 block leading-none">
-                    TOTAL ({cart.reduce((a, b) => a + b.quantity, 0)} un)
+                    TOTAL ({String(roundPdvQty(cart.reduce((a, b) => a + b.quantity, 0))).replace(".", ",")} un)
                   </span>
                   <span className="text-xl sm:text-2xl font-black font-mono tracking-tight leading-tight">
                     R$ {fmt(total)}
@@ -2603,23 +3113,44 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
                 </div>
               </div>
 
-              {/* Cliente (CPF/CNPJ) — F8 */}
+              {/* Cliente / Funcionário — F8 */}
               <div className="space-y-1.5 bg-gray-50/70 border border-gray-200/80 p-3 rounded-2xl">
                 <div className="flex items-center justify-between text-xs font-bold text-gray-700">
                   <span className="flex items-center gap-1.5">
-                    <User size={14} className="text-blue-600" /> Cliente (CPF/CNPJ)
+                    <User size={14} className="text-blue-600" /> Cliente / Funcionário
                   </span>
                   <span className="text-[10px] text-gray-400 font-mono">F8</span>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setModal("cpf")}
-                  className="w-full bg-white border border-gray-200 hover:border-blue-400 text-gray-600 px-3 py-2 rounded-xl outline-none text-xs transition-all flex justify-between items-center cursor-pointer shadow-2xs"
+                  onClick={() => { loadPdvCustomers(); setModal("cpf"); }}
+                  className={`w-full border px-3 py-2 rounded-xl outline-none text-xs transition-all flex justify-between items-center cursor-pointer shadow-2xs ${
+                    selectedCustomer?.customerType === "FUNCIONARIO"
+                      ? "bg-amber-50 border-amber-300 hover:border-amber-400 text-amber-950"
+                      : "bg-white border-gray-200 hover:border-blue-400 text-gray-600"
+                  }`}
                 >
-                  {cpfInput ? (
+                  {selectedCustomer ? (
+                    <div className="min-w-0 text-left">
+                      <div className="font-bold text-gray-900 truncate flex items-center gap-1.5">
+                        {selectedCustomer.name}
+                      </div>
+                      {selectedCustomer.customerType === "FUNCIONARIO" ? (
+                        <div className="text-[10px] font-extrabold text-amber-700">
+                          FUNCIONÁRIO • Crediário liberado
+                        </div>
+                      ) : (
+                        selectedCustomer.document && (
+                          <div className="text-[10px] font-mono text-gray-500">
+                            {selectedCustomer.document}
+                          </div>
+                        )
+                      )}
+                    </div>
+                  ) : cpfInput ? (
                     <span className="font-mono font-bold text-blue-600 truncate">{cpfInput}</span>
                   ) : (
-                    <span className="text-gray-400 text-xs">Não identificado</span>
+                    <span className="text-gray-400 text-xs">Selecionar cliente...</span>
                   )}
                   <ChevronRight size={14} className="text-gray-400 shrink-0" />
                 </button>
@@ -2648,14 +3179,27 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
                 <span className="text-[10px] font-mono text-gray-400 font-normal">F7</span>
               </button>
 
+              {hotelTabsEnabled && hotelRooms.length > 0 && cart.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setModal("roomlaunch")}
+                  className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-bold py-2.5 rounded-2xl text-xs transition-all border border-indigo-200 flex items-center justify-center gap-2 cursor-pointer shadow-2xs active:scale-[0.99]"
+                >
+                  <BedDouble size={15} className="text-indigo-600" />
+                  <span className="truncate">
+                    Lançar em Quarto ({hotelCustomers[0]?.name || "Quartos"})
+                  </span>
+                </button>
+              )}
+
               <div className="pt-2 border-t border-gray-100 flex gap-2">
                 <button
                   type="button"
-                  onClick={openOrderModal}
+                  onClick={() => openOrderModal("orders")}
                   className="flex-1 bg-gray-50 hover:bg-gray-100 text-gray-600 font-semibold py-1.5 rounded-xl text-[11px] transition-colors border border-gray-200 flex items-center justify-center gap-1 cursor-pointer"
-                  title="Importar Pedido"
+                  title="Importar Pedido ou Ver Comandas de Quartos"
                 >
-                  <Download size={12} /> Pedido
+                  <Download size={12} /> {hotelTabsEnabled ? "Pedidos / Quartos" : "Pedido"}
                 </button>
                 <button
                   type="button"
@@ -2792,6 +3336,19 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
 
           <button
             type="button"
+            onClick={() => setIsAdjustModalOpen(true)}
+            className="flex items-center gap-1.5 hover:text-amber-200 text-amber-300 font-bold transition-colors cursor-pointer shrink-0"
+            title="Ajustar Venda / Corrigir Desconto ou Erro no Caixa (F11)"
+          >
+            <span className="w-5 h-5 rounded bg-amber-500/30 border border-amber-400/50 flex items-center justify-center text-[10px] font-black text-amber-200">
+              F11
+            </span>
+            <span>Ajustar Venda</span>
+          </button>
+          <span className="text-blue-400/40">|</span>
+
+          <button
+            type="button"
             onClick={() => {
               if (cart.length > 0 && confirm("Cancelar cupom atual e limpar itens?")) {
                 setCart([]);
@@ -2849,7 +3406,7 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
               </div>
               <div className="bg-white/10 backdrop-blur-xs border border-white/20 rounded-xl px-3 py-1.5 text-right">
                 <span className="text-[10px] uppercase font-bold text-blue-100 block">ITENS</span>
-                <span className="text-xs font-black text-white">{cart.reduce((a, b) => a + b.quantity, 0)} un</span>
+                <span className="text-xs font-black text-white">{String(roundPdvQty(cart.reduce((a, b) => a + b.quantity, 0))).replace(".", ",")} un</span>
               </div>
             </div>
 
@@ -2997,7 +3554,7 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
                 </div>
               )}
 
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+              <div className={`grid gap-1.5 ${selectedCustomer?.customerType === "FUNCIONARIO" ? "grid-cols-2 sm:grid-cols-6" : "grid-cols-2 sm:grid-cols-5"}`}>
                 {[
                   { key: "MONEY", label: "Dinheiro", icon: <Banknote size={18} /> },
                   { key: "PIX", label: "PIX", icon: <QrCode size={18} /> },
@@ -3016,21 +3573,30 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
                     label: pdvPayConfig.posModeEnabled ? "Voucher POS" : "Voucher",
                     icon: <Zap size={18} />,
                   },
+                  ...(selectedCustomer?.customerType === "FUNCIONARIO"
+                    ? [{ key: "CREDIARIO", label: "Crediário", icon: <Briefcase size={18} /> }]
+                    : []),
                 ]
-                  .filter(p => pdvPayConfig.enabledMethods[p.key as keyof typeof pdvPayConfig.enabledMethods] !== false)
+                  .filter(p => p.key === "CREDIARIO" || pdvPayConfig.enabledMethods[p.key as keyof typeof pdvPayConfig.enabledMethods] !== false)
                   .map(p => (
                     <button
                       key={p.key}
                       type="button"
                       onClick={() => {
                         setPaymentMethod(p.key);
+                        setCrediarioError("");
                         if (p.key !== "MONEY") setAmountGiven(String(total));
                         if (p.key === "CREDIT_CARD" || p.key === "DEBIT_CARD" || p.key === "VOUCHER") {
                           setPosStep(getInitialPosStep());
                         }
                       }}
-                      className={`flex flex-col items-center justify-center gap-1 py-2.5 px-1 rounded-xl border-2 transition-all font-bold cursor-pointer ${paymentMethod === p.key
-                          ? "border-blue-600 bg-blue-600 text-white shadow-xs"
+                      className={`flex flex-col items-center justify-center gap-1 py-2.5 px-1 rounded-xl border-2 transition-all font-bold cursor-pointer ${
+                        paymentMethod === p.key
+                          ? p.key === "CREDIARIO"
+                            ? "border-amber-600 bg-amber-600 text-white shadow-xs"
+                            : "border-blue-600 bg-blue-600 text-white shadow-xs"
+                          : p.key === "CREDIARIO"
+                          ? "border-amber-300 bg-amber-50 text-amber-900 hover:bg-amber-100"
                           : "border-gray-200 bg-white text-gray-700 hover:border-blue-300 hover:bg-gray-50"
                         }`}
                     >
@@ -3039,7 +3605,93 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
                     </button>
                   ))}
               </div>
+
+              {selectedCustomer?.customerType !== "FUNCIONARIO" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    loadPdvCustomers();
+                    setCustomerModalFilter("FUNCIONARIO");
+                    setModal("cpf");
+                  }}
+                  className="mt-2 w-full py-1.5 px-3 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 text-[11px] font-bold flex items-center justify-between transition-colors cursor-pointer"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Briefcase size={13} className="text-amber-700" />
+                    Compra de Funcionário (Crediário)? Selecione o colaborador aqui (F8)
+                  </span>
+                  <ChevronRight size={13} />
+                </button>
+              )}
             </div>
+
+            {/* ── PAINEL CREDIÁRIO FUNCIONÁRIO ── */}
+            {paymentMethod === "CREDIARIO" && selectedCustomer?.customerType === "FUNCIONARIO" && (
+              <div className="bg-amber-50/90 border border-amber-300 rounded-2xl p-4 space-y-3 animate-in fade-in duration-150">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-700 block">
+                      Crediário em Aberto — Funcionário
+                    </span>
+                    <span className="text-sm font-black text-gray-900">{selectedCustomer.name}</span>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-full bg-amber-200/80 text-amber-950 font-black text-[10px] uppercase">
+                    Em Aberto
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 text-center bg-white border border-amber-200 rounded-xl p-2.5">
+                  <div>
+                    <span className="text-[10px] text-gray-500 block font-bold">Em Aberto</span>
+                    <span className="font-mono font-black text-xs text-gray-900">
+                      R$ {fmt(Number(selectedCustomer.creditUsed || 0))}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-gray-500 block font-bold">Esta Compra</span>
+                    <span className="font-mono font-black text-xs text-amber-700">
+                      + R$ {fmt(total)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-gray-500 block font-bold">Novo Saldo</span>
+                    <span className="font-mono font-black text-xs text-red-700">
+                      R$ {fmt(Number(selectedCustomer.creditUsed || 0) + total)}
+                    </span>
+                  </div>
+                </div>
+
+                {Number(selectedCustomer.creditLimit || 0) > 0 && (
+                  <div className="text-[11px] font-bold text-amber-900 flex justify-between">
+                    <span>Limite cadastrado:</span>
+                    <span className="font-mono">R$ {fmt(Number(selectedCustomer.creditLimit))}</span>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-[10px] font-black uppercase tracking-wider text-amber-900 mb-1">
+                    PIN / Senha de Confirmação *
+                  </label>
+                  <input
+                    type="password"
+                    value={crediarioPin}
+                    onChange={(e) => {
+                      setCrediarioPin(e.target.value);
+                      setCrediarioError("");
+                    }}
+                    autoFocus
+                    placeholder="Digite o PIN ou senha de autorização..."
+                    className="w-full bg-white border-2 border-amber-300 focus:border-amber-600 rounded-xl px-3 py-2 text-sm font-mono font-bold text-gray-900 outline-none"
+                  />
+                </div>
+
+                {crediarioError && (
+                  <div className="text-xs font-bold text-red-700 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+                    {crediarioError}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* ── PAINEL MAQUINETA POS: UMA INFORMAÇÃO POR VEZ (PASSO A PASSO) ── */}
             {(paymentMethod === "CREDIT_CARD" || paymentMethod === "DEBIT_CARD" || paymentMethod === "VOUCHER") &&
@@ -3285,10 +3937,14 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
               </button>
               <button
                 type="submit"
-                disabled={paymentMethod === "MONEY" && parseFloat(amountGiven) < total && amountGiven !== ""}
+                disabled={
+                  verifyingCrediario ||
+                  (paymentMethod === "MONEY" && parseFloat(amountGiven) < total && amountGiven !== "") ||
+                  (paymentMethod === "CREDIARIO" && !crediarioPin.trim())
+                }
                 className="flex-[2] bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 rounded-xl text-xs uppercase tracking-widest transition-all shadow-md shadow-emerald-600/20 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
               >
-                <Check size={16} /> Confirmar Venda (ENTER)
+                <Check size={16} /> {verifyingCrediario ? "Validando PIN..." : "Confirmar Venda (ENTER)"}
               </button>
             </div>
           </form>
@@ -3605,20 +4261,28 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
                         const expectedPix = session.sales
                           .filter(s => s.paymentMethod === "PIX")
                           .reduce((a, s) => a + s.total, 0);
+                        const expectedCrediario = session.sales
+                          .filter(s => s.paymentMethod === "CREDIARIO")
+                          .reduce((a, s) => a + s.total, 0);
 
                         const fields = [
-                          { label: "Dinheiro (Espécie)", expected: expectedMoney, counted: parseFloat(countedMoney) || 0 },
-                          { label: "Cartão (Crédito/Débito)", expected: expectedCard, counted: parseFloat(countedCard) || 0 },
-                          { label: "PIX", expected: expectedPix, counted: parseFloat(countedPix) || 0 }
+                          { label: "Dinheiro (Espécie)", expected: expectedMoney, counted: parseFloat(countedMoney) || 0, isCrediario: false },
+                          { label: "Cartão (Crédito/Débito)", expected: expectedCard, counted: parseFloat(countedCard) || 0, isCrediario: false },
+                          { label: "PIX", expected: expectedPix, counted: parseFloat(countedPix) || 0, isCrediario: false },
+                          ...(expectedCrediario > 0
+                            ? [{ label: "Crediário Funcionário (Em Aberto)", expected: expectedCrediario, counted: expectedCrediario, isCrediario: true }]
+                            : []),
                         ];
 
                         return fields.map((f, idx) => {
                           const diff = f.counted - f.expected;
                           return (
-                            <tr key={idx} className="hover:bg-gray-50">
+                            <tr key={idx} className={`hover:bg-gray-50 ${f.isCrediario ? "bg-amber-50/50" : ""}`}>
                               <td className="px-5 py-3.5 font-bold text-gray-900">{f.label}</td>
                               <td className="px-5 py-3.5 text-right font-mono text-gray-600">R$ {fmt(f.expected)}</td>
-                              <td className="px-5 py-3.5 text-right font-mono text-gray-600">R$ {fmt(f.counted)}</td>
+                              <td className="px-5 py-3.5 text-right font-mono text-gray-600">
+                                {f.isCrediario ? "A receber (Faturado)" : `R$ ${fmt(f.counted)}`}
+                              </td>
                               <td className={`px-5 py-3.5 text-right font-mono font-black ${Math.abs(diff) < 0.05
                                 ? "text-green-600"
                                 : diff > 0
@@ -3843,61 +4507,424 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
       )}
 
 
-      {/* ── Order Modal ── */}
+      {/* ── Order & Room Tabs Modal ── */}
       {modal === "order" && (
-        <ModalWrapper title="Importar Pedido de Televenda" icon={<FileText size={20} />} onClose={() => setModal("")} wide>
-          <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
-            {loadingOrders ? (
-              <div className="text-center text-gray-400 py-8 animate-pulse">Carregando pedidos...</div>
-            ) : ordersList.length === 0 ? (
-              <div className="text-center text-gray-400 py-8">Nenhum pedido pendente encontrado.</div>
-            ) : (
-              <div className="grid grid-cols-1 gap-3">
-                {ordersList.map((o: any) => (
-                  <div key={o.id} className="bg-gray-50 border border-gray-200 p-4 rounded-xl flex justify-between items-center hover:border-blue-400 transition-colors">
-                    <div>
-                      <div className="text-gray-900 font-bold text-sm">Pedido #{o.id.slice(0, 8).toUpperCase()}</div>
-                      <div className="text-gray-500 text-xs mt-0.5">Cliente: {o.customer?.name || "Não identificado"}</div>
-                      <div className="text-blue-600 font-mono font-bold text-xs mt-1">Total: R$ {Number(o.total || 0).toFixed(2)}</div>
+        <ModalWrapper
+          title={hotelTabsEnabled ? "Pedidos & Comandas de Quartos" : "Importar Pedido de Televenda"}
+          icon={orderModalTab === "rooms" ? <BedDouble size={20} /> : <FileText size={20} />}
+          onClose={() => setModal("")}
+          wide
+        >
+          <div className="p-5 space-y-4 max-h-[72vh] overflow-y-auto">
+            {hotelTabsEnabled && hotelRooms.length > 0 && (
+              <div className="flex gap-2 border-b border-gray-200 pb-3">
+                <button
+                  type="button"
+                  onClick={() => setOrderModalTab("orders")}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-extrabold cursor-pointer transition-all ${
+                    orderModalTab === "orders"
+                      ? "bg-blue-600 text-white shadow-xs"
+                      : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  }`}
+                >
+                  Pedidos ({ordersList.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOrderModalTab("rooms")}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-extrabold cursor-pointer transition-all flex items-center gap-1.5 ${
+                    orderModalTab === "rooms"
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                  }`}
+                >
+                  <BedDouble size={14} />
+                  <span>
+                    Comandas de Quartos ({hotelRooms.filter((r: any) => Boolean(r.openOrder)).length} abertas)
+                  </span>
+                </button>
+              </div>
+            )}
+
+            {orderModalTab === "orders" || !hotelTabsEnabled ? (
+              loadingOrders ? (
+                <div className="text-center text-gray-400 py-8 animate-pulse">Carregando pedidos...</div>
+              ) : ordersList.length === 0 ? (
+                <div className="text-center text-gray-400 py-8">Nenhum pedido pendente encontrado.</div>
+              ) : (
+                <div className="grid grid-cols-1 gap-3">
+                  {ordersList.map((o: any) => (
+                    <div key={o.id} className="bg-gray-50 border border-gray-200 p-4 rounded-xl flex justify-between items-center hover:border-blue-400 transition-colors">
+                      <div>
+                        <div className="text-gray-900 font-bold text-sm">Pedido #{o.id.slice(0, 8).toUpperCase()}</div>
+                        <div className="text-gray-500 text-xs mt-0.5">
+                          Cliente: {o.customer?.name || o.customerName || "Não identificado"}
+                        </div>
+                        <div className="text-blue-600 font-mono font-bold text-xs mt-1">Total: R$ {Number(o.total || 0).toFixed(2)}</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleImportOrder(o.id)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors shadow-sm cursor-pointer"
+                      >
+                        IMPORTAR
+                      </button>
                     </div>
-                    <button
-                      onClick={() => handleImportOrder(o.id)}
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-lg text-xs transition-colors shadow-sm"
-                    >
-                      IMPORTAR
-                    </button>
+                  ))}
+                </div>
+              )
+            ) : (
+              <div className="space-y-4">
+                {/* Forma de pagamento para fechamento pelo PDV */}
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3.5 space-y-2">
+                  <div className="text-[11px] font-black uppercase text-slate-600">
+                    Forma de Pagamento para Fechamento de Quarto
                   </div>
-                ))}
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+                    {[
+                      { key: "DINHEIRO", label: "Dinheiro" },
+                      { key: "PIX", label: "PIX" },
+                      { key: "CREDIT_CARD", label: "Crédito" },
+                      { key: "DEBIT_CARD", label: "Débito" },
+                      { key: "FATURADO", label: "Faturado" },
+                    ].map((pm) => (
+                      <button
+                        key={pm.key}
+                        type="button"
+                        onClick={() => setPdvRoomPayMethod(pm.key)}
+                        className={`py-2 px-2 rounded-xl text-xs font-bold border cursor-pointer transition-all ${
+                          pdvRoomPayMethod === pm.key
+                            ? "bg-blue-600 text-white border-blue-600"
+                            : "bg-white text-gray-700 border-gray-200"
+                        }`}
+                      >
+                        {pm.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Fechamento consolidado por cliente */}
+                {hotelCustomers.map((cust: any) => {
+                  const openIds = (cust.rooms || [])
+                    .filter((r: any) => Boolean(r.openOrder))
+                    .map((r: any) => r.id);
+                  if (openIds.length === 0) return null;
+                  return (
+                    <div
+                      key={cust.id}
+                      className="bg-indigo-50 border border-indigo-200 rounded-2xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    >
+                      <div>
+                        <div className="text-xs font-black text-indigo-900">
+                          {cust.name} · {openIds.length} quarto(s) em aberto
+                        </div>
+                        <div className="text-sm font-black font-mono text-indigo-700">
+                          Total Consolidado: R$ {fmt(Number(cust.consolidatedTotal || 0))}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        disabled={pdvClosingRoomBusy}
+                        onClick={() => handleCloseHotelRoomsFromPdv(openIds)}
+                        className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs cursor-pointer"
+                      >
+                        {pdvClosingRoomBusy ? "Fechando..." : `Fechar Todos (${cust.name})`}
+                      </button>
+                    </div>
+                  );
+                })}
+
+                {/* Lista dos Quartos */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {hotelRooms.map((room: any) => {
+                    const isOpen = Boolean(room.openOrder);
+                    const items = room.openOrder?.items || [];
+                    return (
+                      <div
+                        key={room.id}
+                        className={`border rounded-2xl p-3.5 space-y-2.5 ${
+                          isOpen ? "bg-white border-blue-300" : "bg-gray-50 border-gray-200"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="font-black text-sm text-gray-900">
+                              {room.name} ({room.code})
+                            </div>
+                            <div className="text-[11px] text-gray-500">
+                              {room.customerName}
+                              {room.guestName ? ` · ${room.guestName}` : ""}
+                            </div>
+                          </div>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                              isOpen
+                                ? "bg-amber-50 text-amber-800 border-amber-300"
+                                : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            }`}
+                          >
+                            {isOpen ? "Aberta" : "Livre"}
+                          </span>
+                        </div>
+
+                        {items.length > 0 && (
+                          <div className="text-[11px] text-gray-600 bg-slate-50 rounded-xl p-2 space-y-0.5 max-h-24 overflow-y-auto">
+                            {items.map((it: any) => (
+                              <div key={it.id} className="flex justify-between gap-2">
+                                <span className="truncate">
+                                  {it.quantity}x {it.product?.name}
+                                </span>
+                                <span className="font-mono font-bold">
+                                  R$ {fmt(Number(it.total || 0))}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between pt-1">
+                          <span className="font-mono font-black text-sm text-blue-700">
+                            R$ {fmt(Number(room.tabTotal || 0))}
+                          </span>
+                          {isOpen && (
+                            <button
+                              type="button"
+                              disabled={pdvClosingRoomBusy}
+                              onClick={() => handleCloseHotelRoomsFromPdv([room.id])}
+                              className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold text-xs cursor-pointer"
+                            >
+                              Fechar Quarto
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
         </ModalWrapper>
       )}
 
-      {/* ── CPF Modal ── */}
+      {/* ── Lançar Carrinho em Quarto (Exclusivo Empório / Fazenda Belém) ── */}
+      {modal === "roomlaunch" && hotelTabsEnabled && (
+        <ModalWrapper
+          title={`Lançar Consumo em Quarto (${hotelCustomers[0]?.name || "Quartos"})`}
+          icon={<BedDouble size={20} />}
+          onClose={() => setModal("")}
+        >
+          <div className="p-5 space-y-4">
+            <div className="bg-indigo-50 border border-indigo-200 rounded-2xl p-3.5 text-xs text-indigo-900">
+              Os itens abaixo serão lançados na comanda aberta do quarto escolhido (com baixa imediata do estoque) e o carrinho do caixa será limpo sem cobrança imediata.
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              {hotelRooms.map((room: any) => {
+                const selected = selectedLaunchRoomId === room.id;
+                const isOpen = Boolean(room.openOrder);
+                return (
+                  <button
+                    key={room.id}
+                    type="button"
+                    onClick={() => setSelectedLaunchRoomId(room.id)}
+                    className={`p-3 rounded-2xl border-2 text-left transition-all cursor-pointer ${
+                      selected
+                        ? "border-indigo-600 bg-indigo-50 text-indigo-950 shadow-xs"
+                        : "border-gray-200 bg-white text-gray-700 hover:border-indigo-300"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-black text-sm">{room.name}</span>
+                      <span className="text-[10px] font-mono font-bold text-gray-500">{room.code}</span>
+                    </div>
+                    <div className="text-[11px] text-gray-500 truncate mt-0.5">
+                      {room.guestName || room.customerName}
+                    </div>
+                    <div className="text-xs font-mono font-black text-indigo-700 mt-1.5">
+                      {isOpen ? `Aberto: R$ ${fmt(Number(room.tabTotal || 0))}` : "Livre (R$ 0,00)"}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 flex items-center justify-between text-xs">
+              <span className="font-bold text-slate-600">
+                Carrinho atual: {String(roundPdvQty(cart.reduce((a, b) => a + b.quantity, 0))).replace(".", ",")} item(ns)
+              </span>
+              <span className="font-mono font-black text-base text-slate-900">
+                R$ {fmt(subtotal)}
+              </span>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setModal("")}
+                className="flex-1 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={!selectedLaunchRoomId || launchingToRoom || cart.length === 0}
+                onClick={handleLaunchCartToRoom}
+                className="flex-[2] py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-extrabold text-xs uppercase tracking-wider cursor-pointer shadow-md"
+              >
+                {launchingToRoom ? "Enviando..." : "Enviar para Comanda do Quarto"}
+              </button>
+            </div>
+          </div>
+        </ModalWrapper>
+      )}
+
+      {/* ── Cliente / Funcionário Modal (F8) ── */}
       {modal === "cpf" && (
-        <ModalWrapper title="Identificar Cliente (CPF/CNPJ)" icon={<Users size={20} />} onClose={() => setModal("")}>
-          <div className="p-6 space-y-4">
-            <input
-              type="text"
-              value={cpfInput}
-              onChange={e => setCpfInput(e.target.value)}
-              placeholder="Digite o CPF ou CNPJ do cliente..."
-              className="w-full bg-white border border-gray-200 focus:border-blue-600 text-gray-900 font-mono text-lg px-4 py-3 rounded-xl outline-none shadow-sm transition-all text-center"
-              autoFocus
-              onKeyDown={e => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  setModal("");
-                }
-              }}
-            />
-            <button
-              onClick={() => setModal("")}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow-md shadow-blue-500/20"
-            >
-              CONFIRMAR
-            </button>
+        <ModalWrapper title="Selecionar Cliente / Funcionário (F8)" icon={<Users size={20} />} onClose={() => setModal("")} wide>
+          <div className="p-5 space-y-4">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="relative flex-1">
+                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={customerSearchInput}
+                  onChange={e => setCustomerSearchInput(e.target.value)}
+                  placeholder="Buscar por nome, CPF ou telefone..."
+                  autoFocus
+                  className="w-full bg-gray-50 border border-gray-200 focus:border-blue-600 focus:bg-white text-gray-900 text-sm pl-10 pr-4 py-2.5 rounded-xl outline-none font-medium"
+                />
+              </div>
+              <div className="flex gap-1 bg-gray-100 p-1 rounded-xl border border-gray-200 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setCustomerModalFilter("ALL")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer ${
+                    customerModalFilter === "ALL" ? "bg-white text-blue-700 shadow-2xs" : "text-gray-600"
+                  }`}
+                >
+                  Todos ({customersList.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCustomerModalFilter("FUNCIONARIO")}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer ${
+                    customerModalFilter === "FUNCIONARIO" ? "bg-amber-600 text-white shadow-2xs" : "text-gray-600"
+                  }`}
+                >
+                  <Briefcase size={12} /> Funcionários ({customersList.filter(c => c.customerType === "FUNCIONARIO").length})
+                </button>
+              </div>
+            </div>
+
+            <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-2xl divide-y divide-gray-100 bg-white">
+              {customersList
+                .filter(c => {
+                  const q = customerSearchInput.trim().toLowerCase();
+                  const matchesType = customerModalFilter === "ALL" || c.customerType === "FUNCIONARIO";
+                  if (!matchesType) return false;
+                  if (!q) return true;
+                  return (
+                    (c.name || "").toLowerCase().includes(q) ||
+                    (c.document || "").toLowerCase().includes(q) ||
+                    (c.phone || "").toLowerCase().includes(q)
+                  );
+                })
+                .map((c: any) => {
+                  const isFunc = c.customerType === "FUNCIONARIO";
+                  const isSel = selectedCustomer?.id === c.id;
+                  return (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedCustomer(c);
+                        setCpfInput(c.document || "");
+                        if (!isFunc && paymentMethod === "CREDIARIO") {
+                          setPaymentMethod("MONEY");
+                        }
+                        setModal("");
+                      }}
+                      className={`w-full px-4 py-3 text-left flex items-center justify-between gap-3 transition-colors cursor-pointer ${
+                        isSel ? "bg-blue-50" : "hover:bg-gray-50"
+                      }`}
+                    >
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm text-gray-900 truncate">{c.name}</span>
+                          {isFunc && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 shrink-0">
+                              FUNCIONÁRIO
+                            </span>
+                          )}
+                          {c.customerType === "REVENDA" && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-100 text-indigo-800 shrink-0">
+                              REVENDA
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[11px] text-gray-500 font-mono mt-0.5">
+                          {c.document || "Sem CPF"} {c.phone ? `• ${c.phone}` : ""}
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        {isFunc && (
+                          <div className="text-xs font-mono font-black text-amber-800">
+                            Aberto: R$ {fmt(Number(c.creditUsed || 0))}
+                          </div>
+                        )}
+                        <span className="text-[11px] font-bold text-blue-600">
+                          {isSel ? "✓ Selecionado" : "Selecionar"}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              {customersList.filter(c => customerModalFilter === "ALL" || c.customerType === "FUNCIONARIO").length === 0 && (
+                <div className="p-6 text-center text-xs text-gray-400">
+                  Nenhum cliente encontrado. Cadastre funcionários em Clientes → Novo Cliente.
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2 border-t border-gray-100 space-y-2">
+              <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                Ou informe apenas CPF/CNPJ avulso na nota:
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={cpfInput}
+                  onChange={e => {
+                    setCpfInput(e.target.value);
+                    if (selectedCustomer) setSelectedCustomer(null);
+                  }}
+                  placeholder="000.000.000-00"
+                  className="flex-1 bg-white border border-gray-200 focus:border-blue-600 text-gray-900 font-mono text-sm px-4 py-2.5 rounded-xl outline-none"
+                />
+                {(selectedCustomer || cpfInput) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCustomer(null);
+                      setCpfInput("");
+                      if (paymentMethod === "CREDIARIO") setPaymentMethod("MONEY");
+                    }}
+                    className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs cursor-pointer"
+                  >
+                    Limpar
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setModal("")}
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs cursor-pointer"
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
           </div>
         </ModalWrapper>
       )}
@@ -3915,9 +4942,9 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              const q = parseInt(quantityPromptInput);
+              const q = parseFloat(quantityPromptInput.replace(",", "."));
               if (!isNaN(q) && q > 0) {
-                setMultiplier(q);
+                setMultiplier(roundPdvQty(q));
               }
               setModal("");
               setTimeout(() => inputRef.current?.focus(), 50);
@@ -3925,19 +4952,18 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
             className="p-6 space-y-5 text-center"
           >
             <div className="text-xs text-gray-500 font-medium">
-              Digite a quantidade multiplicadora para os próximos itens registrados no PDV:
+              Digite a quantidade ou peso fracionado (ex: 0,350) para o próximo item no PDV:
             </div>
             <input
-              type="number"
-              min={1}
-              max={999}
+              type="text"
+              inputMode="decimal"
               value={quantityPromptInput}
-              onChange={(e) => setQuantityPromptInput(e.target.value)}
+              onChange={(e) => setQuantityPromptInput(e.target.value.replace(/[^0-9.,]/g, ""))}
               autoFocus
               className="w-full text-center text-4xl font-black font-mono py-3 bg-gray-50 border-2 border-blue-500 focus:border-blue-600 rounded-2xl outline-none shadow-inner"
             />
             <div className="grid grid-cols-4 gap-2">
-              {[2, 3, 5, 10].map((num) => (
+              {[0.25, 0.5, 1.5, 2, 3, 5, 10].map((num) => (
                 <button
                   key={num}
                   type="button"
@@ -3948,7 +4974,7 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
                   }}
                   className="py-2.5 rounded-xl bg-gray-100 hover:bg-blue-50 hover:text-blue-600 font-black text-sm transition-colors border border-gray-200 cursor-pointer"
                 >
-                  {num}x
+                  {num < 1 ? `${String(num).replace(".", ",")} kg` : `${String(num).replace(".", ",")}x`}
                 </button>
               ))}
             </div>
@@ -3959,6 +4985,112 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
               Confirmar Quantidade (ENTER)
             </button>
           </form>
+        </ModalWrapper>
+      )}
+
+      {/* ── SEFAZ Monitor Modal ── */}
+      {modal === "sefaz" && (
+        <ModalWrapper
+          title="Monitor Fiscal SEFAZ-AL (SVRS)"
+          icon={<ShieldCheck size={20} className="text-emerald-600" />}
+          onClose={() => {
+            setModal("");
+            setTimeout(() => inputRef.current?.focus(), 50);
+          }}
+        >
+          <div className="p-5 space-y-4">
+            <div
+              className={`p-4 rounded-xl border ${
+                isOfflineMode
+                  ? "bg-amber-50 border-amber-200 text-amber-900"
+                  : sefazLiveStatus.ok
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+                  : "bg-rose-50 border-rose-200 text-rose-900"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  Status do Webservice
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-white/90 shadow-sm">
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      isOfflineMode
+                        ? "bg-amber-500"
+                        : sefazLiveStatus.ok
+                        ? "bg-emerald-500"
+                        : "bg-rose-500"
+                    }`}
+                  />
+                  {isOfflineMode
+                    ? "MODO CONTINGÊNCIA"
+                    : sefazLiveStatus.ok
+                    ? "OPERANDO NORMALMENTE"
+                    : "COMUNICAÇÃO INDISPONÍVEL"}
+                </span>
+              </div>
+              <p className="text-base font-bold">
+                {isOfflineMode ? "Contingência Offline Ativa no PDV" : sefazLiveStatus.xMotivo}
+              </p>
+              {sefazLiveStatus.cStat && (
+                <p className="text-xs text-slate-600 mt-1">
+                  Código Retorno SEFAZ: <strong className="font-mono">{sefazLiveStatus.cStat}</strong>
+                  {sefazLiveStatus.latencyMs ? ` • Latência mTLS: ${sefazLiveStatus.latencyMs}ms` : ""}
+                </p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5 text-xs">
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <span className="text-slate-500 block text-[11px]">Ambiente SEFAZ</span>
+                <strong className="text-slate-800 text-sm">Produção (tpAmb = 1)</strong>
+              </div>
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <span className="text-slate-500 block text-[11px]">UF & Webservice</span>
+                <strong className="text-slate-800 text-sm">Alagoas (27) - SVRS</strong>
+              </div>
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <span className="text-slate-500 block text-[11px]">Última Consulta</span>
+                <strong className="text-slate-800">{sefazLiveStatus.lastChecked || "Ao abrir PDV"}</strong>
+              </div>
+              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                <span className="text-slate-500 block text-[11px]">Certificado Digital</span>
+                <strong className="text-emerald-700">A1 ICP-Brasil Ativo</strong>
+              </div>
+            </div>
+
+            <div className="pt-2 flex flex-col sm:flex-row gap-2">
+              <button
+                type="button"
+                onClick={handleCheckSefazStatus}
+                disabled={sefazLiveStatus.checking}
+                className="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition shadow"
+              >
+                <RefreshCw size={14} className={sefazLiveStatus.checking ? "animate-spin" : ""} />
+                {sefazLiveStatus.checking ? "Consultando SEFAZ..." : "Testar Conexão Agora (Ping)"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (isOfflineMode) {
+                    alert(`Modo Normal ativado! Transmitindo ${contingencySales.length} NFC-e emitidas em contingência...`);
+                    setContingencySales([]);
+                  }
+                  setIsOfflineMode((prev) => !prev);
+                  setModal("");
+                  setTimeout(() => inputRef.current?.focus(), 50);
+                }}
+                className={`py-3 px-4 font-bold rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer transition border ${
+                  isOfflineMode
+                    ? "bg-white border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                    : "bg-white border-amber-300 text-amber-700 hover:bg-amber-50"
+                }`}
+              >
+                {isOfflineMode ? "Voltar ao Modo Normal" : "Entrar em Contingência"}
+              </button>
+            </div>
+          </div>
         </ModalWrapper>
       )}
 
@@ -3982,6 +5114,18 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
             1.0,
             0
           );
+        }}
+      />
+
+      {/* ── Modal de Ajuste & Reabertura de Vendas (F11) ── */}
+      <PdvAdjustSaleModal
+        isOpen={isAdjustModalOpen}
+        onClose={() => {
+          setIsAdjustModalOpen(false);
+          setTimeout(() => inputRef.current?.focus(), 50);
+        }}
+        onSuccess={(msg) => {
+          alert(msg);
         }}
       />
 
@@ -4053,14 +5197,14 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
         ref={receiptFrameRef}
         style={{
           position: 'fixed',
-          bottom: '0',
-          right: '0',
-          width: '1px',
-          height: '1px',
-          opacity: 0.01,
+          top: '0',
+          left: '-9999px',
+          width: '80mm',
+          height: '1000px',
+          opacity: 1,
           pointerEvents: 'none',
           border: 'none',
-          zIndex: -1
+          zIndex: -9999
         }}
         title="receipt-printer"
       />

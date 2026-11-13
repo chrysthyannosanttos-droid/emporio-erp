@@ -173,10 +173,11 @@ export default function NewOrderPage() {
                     <div className="flex items-center gap-2">
                       <input
                         type="number"
-                        min={1}
+                        min={0.001}
+                        step="0.001"
                         value={item.quantity}
-                        onChange={e => updateItem(item.productId, "quantity", parseFloat(e.target.value) || 1)}
-                        className="w-16 text-center bg-[#fbfdff] border border-slate-600 text-gray-900 rounded-lg py-1.5 px-2 text-sm outline-none focus:border-indigo-500"
+                        onChange={e => updateItem(item.productId, "quantity", parseFloat(e.target.value) || 0.001)}
+                        className="w-20 text-center bg-[#fbfdff] border border-slate-600 text-gray-900 rounded-lg py-1.5 px-2 text-sm outline-none focus:border-indigo-500"
                       />
                       <span className="text-slate-500 text-xs">×</span>
                       <input

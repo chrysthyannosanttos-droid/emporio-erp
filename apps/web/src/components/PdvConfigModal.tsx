@@ -18,7 +18,18 @@ import {
   Volume2,
   Wifi,
   Sparkles,
+  Download,
+  ExternalLink,
+  Usb,
+  Zap,
+  Laptop,
 } from "lucide-react";
+import {
+  connectEpsonUsbDirect,
+  printDirectToEpson,
+  buildEpsonT20Receipt,
+  checkLocalEpsonBridge,
+} from "@/lib/escposPrinter";
 import {
   PDVHotkeys,
   defaultHotkeys,
@@ -70,6 +81,9 @@ export function PdvConfigModal({
   // Submódulo: Impressora e Gaveta
   const [printerCfg, setPrinterCfg] = useState<PrinterGavetaConfig>(loadPrinterConfig());
   const [printerTestStatus, setPrinterTestStatus] = useState<string | null>(null);
+  const [isConnectingEpson, setIsConnectingEpson] = useState(false);
+  const [epsonUsbStatus, setEpsonUsbStatus] = useState<string | null>(null);
+  const [isEpsonConnected, setIsEpsonConnected] = useState(false);
 
   // Submódulo: TEF e Pagamentos
   const [tefCfg, setTefCfg] = useState<TefPaymentsConfig>(loadTefConfig());
@@ -88,9 +102,10 @@ export function PdvConfigModal({
 
   // Status de salvar geral
   const [saveBanner, setSaveBanner] = useState<string | null>(null);
+  const wasOpenRef = useRef(false);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !wasOpenRef.current) {
       setEditHotkeys(currentHotkeys);
       setPrinterCfg(loadPrinterConfig());
       setTefCfg(loadTefConfig());
@@ -100,8 +115,15 @@ export function PdvConfigModal({
       setTestPressedKey(null);
       setSaveBanner(null);
       setActiveModule("menu");
+      checkLocalEpsonBridge().then((res) => {
+        if (res.connected) {
+          setIsEpsonConnected(true);
+          setEpsonUsbStatus(`✓ Impressão Direta Ativa: ${res.printer || "EPSON TM-T20X Receipt"} (Sem confirmação)`);
+        }
+      });
     }
-  }, [isOpen, currentHotkeys]);
+    wasOpenRef.current = isOpen;
+  }, [isOpen]);
 
   // Listener para capturar nova tecla ou testar tecla
   useEffect(() => {
@@ -155,14 +177,65 @@ export function PdvConfigModal({
     onSaveHotkeys(defaultHotkeys);
   };
 
+  // Conexão USB Direta (WebSerial) com Epson TM-T20
+  const handleConnectEpsonUsb = async () => {
+    setIsConnectingEpson(true);
+    setEpsonUsbStatus("Aguardando seleção da porta USB da impressora Epson...");
+    try {
+      const res = await connectEpsonUsbDirect();
+      setIsConnectingEpson(false);
+      if (res.success) {
+        setIsEpsonConnected(true);
+        setEpsonUsbStatus("✓ Epson TM-T20 conectada com sucesso via USB Direto (ESC/POS)!");
+      } else {
+        setEpsonUsbStatus(`⚠️ ${res.message}`);
+      }
+    } catch (err: any) {
+      setIsConnectingEpson(false);
+      setEpsonUsbStatus(`⚠️ Erro ao conectar: ${err.message}`);
+    }
+  };
+
   // Teste de Impressora
-  const handleTestPrinter = () => {
-    setPrinterTestStatus("Enviando comando de impressão de teste e pulso de abertura de gaveta...");
+  const handleTestPrinter = async () => {
+    setPrinterTestStatus("Enviando comando direto ESC/POS para Epson TM-T20...");
+
+    try {
+      const testBytes = buildEpsonT20Receipt({
+        companyName: "EMPORIO AGROBELEM",
+        companyCnpj: "63.310.411/0019-22",
+        companyAddress: "Impressora Epson TM-T20X - 80mm",
+        saleNumber: "TEST-ESC-POS",
+        cashierNumber: 1,
+        operatorName: "Cristiano",
+        items: [
+          { name: "TESTE IMPRESSAO DIRETA", qty: 1, unitPrice: 1.0, total: 1.0 },
+          { name: "GUILHOTINA E GAVETA OK", qty: 1, unitPrice: 0.0, total: 0.0 },
+        ],
+        subtotal: 1.0,
+        total: 1.0,
+        paymentMethod: "MONEY",
+        amountGiven: 1.0,
+        change: 0.0,
+        autoCut: true,
+        openDrawer: true,
+      });
+      const ok = await printDirectToEpson(testBytes);
+      if (ok) {
+        setIsEpsonConnected(true);
+        setPrinterTestStatus("✓ Cupom ESC/POS impresso DIRETO na Epson TM-T20X sem tela de confirmação!");
+        return;
+      }
+    } catch (err) {
+      console.warn("Erro ao testar impressão direta:", err);
+    }
+
+    // Fallback: via iframe / Kiosk silencioso
     if (onTriggerTestPrint) {
       onTriggerTestPrint();
     }
     setTimeout(() => {
-      setPrinterTestStatus("✓ Impressão ESC/POS enviada com sucesso! Gaveta acionada.");
+      setPrinterTestStatus("✓ Impressão enviada para a Epson TM-T20!");
     }, 800);
   };
 
@@ -503,18 +576,164 @@ export function PdvConfigModal({
           )}
 
           {/* ══════════════════════════════════════════════════════
-              MÓDULO 2: IMPRESSORA E GAVETA
+              MÓDULO 2: IMPRESSORA E GAVETA (EPSON TM-T20 DIRETO)
           ══════════════════════════════════════════════════════ */}
           {activeModule === "printer" && (
             <div className="space-y-4 animate-in fade-in duration-150">
               <div>
-                <h3 className="font-black text-lg text-white">Configurações de Impressora e Gaveta</h3>
+                <h3 className="font-black text-lg text-white flex items-center gap-2">
+                  <Printer className="text-blue-400" size={20} />
+                  Configurações de Impressora e Gaveta
+                </h3>
                 <p className="text-xs text-gray-400">
-                  Defina o modelo de bobina e se a gaveta de dinheiro deve abrir automaticamente.
+                  Gerencie o driver oficial da Epson TM-T20, ative a impressão direta sem diálogo e configure a guilhotina e gaveta.
                 </p>
               </div>
 
+              {/* ── CARD DESTAQUE: EPSON TM-T20 / TM-T20X ── */}
+              <div className="bg-gradient-to-br from-[#121b33] via-[#0f172a] to-[#0a1122] p-4 rounded-2xl border-2 border-blue-500/40 shadow-xl space-y-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-lg shadow-blue-600/40">
+                      <Printer size={22} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-black text-sm text-white uppercase tracking-wide">
+                          Epson TM-T20 / TM-T20X
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-blue-500/20 text-blue-300 border border-blue-400/30 uppercase">
+                          Driver Integrado
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-gray-400 mt-0.5">
+                        Bobina Térmica 80mm • Guilhotina Automática • Pulso de Gaveta
+                      </div>
+                    </div>
+                  </div>
+
+                  <span
+                    className={`px-2.5 py-1 rounded-full text-[11px] font-black uppercase flex items-center gap-1.5 border ${
+                      isEpsonConnected
+                        ? "bg-emerald-950/80 text-emerald-300 border-emerald-700"
+                        : "bg-gray-800 text-gray-300 border-gray-700"
+                    }`}
+                  >
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        isEpsonConnected ? "bg-emerald-400 animate-pulse" : "bg-gray-500"
+                      }`}
+                    />
+                    {isEpsonConnected ? "USB Direto Ativo" : "Pronto p/ Kiosk"}
+                  </span>
+                </div>
+
+                {/* 3 Botões de Ação para a Epson */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-1">
+                  {/* Botão 1: Baixar Driver Oficial Epson APD */}
+                  <a
+                    href="/api/pdv/driver/epson?action=driver"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-3 bg-[#17233f] hover:bg-[#1d2d52] border border-blue-500/30 hover:border-blue-400 rounded-xl transition-all group flex flex-col justify-between text-left cursor-pointer"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between text-blue-400 mb-1">
+                        <Download size={16} />
+                        <ExternalLink size={12} className="opacity-60 group-hover:opacity-100" />
+                      </div>
+                      <div className="font-bold text-xs text-white group-hover:text-blue-300">
+                        1. Baixar Driver Epson
+                      </div>
+                      <div className="text-[10px] text-gray-400 mt-0.5 leading-snug">
+                        Instalador oficial APD da Epson para Windows 10 e 11.
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-black text-blue-400 mt-2 flex items-center gap-1">
+                      Download Driver Oficial →
+                    </span>
+                  </a>
+
+                  {/* Botão 2: Baixar Configurador de Impressão Direta (.bat) */}
+                  <a
+                    href="/api/pdv/driver/epson?action=script"
+                    download="Configurar-Epson-TM-T20.bat"
+                    className="p-3 bg-[#13282f] hover:bg-[#17333c] border border-emerald-500/40 hover:border-emerald-400 rounded-xl transition-all group flex flex-col justify-between text-left cursor-pointer"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between text-emerald-400 mb-1">
+                        <Laptop size={16} />
+                        <Zap size={13} className="text-emerald-400" />
+                      </div>
+                      <div className="font-bold text-xs text-white group-hover:text-emerald-300">
+                        2. Configurar 1-Clique (.bat)
+                      </div>
+                      <div className="text-[10px] text-gray-400 mt-0.5 leading-snug">
+                        Cria atalho na Área de Trabalho com impressão direta sem diálogo.
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-black text-emerald-400 mt-2 flex items-center gap-1">
+                      Baixar Script (.bat) →
+                    </span>
+                  </a>
+
+                  {/* Botão 3: Conexão Serial / COM Avançada */}
+                  <button
+                    type="button"
+                    onClick={handleConnectEpsonUsb}
+                    disabled={isConnectingEpson}
+                    className="p-3 bg-[#1d1b2a] hover:bg-[#252238] border border-gray-700/60 hover:border-purple-400 rounded-xl transition-all group flex flex-col justify-between text-left cursor-pointer disabled:opacity-50"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between text-purple-400 mb-1">
+                        <Usb size={16} />
+                        <span className="text-[9px] font-bold uppercase text-gray-400">Opcional</span>
+                      </div>
+                      <div className="font-bold text-xs text-white group-hover:text-purple-300">
+                        3. Porta Serial / COM
+                      </div>
+                      <div className="text-[10px] text-gray-400 mt-0.5 leading-snug">
+                        Para impressoras com cabo Serial RS-232 ou adaptador COM virtual.
+                      </div>
+                    </div>
+                    <span className="text-[10px] font-black text-purple-400 mt-2 flex items-center gap-1">
+                      {isConnectingEpson ? "Buscando COM..." : isEpsonConnected ? "✓ Conectado" : "Buscar Porta COM →"}
+                    </span>
+                  </button>
+                </div>
+
+                {/* Feedback da Conexão USB */}
+                {epsonUsbStatus && (
+                  <div className="p-2.5 bg-[#0b1324] border border-blue-500/40 rounded-xl text-xs text-blue-200 font-medium animate-in fade-in">
+                    {epsonUsbStatus}
+                  </div>
+                )}
+
+                {/* Passo a Passo Rápido */}
+                <div className="bg-[#0b101c] p-3.5 rounded-xl border border-gray-800 text-[11px] text-gray-300 space-y-2">
+                  <div className="font-bold text-gray-200 text-xs flex items-center gap-1.5">
+                    <Sparkles size={13} className="text-yellow-400" /> Passo a Passo para a Epson TM-T20X Imprimir Direto:
+                  </div>
+                  <div className="space-y-1 pl-1">
+                    <div>
+                      <strong className="text-blue-300">1. Concluir Instalação do Driver no Windows:</strong> Na sua pasta <strong className="text-white">Downloads \ APD_607R1_T20X_WM</strong>, execute o arquivo <strong className="text-white">APD_607R1_T20X.exe</strong>. Ao avançar, selecione o modelo <strong className="text-emerald-300">EPSON TM-T20X Receipt</strong>, marque a porta como <strong className="text-emerald-300">USB</strong> e clique em Salvar/Concluir.
+                    </div>
+                    <div>
+                      <strong className="text-emerald-300">2. Executar o Configurador (.bat):</strong> Execute o arquivo <strong className="text-white">Configurar-Epson-TM-T20.bat</strong> para definir a Epson como impressora padrão e criar o atalho com impressão rápida sem janelas.
+                    </div>
+                    <div>
+                      <strong className="text-yellow-300">3. Abrir pelo atalho:</strong> Abra o caixa pelo atalho <strong className="text-white">Cybertech PDV - Epson TM-T20</strong> na sua Área de Trabalho. Todas as vendas sairão impressas no mesmo segundo!
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── PREFERÊNCIAS GERAIS ── */}
               <div className="space-y-3.5 bg-[#111726] p-4 rounded-2xl border border-gray-800">
+                <div className="font-bold text-xs text-white uppercase tracking-wider">
+                  Preferências da Bobina e Gaveta
+                </div>
+
                 <div>
                   <label className="block text-xs font-bold text-gray-300 uppercase mb-1.5">
                     Modelo do Cupom / Bobina
@@ -524,7 +743,7 @@ export function PdvConfigModal({
                     onChange={(e) => setPrinterCfg({ ...printerCfg, printerModel: e.target.value })}
                     className="w-full bg-[#1c2438] border border-gray-700 rounded-xl px-3.5 py-2.5 text-xs text-white font-semibold outline-none focus:border-blue-500"
                   >
-                    <option value="Termica 80mm (ESC/POS)">Térmica 80mm (ESC/POS - Padrão Mercado)</option>
+                    <option value="Termica 80mm (ESC/POS)">Epson TM-T20 / Térmica 80mm (ESC/POS - Recomendado)</option>
                     <option value="Termica 58mm">Térmica 58mm (Bobina Estreita)</option>
                     <option value="A4 Padrao">Folha A4 / Relatório Completo</option>
                   </select>
@@ -533,7 +752,7 @@ export function PdvConfigModal({
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-bold text-gray-300 uppercase mb-1.5">
-                      Conexão da Impressora
+                      Método de Disparo
                     </label>
                     <select
                       value={printerCfg.connectionType}
@@ -542,9 +761,9 @@ export function PdvConfigModal({
                       }
                       className="w-full bg-[#1c2438] border border-gray-700 rounded-xl px-3.5 py-2.5 text-xs text-white font-semibold outline-none focus:border-blue-500"
                     >
-                      <option value="BROWSER">Navegador / Spooler do Windows</option>
-                      <option value="USB">USB Direto (Kiosk / Linux RPi)</option>
-                      <option value="TCP_IP">Rede Ethernet / IP (TCP 9100)</option>
+                      <option value="BROWSER">Navegador / Spooler Kiosk Silencioso (Padrão)</option>
+                      <option value="USB">USB Direto (WebSerial ESC/POS)</option>
+                      <option value="TCP_IP">Rede Ethernet / IP (Porta 9100)</option>
                     </select>
                   </div>
 
@@ -603,17 +822,17 @@ export function PdvConfigModal({
                   onClick={handleTestPrinter}
                   className="flex-1 py-3 bg-[#162035] hover:bg-[#1e2c49] text-gray-200 rounded-2xl font-bold text-xs uppercase tracking-wider transition-colors border border-gray-700/60 cursor-pointer flex items-center justify-center gap-2"
                 >
-                  <Printer size={15} /> Testar Impressão e Gaveta
+                  <Printer size={15} /> Testar Epson TM-T20 e Gaveta
                 </button>
                 <button
                   type="button"
                   onClick={() => {
                     savePrinterConfig(printerCfg);
-                    setSaveBanner("Configurações de Impressora e Gaveta salvas com sucesso!");
+                    setSaveBanner("Configurações da Epson TM-T20 salvas com sucesso!");
                   }}
                   className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-md shadow-blue-600/30 cursor-pointer flex items-center justify-center gap-2"
                 >
-                  <Check size={16} /> Salvar Impressora
+                  <Check size={16} /> Salvar Configurações
                 </button>
               </div>
             </div>

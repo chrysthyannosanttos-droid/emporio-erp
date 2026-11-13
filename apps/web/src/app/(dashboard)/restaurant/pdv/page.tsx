@@ -6,7 +6,7 @@ import {
   Search, RefreshCw, ShoppingCart, CreditCard, DollarSign, Receipt, Printer,
   ChefHat, ArrowRight, ShieldCheck, Tag, Trash2, ArrowLeftRight, Coffee,
   Pizza, Flame, Wine, IceCream, Slice, Filter, Check, Bell, Award, Bike,
-  MapPin, Phone, Send, FileText, CheckSquare, Sparkles, Navigation, Layers
+  MapPin, Phone, Send, FileText, CheckSquare, Sparkles, Navigation, Layers, Briefcase
 } from "lucide-react";
 
 // ─── Types & Mock Interfaces ────────────────────────────────────────────────
@@ -26,6 +26,7 @@ interface ProductItem {
   name: string;
   category: string;
   price: number;
+  unit?: string;
   image?: string;
   sector: ProductionSector;
   isPizza?: boolean;
@@ -37,6 +38,7 @@ interface OrderItem {
   productId: string;
   name: string;
   quantity: number;
+  unit?: string;
   unitPrice: number;
   totalPrice: number;
   sector: ProductionSector;
@@ -89,7 +91,35 @@ function fmt(v: number) {
   return v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function isFractionalRestProduct(unit?: string, name?: string) {
+  const u = (unit || "").trim().toUpperCase();
+  if (u === "KG" || u === "L" || u === "LT" || u === "G" || u === "GR" || u === "ML" || u === "M" || u === "MT") {
+    return true;
+  }
+  return Boolean(name && /\b(KG|GR|GRAMA|GRAMAS|LITRO|LITROS|ML|METRO|METROS|MT)\b|\/KG|\(KG\)/i.test(name));
+}
+
+function roundRestQty(n: number) {
+  return Math.round(Number(n || 0) * 1000) / 1000;
+}
+
+function formatRestQty(q: number, unit?: string, name?: string) {
+  const rounded = roundRestQty(q);
+  if (isFractionalRestProduct(unit, name) && rounded % 1 !== 0) {
+    return rounded.toFixed(3).replace(".", ",");
+  }
+  return String(rounded).replace(".", ",");
+}
+
+function parseRestDecimal(raw: string): number {
+  const n = parseFloat(String(raw || "").replace(",", "."));
+  return Number.isFinite(n) && n > 0 ? roundRestQty(n) : 0;
+}
+
 import { getProducts } from "@/actions/product";
+import { getCustomers } from "@/actions/customer";
+import { createSale } from "@/actions/sale";
+import { verifySupervisorPin } from "@/actions/users";
 
 // ─── Initial Data ───────────────────────────────────────────────────────────
 const MOCK_WAITERS = ["Atendente Principal", "Caixa Balcão"];
@@ -115,11 +145,27 @@ const INITIAL_DELIVERIES: DeliveryOrder[] = [];
 export default function RestaurantPdvPage() {
   const [mode, setMode] = useState<OrderMode>("TABLES");
   
-  // Real Products & Categories from Database
+  // Real Products, Categories & Customers from Database
   const [productsList, setProductsList] = useState<ProductItem[]>([]);
   const [categoriesList, setCategoriesList] = useState<{ id: string; name: string; icon?: React.ReactNode }[]>(DEFAULT_CATEGORIES);
+  const [customersList, setCustomersList] = useState<any[]>([]);
+  const [restSelectedCustomer, setRestSelectedCustomer] = useState<any | null>(null);
+  const [restCustomerSearch, setRestCustomerSearch] = useState("");
+  const [restCrediarioPin, setRestCrediarioPin] = useState("");
+  const [restCrediarioError, setRestCrediarioError] = useState("");
+  const [restCheckoutBusy, setRestCheckoutBusy] = useState(false);
+
+  const loadRestCustomers = async () => {
+    try {
+      const res = await getCustomers();
+      if (Array.isArray(res.customers)) {
+        setCustomersList(res.customers);
+      }
+    } catch {}
+  };
 
   useEffect(() => {
+    loadRestCustomers();
     async function loadRealProducts() {
       try {
         const res = await getProducts();
@@ -138,6 +184,7 @@ export default function RestaurantPdvPage() {
               name: p.name,
               category: catName,
               price: Number(p.price || 0),
+              unit: p.unit || "UN",
               sector,
               isPizza: false,
             };
@@ -189,6 +236,9 @@ export default function RestaurantPdvPage() {
   // Product Customization Modal States
   const [modalProduct, setModalProduct] = useState<ProductItem | null>(null);
   const [itemNotes, setItemNotes] = useState("");
+  const [modalQtyInput, setModalQtyInput] = useState("1");
+  const [modalBrlInput, setModalBrlInput] = useState("");
+  const [restQtyDraft, setRestQtyDraft] = useState<Record<string, string>>({});
   const [selectedAdditions, setSelectedAdditions] = useState<AdditionItem[]>([]);
   const [pizzaSecondaryFlavor, setPizzaSecondaryFlavor] = useState<string>("");
 
@@ -322,6 +372,8 @@ export default function RestaurantPdvPage() {
   const handleAddProductClick = (product: ProductItem) => {
     setModalProduct(product);
     setItemNotes("");
+    setModalQtyInput("1");
+    setModalBrlInput("");
     setSelectedAdditions([]);
     setPizzaSecondaryFlavor("");
   };
@@ -346,14 +398,17 @@ export default function RestaurantPdvPage() {
     // Additions Cost
     const additionsTotal = selectedAdditions.reduce((acc, a) => acc + a.price, 0);
     const unitPrice = finalPrice + additionsTotal;
+    const parsedQty = parseRestDecimal(modalQtyInput);
+    const quantity = parsedQty > 0 ? parsedQty : 1;
 
     const newItem: OrderItem = {
       id: `item-${Date.now()}`,
       productId: modalProduct.id,
       name: finalName,
-      quantity: 1,
+      quantity,
+      unit: modalProduct.unit || "UN",
       unitPrice,
-      totalPrice: unitPrice,
+      totalPrice: Math.round(quantity * unitPrice * 100) / 100,
       sector: modalProduct.sector,
       notes: itemNotes,
       selectedAdditions: [...selectedAdditions],
@@ -399,12 +454,11 @@ export default function RestaurantPdvPage() {
     setModalProduct(null);
   };
 
-  const handleRemoveOrderItem = (itemId: string) => {
+  const applyActiveItemsTransform = (transform: (items: OrderItem[]) => OrderItem[]) => {
     if (selectedTable) {
       setTables(prev => prev.map(t => {
         if (t.id === selectedTable.id) {
-          const updatedItems = t.items.filter(i => i.id !== itemId);
-          const updatedTable = { ...t, items: updatedItems };
+          const updatedTable = { ...t, items: transform(t.items) };
           setSelectedTable(updatedTable);
           return updatedTable;
         }
@@ -413,8 +467,7 @@ export default function RestaurantPdvPage() {
     } else if (selectedCommand) {
       setCommands(prev => prev.map(c => {
         if (c.id === selectedCommand.id) {
-          const updatedItems = c.items.filter(i => i.id !== itemId);
-          const updatedCmd = { ...c, items: updatedItems };
+          const updatedCmd = { ...c, items: transform(c.items) };
           setSelectedCommand(updatedCmd);
           return updatedCmd;
         }
@@ -423,16 +476,75 @@ export default function RestaurantPdvPage() {
     } else if (selectedDelivery) {
       setDeliveries(prev => prev.map(d => {
         if (d.id === selectedDelivery.id) {
-          const updatedItems = d.items.filter(i => i.id !== itemId);
-          const updatedDel = { ...d, items: updatedItems };
+          const updatedDel = { ...d, items: transform(d.items) };
           setSelectedDelivery(updatedDel);
           return updatedDel;
         }
         return d;
       }));
     } else {
-      setCartItems(prev => prev.filter(i => i.id !== itemId));
+      setCartItems(transform);
     }
+  };
+
+  const handleUpdateOrderItemQty = (itemId: string, rawInput: string, commit = false) => {
+    const sanitized = rawInput.replace(/[^0-9.,]/g, "");
+    if (!commit) {
+      setRestQtyDraft(prev => ({ ...prev, [itemId]: sanitized }));
+      const parsed = parseRestDecimal(sanitized);
+      if (parsed > 0) {
+        applyActiveItemsTransform(items =>
+          items.map(i =>
+            i.id === itemId
+              ? { ...i, quantity: parsed, totalPrice: Math.round(parsed * i.unitPrice * 100) / 100 }
+              : i
+          )
+        );
+      }
+      return;
+    }
+    setRestQtyDraft(prev => {
+      const copy = { ...prev };
+      delete copy[itemId];
+      return copy;
+    });
+    const parsed = parseRestDecimal(sanitized);
+    if (parsed <= 0) {
+      applyActiveItemsTransform(items => items.filter(i => i.id !== itemId));
+    } else {
+      applyActiveItemsTransform(items =>
+        items.map(i =>
+          i.id === itemId
+            ? { ...i, quantity: parsed, totalPrice: Math.round(parsed * i.unitPrice * 100) / 100 }
+            : i
+        )
+      );
+    }
+  };
+
+  const handleStepOrderItemQty = (itemId: string, delta: number) => {
+    setRestQtyDraft(prev => {
+      const copy = { ...prev };
+      delete copy[itemId];
+      return copy;
+    });
+    applyActiveItemsTransform(items =>
+      items
+        .map(i => {
+          if (i.id !== itemId) return i;
+          const next = roundRestQty(Math.max(0, i.quantity + delta));
+          return {
+            ...i,
+            quantity: next,
+            totalPrice: Math.round(next * i.unitPrice * 100) / 100,
+          };
+        })
+        .filter(i => i.quantity > 0)
+    );
+  };
+
+  const handleRemoveOrderItem = (itemId: string) => {
+    applyActiveItemsTransform(items => items.filter(i => i.id !== itemId));
   };
 
   // Dispatch Draft Items to Kitchen / Production (KDS)
@@ -504,7 +616,45 @@ export default function RestaurantPdvPage() {
     showNotification(`Itens transferidos para a Mesa ${transferTargetTableId}!`);
   };
 
-  const handleCheckoutCloseTable = () => {
+  const handleCheckoutCloseTable = async () => {
+    if (paymentMethod === "CREDIARIO") {
+      if (!restSelectedCustomer || restSelectedCustomer.customerType !== "FUNCIONARIO") {
+        setRestCrediarioError("Selecione um cliente cadastrado como Funcionário para pagar com Crediário.");
+        return;
+      }
+      if (!restCrediarioPin.trim()) {
+        setRestCrediarioError("Informe o PIN/Senha de autorização para confirmar o Crediário.");
+        return;
+      }
+      setRestCheckoutBusy(true);
+      setRestCrediarioError("");
+      const pinRes = await verifySupervisorPin(restCrediarioPin);
+      if (!pinRes.success) {
+        setRestCheckoutBusy(false);
+        setRestCrediarioError(pinRes.error || "PIN/Senha inválido.");
+        return;
+      }
+
+      const saleRes = await createSale({
+        items: currentItems.map(i => ({
+          productId: i.productId,
+          quantity: i.quantity,
+          unitPrice: i.unitPrice,
+        })),
+        paymentMethod: "CREDIARIO",
+        discount: 0,
+        customerId: restSelectedCustomer.id,
+        creditAuthorizedBy: pinRes.userName || "Supervisor",
+      });
+      setRestCheckoutBusy(false);
+
+      if (saleRes?.error) {
+        setRestCrediarioError(saleRes.error);
+        return;
+      }
+      loadRestCustomers();
+    }
+
     if (selectedTable) {
       setTables(prev => prev.map(t => {
         if (t.id === selectedTable.id) {
@@ -524,8 +674,14 @@ export default function RestaurantPdvPage() {
     }
 
     setIsCheckoutOpen(false);
+    setRestCrediarioPin("");
+    setRestCrediarioError("");
     setIsReceiptModalOpen(true);
-    showNotification("✅ Venda finalizada e pagamento recebido!");
+    showNotification(
+      paymentMethod === "CREDIARIO"
+        ? `✅ Venda registrada em Crediário em aberto para ${restSelectedCustomer?.name}!`
+        : "✅ Venda finalizada e pagamento recebido!"
+    );
   };
 
   const filteredProducts = productsList.filter(p => {
@@ -1006,8 +1162,11 @@ export default function RestaurantPdvPage() {
 
           {/* Lista de Itens Lançados */}
           <div className="flex-1 overflow-y-auto custom-scrollbar space-y-2.5 pr-1">
-            {currentItems.map((item, idx) => (
-              <div key={idx} className="p-3 bg-[#e8f0fc] rounded-2xl border border-[#c4d5ee] flex justify-between items-start gap-2 shadow-md">
+            {currentItems.map((item, idx) => {
+              const frac = isFractionalRestProduct(item.unit, item.name);
+              const step = frac ? 0.1 : 1;
+              return (
+              <div key={item.id || idx} className="p-3 bg-[#e8f0fc] rounded-2xl border border-[#c4d5ee] flex justify-between items-start gap-2 shadow-md">
                 <div className="flex-1 min-w-0">
                   <div className="flex justify-between items-start">
                     <p className="text-xs font-bold text-gray-900 truncate">{item.name}</p>
@@ -1029,9 +1188,59 @@ export default function RestaurantPdvPage() {
                     </div>
                   )}
 
-                  <div className="flex justify-between items-center mt-2 text-[11px]">
-                    <span className="text-slate-500 font-mono">{item.quantity}x R$ {fmt(item.unitPrice)}</span>
-                    <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                    {(frac
+                      ? [
+                          { label: "100g", val: 0.1 },
+                          { label: "250g", val: 0.25 },
+                          { label: "500g", val: 0.5 },
+                          { label: "1kg", val: 1 },
+                        ]
+                      : [
+                          { label: "0,5x", val: 0.5 },
+                          { label: "1x", val: 1 },
+                        ]
+                    ).map(p => (
+                      <button
+                        key={p.label}
+                        type="button"
+                        onClick={() => handleUpdateOrderItemQty(item.id, String(p.val), true)}
+                        className="px-1.5 py-0.5 rounded bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 text-[9px] font-bold"
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex justify-between items-center mt-2 text-[11px] gap-2">
+                    <div className="flex items-center bg-white border border-indigo-200 rounded-lg p-0.5">
+                      <button
+                        type="button"
+                        onClick={() => handleStepOrderItemQty(item.id, -step)}
+                        className="w-5 h-5 rounded hover:bg-indigo-50 flex items-center justify-center text-gray-600"
+                      >
+                        <Minus size={11} />
+                      </button>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={restQtyDraft[item.id] ?? formatRestQty(item.quantity, item.unit, item.name)}
+                        onChange={(e) => handleUpdateOrderItemQty(item.id, e.target.value, false)}
+                        onBlur={(e) => handleUpdateOrderItemQty(item.id, e.target.value, true)}
+                        className="w-14 text-center text-[11px] font-mono font-black text-gray-900 bg-transparent outline-none"
+                      />
+                      <span className="text-[9px] font-bold text-slate-400 pr-1">
+                        {(item.unit || (frac ? "KG" : "UN")).toUpperCase()}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleStepOrderItemQty(item.id, step)}
+                        className="w-5 h-5 rounded hover:bg-indigo-50 flex items-center justify-center text-gray-600"
+                      >
+                        <Plus size={11} />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-1.5">
                       <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase ${
                         item.status === "DRAFT" ? "bg-amber-500/10 text-amber-600 border-amber-500/20" : "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
                       }`}>
@@ -1042,7 +1251,7 @@ export default function RestaurantPdvPage() {
                   </div>
                 </div>
               </div>
-            ))}
+            );})}
 
             {!currentItems.length && (
               <div className="text-center py-20 text-slate-500 italic space-y-2">
@@ -1125,6 +1334,105 @@ export default function RestaurantPdvPage() {
             </div>
 
             <div className="p-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
+              {/* Quantidade / Peso Fracionado */}
+              <div className="p-3.5 bg-[#e8f0fc] border border-indigo-200 rounded-2xl space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[10px] font-extrabold text-indigo-700 uppercase tracking-wider">
+                    Quantidade / Peso ({(modalProduct.unit || (isFractionalRestProduct(modalProduct.unit, modalProduct.name) ? "KG" : "UN")).toUpperCase()})
+                  </label>
+                  <span className="text-xs font-mono font-black text-emerald-700">
+                    Unit: R$ {fmt(modalProduct.price)}
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center bg-white border border-indigo-200 rounded-xl p-1 flex-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cur = parseRestDecimal(modalQtyInput) || 1;
+                        const step = isFractionalRestProduct(modalProduct.unit, modalProduct.name) ? 0.1 : 1;
+                        const next = Math.max(0.05, roundRestQty(cur - step));
+                        setModalQtyInput(String(next).replace(".", ","));
+                        setModalBrlInput("");
+                      }}
+                      className="w-8 h-8 rounded-lg hover:bg-indigo-50 flex items-center justify-center text-gray-700"
+                    >
+                      <Minus size={14} />
+                    </button>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={modalQtyInput}
+                      onChange={e => {
+                        setModalQtyInput(e.target.value.replace(/[^0-9.,]/g, ""));
+                        setModalBrlInput("");
+                      }}
+                      placeholder="Ex: 0,350"
+                      className="flex-1 text-center text-base font-mono font-black text-gray-900 outline-none bg-transparent"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const cur = parseRestDecimal(modalQtyInput) || 0;
+                        const step = isFractionalRestProduct(modalProduct.unit, modalProduct.name) ? 0.1 : 1;
+                        const next = roundRestQty(cur + step);
+                        setModalQtyInput(String(next).replace(".", ","));
+                        setModalBrlInput("");
+                      }}
+                      className="w-8 h-8 rounded-lg hover:bg-indigo-50 flex items-center justify-center text-gray-700"
+                    >
+                      <Plus size={14} />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-1 bg-white border border-emerald-300 rounded-xl px-2.5 py-2">
+                    <span className="text-[11px] font-bold text-emerald-700">R$</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={modalBrlInput}
+                      onChange={e => {
+                        const s = e.target.value.replace(/[^0-9.,]/g, "");
+                        setModalBrlInput(s);
+                        const brl = parseRestDecimal(s);
+                        if (brl > 0 && modalProduct.price > 0) {
+                          const q = Math.max(0.001, roundRestQty(brl / modalProduct.price));
+                          setModalQtyInput(String(q).replace(".", ","));
+                        }
+                      }}
+                      placeholder="Valor"
+                      className="w-16 text-right text-xs font-mono font-bold text-emerald-800 outline-none bg-transparent"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { label: "100g (0,1)", val: "0,100" },
+                    { label: "250g (0,25)", val: "0,250" },
+                    { label: "500g (0,5)", val: "0,500" },
+                    { label: "1kg / 1x", val: "1" },
+                    { label: "2x", val: "2" },
+                  ].map(p => (
+                    <button
+                      key={p.label}
+                      type="button"
+                      onClick={() => {
+                        setModalQtyInput(p.val);
+                        setModalBrlInput("");
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-white hover:bg-indigo-600 hover:text-white text-indigo-700 border border-indigo-200 text-[10px] font-bold transition-colors"
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                  <span className="ml-auto text-xs font-mono font-black text-emerald-700 self-center">
+                    Subtotal: R$ {fmt((parseRestDecimal(modalQtyInput) || 1) * (modalProduct.price + selectedAdditions.reduce((a, b) => a + b.price, 0)))}
+                  </span>
+                </div>
+              </div>
+
               {modalProduct.isPizza && (
                 <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-2xl space-y-2">
                   <label className="block text-[10px] font-extrabold text-amber-600 uppercase tracking-wider">
@@ -1387,6 +1695,88 @@ export default function RestaurantPdvPage() {
                 </div>
               </div>
 
+              {/* Seleção de Cliente / Funcionário */}
+              <div className="bg-[#e8f0fc] p-3.5 rounded-2xl border border-[#c4d5ee] space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                    Cliente / Funcionário (Opcional — libera Crediário)
+                  </label>
+                  {restSelectedCustomer && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRestSelectedCustomer(null);
+                        setRestCrediarioError("");
+                        if (paymentMethod === "CREDIARIO") setPaymentMethod("CARTAO_CREDITO");
+                      }}
+                      className="text-[10px] font-bold text-red-600 hover:underline"
+                    >
+                      Limpar
+                    </button>
+                  )}
+                </div>
+                {restSelectedCustomer ? (
+                  <div className="flex items-center justify-between bg-white border border-indigo-200 rounded-xl px-3 py-2">
+                    <div>
+                      <div className="text-xs font-black text-gray-900 flex items-center gap-1.5">
+                        <span>{restSelectedCustomer.name}</span>
+                        {restSelectedCustomer.customerType === "FUNCIONARIO" && (
+                          <span className="px-2 py-0.5 rounded-full text-[9px] font-black bg-amber-100 text-amber-900 border border-amber-300">
+                            FUNCIONÁRIO
+                          </span>
+                        )}
+                      </div>
+                      {restSelectedCustomer.customerType === "FUNCIONARIO" && (
+                        <div className="text-[10px] font-mono text-amber-700 font-bold">
+                          Em aberto: R$ {fmt(Number(restSelectedCustomer.creditUsed || 0))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <input
+                      type="text"
+                      value={restCustomerSearch}
+                      onChange={e => setRestCustomerSearch(e.target.value)}
+                      placeholder="Buscar cliente ou funcionário..."
+                      className="w-full bg-white border border-[#c4d5ee] text-gray-900 px-3 py-2 rounded-xl text-xs outline-none focus:border-indigo-500"
+                    />
+                    <div className="max-h-28 overflow-y-auto space-y-1">
+                      {customersList
+                        .filter(c => {
+                          const q = restCustomerSearch.trim().toLowerCase();
+                          if (!q) return c.customerType === "FUNCIONARIO";
+                          return (
+                            (c.name || "").toLowerCase().includes(q) ||
+                            (c.document || "").toLowerCase().includes(q)
+                          );
+                        })
+                        .slice(0, 8)
+                        .map(c => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            onClick={() => {
+                              setRestSelectedCustomer(c);
+                              setRestCrediarioError("");
+                              setRestCustomerSearch("");
+                            }}
+                            className="w-full flex items-center justify-between px-3 py-1.5 bg-white hover:bg-indigo-50 border border-indigo-100 rounded-lg text-left text-xs"
+                          >
+                            <span className="font-bold text-gray-800 truncate">{c.name}</span>
+                            {c.customerType === "FUNCIONARIO" && (
+                              <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 text-[9px] font-black shrink-0">
+                                FUNC • R$ {fmt(Number(c.creditUsed || 0))}
+                              </span>
+                            )}
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">Forma de Pagamento</label>
                 <div className="grid grid-cols-3 gap-2">
@@ -1396,13 +1786,23 @@ export default function RestaurantPdvPage() {
                     { key: "PIX", label: "PIX QrCode" },
                     { key: "DINHEIRO", label: "Dinheiro" },
                     { key: "FATURADO", label: "Faturado / Fiado" },
+                    ...(restSelectedCustomer?.customerType === "FUNCIONARIO"
+                      ? [{ key: "CREDIARIO", label: "Crediário (Func.)" }]
+                      : []),
                   ].map(m => (
                     <button
                       key={m.key}
-                      onClick={() => setPaymentMethod(m.key)}
+                      onClick={() => {
+                        setPaymentMethod(m.key);
+                        setRestCrediarioError("");
+                      }}
                       className={`p-3 rounded-xl border text-xs font-bold transition-all ${
                         paymentMethod === m.key
-                          ? "bg-indigo-600 text-white border-indigo-500 shadow-md"
+                          ? m.key === "CREDIARIO"
+                            ? "bg-amber-600 text-white border-amber-500 shadow-md"
+                            : "bg-indigo-600 text-white border-indigo-500 shadow-md"
+                          : m.key === "CREDIARIO"
+                          ? "bg-amber-50 text-amber-900 border-amber-300"
                           : "bg-[#e8f0fc] text-slate-500 border-[#c4d5ee]"
                       }`}
                     >
@@ -1412,10 +1812,40 @@ export default function RestaurantPdvPage() {
                 </div>
               </div>
 
+              {paymentMethod === "CREDIARIO" && restSelectedCustomer?.customerType === "FUNCIONARIO" && (
+                <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-2xl space-y-2.5">
+                  <div className="flex justify-between text-xs font-bold text-amber-900">
+                    <span>Novo saldo em aberto após esta conta:</span>
+                    <span className="font-mono font-black">
+                      R$ {fmt(Number(restSelectedCustomer.creditUsed || 0) + grandTotal)}
+                    </span>
+                  </div>
+                  <input
+                    type="password"
+                    value={restCrediarioPin}
+                    onChange={e => {
+                      setRestCrediarioPin(e.target.value);
+                      setRestCrediarioError("");
+                    }}
+                    placeholder="Digite o PIN / Senha de autorização *"
+                    className="w-full bg-white border border-amber-300 text-gray-900 px-3 py-2 rounded-xl text-xs font-mono font-bold outline-none focus:border-amber-600"
+                  />
+                  {restCrediarioError && (
+                    <div className="text-[11px] font-bold text-red-700 bg-red-50 border border-red-200 rounded-lg px-2.5 py-1.5">
+                      {restCrediarioError}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex gap-2 pt-2">
                 <button onClick={() => setIsCheckoutOpen(false)} className="flex-1 bg-[#e8f0fc] text-slate-500 py-3 rounded-xl text-xs font-bold border border-[#c4d5ee]">Cancelar</button>
-                <button onClick={handleCheckoutCloseTable} className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-3 rounded-xl text-xs font-bold shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-1.5">
-                  <CheckCircle2 size={15} /> Confirmar & Emitir Cupom
+                <button
+                  onClick={handleCheckoutCloseTable}
+                  disabled={restCheckoutBusy}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white py-3 rounded-xl text-xs font-bold shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-1.5"
+                >
+                  <CheckCircle2 size={15} /> {restCheckoutBusy ? "Registrando..." : "Confirmar & Emitir Cupom"}
                 </button>
               </div>
             </div>

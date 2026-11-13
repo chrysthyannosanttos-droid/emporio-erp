@@ -35,6 +35,25 @@ model Company {
   parentCompany   Company?  @relation("CompanyHierarchy", fields: [parentCompanyId], references: [id])
   childCompanies  Company[] @relation("CompanyHierarchy")
 
+  // ── CARDÁPIO DIGITAL E COMANDAS DE HOSPEDAGEM ──────────────────────────────
+  slug                      String?  @unique
+  phone                     String?
+  whatsapp                  String?
+  address                   String?
+  digitalMenuEnabled        Boolean  @default(true)
+  digitalMenuBannerUrl      String?
+  digitalMenuNotes          String?
+  digitalMenuDeliveryFee    Decimal? @default(0)
+  digitalMenuMinOrder       Decimal? @default(0)
+  digitalMenuDeliveryEta    String?
+  digitalMenuHours          String?
+  digitalMenuPaymentMethods String?  @default("[\"PIX\",\"DINHEIRO\",\"CARTAO\"]")
+  digitalMenuInstagram      String?
+  digitalMenuFacebook       String?
+  digitalMenuStoreInfo      String?
+  hasHotelTabs              Boolean  @default(false) // Exclusivo clientes com comandas de quartos (ex: Empório/Fazenda Belém)
+  // ──────────────────────────────────────────────────────────────────────────
+
   planId        String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -54,6 +73,7 @@ model Company {
   fiscalConfig   FiscalConfig?
   suppliers      Supplier[]
   purchaseOrders PurchaseOrder[]
+  paymentGateways PaymentGatewayConfig[]
   recipes        Recipe[]
   productionLogs ProductionLog[]
   campaigns      Campaign[]
@@ -81,6 +101,7 @@ model Company {
   assets            Asset[]
   assetMaintenances AssetMaintenance[]
   cois              Coi[]
+  customerRooms     CustomerRoom[]
 
   plan           Plan?    @relation(fields: [planId], references: [id])
 
@@ -165,6 +186,9 @@ model User {
 model Category {
   id        String   @id @default(uuid())
   name      String
+  imageUrl  String?
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
   companyId String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -256,9 +280,16 @@ model Product {
   depth           Decimal? // Profundidade / Comprimento (cm)
 
   // Tipo do produto (flags)
-  isRawMaterial   Boolean  @default(false) // Matéria-prima
-  isFinishedGood  Boolean  @default(false) // Produto acabado
-  isPackaging     Boolean  @default(false) // Embalagem
+  isRawMaterial     Boolean   @default(false) // Matéria-prima
+  isFinishedGood    Boolean   @default(false) // Produto acabado
+  isPackaging       Boolean   @default(false) // Embalagem
+  showInDigitalMenu Boolean   @default(false) // Exibir no Cardápio Digital do cliente
+  description       String?   // Descrição para loja virtual / cardápio
+  imageUrl          String?   // Foto do produto
+  promoPrice        Decimal?  // Preço promocional na loja
+  promoStartDate    DateTime? // Início da promoção
+  promoEndDate      DateTime? // Fim da promoção
+  featured          Boolean   @default(false) // Destaque na vitrine
 
   // Controle de estoque avançado
   minStock        Float?   @default(0)   // Estoque mínimo
@@ -321,8 +352,10 @@ model Customer {
   creditLimit     Decimal? @default(0)    // Limite de crédito
   creditUsed      Decimal? @default(0)    // Crédito utilizado
   priceTableId    String?  // Tabela de preço vinculada
-  region          String?  // Região de atendimento
-  notes           String?  // Observações gerais
+  region             String?  // Região de atendimento
+  notes              String?  // Observações gerais
+  passwordHash       String?  // Senha para acesso do cliente em "Minha Conta" da loja online
+  favoriteProductIds String?  // JSON array de IDs de produtos favoritos
   // ─────────────────────────────────────────────────────────────────────────
 
   company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -335,8 +368,29 @@ model Customer {
   luckyCoupons  LuckyCoupon[]
   returns       Return[]
   deliveryAddresses DeliveryAddress[]
+  rooms         CustomerRoom[]
 
   @@map("customers")
+}
+
+model CustomerRoom {
+  id         String   @id @default(uuid())
+  code       String   // ex: "Q1", "Q2", "Q3", "Q4"
+  name       String   // ex: "Quarto 1", "Quarto 2"
+  guestName  String?
+  notes      String?
+  active     Boolean  @default(true)
+  customerId String
+  companyId  String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  company  Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  orders   Order[]
+
+  @@unique([customerId, code])
+  @@map("customer_rooms")
 }
 
 model Sale {
@@ -353,6 +407,12 @@ model Sale {
   sellerId       String?  // Vendedor da venda
   orderId        String?  // Pedido de televendas origem
   invoiceId      String?  // NF-e emitida
+  originalSubtotal   Decimal? // Subtotal original antes do ajuste
+  originalDiscount   Decimal? // Desconto original antes do ajuste
+  originalTotal      Decimal? // Total original antes do ajuste
+  adjustedAt         DateTime? // Data/hora do ajuste
+  adjustedByUserId   String?   // Gerente/usuário que autorizou o ajuste
+  adjustmentReason   String?   // Motivo do ajuste (ex: Desconto esquecido)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -576,6 +636,8 @@ model Supplier {
   category    String? @default("Outros")
   segment     String? @default("Geral") // Padaria, Restaurante, Supermercado, Distribuidora, Fábrica
   systemType  String? @default("Outros") // Versão do RP utilizado
+  isLegacySaipos Boolean @default(false) // Marcado quando é fornecedor antigo migrado do Saipos
+  legacySystem   String? // ex: "SAIPOS"
   rating      Int     @default(5)
   status    String  @default("ACTIVE") // ACTIVE, INACTIVE, BLOCKED
   notes     String? // Observações Gerais
@@ -587,6 +649,7 @@ model Supplier {
   company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   stockEntries   StockEntry[]
   purchaseOrders PurchaseOrder[]
+  losses         Loss[]
 
   @@map("suppliers")
 }
@@ -689,9 +752,32 @@ model Order {
   expectedDelivery  DateTime? // Data prevista de entrega
   // ─────────────────────────────────────────────────────────────────────────
 
-  customer  Customer?   @relation(fields: [customerId], references: [id])
-  seller    Seller?     @relation(fields: [sellerId], references: [id])
-  company   Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  // ── CARDÁPIO DIGITAL & COMANDAS DE QUARTO ────────────────────────────────
+  channel          String    @default("ERP") // ERP | DIGITAL_MENU | ROOM_TAB | B2B
+  deliveryType     String?   // MESA | RETIRADA | ENTREGA | QUARTO
+  deliveryLocation String?
+  customerName     String?
+  customerPhone    String?
+  deliveryFee      Decimal   @default(0)
+  paymentMethod    String?
+  rejectionReason  String?
+  approvedByUserId String?
+  approvedAt       DateTime?
+  roomId           String?
+  // ── PAGAMENTO PIX & GATEWAYS ──────────────────────────────────────────
+  paymentGateway        String?   // "STONE" | "MERCADOPAGO" | "EFI" | "ASAAS" | "MANUAL"
+  paymentTransactionId  String?   // ID da transação no gateway
+  paymentStatus         String?   @default("PENDING") // PENDING | PAID | EXPIRED | FAILED | REFUNDED
+  pixQrCodeUrl          String?   // Link da imagem do QR Code
+  pixQrCodeText         String?   // Linha digitável Pix Copia e Cola
+  pixExpiresAt          DateTime? // Data de expiração do QR Code
+  pixPaidAt             DateTime? // Data em que o pagamento foi confirmado
+  // ─────────────────────────────────────────────────────────────────────────
+
+  customer  Customer?     @relation(fields: [customerId], references: [id])
+  room      CustomerRoom? @relation(fields: [roomId], references: [id])
+  seller    Seller?       @relation(fields: [sellerId], references: [id])
+  company   Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   items     OrderItem[]
   invoices  Invoice[]
   routeStops RouteStop[]
@@ -700,14 +786,16 @@ model Order {
 }
 
 model OrderItem {
-  id        String  @id @default(uuid())
-  orderId   String
-  productId String
-  quantity  Float
-  unitPrice Decimal
-  discount  Decimal @default(0)
-  total     Decimal
-  cost      Decimal @default(0) // Custo unitário para cálculo de margem
+  id            String  @id @default(uuid())
+  orderId       String
+  productId     String
+  quantity      Float
+  unitPrice     Decimal
+  discount      Decimal @default(0)
+  total         Decimal
+  cost          Decimal @default(0) // Custo unitário para cálculo de margem
+  stockDeducted Boolean @default(false) // Evita dupla baixa no fechamento da comanda
+  notes         String?
 
   order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id])
@@ -799,13 +887,14 @@ model Recipe {
   @@map("recipes")
 }
 
-// Item da Ficha Técnica (Insumo)
+// Item da Ficha Técnica (Insumo ou Embalagem)
 model RecipeItem {
   id         String   @id @default(uuid())
   recipeId   String
-  productId  String   // Insumo utilizado (ex: Farinha de Trigo)
+  productId  String   // Insumo ou embalagem utilizado (ex: Açúcar Sachê, Copo)
   quantity   Float    // Quantidade necessária para o rendimento
   unit       String   @default("KG") // Unidade do insumo (KG, G, L, UN)
+  itemRole   String   @default("INGREDIENT") // INGREDIENT | PACKAGING
 
   recipe     Recipe   @relation(fields: [recipeId], references: [id], onDelete: Cascade)
   product    Product  @relation(fields: [productId], references: [id])
@@ -820,6 +909,8 @@ model ProductionLog {
   quantityProduced Float
   batchNumber      String?  // Lote gerado
   expirationDate   DateTime? // Validade calculada
+  totalCost        Decimal? // Custo real de insumos/embalagens consumidos
+  notes            String?
   userId           String
   companyId        String
   createdAt        DateTime @default(now())
@@ -1080,20 +1171,27 @@ model ReturnItem {
 }
 
 model Loss {
-  id          String   @id @default(uuid())
-  productId   String
-  quantity    Float
-  reason      String?
-  companyId   String
-  userId      String
-  createdAt   DateTime @default(now())
+  id           String    @id @default(uuid())
+  productId    String
+  quantity     Float
+  reason       String?
+  lossType     String    @default("DISCARD") // DISCARD | SUPPLIER_EXCHANGE | EXPIRED | OTHER
+  photoData    String?   // Foto comprimida (câmera do celular / galeria)
+  receiptCode  String?   // Número do recibo imprimível (ex: AV-20261110-0001)
+  supplierId   String?   // Fornecedor para troca quando lossType = SUPPLIER_EXCHANGE
+  unitCost     Decimal?  // Snapshot do custo unitário na data da avaria
+  notes        String?
+  companyId    String
+  userId       String
+  createdAt    DateTime  @default(now())
   
-  returnItemId String? @unique
+  returnItemId String?   @unique
 
-  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  user        User     @relation(fields: [userId], references: [id])
-  product     Product  @relation(fields: [productId], references: [id])
-  returnItem  ReturnItem? @relation(fields: [returnItemId], references: [id])
+  company      Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user         User        @relation(fields: [userId], references: [id])
+  product      Product     @relation(fields: [productId], references: [id])
+  supplier     Supplier?   @relation(fields: [supplierId], references: [id])
+  returnItem   ReturnItem? @relation(fields: [returnItemId], references: [id])
 
   @@map("losses")
 }
@@ -1458,6 +1556,7 @@ model DeliveryAddress {
   city         String
   state        String
   zipCode      String
+  reference    String?
   isDefault    Boolean  @default(false)
   createdAt    DateTime @default(now())
 
@@ -1804,4 +1903,38 @@ model CoiMovement {
   @@index([companyId, coiId])
   @@index([companyId, productId])
   @@map("coi_movements")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONFIGURAÇÕES DE GATEWAY DE PAGAMENTO (PIX DINÂMICO & CHECKOUT)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model PaymentGatewayConfig {
+  id                  String    @id @default(uuid())
+  companyId           String
+  provider            String    // "STONE" | "MERCADOPAGO" | "EFI" | "ASAAS"
+  active              Boolean   @default(false)
+  isSandbox           Boolean   @default(false)
+
+  // Credenciais reais
+  apiKey              String?   // Secret Key / Access Token
+  publicKey           String?   // Public Key / Client ID
+  clientSecret        String?   // Client Secret (Stone / Efí)
+  pixKey              String?   // Chave Pix cadastrada (telefone, CNPJ, email ou aleatória)
+  webhookSecret       String?   // Segredo para validar requisições de webhook
+
+  // Status de validação real nos servidores bancários
+  status              String    @default("UNCONFIGURED") // "CONNECTED" | "INVALID_KEY" | "UNCONFIGURED"
+  merchantName        String?   // Nome do titular ou razão social retornada na validação real
+  accountInfo         String?   // JSON com detalhes adicionais da conta (ex: email, id)
+  lastValidatedAt     DateTime?
+  lastValidationError String?
+
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  company             Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, provider])
+  @@map("payment_gateway_configs")
 }

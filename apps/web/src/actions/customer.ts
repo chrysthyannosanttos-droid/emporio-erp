@@ -29,7 +29,11 @@ export async function createCustomer(formData: FormData) {
     const phone = formData.get("phone") as string;
     const address = (formData.get("address") as string) || null;
     const ie = (formData.get("ie") as string) || null;
-    const customerType = (formData.get("customerType") as string) || "CONSUMIDOR_FINAL"; // "REVENDA" | "CONSUMIDOR_FINAL"
+    const rawType = (formData.get("customerType") as string) || "CONSUMIDOR_FINAL";
+    const customerType =
+      rawType === "REVENDA" || rawType === "FUNCIONARIO" ? rawType : "CONSUMIDOR_FINAL";
+    const creditLimitRaw = parseFloat(String(formData.get("creditLimit") || "0").replace(",", "."));
+    const creditLimit = Number.isFinite(creditLimitRaw) && creditLimitRaw > 0 ? creditLimitRaw : 0;
     const personType = document && document.replace(/\D/g, "").length > 11 ? "PJ" : "PF";
 
     if (!name) return { error: "Nome é obrigatório" };
@@ -43,13 +47,16 @@ export async function createCustomer(formData: FormData) {
         address,
         ie,
         personType,
-        taxRegime: customerType === "REVENDA" ? "REVENDA" : "CONSUMIDOR_FINAL",
+        taxRegime: customerType,
+        creditLimit,
+        creditUsed: 0,
         companyId,
       },
     });
 
     revalidatePath("/customers");
     revalidatePath("/reports");
+    revalidatePath("/pdv");
     return { success: true, customer: serialize(customer) };
   } catch (err: any) {
     return { error: err.message || "Erro ao criar cliente" };
@@ -58,7 +65,7 @@ export async function createCustomer(formData: FormData) {
 
 export async function updateCustomerType(
   customerId: string,
-  customerType: "REVENDA" | "CONSUMIDOR_FINAL"
+  customerType: "REVENDA" | "CONSUMIDOR_FINAL" | "FUNCIONARIO"
 ) {
   try {
     await prisma.customer.update({
@@ -67,9 +74,26 @@ export async function updateCustomerType(
     });
     revalidatePath("/customers");
     revalidatePath("/reports");
+    revalidatePath("/pdv");
     return { success: true };
   } catch (err: any) {
     return { error: err.message || "Erro ao atualizar tipo do cliente" };
+  }
+}
+
+export async function updateCustomerCreditLimit(customerId: string, creditLimit: number) {
+  try {
+    const cleanLimit = Number.isFinite(creditLimit) && creditLimit >= 0 ? creditLimit : 0;
+    await prisma.customer.update({
+      where: { id: customerId },
+      data: { creditLimit: cleanLimit },
+    });
+    revalidatePath("/customers");
+    revalidatePath("/finance");
+    revalidatePath("/pdv");
+    return { success: true };
+  } catch (err: any) {
+    return { error: err.message || "Erro ao atualizar limite do funcionário" };
   }
 }
 
@@ -78,42 +102,6 @@ export async function getCustomers() {
     const companyId = await resolveCompanyId();
     if (!companyId) {
       return { error: "Não autorizado", customers: [] };
-    }
-
-    // Se ainda não houver nenhum cliente Revenda para demonstração/relatório, garante pelo menos 2 clientes cadastrados
-    const existingCount = await prisma.customer.count({ where: { companyId } });
-    if (existingCount === 0) {
-      await prisma.customer.createMany({
-        data: [
-          {
-            name: "Mercadinho & Conveniência São José (Revenda)",
-            document: "23.456.789/0001-10",
-            phone: "(81) 99812-3400",
-            email: "compras@mercadinhosaojose.com.br",
-            personType: "PJ",
-            taxRegime: "REVENDA",
-            companyId,
-          },
-          {
-            name: "Lanchonete & Doceria Sabor da Praça (Revenda)",
-            document: "34.567.890/0001-22",
-            phone: "(81) 99744-1122",
-            email: "contato@sabordapraca.com.br",
-            personType: "PJ",
-            taxRegime: "REVENDA",
-            companyId,
-          },
-          {
-            name: "Carlos Eduardo Mendes",
-            document: "104.229.884-12",
-            phone: "(81) 98811-2233",
-            email: "carlos.mendes@email.com",
-            personType: "PF",
-            taxRegime: "CONSUMIDOR_FINAL",
-            companyId,
-          },
-        ],
-      });
     }
 
     const customers = await prisma.customer.findMany({
@@ -132,9 +120,17 @@ export async function getCustomers() {
     const formatted = customers.map((c) => {
       const salesTotal = (c.sales || []).reduce((acc, s) => acc + Number(s.total || 0), 0);
       const ordersTotal = (c.orders || []).reduce((acc, o) => acc + Number(o.total || 0), 0);
+      const customerType =
+        c.taxRegime === "REVENDA"
+          ? "REVENDA"
+          : c.taxRegime === "FUNCIONARIO"
+          ? "FUNCIONARIO"
+          : "CONSUMIDOR_FINAL";
       return {
         ...serialize(c),
-        customerType: c.taxRegime === "REVENDA" ? "REVENDA" : "CONSUMIDOR_FINAL",
+        customerType,
+        creditLimit: Number(c.creditLimit || 0),
+        creditUsed: Number(c.creditUsed || 0),
         totalBought: salesTotal + ordersTotal,
         purchasesCount: (c.sales?.length || 0) + (c.orders?.length || 0),
       };

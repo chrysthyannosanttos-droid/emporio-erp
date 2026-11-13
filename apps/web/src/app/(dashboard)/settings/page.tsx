@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { CertificateCard } from "./_components/CertificateCard";
-import { getFiscalConfig, saveFiscalConfig } from "@/actions/fiscalConfig";
+import { getFiscalConfig, saveFiscalConfig, testSefazConnectionAction } from "@/actions/fiscalConfig";
 import { getTenantCompanyInfo, updateTenantCompanyInfo } from "@/actions/company";
 import { setupDemonstrativoAndCleanReal } from "@/actions/maintenance";
 import { TenantUsersManager } from "./TenantUsersManager";
@@ -315,6 +315,24 @@ function GeralTab({ company, fiscal, certFile, setCertFile, setActiveTab, saving
 }
 
 function FiscalTab({ fiscal, company, env, setEnv, certFile, setCertFile, saving, onSubmit, onRefreshFiscal }: any) {
+  const [testingSefaz, setTestingSefaz] = useState(false);
+  const [sefazStatus, setSefazStatus] = useState<any>(null);
+
+  let parsedMeta = { cscId: "000001", cscToken: "", ibgeCode: "2700805" };
+  try {
+    if (fiscal?.emitterEndpoint && fiscal.emitterEndpoint.trim().startsWith("{")) {
+      parsedMeta = { ...parsedMeta, ...JSON.parse(fiscal.emitterEndpoint) };
+    }
+  } catch {}
+
+  const handleTestSefaz = async () => {
+    setTestingSefaz(true);
+    setSefazStatus(null);
+    const res = await testSefazConnectionAction();
+    setSefazStatus(res);
+    setTestingSefaz(false);
+  };
+
   return (
     <form onSubmit={onSubmit} className="space-y-5">
       <div className="flex items-center justify-between mb-2">
@@ -322,7 +340,39 @@ function FiscalTab({ fiscal, company, env, setEnv, certFile, setCertFile, saving
           <h2 className="text-lg font-bold text-gray-900">Configuração Fiscal & NF-e</h2>
           <p className="text-gray-500 text-sm">Dados para emissão de NF-e e NFC-e pela SEFAZ</p>
         </div>
+        <button
+          type="button"
+          onClick={handleTestSefaz}
+          disabled={testingSefaz}
+          className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-md shadow-emerald-600/20 transition-all disabled:opacity-50"
+        >
+          {testingSefaz ? <Loader2 size={15} className="animate-spin" /> : <CheckCircle2 size={15} />}
+          <span>Testar Conexão SEFAZ-AL (mTLS)</span>
+        </button>
       </div>
+
+      {sefazStatus && (
+        <div
+          className={`p-4 rounded-xl border text-xs font-medium space-y-1 ${
+            sefazStatus.ok
+              ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+              : "bg-red-50 border-red-200 text-red-800"
+          }`}
+        >
+          <div className="font-bold text-sm flex items-center gap-2">
+            {sefazStatus.ok ? "✅ Webservice SEFAZ-AL (SVRS) Online e Autenticado via Certificado A1!" : "❌ Falha ao comunicar com a SEFAZ"}
+          </div>
+          {sefazStatus.ok ? (
+            <>
+              <div><strong>Retorno SEFAZ:</strong> cStat {sefazStatus.cStat} — {sefazStatus.xMotivo} ({sefazStatus.verAplic})</div>
+              <div><strong>Titular Certificado ICP-Brasil:</strong> {sefazStatus.certificateSubject || sefazStatus.subjectCn}</div>
+              <div><strong>Ambiente / Data-Hora SEFAZ:</strong> {sefazStatus.environment} — {sefazStatus.dhRecbto}</div>
+            </>
+          ) : (
+            <div>{sefazStatus.error || sefazStatus.xMotivo}</div>
+          )}
+        </div>
+      )}
 
       {/* Environment Toggle */}
       <div className="p-5 bg-gray-50 rounded-2xl border border-gray-200">
@@ -464,27 +514,49 @@ function FiscalTab({ fiscal, company, env, setEnv, certFile, setCertFile, saving
             label="CEP"
             name="zipCode"
             defaultValue={fiscal?.zipCode || ""}
-            placeholder="00000-000"
+            placeholder="57630-000"
+          />
+          <Field
+            label="Código IBGE do Município"
+            name="ibgeCode"
+            defaultValue={parsedMeta.ibgeCode || "2700805"}
+            placeholder="2700805 (Belém - AL)"
           />
         </div>
       </div>
 
-      {/* Series */}
+      {/* Series & CSC SEFAZ-AL */}
       <div className="space-y-4">
-        <h3 className="text-gray-900 font-bold text-sm">📋 Numeração</h3>
+        <h3 className="text-gray-900 font-bold text-sm">📋 Numeração &amp; Credencial NFC-e (CSC SEFAZ-AL)</h3>
         <div className="grid grid-cols-2 gap-4">
           <Field
-            label="Série NF-e"
+            label="Série NF-e (Modelo 55)"
             name="nfeSeries"
             defaultValue={fiscal?.nfeSeries || "1"}
             placeholder="1"
           />
           <Field
-            label="Série NFC-e"
+            label="Série NFC-e (Modelo 65)"
             name="nfceeSeries"
             defaultValue={fiscal?.nfceeSeries || "1"}
             placeholder="1"
           />
+        </div>
+        <div className="grid grid-cols-3 gap-4">
+          <Field
+            label="ID do Token CSC (SEFAZ-AL)"
+            name="cscId"
+            defaultValue={parsedMeta.cscId || "000001"}
+            placeholder="000001"
+          />
+          <div className="col-span-2">
+            <Field
+              label="Código CSC (Código de Segurança do Contribuinte - NFC-e)"
+              name="cscToken"
+              defaultValue={parsedMeta.cscToken || ""}
+              placeholder="Cole o código CSC gerado pelo contador no portal da SEFAZ-AL"
+            />
+          </div>
         </div>
       </div>
 

@@ -1,7 +1,8 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, Suspense } from "react";
+import { useEffect, useState, Suspense } from "react";
+import { ContractSignatureSvg, type SignatureInk } from "@/components/ContractSignatureSvg";
 
 const AVAILABLE_MODULES: Record<string, { name: string; desc: string }> = {
   pdv: {
@@ -70,6 +71,9 @@ function PrintContractContent() {
   const contractTerm = searchParams.get("contractTerm") || "12";
   const terminalCount = searchParams.get("terminalCount") || "1";
   const observations = searchParams.get("observations") || "Incluso treinamento operacional de até 4 horas, suporte técnico de segunda a sábado e atualizações de legislação tributária.";
+  const autoSign = searchParams.get("autoSign") !== "0";
+  const sigInk: SignatureInk = searchParams.get("sigInk") === "black" ? "black" : "blue";
+  const [customSignature, setCustomSignature] = useState<string | null>(null);
 
   const todayFormatted = new Date().toLocaleDateString("pt-BR", {
     day: "2-digit",
@@ -78,6 +82,10 @@ function PrintContractContent() {
   });
 
   useEffect(() => {
+    try {
+      const savedSig = localStorage.getItem("cybertech_provider_signature");
+      if (savedSig) setCustomSignature(savedSig);
+    } catch (_) {}
     // Abre a janela de impressão automaticamente após carregar
     const timer = setTimeout(() => {
       window.print();
@@ -200,11 +208,14 @@ function PrintContractContent() {
                 </div>
               </div>
 
-              <p className="mt-2 text-xs">
+              <p className="mt-1.5 text-[11.5px] leading-snug">
                 2.1. O valor mensal contempla o direito de uso contínuo, hospedagem de banco de dados, backups diários, suporte técnico especializado e atualizações normativas fiscais da SEFAZ (incluindo IBS, CBS e Imposto Seletivo).
               </p>
-              <p className="mt-1 text-xs">
+              <p className="mt-1 text-[11.5px] leading-snug">
                 2.2. Os pagamentos serão realizados via Chave PIX Oficial (<strong>{pixKey}</strong>) ou Boleto Bancário. O atraso superior a 15 (quinze) dias ensejará a suspensão temporária do acesso, com multa de 2% e juros legais de 1% a.m.
+              </p>
+              <p className="mt-1 text-[11.5px] leading-snug">
+                2.3. O valor da mensalidade poderá sofrer reajuste anual, a cada período de 12 (doze) meses contados da assinatura ou renovação deste instrumento, pela variação positiva acumulada do índice <strong>IPCA/IBGE</strong> (ou outro índice oficial substituto), bem como para recomposição de custos de infraestrutura em nuvem, armazenamento e ampliação de recursos contratados, mediante comunicação prévia à CONTRATANTE com antecedência mínima de 30 (trinta) dias.
               </p>
             </div>
 
@@ -221,8 +232,20 @@ function PrintContractContent() {
         </div>
 
         {/* Rodapé da Página 1 */}
-        <div className="pt-3 border-t border-gray-200 flex justify-between text-[10px] text-gray-400 font-sans">
-          <span>Rubrica CONTRATADA: __________________________________</span>
+        <div className="pt-3 border-t border-gray-200 flex items-center justify-between text-[10px] text-gray-400 font-sans">
+          <span className="inline-flex items-center gap-1.5">
+            Rubrica CONTRATADA:{" "}
+            {autoSign ? (
+              <ContractSignatureSvg
+                compact
+                ink={sigInk}
+                customImage={customSignature}
+                signerName={providerSigner}
+              />
+            ) : (
+              "__________________________________"
+            )}
+          </span>
           <span>Rubrica CONTRATANTE: __________________________________</span>
         </div>
       </div>
@@ -304,8 +327,17 @@ function PrintContractContent() {
             </div>
 
             {/* BLOCOS FORMAIS DE ASSINATURA */}
-            <div className="pt-8 grid grid-cols-2 gap-8 text-center text-xs font-sans">
+            <div className="pt-3 grid grid-cols-2 gap-8 text-center text-xs font-sans">
               <div>
+                <div className="h-14 flex items-end justify-center pb-0.5">
+                  {autoSign && (
+                    <ContractSignatureSvg
+                      ink={sigInk}
+                      customImage={customSignature}
+                      signerName={providerSigner}
+                    />
+                  )}
+                </div>
                 <div className="border-t-2 border-gray-900 w-4/5 mx-auto pt-2 font-bold text-gray-900">
                   {providerSigner}
                 </div>
@@ -314,6 +346,7 @@ function PrintContractContent() {
               </div>
 
               <div>
+                <div className="h-14" />
                 <div className="border-t-2 border-gray-900 w-4/5 mx-auto pt-2 font-bold text-gray-900">
                   {contactPerson || clientName}
                 </div>

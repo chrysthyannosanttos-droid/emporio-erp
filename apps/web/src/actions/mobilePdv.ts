@@ -8,8 +8,9 @@ import { ReceiptData } from "@/lib/receiptFormat";
 import { validateActiveSession } from "@/actions/auth";
 import { searchProducts, getProductByBarcode } from "./product";
 import { createSale } from "./sale";
+import { verifySupervisorPin } from "./users";
 
-const ALLOWED_PAYMENTS = ["MONEY", "PIX", "CREDIT_CARD", "DEBIT_CARD", "VOUCHER"];
+const ALLOWED_PAYMENTS = ["MONEY", "PIX", "CREDIT_CARD", "DEBIT_CARD", "VOUCHER", "CREDIARIO"];
 const LIMITED_DISCOUNT_PERCENT = 5; // mesmo limite descrito na permissão "pdv.discount.limited"
 
 export interface MobileProduct {
@@ -25,6 +26,7 @@ export interface MobileProduct {
 
 interface MobileAccess {
   allowed: boolean;
+  unauthenticated?: boolean;
   reason?: string;
   userName?: string;
   companyName?: string;
@@ -32,7 +34,7 @@ interface MobileAccess {
   canDiscountUnlimited?: boolean;
 }
 
-/** Garante que a permissão pdv.mobile exista no banco e seja vinculada aos perfis padrões na primeira vez. */
+/** Garante que a permissão pdv.mobile exista no banco e seja vinculada por padrão somente ao perfil ADMIN. */
 async function ensureMobilePermissionSeeded() {
   try {
     const perm = await prisma.permission.upsert({
@@ -41,18 +43,18 @@ async function ensureMobilePermissionSeeded() {
       create: {
         code: "pdv.mobile",
         name: "PDV Mobile (Celular/Tablet)",
-        module: "PDV & Frente de Caixa",
+        module: "Frente de Caixa (PDV)",
         description: "Permite usar o PDV Mobile pelo celular/tablet e enviar cupom digital por WhatsApp/SMS/Email",
       },
     });
 
-    const defaultRoles = await prisma.role.findMany({
-      where: { key: { in: ["ADMIN", "MANAGER", "SUPERVISOR", "OPERATOR", "CASHIER"] } },
+    const adminRoles = await prisma.role.findMany({
+      where: { key: "ADMIN" },
       select: { id: true },
     });
-    if (defaultRoles.length > 0) {
+    if (adminRoles.length > 0) {
       await prisma.rolePermission.createMany({
-        data: defaultRoles.map((r) => ({ roleId: r.id, permissionId: perm.id })),
+        data: adminRoles.map((r) => ({ roleId: r.id, permissionId: perm.id })),
         skipDuplicates: true,
       });
     }
@@ -65,7 +67,7 @@ async function ensureMobilePermissionSeeded() {
 async function checkMobileAccess(): Promise<MobileAccess & { userId?: string; companyId?: string }> {
   const session = await getSession();
   if (!session?.userId) {
-    return { allowed: false, reason: "Sessão expirada. Faça login novamente." };
+    return { allowed: false, unauthenticated: true, reason: "Sessão expirada. Faça login novamente." };
   }
 
   // Resolver empresa caso não esteja expressa na sessão (ex.: SuperAdmin)
@@ -99,35 +101,16 @@ async function checkMobileAccess(): Promise<MobileAccess & { userId?: string; co
     };
   }
 
-  // Operadores e caixas têm acesso direto por perfil de função
-  const roleUpper = (session.role || "").toUpperCase();
-  const isCashierOrOp =
-    roleUpper === "OPERATOR" ||
-    roleUpper === "CASHIER" ||
-    roleUpper.includes("OPERADOR") ||
-    roleUpper.includes("CAIXA");
-
-  if (isCashierOrOp) {
-    return {
-      allowed: true,
-      userId: session.userId,
-      companyId,
-      userName: session.name,
-      companyName: companyName || "Empório Agrobelém",
-      canDiscountLimited: true,
-      canDiscountUnlimited: false,
-    };
-  }
-
   await ensureMobilePermissionSeeded();
 
   const perms = await getUserEffectivePermissions(session.userId);
   const has = (code: string) => perms.includes(code);
 
-  if (!has("pdv.mobile") && !has("pdv.sale") && !has("pdv.access")) {
+  if (!has("pdv.mobile")) {
     return {
       allowed: false,
-      reason: "Seu usuário não tem permissão para usar o PDV Mobile. Peça ao administrador para liberar em Configurações › Perfis & Setores.",
+      reason:
+        'Seu usuário não tem permissão para usar o PDV Mobile. Peça ao administrador para habilitar "PDV Mobile (Celular/Tablet)" no perfil ou no usuário.',
       userName: session.name,
     };
   }
@@ -230,11 +213,53 @@ async function resolveServerPrices(companyId: string, productIds: string[]) {
   return prices;
 }
 
+export async function getMobileCustomers(): Promise<{
+  customers: {
+    id: string;
+    name: string;
+    document: string | null;
+    phone: string | null;
+    customerType: "FUNCIONARIO" | "REVENDA" | "CONSUMIDOR_FINAL";
+    creditLimit: number;
+    creditUsed: number;
+  }[];
+  error?: string;
+}> {
+  const access = await checkMobileAccess();
+  if (!access.allowed || !access.companyId) {
+    return { customers: [], error: access.reason };
+  }
+
+  const list = await prisma.customer.findMany({
+    where: { companyId: access.companyId },
+    orderBy: [{ name: "asc" }],
+  });
+
+  return {
+    customers: list.map((c) => ({
+      id: c.id,
+      name: c.name,
+      document: c.document,
+      phone: c.phone,
+      customerType:
+        c.taxRegime === "FUNCIONARIO"
+          ? "FUNCIONARIO"
+          : c.taxRegime === "REVENDA"
+          ? "REVENDA"
+          : "CONSUMIDOR_FINAL",
+      creditLimit: Number(c.creditLimit || 0),
+      creditUsed: Number(c.creditUsed || 0),
+    })),
+  };
+}
+
 export async function createMobileSale(input: {
   items: { productId: string; quantity: number }[];
   paymentMethod: string;
   discount?: number;
   customerCpf?: string;
+  customerId?: string;
+  supervisorPin?: string;
 }): Promise<{ success: true; saleId: string; receipt: ReceiptData | null; cashbackEarned: number } | { error: string }> {
   const access = await checkMobileAccess();
   if (!access.allowed || !access.companyId) {
@@ -283,11 +308,25 @@ export async function createMobileSale(input: {
     }
   }
 
+  let creditAuthorizedBy: string | undefined = undefined;
+  if (input.paymentMethod === "CREDIARIO") {
+    if (!input.customerId) {
+      return { error: "Selecione um funcionário para pagar com Crediário." };
+    }
+    const pinCheck = await verifySupervisorPin(input.supervisorPin || "");
+    if (!pinCheck.success) {
+      return { error: pinCheck.error || "PIN de autorização obrigatório para Crediário." };
+    }
+    creditAuthorizedBy = pinCheck.userName;
+  }
+
   const res = await createSale({
     items,
     paymentMethod: input.paymentMethod,
     discount,
     customerCpf: input.customerCpf || undefined,
+    customerId: input.customerId || undefined,
+    creditAuthorizedBy,
   });
 
   if ("error" in res && res.error) return { error: res.error };

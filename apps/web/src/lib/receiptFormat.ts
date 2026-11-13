@@ -14,6 +14,7 @@ export interface ReceiptData {
   companyName: string;
   companyDocument: string;
   operatorName: string;
+  customerName?: string;
   createdAt: string; // ISO
   items: ReceiptItem[];
   subtotal: number;
@@ -30,6 +31,7 @@ export const PAYMENT_LABELS: Record<string, string> = {
   CREDIT_CARD: "Cartão de Crédito",
   DEBIT_CARD: "Cartão de Débito",
   VOUCHER: "Voucher",
+  CREDIARIO: "Crediário Funcionário (Em Aberto)",
 };
 
 export function formatBRL(value: number): string {
@@ -64,6 +66,9 @@ export function buildReceiptText(receipt: ReceiptData, receiptUrl: string): stri
   lines.push(`🧾 *${receipt.companyName}*`);
   lines.push(`Cupom nº ${receipt.number}`);
   lines.push(date);
+  if (receipt.customerName) {
+    lines.push(`Cliente: ${receipt.customerName}`);
+  }
   lines.push("");
 
   for (const item of receipt.items) {

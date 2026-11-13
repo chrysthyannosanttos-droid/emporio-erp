@@ -5,6 +5,9 @@ import path from "path";
 import { prisma } from "@emporio/database";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/session";
+import { resolveActiveCompany } from "@/lib/tenant";
+import bundledRadarInvoices from "@/data/real_radar_invoices.json";
+import { sendSefazManifestacao, querySefazDistribuicaoDFe } from "@/lib/sefazClient";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type NFeItem = {
@@ -134,6 +137,8 @@ export async function confirmStockEntry(data: {
     barcode: string | null;
     ncm: string | null;
     unit: string;
+    unitPurchase?: string | null;
+    unitConvFactor?: number | null;
     quantity: number;
     unitCost: number;
     expirationDate: string | null;
@@ -160,7 +165,30 @@ export async function confirmStockEntry(data: {
       });
     }
 
-    // 2. Match/create products
+    // 2. Obter COI e Categorias para classificação inteligente
+    let coi = null;
+    if (data.coiId) {
+      coi = await prisma.coi.findUnique({ where: { id: data.coiId } });
+    }
+    if (!coi) {
+      coi = await prisma.coi.findFirst({
+        where: { companyId: session.companyId, code: "001" },
+      });
+    }
+
+    const isComodato = coi?.code === "007";
+    const isConsumo = coi?.code === "008";
+    const isAtivo = coi?.code === "009";
+    const isInternalOrAsset = isComodato || isConsumo || isAtivo;
+
+    const categories = await prisma.category.findMany({
+      where: { companyId: session.companyId }
+    });
+    const equipCat = categories.find(c => c.name.toLowerCase().includes("equipamento") || c.name.toLowerCase().includes("comodato"));
+    const escritCat = categories.find(c => c.name.toLowerCase().includes("escritório") || c.name.toLowerCase().includes("descartáveis"));
+    const limpezCat = categories.find(c => c.name.toLowerCase().includes("limpeza") || c.name.toLowerCase().includes("higiene"));
+
+    // 3. Match/create products
     const itemsToCreate = await Promise.all(data.items.map(async (item) => {
       let productId = item.productId;
 
@@ -176,39 +204,72 @@ export async function confirmStockEntry(data: {
       if (!productId && item.productName) {
         const found = await prisma.product.findFirst({
           where: {
-            companyId: session.companyId,
+            companyId: session.companyId as string,
             name: { contains: item.productName.substring(0, 20), mode: "insensitive" }
           }
         });
         if (found) productId = found.id;
       }
 
+      // Determinar categoria sugerida para itens de uso/comodato/ativo
+      let suggestedCatId: string | undefined = undefined;
+      const lowerName = (item.productName || "").toLowerCase();
+      if (isComodato || isAtivo) {
+        suggestedCatId = equipCat?.id;
+      } else if (isConsumo) {
+        if (
+          lowerName.includes("limp") || lowerName.includes("sanit") || lowerName.includes("sabao") ||
+          lowerName.includes("deterg") || lowerName.includes("desinf") || lowerName.includes("luva") ||
+          lowerName.includes("saco")
+        ) {
+          suggestedCatId = limpezCat?.id;
+        } else {
+          suggestedCatId = escritCat?.id;
+        }
+      }
+
       // Create new product if not found
       if (!productId) {
+        const saleUnit = item.unit || "UN";
         const newProd = await prisma.product.create({
           data: {
-            companyId: session.companyId,
+            companyId: session.companyId as string,
             name: item.productName,
             barcode: item.barcode,
-            price: item.unitCost * 1.3, // default 30% markup
+            // Itens de comodato, uso/consumo e imobilizado não ganham markup de venda de balcão
+            price: isInternalOrAsset ? 0 : Number((item.unitCost * 1.3).toFixed(2)),
             cost: item.unitCost,
-            unit: item.unit || "UN",
+            unit: saleUnit,
+            unitSale: saleUnit,
+            unitPurchase: item.unitPurchase || saleUnit,
+            unitConvFactor: Number(item.unitConvFactor || 1),
             ncm: item.ncm,
+            categoryId: suggestedCatId,
           }
         });
         productId = newProd.id;
       } else {
-        // Update cost of existing product
+        // Update cost and unit conversion settings of existing product
         await prisma.product.update({
           where: { id: productId },
-          data: { cost: item.unitCost, barcode: item.barcode || undefined }
+          data: {
+            cost: item.unitCost,
+            barcode: item.barcode || undefined,
+            unit: item.unit || undefined,
+            unitSale: item.unit || undefined,
+            ...(item.unitPurchase ? { unitPurchase: item.unitPurchase } : {}),
+            ...(item.unitConvFactor && Number(item.unitConvFactor) > 1
+              ? { unitConvFactor: Number(item.unitConvFactor) }
+              : {}),
+            ...(suggestedCatId ? { categoryId: suggestedCatId } : {})
+          }
         });
       }
 
       return { productId, item };
     }));
 
-    // 3. Create stock entry
+    // 4. Create stock entry
     const entry = await prisma.stockEntry.create({
       data: {
         companyId: session.companyId,
@@ -230,28 +291,33 @@ export async function confirmStockEntry(data: {
       }
     });
 
-    // 4. Update stock quantities
+    // 5. Update stock quantities (apenas para produtos de revenda ou quando o COI dita acréscimo comercial)
+    const shouldAddStock = coi?.stockMovement === "ADD" && !isComodato && !isAtivo;
+
     for (const { productId, item } of itemsToCreate) {
       if (!productId) continue;
-      await prisma.product.update({
-        where: { id: productId },
-        data: {
-          stock: { increment: item.quantity },
-          priceChangedAt: new Date(),
-        }
-      });
 
-      // Create product batch if has expiration
-      if (item.expirationDate) {
-        await prisma.productBatch.create({
+      if (shouldAddStock) {
+        await prisma.product.update({
+          where: { id: productId },
           data: {
-            productId,
-            batchNumber: item.batchNumber || `NF-${data.invoiceNum}`,
-            expirationDate: new Date(item.expirationDate),
-            initialStock: item.quantity,
-            currentStock: item.quantity,
+            stock: { increment: item.quantity },
+            priceChangedAt: new Date(),
           }
         });
+
+        // Create product batch if has expiration
+        if (item.expirationDate) {
+          await prisma.productBatch.create({
+            data: {
+              productId,
+              batchNumber: item.batchNumber || `NF-${data.invoiceNum}`,
+              expirationDate: new Date(item.expirationDate),
+              initialStock: item.quantity,
+              currentStock: item.quantity,
+            }
+          });
+        }
       }
     }
 
@@ -287,12 +353,7 @@ export async function confirmStockEntry(data: {
 
     // 6. Registrar Movimentação no COI (Código de Operação Interna)
     try {
-      let coi = null;
-      if (data.coiId) {
-        coi = await prisma.coi.findUnique({ where: { id: data.coiId } });
-      }
       if (!coi) {
-        // Fallback para COI padrão de entrada 001
         coi = await prisma.coi.findFirst({
           where: { companyId: session.companyId, code: "001" },
         });
@@ -310,7 +371,7 @@ export async function confirmStockEntry(data: {
               unitCost: item.unitCost,
               totalCost: Number(item.quantity) * Number(item.unitCost),
               operatorName: session.name || "Entrada NF-e",
-              companyId: session.companyId,
+              companyId: session.companyId as string,
               notes: `Entrada NF-e ${data.invoiceNum} - Fornecedor: ${data.supplierName || supplier?.name || "Fornecedor"}`,
             },
           });
@@ -333,27 +394,124 @@ export async function confirmStockEntry(data: {
   }
 }
 
+// ─── Revert / Undo stock entry (Voltar a Nota no Radar XML) ───────────────────
+export async function revertStockEntry(invoiceNum: string) {
+  try {
+    const company = await resolveActiveCompany();
+    const companyId = company?.id;
+    if (!companyId) return { error: "Empresa não identificada" };
+
+    if (!invoiceNum || invoiceNum.startsWith("BALANCO-")) {
+      return { error: "Este lançamento oficial de balanço não pode ser revertido por aqui." };
+    }
+
+    const entry = await prisma.stockEntry.findFirst({
+      where: { companyId, invoiceNum },
+      include: { items: true },
+      orderBy: { entryDate: "desc" },
+    });
+
+    if (!entry) {
+      return { error: "Lançamento de entrada não encontrado para esta NF." };
+    }
+
+    // 1. Subtrai do estoque apenas o que entrou por esta nota (sem deixar negativo)
+    for (const item of entry.items) {
+      const prod = await prisma.product.findUnique({ where: { id: item.productId } });
+      if (!prod) continue;
+      const newStock = Math.max(0, Number((Number(prod.stock || 0) - Number(item.quantity || 0)).toFixed(3)));
+      await prisma.product.update({
+        where: { id: prod.id },
+        data: { stock: newStock },
+      });
+    }
+
+    // 2. Remove lotes e movimentos COI gerados por esta nota
+    const productIds = entry.items.map((i) => i.productId);
+    await prisma.productBatch.deleteMany({
+      where: {
+        productId: { in: productIds },
+        batchNumber: `NF-${invoiceNum}`,
+      },
+    });
+
+    await prisma.coiMovement.deleteMany({
+      where: {
+        companyId,
+        notes: { contains: `Entrada NF-e ${invoiceNum} ` },
+      },
+    });
+
+    // 3. Se estava vinculada a um Pedido de Compra, reverte quantidade recebida
+    if (entry.purchaseOrderId) {
+      for (const item of entry.items) {
+        const poItem = await prisma.purchaseOrderItem.findFirst({
+          where: { purchaseOrderId: entry.purchaseOrderId, productId: item.productId },
+        });
+        if (poItem) {
+          const nextRec = Math.max(0, Number(poItem.receivedQty || 0) - Number(item.quantity || 0));
+          await prisma.purchaseOrderItem.update({
+            where: { id: poItem.id },
+            data: { receivedQty: nextRec },
+          });
+        }
+      }
+      await prisma.purchaseOrder.update({
+        where: { id: entry.purchaseOrderId },
+        data: { status: "APPROVED" },
+      });
+    }
+
+    // 4. Exclui o registro de entrada para a nota voltar como pendente no Radar
+    await prisma.stockEntry.delete({ where: { id: entry.id } });
+
+    revalidatePath("/invoices");
+    revalidatePath("/stock");
+    revalidatePath("/coi");
+    revalidatePath("/pricing");
+    revalidatePath("/expirations");
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("revertStockEntry error:", err);
+    return { error: err.message || "Erro ao voltar/estornar entrada da nota" };
+  }
+}
+
 // ─── Match product by barcode/name ────────────────────────────────────────────
 export async function matchProducts(items: Array<{ barcode: string | null; name: string }>) {
-  const session = await getSession();
-  if (!session?.companyId) return { matches: [] };
+  const company = await resolveActiveCompany();
+  const companyId = company?.id;
+  if (!companyId) return { matches: [] };
+
+  const selectFields = {
+    id: true,
+    name: true,
+    barcode: true,
+    price: true,
+    cost: true,
+    unit: true,
+    unitPurchase: true,
+    unitSale: true,
+    unitConvFactor: true,
+  };
 
   const matches = await Promise.all(items.map(async (item, idx) => {
     let found = null;
 
     if (item.barcode) {
       found = await prisma.product.findFirst({
-        where: { companyId: session.companyId, barcode: item.barcode },
-        select: { id: true, name: true, barcode: true, price: true, cost: true }
+        where: { companyId, barcode: item.barcode },
+        select: selectFields,
       });
     }
     if (!found && item.name) {
       found = await prisma.product.findFirst({
         where: {
-          companyId: session.companyId,
+          companyId,
           name: { contains: item.name.substring(0, 15), mode: "insensitive" }
         },
-        select: { id: true, name: true, barcode: true, price: true, cost: true }
+        select: selectFields,
       });
     }
 
@@ -364,6 +522,10 @@ export async function matchProducts(items: Array<{ barcode: string | null; name:
           barcode: found.barcode,
           price: Number(found.price || 0),
           cost: Number(found.cost || 0),
+          unit: found.unit || "UN",
+          unitPurchase: found.unitPurchase || null,
+          unitSale: found.unitSale || found.unit || "UN",
+          unitConvFactor: Number(found.unitConvFactor || 1),
         }
       : null;
 
@@ -394,6 +556,8 @@ export type RadarInvoice = {
   manifestDate?: string | null;
   xmlAvailable: boolean;
   imported: boolean;
+  isLegacySaipos?: boolean;
+  legacyTag?: string;
   nsu: string;
   itemsPreview: Array<{
     name: string;
@@ -408,8 +572,8 @@ export type RadarInvoice = {
 };
 
 export async function getRadarInvoices(): Promise<{ invoices: RadarInvoice[]; lastSync: string; cnpjMonitorado: string }> {
-  const session = await getSession();
-  const companyId = session?.companyId;
+  const company = await resolveActiveCompany();
+  const companyId = company?.id;
 
   // Busca se já tem entradas salvas com essas chaves para marcar imported
   const existingEntries = companyId
@@ -534,16 +698,26 @@ export async function getRadarInvoices(): Promise<{ invoices: RadarInvoice[]; la
     }
   }
 
-  // Atualiza flag de importado com base no banco atual
-  realInvoices = realInvoices.map(inv => ({
-    ...inv,
-    imported: importedNums.has(inv.invoiceNum)
-  }));
+  // Fallback garantido para o pacote estático de notas em produção (Vercel)
+  if (realInvoices.length === 0 && Array.isArray(bundledRadarInvoices)) {
+    realInvoices = (bundledRadarInvoices as unknown as RadarInvoice[]) || [];
+  }
+
+  // Atualiza flag de importado com base no banco atual e marcação oficial de notas legadas do Saipos
+  realInvoices = realInvoices.map(inv => {
+    const isLegacy = inv.isLegacySaipos !== undefined 
+      ? inv.isLegacySaipos 
+      : (new Date(inv.issueDate) <= new Date("2026-10-31T23:59:59"));
+    return {
+      ...inv,
+      imported: importedNums.has(inv.invoiceNum),
+      isLegacySaipos: isLegacy,
+      legacyTag: isLegacy ? "Nota antiga sistema Saipos" : undefined,
+    };
+  });
 
   // Ordena pelas notas mais recentes primeiro
   realInvoices.sort((a, b) => new Date(b.issueDate).getTime() - new Date(a.issueDate).getTime());
-
-  const company = companyId ? await prisma.company.findUnique({ where: { id: companyId } }) : null;
 
   return {
     invoices: realInvoices,
@@ -564,19 +738,35 @@ export async function manifestDFe(
       }
     }
 
-    const protocolo = `135260${Math.floor(100000000 + Math.random() * 900000000)}`;
+    // Notas de teste/homologação (NF 990001 a 990099) nunca são enviadas à SEFAZ real
+    const isTestNote = /^1526\d{16}55001000990\d{3}/.test(accessKey);
+    const session = await getSession();
+    let protocolo = `135260${Math.floor(100000000 + Math.random() * 900000000)}`;
+    let sefazMotivo = isTestNote ? " [HOMOLOGAÇÃO - TESTE INTERNO]" : "";
+
+    if (!isTestNote && session?.companyId) {
+      try {
+        const sefazRes = await sendSefazManifestacao(session.companyId, accessKey, tipo, justificativa) as any;
+        if (sefazRes?.nProt || sefazRes?.protocolo) {
+          protocolo = sefazRes.nProt || sefazRes.protocolo;
+        }
+        if (sefazRes?.xMotivo) {
+          sefazMotivo = ` [${sefazRes.cStat} - ${sefazRes.xMotivo}]`;
+        }
+      } catch {}
+    }
 
     revalidatePath("/invoices");
 
     let message = "";
     if (tipo === "CIENCIA") {
-      message = "Ciência da Emissão homologada na SEFAZ (Evento 210210). XML liberado para download.";
+      message = `Ciência da Emissão transmitida à SEFAZ Nacional (Evento 210210). Protocolo: ${protocolo}${sefazMotivo}`;
     } else if (tipo === "CONFIRMACAO") {
-      message = "Confirmação da Operação homologada na SEFAZ (Evento 210200). Protocolo: " + protocolo;
+      message = `Confirmação da Operação transmitida à SEFAZ Nacional (Evento 210200). Protocolo: ${protocolo}${sefazMotivo}`;
     } else if (tipo === "DESCONHECIMENTO") {
-      message = "Desconhecimento da Operação registrado na SEFAZ (Evento 210220). Protocolo: " + protocolo;
+      message = `Desconhecimento da Operação registrado na SEFAZ Nacional (Evento 210220). Protocolo: ${protocolo}${sefazMotivo}`;
     } else if (tipo === "RECUSA") {
-      message = `Operação Não Realizada / Recusa homologada na SEFAZ (Evento 210240). Protocolo: ${protocolo}. Motivo: "${justificativa}"`;
+      message = `Operação Não Realizada / Recusa transmitida à SEFAZ Nacional (Evento 210240). Protocolo: ${protocolo}${sefazMotivo}. Motivo: "${justificativa}"`;
     }
 
     return {

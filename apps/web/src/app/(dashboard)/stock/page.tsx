@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Package, Search, Plus, FileCode, X, Check, AlertCircle, Zap, Loader2, Sparkles, ScanBarcode, ArrowRight, Scale, Edit2, Radio, ClipboardCheck } from "lucide-react";
+import { Package, Search, Plus, FileCode, X, Check, AlertCircle, Zap, Loader2, Sparkles, ScanBarcode, ArrowRight, Scale, Edit2, Radio, ClipboardCheck, ChefHat, Trash2, Utensils } from "lucide-react";
 import Link from "next/link";
-import { getProducts, lookupBarcodeOnline, quickCreateProductByBarcode, updateProduct } from "@/actions/product";
+import { getProducts, lookupBarcodeOnline, quickCreateProductByBarcode, updateProduct, getIngredientAndPackagingCatalog } from "@/actions/product";
 
 export default function StockPage() {
   const [products, setProducts] = useState<any[]>([]);
@@ -46,9 +46,61 @@ export default function StockPage() {
     } catch (_) { }
   };
 
-  const [stockArea, setStockArea] = useState<"ALL" | "SALE" | "LOSS" | "PRODUCTION" | "SCALE">("ALL");
+  const [stockArea, setStockArea] = useState<"ALL" | "SALE" | "PRODUCTION" | "INSUMOS" | "COMODATO" | "CONSUMO" | "LOSS" | "SCALE">("ALL");
 
-  // Edição rápida de Produto (inclusive Balança e PLU)
+  const isComodatoProduct = (p: any) => {
+    const catName = (p.category?.name || "").toLowerCase();
+    const nl = (p.name || "").toLowerCase();
+    return (
+      catName.includes("comodato") ||
+      catName.includes("equipamento") ||
+      nl.includes("freezer") ||
+      nl.includes("estufa 8bd") ||
+      nl.includes("maquina de capsulas") ||
+      nl.includes("máquina de capsulas")
+    );
+  };
+
+  const isConsumoProduct = (p: any) => {
+    const catName = (p.category?.name || "").toLowerCase();
+    return (
+      catName.includes("escritório") ||
+      catName.includes("descartáveis") ||
+      catName.includes("higiene") ||
+      catName.includes("limpeza")
+    );
+  };
+
+  const isProductionProduct = (p: any) => {
+    const catName = (p.category?.name || "").toLowerCase();
+    const nl = (p.name || "").toLowerCase();
+    return (
+      p.isSelfProduced === true ||
+      catName.includes("própria") ||
+      catName.includes("propria") ||
+      catName.includes("sanduíches") ||
+      catName.includes("sanduiches") ||
+      catName.includes("padaria artesanal") ||
+      nl.includes("agrobelém") ||
+      nl.includes("agrobelem") ||
+      nl.includes("fórmula do sossego") ||
+      nl.includes("formula do sossego")
+    );
+  };
+
+  const isInsumoProduct = (p: any) => {
+    const catName = (p.category?.name || "").toLowerCase();
+    return (
+      p.isRawMaterial === true ||
+      p.isPackaging === true ||
+      catName.includes("insumo") ||
+      catName.includes("matéria-prima") ||
+      catName.includes("matérias-primas") ||
+      catName.includes("embalag")
+    );
+  };
+
+  // Edição completa de Produto (Flags, Cardápio Digital, Composição, Balança e Unidades)
   const [editingProduct, setEditingProduct] = useState<any>(null);
   const [editName, setEditName] = useState("");
   const [editBarcode, setEditBarcode] = useState("");
@@ -56,24 +108,110 @@ export default function StockPage() {
   const [editCost, setEditCost] = useState("");
   const [editStock, setEditStock] = useState("");
   const [editUnit, setEditUnit] = useState("UN");
+  const [editUnitPurchase, setEditUnitPurchase] = useState("UN");
+  const [editUnitSale, setEditUnitSale] = useState("UN");
+  const [editUnitConvFactor, setEditUnitConvFactor] = useState("1");
+  const [editPackagingType, setEditPackagingType] = useState("UNIT");
+  const [editUnitsPerPack, setEditUnitsPerPack] = useState("1");
   const [editSendToScale, setEditSendToScale] = useState(false);
   const [editInternalCode, setEditInternalCode] = useState("");
   const [editScaleDays, setEditScaleDays] = useState("0");
+  const [editIsSelfProduced, setEditIsSelfProduced] = useState(false);
+  const [editIsRawMaterial, setEditIsRawMaterial] = useState(false);
+  const [editIsFinishedGood, setEditIsFinishedGood] = useState(false);
+  const [editIsPackaging, setEditIsPackaging] = useState(false);
+  const [editShowInDigitalMenu, setEditShowInDigitalMenu] = useState(false);
+
+  // Composição na Edição
+  const [editCatalog, setEditCatalog] = useState<any[]>([]);
+  const [editRecipeYield, setEditRecipeYield] = useState("1");
+  const [editRecipeInstructions, setEditRecipeInstructions] = useState("");
+  const [editRecipeItems, setEditRecipeItems] = useState<
+    { productId: string; name: string; quantity: number; unit: string; unitCost: number; itemRole: "INGREDIENT" | "PACKAGING" }[]
+  >([]);
+  const [editCompProductId, setEditCompProductId] = useState("");
+  const [editCompQty, setEditCompQty] = useState("1");
+  const [editCompUnit, setEditCompUnit] = useState("UN");
+  const [editCompRole, setEditCompRole] = useState<"INGREDIENT" | "PACKAGING">("INGREDIENT");
+
   const [savingEdit, setSavingEdit] = useState(false);
   const [editError, setEditError] = useState("");
 
-  const handleOpenEditModal = (p: any) => {
+  const handleOpenEditModal = async (p: any) => {
     setEditingProduct(p);
     setEditName(p.name);
     setEditBarcode(p.barcode || "");
     setEditPrice(String(p.price || ""));
     setEditCost(p.cost ? String(p.cost) : "");
     setEditStock(String(p.stock || "0"));
-    setEditUnit(p.unit || (p.sendToScale ? "KG" : "UN"));
+    const baseUnit = p.unitSale || p.unit || (p.sendToScale ? "KG" : "UN");
+    setEditUnit(baseUnit);
+    setEditUnitPurchase(p.unitPurchase || baseUnit);
+    setEditUnitSale(p.unitSale || baseUnit);
+    setEditUnitConvFactor(String(p.unitConvFactor || 1));
+    setEditPackagingType(p.packagingType || "UNIT");
+    setEditUnitsPerPack(String(p.unitsPerPack || 1));
     setEditSendToScale(Boolean(p.sendToScale));
     setEditInternalCode(p.internalCode || "");
     setEditScaleDays(String(p.scaleDays || 0));
+    setEditIsSelfProduced(Boolean(p.isSelfProduced));
+    setEditIsRawMaterial(Boolean(p.isRawMaterial));
+    setEditIsFinishedGood(Boolean(p.isFinishedGood));
+    setEditIsPackaging(Boolean(p.isPackaging));
+    setEditShowInDigitalMenu(Boolean(p.showInDigitalMenu));
+
+    setEditRecipeYield(String(p.recipe?.yield || 1));
+    setEditRecipeInstructions(p.recipe?.instructions || "");
+    setEditRecipeItems(
+      (p.recipe?.items || []).map((it: any) => ({
+        productId: it.productId,
+        name: it.product?.name || "Insumo",
+        quantity: Number(it.quantity || 0),
+        unit: it.unit || it.product?.unit || "UN",
+        unitCost: Number(it.product?.cost || 0),
+        itemRole: it.itemRole === "PACKAGING" ? "PACKAGING" : "INGREDIENT",
+      }))
+    );
+    setEditCompProductId("");
+    setEditCompQty("1");
     setEditError("");
+
+    if (editCatalog.length === 0) {
+      const catRes = await getIngredientAndPackagingCatalog();
+      if (catRes.success && catRes.products) {
+        setEditCatalog(catRes.products);
+      }
+    }
+  };
+
+  const editCompositionTotalCost = editRecipeItems.reduce(
+    (acc, it) => acc + Number(it.quantity || 0) * Number(it.unitCost || 0),
+    0
+  );
+  const editCompositionUnitCost =
+    parseFloat(editRecipeYield) > 0
+      ? editCompositionTotalCost / parseFloat(editRecipeYield)
+      : editCompositionTotalCost;
+
+  const handleAddEditCompItem = () => {
+    if (!editCompProductId) return;
+    const found = editCatalog.find((c) => c.id === editCompProductId);
+    if (!found) return;
+    const qty = parseFloat(editCompQty);
+    if (!Number.isFinite(qty) || qty <= 0) return;
+    setEditRecipeItems((prev) => [
+      ...prev,
+      {
+        productId: found.id,
+        name: found.name,
+        quantity: qty,
+        unit: editCompUnit || found.unit || "UN",
+        unitCost: Number(found.cost || 0),
+        itemRole: editCompRole,
+      },
+    ]);
+    setEditCompProductId("");
+    setEditCompQty("1");
   };
 
   const handleSaveEditProduct = async (e: React.FormEvent) => {
@@ -89,10 +227,36 @@ export default function StockPage() {
     fd.append("cost", editCost);
     fd.append("stock", editStock);
     fd.append("unit", editUnit);
+    fd.append("unitPurchase", editUnitPurchase);
+    fd.append("unitSale", editUnitSale || editUnit);
+    fd.append("unitConvFactor", editUnitConvFactor);
+    fd.append("packagingType", editPackagingType);
+    fd.append("unitsPerPack", editUnitsPerPack);
     fd.append("sendToScale", String(editSendToScale));
     fd.append("internalCode", editInternalCode);
     fd.append("scaleDays", editScaleDays);
+    fd.append("isSelfProduced", String(editIsSelfProduced));
+    fd.append("isRawMaterial", String(editIsRawMaterial));
+    fd.append("isFinishedGood", String(editIsFinishedGood));
+    fd.append("isPackaging", String(editIsPackaging));
+    fd.append("showInDigitalMenu", String(editShowInDigitalMenu));
     if (editingProduct.categoryId) fd.append("categoryId", editingProduct.categoryId);
+
+    if (editIsSelfProduced) {
+      fd.append("recipeYield", editRecipeYield || "1");
+      fd.append("recipeInstructions", editRecipeInstructions);
+      fd.append(
+        "recipeItems",
+        JSON.stringify(
+          editRecipeItems.map((it) => ({
+            productId: it.productId,
+            quantity: Number(it.quantity),
+            unit: it.unit,
+            itemRole: it.itemRole,
+          }))
+        )
+      );
+    }
 
     const res = await updateProduct(editingProduct.id, fd);
     setSavingEdit(false);
@@ -224,17 +388,26 @@ export default function StockPage() {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || (p.barcode && p.barcode.includes(search));
     if (!matchesSearch) return false;
 
-    if (stockArea === "SALE") {
-      return !p.isSelfProduced && p.stock > 0;
+    if (stockArea === "COMODATO") {
+      return isComodatoProduct(p);
+    }
+    if (stockArea === "CONSUMO") {
+      return isConsumoProduct(p);
     }
     if (stockArea === "PRODUCTION") {
-      return p.isSelfProduced === true;
+      return isProductionProduct(p);
+    }
+    if (stockArea === "INSUMOS") {
+      return isInsumoProduct(p);
+    }
+    if (stockArea === "SALE") {
+      return !isComodatoProduct(p) && !isConsumoProduct(p) && !isInsumoProduct(p) && p.stock > 0;
     }
     if (stockArea === "SCALE") {
       return p.sendToScale === true || Boolean(p.internalCode);
     }
     if (stockArea === "LOSS") {
-      return p.stock <= 5;
+      return !isComodatoProduct(p) && p.stock <= 5;
     }
     return true;
   });
@@ -300,9 +473,12 @@ export default function StockPage() {
             {[
               { key: "ALL", label: "Estoque Geral" },
               { key: "SALE", label: "Área de Venda" },
+              { key: "PRODUCTION", label: "👨‍🍳 Produção Própria" },
+              { key: "INSUMOS", label: "🌾 Insumos & Matérias-Primas" },
+              { key: "COMODATO", label: "❄️ Comodatos & Equipamentos" },
+              { key: "CONSUMO", label: "📦 Uso & Consumo" },
               { key: "SCALE", label: "Balança MGV6" },
-              { key: "LOSS", label: "Avaria / Crítico" },
-              { key: "PRODUCTION", label: "Produção Própria" }
+              { key: "LOSS", label: "Avaria / Crítico" }
             ].map(tab => (
               <button
                 key={tab.key}
@@ -317,6 +493,62 @@ export default function StockPage() {
             ))}
           </div>
         </div>
+
+        {stockArea === "PRODUCTION" && (
+          <div className="px-5 py-3 bg-emerald-50/70 border-b border-emerald-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-emerald-900">
+            <div>
+              <strong>Produtos de Fabricação Própria & Cozinha Agrobelém:</strong> Linha Agrobelém (Purês de Macaxeira, Caipirão, Carne de Sol Agrobelém, Doce Fórmula do Sossego, Torrada Artesanal), Sanduíches & Lanches e Padaria Artesanal.
+            </div>
+            <Link
+              href="/production"
+              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-bold shrink-0 text-[11px] transition-colors"
+            >
+              Ver Fichas Técnicas & Ordens de Produção →
+            </Link>
+          </div>
+        )}
+
+        {stockArea === "INSUMOS" && (
+          <div className="px-5 py-3 bg-teal-50/70 border-b border-teal-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-teal-900">
+            <div>
+              <strong>Estoque de Insumos & Matérias-Primas da Cozinha (PLUs 8001–8025):</strong> Ingredientes e bases utilizados nas Fichas Técnicas de Produção Própria e Lanchonete (Costela Desfiada, Carne de Sol Desfiada, Frango Desfiado, Macaxeira Bruta, Molho Aioli, Queijo Coalho, Requeijão).
+            </div>
+            <Link
+              href="/production"
+              className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-bold shrink-0 text-[11px] transition-colors"
+            >
+              Gerenciar Receitas e Baixa de Insumos →
+            </Link>
+          </div>
+        )}
+
+        {stockArea === "COMODATO" && (
+          <div className="px-5 py-3 bg-indigo-50/70 border-b border-indigo-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-indigo-900">
+            <div>
+              <strong>Estoque de Comodatos & Equipamentos (COI 007 — CFOP 1.908):</strong> Equipamentos emprestados por fornecedores ou de uso operacional da loja (Freezers, Estufas, Máquinas de Cápsulas). Separados da Área de Venda para não afetar o CMV.
+            </div>
+            <Link
+              href="/assets"
+              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-bold shrink-0 text-[11px] transition-colors"
+            >
+              Ver em Ativo Imobilizado & Patrimônio →
+            </Link>
+          </div>
+        )}
+
+        {stockArea === "CONSUMO" && (
+          <div className="px-5 py-3 bg-amber-50/70 border-b border-amber-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-amber-900">
+            <div>
+              <strong>Estoque de Uso & Consumo Interno (COI 008 — CFOP 1.556):</strong> Materiais de escritório, bobinas, etiquetas, descartáveis e produtos de limpeza para operação interna da loja.
+            </div>
+            <Link
+              href="/coi"
+              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold shrink-0 text-[11px] transition-colors"
+            >
+              Regras de Operação (COI) →
+            </Link>
+          </div>
+        )}
 
         {loading ? (
           <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">Carregando...</div>
@@ -337,7 +569,7 @@ export default function StockPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={6} className="px-5 py-10 text-center text-gray-400">Nenhum produto cadastrado.</td></tr>
+                  <tr><td colSpan={6} className="px-5 py-10 text-center text-gray-400">Nenhum produto cadastrado nesta área.</td></tr>
                 ) : (
                   filtered.map(p => (
                     <tr key={p.id} className="hover:bg-blue-50/40 transition-colors">
@@ -348,12 +580,41 @@ export default function StockPage() {
                         <div className="flex flex-col">
                           <span className="truncate">{p.name}</span>
                           <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            {p.category?.name && (
+                              <span className="text-[9px] text-gray-600 bg-gray-100 px-1.5 py-0.2 rounded border border-gray-200 font-semibold">
+                                {p.category.name}
+                              </span>
+                            )}
+                            {isComodatoProduct(p) && (
+                              <span className="text-[9px] text-indigo-800 bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-200 font-bold uppercase tracking-wider">
+                                ❄️ Comodato / Equipamento
+                              </span>
+                            )}
+                            {isConsumoProduct(p) && (
+                              <span className="text-[9px] text-purple-800 bg-purple-50 px-1.5 py-0.2 rounded border border-purple-200 font-bold uppercase tracking-wider">
+                                📦 Uso & Consumo
+                              </span>
+                            )}
                             {p.sendToScale && (
                               <span className="text-[9px] text-amber-800 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200 font-bold uppercase tracking-wider flex items-center gap-0.5">
                                 <Scale size={10} /> Balança MGV6
                               </span>
                             )}
-                            {p.isSelfProduced && <span className="text-[9px] text-green-600 font-bold uppercase tracking-wider">Produção Própria</span>}
+                            {isProductionProduct(p) && (
+                              <span className="text-[9px] text-emerald-800 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200 font-bold uppercase tracking-wider">
+                                👨‍🍳 Produção Própria
+                              </span>
+                            )}
+                            {isInsumoProduct(p) && (
+                              <span className="text-[9px] text-teal-800 bg-teal-50 px-1.5 py-0.2 rounded border border-teal-200 font-bold uppercase tracking-wider">
+                                🌾 {p.isPackaging ? "Embalagem / Insumo" : "Insumo / Cozinha"}
+                              </span>
+                            )}
+                            {p.showInDigitalMenu && (
+                              <span className="text-[9px] text-indigo-800 bg-indigo-50 px-1.5 py-0.2 rounded border border-indigo-200 font-bold uppercase tracking-wider">
+                                📱 Cardápio Digital
+                              </span>
+                            )}
                           </div>
                         </div>
                       </td>
@@ -666,7 +927,7 @@ export default function StockPage() {
       {/* Modal de Edição de Produto */}
       {editingProduct && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-gray-200 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white border border-gray-200 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-200">
             <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100">
@@ -674,7 +935,7 @@ export default function StockPage() {
                 </div>
                 <div>
                   <h3 className="text-sm font-bold text-gray-900">Editar Produto</h3>
-                  <p className="text-[10px] text-gray-500">Altere preços, código de barras e configurações de balança.</p>
+                  <p className="text-[10px] text-gray-500">Altere preços, flags, cardápio digital, composição, balança e unidades.</p>
                 </div>
               </div>
               <button onClick={() => setEditingProduct(null)} className="p-1 rounded-full text-gray-400 hover:text-gray-700">
@@ -701,7 +962,7 @@ export default function StockPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[10px] font-bold text-gray-700 uppercase tracking-wider mb-1">Código de Barras (EAN)</label>
                   <input
@@ -712,16 +973,39 @@ export default function StockPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-gray-700 uppercase tracking-wider mb-1">Unidade de Medida</label>
+                  <label className="block text-[10px] font-bold text-gray-700 uppercase tracking-wider mb-1">Unidade Base / Venda</label>
                   <select
                     value={editUnit}
-                    onChange={(e) => setEditUnit(e.target.value)}
+                    onChange={(e) => {
+                      setEditUnit(e.target.value);
+                      setEditUnitSale(e.target.value);
+                    }}
                     className="w-full bg-gray-50 border border-gray-200 focus:bg-white text-gray-900 px-3 py-2 text-xs rounded-xl outline-none font-semibold focus:border-blue-500"
                   >
                     <option value="UN">Unidade (UN)</option>
                     <option value="KG">Quilo (KG) - Pesável</option>
                     <option value="LT">Litro (LT)</option>
                   </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-700 uppercase tracking-wider mb-1">Unid. Compra / Fator</label>
+                  <div className="flex gap-1.5">
+                    <input
+                      type="text"
+                      value={editUnitPurchase}
+                      onChange={(e) => setEditUnitPurchase(e.target.value)}
+                      placeholder="CX"
+                      className="w-1/2 bg-gray-50 border border-gray-200 focus:bg-white text-gray-900 px-2.5 py-2 text-xs rounded-xl outline-none font-bold"
+                    />
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editUnitConvFactor}
+                      onChange={(e) => setEditUnitConvFactor(e.target.value)}
+                      title="Fator de conversão"
+                      className="w-1/2 bg-gray-50 border border-gray-200 focus:bg-white text-gray-900 px-2.5 py-2 text-xs rounded-xl outline-none font-mono"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -751,12 +1035,218 @@ export default function StockPage() {
                   <label className="block text-[10px] font-bold text-gray-700 uppercase tracking-wider mb-1">Estoque</label>
                   <input
                     type="number"
+                    step="0.001"
                     value={editStock}
                     onChange={(e) => setEditStock(e.target.value)}
                     className="w-full bg-gray-50 border border-gray-200 focus:bg-white text-gray-900 px-3 py-2 text-xs rounded-xl outline-none font-mono focus:border-blue-500"
                   />
                 </div>
               </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-700 uppercase tracking-wider mb-1">Tipo Embalagem</label>
+                  <select
+                    value={editPackagingType}
+                    onChange={(e) => setEditPackagingType(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-200 text-gray-900 px-3 py-2 text-xs rounded-xl outline-none font-semibold"
+                  >
+                    <option value="UNIT">Unidade (UN)</option>
+                    <option value="BOX">Caixa (CX)</option>
+                    <option value="PALLET">Palete (PL)</option>
+                    <option value="BAG">Fardo / Saco (FD)</option>
+                    <option value="BUNDLE">Pacote (PCT)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-700 uppercase tracking-wider mb-1">Unid. por Embalagem</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={editUnitsPerPack}
+                    onChange={(e) => setEditUnitsPerPack(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-200 text-gray-900 px-3 py-2 text-xs rounded-xl outline-none font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Flags de Classificação & Cardápio Digital */}
+              <div className="bg-gray-50 border border-gray-200 rounded-2xl p-3.5 space-y-2.5">
+                <span className="block text-[10px] font-black text-gray-600 uppercase tracking-wider">
+                  Classificação e Exibição
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <label className="flex items-center gap-2 cursor-pointer bg-white px-2.5 py-2 rounded-xl border border-gray-200 text-xs font-bold text-indigo-800">
+                    <input
+                      type="checkbox"
+                      checked={editShowInDigitalMenu}
+                      onChange={(e) => setEditShowInDigitalMenu(e.target.checked)}
+                      className="rounded text-indigo-600"
+                    />
+                    <span className="flex items-center gap-1"><Utensils size={12} /> Cardápio Digital</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer bg-white px-2.5 py-2 rounded-xl border border-gray-200 text-xs font-bold text-emerald-800">
+                    <input
+                      type="checkbox"
+                      checked={editIsSelfProduced}
+                      onChange={(e) => setEditIsSelfProduced(e.target.checked)}
+                      className="rounded text-emerald-600"
+                    />
+                    <span>Produção Própria</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer bg-white px-2.5 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={editIsRawMaterial}
+                      onChange={(e) => setEditIsRawMaterial(e.target.checked)}
+                      className="rounded text-blue-600"
+                    />
+                    <span>Insumo / Mat.-Prima</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer bg-white px-2.5 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={editIsPackaging}
+                      onChange={(e) => setEditIsPackaging(e.target.checked)}
+                      className="rounded text-blue-600"
+                    />
+                    <span>Embalagem</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer bg-white px-2.5 py-2 rounded-xl border border-gray-200 text-xs font-bold text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={editIsFinishedGood}
+                      onChange={(e) => setEditIsFinishedGood(e.target.checked)}
+                      className="rounded text-blue-600"
+                    />
+                    <span>Produto Acabado</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Composição: Insumos & Embalagens (quando Produção Própria marcado) */}
+              {editIsSelfProduced && (
+                <div className="bg-emerald-50/50 border border-emerald-200 rounded-2xl p-3.5 space-y-3">
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className="text-xs font-black text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
+                      <ChefHat size={15} className="text-emerald-600" /> Composição: Insumos &amp; Embalagens
+                    </span>
+                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-900 bg-white px-2.5 py-1 rounded-lg border border-emerald-200">
+                      <span>Rendimento:</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={editRecipeYield}
+                        onChange={(e) => setEditRecipeYield(e.target.value)}
+                        className="w-12 text-center font-mono font-black border-b border-emerald-300 outline-none"
+                      />
+                      <span>{editUnit}</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
+                    <select
+                      value={editCompProductId}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setEditCompProductId(val);
+                        const found = editCatalog.find((c) => c.id === val);
+                        if (found) {
+                          setEditCompUnit(found.unit || "UN");
+                          setEditCompRole(found.suggestedRole || "INGREDIENT");
+                        }
+                      }}
+                      className="sm:col-span-5 bg-white border border-emerald-200 rounded-xl px-2.5 py-2 text-xs font-semibold text-gray-900 outline-none"
+                    >
+                      <option value="">Selecionar Insumo / Embalagem...</option>
+                      {editCatalog
+                        .filter((c) => c.id !== editingProduct.id)
+                        .map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name} ({c.unit}) — R$ {Number(c.cost || 0).toFixed(2)}
+                          </option>
+                        ))}
+                    </select>
+                    <select
+                      value={editCompRole}
+                      onChange={(e) => setEditCompRole(e.target.value as "INGREDIENT" | "PACKAGING")}
+                      className="sm:col-span-3 bg-white border border-emerald-200 rounded-xl px-2 py-2 text-xs font-bold text-gray-900 outline-none"
+                    >
+                      <option value="INGREDIENT">Insumo</option>
+                      <option value="PACKAGING">Embalagem</option>
+                    </select>
+                    <input
+                      type="number"
+                      step="0.001"
+                      min="0.001"
+                      value={editCompQty}
+                      onChange={(e) => setEditCompQty(e.target.value)}
+                      className="sm:col-span-2 bg-white border border-emerald-200 rounded-xl px-2 py-2 text-xs font-mono font-bold text-center outline-none"
+                      placeholder="Qtd"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddEditCompItem}
+                      disabled={!editCompProductId}
+                      className="sm:col-span-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-bold py-2 px-2 rounded-xl text-xs"
+                    >
+                      + Incluir
+                    </button>
+                  </div>
+
+                  {editRecipeItems.length > 0 && (
+                    <div className="bg-white border border-emerald-200 rounded-xl overflow-hidden">
+                      <div className="divide-y divide-emerald-100 max-h-36 overflow-y-auto">
+                        {editRecipeItems.map((it, idx) => (
+                          <div key={idx} className="px-3 py-1.5 flex items-center justify-between gap-2 text-xs">
+                            <span className="font-bold text-gray-900 truncate flex-1">{it.name}</span>
+                            <span
+                              className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${
+                                it.itemRole === "PACKAGING"
+                                  ? "bg-amber-50 text-amber-800 border-amber-200"
+                                  : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                              }`}
+                            >
+                              {it.itemRole === "PACKAGING" ? "Embalagem" : "Insumo"}
+                            </span>
+                            <span className="font-mono font-bold text-gray-700">
+                              {it.quantity} {it.unit}
+                            </span>
+                            <span className="font-mono text-gray-500">
+                              R$ {(it.quantity * it.unitCost).toFixed(2)}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setEditRecipeItems((prev) => prev.filter((_, i) => i !== idx))
+                              }
+                              className="p-1 text-red-500 hover:bg-red-50 rounded"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                    <span className="text-xs font-bold text-emerald-900">
+                      Custo Estimado da Composição:{" "}
+                      <strong className="font-mono">R$ {editCompositionUnitCost.toFixed(2)}</strong>
+                    </span>
+                    <button
+                      type="button"
+                      disabled={editRecipeItems.length === 0}
+                      onClick={() => setEditCost(editCompositionUnitCost.toFixed(2))}
+                      className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-[10px] font-black"
+                    >
+                      Usar custo calculado como custo do produto
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* Seção Balança Toledo MGV6 */}
               <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-3.5 space-y-3">

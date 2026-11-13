@@ -4,12 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Search, ScanBarcode, ShoppingCart, Plus, Minus, Trash2, X, Check,
   Banknote, QrCode, CreditCard, Landmark, MessageCircle, Share2, Mail,
-  MessageSquare, Link2, ExternalLink, Loader2, AlertCircle, ArrowLeft, Receipt,
+  MessageSquare, Link2, ExternalLink, Loader2, AlertCircle, ArrowLeft, Receipt, Briefcase,
 } from "lucide-react";
 import {
   searchMobileProducts,
   lookupMobileBarcode,
   createMobileSale,
+  getMobileCustomers,
 } from "@/actions/mobilePdv";
 import { loadZXingScript } from "@/lib/barcode-scanner";
 import type { MobileProduct } from "@/actions/mobilePdv";
@@ -45,6 +46,14 @@ const PAYMENTS = [
 const parseNum = (text: string) => {
   const n = parseFloat(String(text).replace(",", "."));
   return Number.isFinite(n) ? n : 0;
+};
+
+const isFractionalMobileProduct = (unit?: string, name?: string) => {
+  const u = (unit || "").trim().toUpperCase();
+  if (u === "KG" || u === "L" || u === "LT" || u === "G" || u === "GR" || u === "ML" || u === "M" || u === "MT") {
+    return true;
+  }
+  return Boolean(name && /\b(KG|GR|GRAMA|GRAMAS|LITRO|LITROS|ML|METRO|METROS|MT)\b|\/KG|\(KG\)/i.test(name));
 };
 
 /* ───────────────────────── Leitor de código de barras (câmera & teclado rápido) ───────────────────────── */
@@ -249,7 +258,21 @@ export function MobilePdvClient({ userName, companyName, canDiscountLimited, can
   const [paymentMethod, setPaymentMethod] = useState("MONEY");
   const [discountText, setDiscountText] = useState("");
   const [cpf, setCpf] = useState("");
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState("");
+  const [crediarioPin, setCrediarioPin] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  const selectedCustomer = useMemo(
+    () => customers.find((c) => c.id === selectedCustomerId) || null,
+    [customers, selectedCustomerId]
+  );
+
+  useEffect(() => {
+    getMobileCustomers().then((r) => {
+      if (Array.isArray(r.customers)) setCustomers(r.customers);
+    });
+  }, []);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
 
@@ -296,7 +319,7 @@ export function MobilePdvClient({ userName, companyName, canDiscountLimited, can
       const idx = prev.findIndex((l) => l.product.id === product.id);
       if (idx >= 0) {
         const next = [...prev];
-        const isWeight = product.unit.toUpperCase() === "KG";
+        const isWeight = isFractionalMobileProduct(product.unit, product.name);
         const qty = Math.round((next[idx].qty + (isWeight ? 0.1 : 1)) * 1000) / 1000;
         next[idx] = { ...next[idx], qty, qtyText: String(qty).replace(".", ",") };
         return next;
@@ -310,7 +333,7 @@ export function MobilePdvClient({ userName, companyName, canDiscountLimited, can
     setCart((prev) =>
       prev.map((l) => {
         if (l.product.id !== id) return l;
-        const step = l.product.unit.toUpperCase() === "KG" ? 0.1 : 1;
+        const step = isFractionalMobileProduct(l.product.unit, l.product.name) ? 0.1 : 1;
         const qty = Math.max(0, Math.round((l.qty + delta * step) * 1000) / 1000);
         return { ...l, qty, qtyText: String(qty).replace(".", ",") };
       })
@@ -358,19 +381,34 @@ export function MobilePdvClient({ userName, companyName, canDiscountLimited, can
     setError("");
     if (cart.length === 0) return setError("O carrinho está vazio.");
     if (hasInvalidQty) return setError("Corrija as quantidades zeradas.");
+    if (paymentMethod === "CREDIARIO") {
+      if (!selectedCustomer || selectedCustomer.customerType !== "FUNCIONARIO") {
+        return setError("Selecione um funcionário cadastrado para finalizar no Crediário.");
+      }
+      if (!crediarioPin.trim()) {
+        return setError("Informe o PIN/senha de autorização para confirmar o Crediário.");
+      }
+    }
 
     setSubmitting(true);
     const res = await createMobileSale({
       items: cart.map((l) => ({ productId: l.product.id, quantity: l.qty })),
       paymentMethod,
       discount,
-      customerCpf: cpf.replace(/\D/g, "") || undefined,
+      customerCpf: cpf.replace(/\D/g, "") || selectedCustomer?.document || undefined,
+      customerId: selectedCustomer?.id || undefined,
+      supervisorPin: paymentMethod === "CREDIARIO" ? crediarioPin : undefined,
     });
     setSubmitting(false);
 
     if ("error" in res) {
       setError(res.error);
       return;
+    }
+    if (paymentMethod === "CREDIARIO") {
+      getMobileCustomers().then((r) => {
+        if (Array.isArray(r.customers)) setCustomers(r.customers);
+      });
     }
     setReceipt(res.receipt);
     setCashback(res.cashbackEarned);
@@ -385,6 +423,8 @@ export function MobilePdvClient({ userName, companyName, canDiscountLimited, can
     setResults([]);
     setDiscountText("");
     setCpf("");
+    setSelectedCustomerId("");
+    setCrediarioPin("");
     setPaymentMethod("MONEY");
     setPhone("");
     setEmail("");
@@ -527,12 +567,20 @@ export function MobilePdvClient({ userName, companyName, canDiscountLimited, can
   /* ───────── Tela: venda em andamento ───────── */
   return (
     <div className="fixed inset-0 flex flex-col bg-slate-100">
-      <header className="bg-slate-900 text-white px-4 py-3 shrink-0">
-        <p className="text-xs font-semibold text-slate-300 truncate">{companyName}</p>
-        <div className="flex items-center justify-between">
-          <h1 className="text-lg font-black tracking-tight">PDV Mobile</h1>
-          <span className="text-xs font-semibold text-slate-200 truncate max-w-[50%]">{userName}</span>
+      <header className="bg-slate-900 text-white px-4 py-3 shrink-0 flex items-center justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-semibold text-slate-300 truncate">{companyName}</p>
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-black tracking-tight">PDV Mobile</h1>
+            <span className="text-xs font-semibold text-slate-300 truncate">• {userName}</span>
+          </div>
         </div>
+        <a
+          href="/"
+          className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 px-3 py-1.5 text-xs font-bold text-slate-100"
+        >
+          <ArrowLeft size={14} /> Sistema
+        </a>
       </header>
 
       <form onSubmit={onSearchSubmit} className="p-3 bg-white border-b border-slate-200 shrink-0 flex gap-2">
@@ -644,7 +692,7 @@ export function MobilePdvClient({ userName, companyName, canDiscountLimited, can
           <div className="flex-1 overflow-y-auto p-3 space-y-3">
             <ul className="space-y-2">
               {cart.map((l) => {
-                const isWeight = l.product.unit.toUpperCase() === "KG";
+                const isWeight = isFractionalMobileProduct(l.product.unit, l.product.name);
                 return (
                   <li key={l.product.id} className="bg-white rounded-xl border border-slate-200 p-3 space-y-2">
                     <div className="flex items-start justify-between gap-2">
@@ -652,6 +700,29 @@ export function MobilePdvClient({ userName, companyName, canDiscountLimited, can
                       <button onClick={() => removeLine(l.product.id)} className="p-1.5 text-red-700" aria-label={`Remover ${l.product.name}`}>
                         <Trash2 size={18} />
                       </button>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(isWeight
+                        ? [
+                            { label: "100g", val: "0,100" },
+                            { label: "250g", val: "0,250" },
+                            { label: "500g", val: "0,500" },
+                            { label: "1kg", val: "1" },
+                          ]
+                        : [
+                            { label: "0,25", val: "0,25" },
+                            { label: "0,5", val: "0,5" },
+                          ]
+                      ).map((p) => (
+                        <button
+                          key={p.label}
+                          type="button"
+                          onClick={() => setQtyText(l.product.id, p.val)}
+                          className="px-2 py-1 rounded-md bg-blue-50 text-blue-800 border border-blue-200 text-xs font-bold"
+                        >
+                          {p.label}
+                        </button>
+                      ))}
                     </div>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
@@ -682,16 +753,67 @@ export function MobilePdvClient({ userName, companyName, canDiscountLimited, can
             </ul>
 
             <section className="bg-white rounded-xl border border-slate-200 p-3 space-y-3">
-              <h3 className="font-bold text-slate-900 text-sm">Forma de pagamento</h3>
+              <label className="block">
+                <span className="text-sm font-bold text-slate-900">Cliente / Funcionário (opcional)</span>
+                <select
+                  value={selectedCustomerId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setSelectedCustomerId(id);
+                    const c = customers.find((x) => x.id === id);
+                    if (c?.document) setCpf(c.document);
+                    if ((!c || c.customerType !== "FUNCIONARIO") && paymentMethod === "CREDIARIO") {
+                      setPaymentMethod("MONEY");
+                    }
+                  }}
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm font-semibold text-slate-900 focus:border-blue-600 focus:outline-none"
+                >
+                  <option value="">Consumidor não identificado</option>
+                  {customers.filter((c) => c.customerType === "FUNCIONARIO").length > 0 && (
+                    <optgroup label="Funcionários (Crediário)">
+                      {customers
+                        .filter((c) => c.customerType === "FUNCIONARIO")
+                        .map((c) => (
+                          <option key={c.id} value={c.id}>
+                            ★ {c.name} (Aberto: {formatBRL(c.creditUsed || 0)})
+                          </option>
+                        ))}
+                    </optgroup>
+                  )}
+                  <optgroup label="Clientes Cadastrados">
+                    {customers
+                      .filter((c) => c.customerType !== "FUNCIONARIO")
+                      .map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} {c.document ? `(${c.document})` : ""}
+                        </option>
+                      ))}
+                  </optgroup>
+                </select>
+              </label>
+
+              <h3 className="font-bold text-slate-900 text-sm pt-1">Forma de pagamento</h3>
               <div className="grid grid-cols-2 gap-2">
-                {PAYMENTS.map(({ key, label, icon: Icon }) => {
+                {[
+                  ...PAYMENTS,
+                  ...(selectedCustomer?.customerType === "FUNCIONARIO"
+                    ? [{ key: "CREDIARIO", label: "Crediário", icon: Briefcase }]
+                    : []),
+                ].map(({ key, label, icon: Icon }) => {
                   const active = paymentMethod === key;
+                  const isCred = key === "CREDIARIO";
                   return (
                     <button
                       key={key}
                       onClick={() => setPaymentMethod(key)}
                       className={`flex items-center justify-center gap-2 rounded-xl border-2 py-3 font-bold text-base ${
-                        active ? "border-blue-700 bg-blue-700 text-white" : "border-slate-300 bg-white text-slate-900"
+                        active
+                          ? isCred
+                            ? "border-amber-600 bg-amber-600 text-white"
+                            : "border-blue-700 bg-blue-700 text-white"
+                          : isCred
+                          ? "border-amber-400 bg-amber-50 text-amber-900"
+                          : "border-slate-300 bg-white text-slate-900"
                       }`}
                     >
                       <Icon size={18} /> {label}
@@ -699,6 +821,25 @@ export function MobilePdvClient({ userName, companyName, canDiscountLimited, can
                   );
                 })}
               </div>
+
+              {paymentMethod === "CREDIARIO" && selectedCustomer?.customerType === "FUNCIONARIO" && (
+                <div className="rounded-xl bg-amber-50 border border-amber-300 p-3 space-y-2">
+                  <div className="flex justify-between text-xs font-bold text-amber-950">
+                    <span>Em aberto após esta venda:</span>
+                    <span>{formatBRL((selectedCustomer.creditUsed || 0) + total)}</span>
+                  </div>
+                  <label className="block">
+                    <span className="text-xs font-bold text-amber-900">PIN / Senha de confirmação *</span>
+                    <input
+                      type="password"
+                      value={crediarioPin}
+                      onChange={(e) => setCrediarioPin(e.target.value)}
+                      placeholder="Digite o PIN de autorização"
+                      className="mt-1 w-full rounded-xl border border-amber-300 bg-white px-3 py-2.5 text-base font-mono text-slate-900 focus:border-amber-600 focus:outline-none"
+                    />
+                  </label>
+                </div>
+              )}
 
               <label className="block">
                 <span className="text-sm font-semibold text-slate-800">CPF na nota / cashback (opcional)</span>

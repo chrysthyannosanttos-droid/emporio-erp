@@ -13,16 +13,21 @@ import {
   Receipt,
   Download,
   Landmark,
+  Briefcase,
 } from "lucide-react";
 import { BankReconciliationView } from "./_components/BankReconciliationView";
+import { ChartOfAccountsView } from "./_components/ChartOfAccountsView";
+import { FolderTree } from "lucide-react";
 import {
   getFinanceData,
   createFinanceTransaction,
   updateFinanceTransactionStatus,
+  getEmployeeCrediarioData,
+  settleEmployeeCrediario,
 } from "@/actions/finance";
 
 // ─── Types ───────────────────────────────────────
-type TabKey = "cashflow" | "reconciliation" | "closings" | "payable" | "receivable";
+type TabKey = "cashflow" | "reconciliation" | "closings" | "payable" | "receivable" | "crediario" | "chart-of-accounts";
 
 interface Transaction {
   id: string;
@@ -121,6 +126,12 @@ export default function FinancePage() {
   const [payables, setPayables] = useState<Payable[]>([]);
   const [receivables, setReceivables] = useState<Receivable[]>([]);
   const [closings, setClosings] = useState<CashClosing[]>([]);
+  const [crediarioEmployees, setCrediarioEmployees] = useState<any[]>([]);
+  const [crediarioSummary, setCrediarioSummary] = useState({ totalOpen: 0, totalSettled: 0, employeesWithDebt: 0 });
+  const [activeCrediarioEmp, setActiveCrediarioEmp] = useState<any | null>(null);
+  const [selectedCrediarioTxIds, setSelectedCrediarioTxIds] = useState<string[]>([]);
+  const [settlementMethod, setSettlementMethod] = useState<"FOLHA" | "DINHEIRO" | "PIX" | "CARTAO">("FOLHA");
+  const [settlingCrediario, setSettlingCrediario] = useState(false);
   const [loading, setLoading] = useState(true);
 
   // Filtro de Data Definida pelo Usuário (De / Até) para A Pagar e A Receber
@@ -140,23 +151,60 @@ export default function FinancePage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      const p = new URLSearchParams(window.location.search).get("tab");
+      if (p === "crediario") setTab("crediario");
+    }
     loadFinance();
   }, []);
 
   async function loadFinance() {
     setLoading(true);
     try {
-      const res = await getFinanceData();
+      const [res, credRes] = await Promise.all([getFinanceData(), getEmployeeCrediarioData()]);
       if (res.success) {
         setTransactions(res.transactions || []);
         setPayables(res.payables || []);
         setReceivables(res.receivables || []);
         setClosings(res.closings || []);
       }
+      if (credRes.success) {
+        setCrediarioEmployees(credRes.employees || []);
+        setCrediarioSummary(credRes.summary || { totalOpen: 0, totalSettled: 0, employeesWithDebt: 0 });
+        if (activeCrediarioEmp) {
+          const updatedEmp = (credRes.employees || []).find((e: any) => e.id === activeCrediarioEmp.id);
+          setActiveCrediarioEmp(updatedEmp || null);
+        }
+      }
     } finally {
       setLoading(false);
     }
   }
+
+  const openCrediarioModal = (emp: any) => {
+    setActiveCrediarioEmp(emp);
+    const pendingIds = (emp.entries || [])
+      .filter((e: any) => e.status !== "RECEIVED")
+      .map((e: any) => e.transactionId);
+    setSelectedCrediarioTxIds(pendingIds);
+  };
+
+  const handleSettleCrediario = async () => {
+    if (!activeCrediarioEmp || selectedCrediarioTxIds.length === 0) return;
+    setSettlingCrediario(true);
+    const res = await settleEmployeeCrediario({
+      customerId: activeCrediarioEmp.id,
+      transactionIds: selectedCrediarioTxIds,
+      settlementMethod,
+    });
+    setSettlingCrediario(false);
+    if (!res.success) {
+      alert(res.error || "Erro ao quitar crediário");
+      return;
+    }
+    await loadFinance();
+    setSelectedCrediarioTxIds([]);
+  };
 
   const handleAddTransaction = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -240,6 +288,8 @@ export default function FinancePage() {
     { key: "closings", label: "Fechamentos PDV", icon: <Receipt size={16} /> },
     { key: "payable", label: `Contas a Pagar (${openPayables.length})`, icon: <TrendingDown size={16} /> },
     { key: "receivable", label: `Contas a Receber (${openReceivables.length})`, icon: <TrendingUp size={16} /> },
+    { key: "crediario", label: `Crediário Funcionários (${crediarioSummary.employeesWithDebt})`, icon: <Briefcase size={16} /> },
+    { key: "chart-of-accounts", label: "Plano de Contas", icon: <FolderTree size={16} /> },
   ];
 
   return (
@@ -829,7 +879,226 @@ export default function FinancePage() {
             </div>
           </div>
         )}
+
+        {/* ── Tab: Crediário Funcionários ── */}
+        {tab === "crediario" && (
+          <div className="flex-1 flex flex-col min-h-0">
+            <div className="p-4 border-b border-gray-100 bg-amber-50/40 grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0">
+              <div className="bg-white border border-amber-200 rounded-xl p-3.5">
+                <span className="text-[11px] font-bold text-amber-800 uppercase block">Total em Aberto</span>
+                <span className="text-xl font-black font-mono text-amber-700">
+                  R$ {fmt(crediarioSummary.totalOpen)}
+                </span>
+              </div>
+              <div className="bg-white border border-gray-200 rounded-xl p-3.5">
+                <span className="text-[11px] font-bold text-gray-500 uppercase block">Funcionários c/ Débito</span>
+                <span className="text-xl font-black font-mono text-gray-900">
+                  {crediarioSummary.employeesWithDebt} / {crediarioEmployees.length}
+                </span>
+              </div>
+              <div className="bg-white border border-emerald-200 rounded-xl p-3.5">
+                <span className="text-[11px] font-bold text-emerald-700 uppercase block">Total Já Quitado</span>
+                <span className="text-xl font-black font-mono text-emerald-600">
+                  R$ {fmt(crediarioSummary.totalSettled)}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-auto min-h-0">
+              <table className="w-full text-sm text-left">
+                <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 sticky top-0">
+                  <tr>
+                    <th className="px-6 py-3 font-bold uppercase tracking-wider text-[11px]">Funcionário</th>
+                    <th className="px-6 py-3 font-bold uppercase tracking-wider text-[11px]">CPF / Contato</th>
+                    <th className="px-6 py-3 font-bold uppercase tracking-wider text-[11px] text-center">Compras em Aberto</th>
+                    <th className="px-6 py-3 font-bold uppercase tracking-wider text-[11px] text-right">Saldo em Aberto</th>
+                    <th className="px-6 py-3 font-bold uppercase tracking-wider text-[11px] text-right">Limite</th>
+                    <th className="px-6 py-3 font-bold uppercase tracking-wider text-[11px] text-center">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {crediarioEmployees.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-12 text-center text-gray-400">
+                        Nenhum funcionário cadastrado. Cadastre em <strong>Clientes → Novo Cliente → Funcionário</strong>.
+                      </td>
+                    </tr>
+                  ) : (
+                    crediarioEmployees.map((emp) => (
+                      <tr key={emp.id} className="hover:bg-amber-50/30 transition-colors">
+                        <td className="px-6 py-3.5 font-bold text-gray-900">{emp.name}</td>
+                        <td className="px-6 py-3.5 text-xs text-gray-500 font-mono">
+                          {emp.document || emp.phone || "---"}
+                        </td>
+                        <td className="px-6 py-3.5 text-center">
+                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                            emp.openCount > 0 ? "bg-amber-100 text-amber-800" : "bg-gray-100 text-gray-500"
+                          }`}>
+                            {emp.openCount} compra(s)
+                          </span>
+                        </td>
+                        <td className="px-6 py-3.5 text-right font-mono font-black text-amber-700">
+                          R$ {fmt(emp.openTotal)}
+                        </td>
+                        <td className="px-6 py-3.5 text-right font-mono text-xs text-gray-500">
+                          {emp.creditLimit > 0 ? `R$ ${fmt(emp.creditLimit)}` : "Sem teto"}
+                        </td>
+                        <td className="px-6 py-3.5 text-center">
+                          <button
+                            type="button"
+                            onClick={() => openCrediarioModal(emp)}
+                            className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs cursor-pointer"
+                          >
+                            Ver Extrato / Quitar
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ── Tab: Plano de Contas ── */}
+        {tab === "chart-of-accounts" && (
+          <div className="p-6 flex-1 overflow-auto min-h-0 bg-gray-50/40">
+            <ChartOfAccountsView />
+          </div>
+        )}
       </div>
+
+      {/* ── Modal: Extrato e Quitação Crediário Funcionário ── */}
+      {activeCrediarioEmp && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-gray-200 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[88vh]">
+            <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-amber-50">
+              <div>
+                <h3 className="text-lg font-black text-gray-900 flex items-center gap-2">
+                  <Briefcase className="text-amber-700" size={19} /> Extrato Crediário — {activeCrediarioEmp.name}
+                </h3>
+                <p className="text-xs text-amber-800 font-semibold mt-0.5">
+                  Saldo em aberto: <strong className="font-mono">R$ {fmt(activeCrediarioEmp.openTotal)}</strong>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveCrediarioEmp(null)}
+                className="p-1.5 rounded-xl hover:bg-amber-100 text-gray-500"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto flex-1 space-y-3">
+              {(activeCrediarioEmp.entries || []).length === 0 ? (
+                <p className="text-center text-gray-400 text-sm py-8">
+                  Nenhuma compra registrada no crediário para este funcionário.
+                </p>
+              ) : (
+                activeCrediarioEmp.entries.map((entry: any) => {
+                  const isPaid = entry.status === "RECEIVED";
+                  const checked = selectedCrediarioTxIds.includes(entry.transactionId);
+                  return (
+                    <div
+                      key={entry.transactionId}
+                      className={`border rounded-2xl p-3.5 space-y-2 ${
+                        isPaid ? "bg-gray-50 border-gray-200 opacity-75" : checked ? "bg-amber-50/70 border-amber-400" : "bg-white border-gray-200"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <label className="flex items-start gap-2.5 cursor-pointer flex-1">
+                          {!isPaid && (
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) => {
+                                setSelectedCrediarioTxIds((prev) =>
+                                  e.target.checked
+                                    ? [...prev, entry.transactionId]
+                                    : prev.filter((id) => id !== entry.transactionId)
+                                );
+                              }}
+                              className="mt-1 rounded text-amber-600"
+                            />
+                          )}
+                          <div>
+                            <div className="text-xs font-black text-gray-900">{entry.description}</div>
+                            <div className="text-[11px] text-gray-500 font-mono">
+                              Compra: {new Date(entry.createdAt).toLocaleString("pt-BR")}
+                              {entry.paymentDate ? ` • Quitado em: ${new Date(entry.paymentDate).toLocaleDateString("pt-BR")}` : ""}
+                            </div>
+                          </div>
+                        </label>
+                        <div className="text-right shrink-0">
+                          <div className="font-mono font-black text-sm text-gray-900">
+                            R$ {fmt(entry.amount)}
+                          </div>
+                          <StatusBadge status={entry.status} />
+                        </div>
+                      </div>
+
+                      {entry.items && entry.items.length > 0 && (
+                        <div className="bg-white/80 border border-gray-100 rounded-xl p-2 space-y-1 text-[11px]">
+                          {entry.items.map((it: any, idx: number) => (
+                            <div key={idx} className="flex justify-between gap-2 text-gray-700">
+                              <span className="truncate">
+                                {String(Math.round(it.quantity * 1000) / 1000).replace(".", ",")} {it.unit} × {it.name}
+                              </span>
+                              <span className="font-mono font-bold shrink-0">R$ {fmt(it.total)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {selectedCrediarioTxIds.length > 0 && (
+              <div className="p-4 border-t border-gray-200 bg-gray-50 space-y-3 shrink-0">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-xs font-bold text-gray-700">
+                    Forma de Baixa / Quitação ({selectedCrediarioTxIds.length} selecionada(s)):
+                  </span>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {(["FOLHA", "DINHEIRO", "PIX", "CARTAO"] as const).map((m) => (
+                      <button
+                        key={m}
+                        type="button"
+                        onClick={() => setSettlementMethod(m)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border cursor-pointer ${
+                          settlementMethod === m
+                            ? "bg-emerald-600 text-white border-emerald-600"
+                            : "bg-white text-gray-700 border-gray-200"
+                        }`}
+                      >
+                        {m === "FOLHA" ? "Desconto em Folha" : m === "CARTAO" ? "Cartão" : m === "PIX" ? "PIX" : "Dinheiro"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  disabled={settlingCrediario}
+                  onClick={handleSettleCrediario}
+                  className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-black text-xs uppercase tracking-wider shadow-md cursor-pointer"
+                >
+                  {settlingCrediario
+                    ? "Registrando quitação..."
+                    : `Quitar R$ ${fmt(
+                        (activeCrediarioEmp.entries || [])
+                          .filter((e: any) => selectedCrediarioTxIds.includes(e.transactionId))
+                          .reduce((a: number, b: any) => a + b.amount, 0)
+                      )} agora`}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── New Transaction Modal ── */}
       {isOpen && (

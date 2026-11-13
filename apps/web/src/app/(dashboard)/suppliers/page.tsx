@@ -3,10 +3,12 @@
 import { useState, useEffect } from "react";
 import { 
   Truck, Plus, Search, Phone, Mail, MapPin, X, Save, 
-  Building2, Hash, FileText, Star, ChevronRight, Check, AlertCircle, Calendar 
+  Building2, Hash, FileText, Star, ChevronRight, Check, AlertCircle, Calendar,
+  RefreshCw, History
 } from "lucide-react";
 import { 
-  getSuppliers, createSupplier, updateSupplier, deleteSupplier, getSupplierById 
+  getSuppliers, createSupplier, updateSupplier, deleteSupplier, getSupplierById,
+  syncLegacySaiposSuppliers
 } from "@/actions/supplier";
 
 const CATEGORIES = ["Todos", "Alimentos", "Bebidas", "Frios", "Limpeza", "Higiene", "Outros"];
@@ -16,6 +18,9 @@ export default function SuppliersPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [catFilter, setCatFilter] = useState("Todos");
+  const [originFilter, setOriginFilter] = useState<"ALL" | "CURRENT" | "SAIPOS">("ALL");
+  const [syncingSaipos, setSyncingSaipos] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
   
   // Modais e gaveta
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -59,6 +64,8 @@ export default function SuppliersPage() {
     category: "Outros",
     segment: "Geral",
     systemType: "Outros",
+    isLegacySaipos: false,
+    legacySystem: "",
     notes: ""
   });
 
@@ -67,15 +74,35 @@ export default function SuppliersPage() {
 
   useEffect(() => {
     loadSuppliers();
-  }, [search, catFilter]);
+  }, [search, catFilter, originFilter]);
 
   async function loadSuppliers() {
     setLoading(true);
-    const res = await getSuppliers(search, catFilter);
+    const res = await getSuppliers(search, catFilter, originFilter);
     if (res.suppliers) {
       setSuppliers(res.suppliers);
     }
     setLoading(false);
+  }
+
+  async function handleSyncLegacySaipos() {
+    setSyncingSaipos(true);
+    setSyncFeedback(null);
+    try {
+      const res = await syncLegacySaiposSuppliers();
+      if (res.success) {
+        setSyncFeedback(
+          res.updatedCount > 0
+            ? `${res.updatedCount} fornecedor(es) marcado(s) como Antigo / Saipos. Total histórico na base: ${res.totalLegacy}.`
+            : `Detecção concluída. Nenhum novo fornecedor antigo pendente; total marcado na base: ${res.totalLegacy}.`
+        );
+        await loadSuppliers();
+      } else {
+        alert(res.error || "Não foi possível detectar fornecedores antigos.");
+      }
+    } finally {
+      setSyncingSaipos(false);
+    }
   }
 
   // Consulta CNPJ Pública via Receita WS / BrasilAPI / CNPJ.ws
@@ -254,6 +281,8 @@ export default function SuppliersPage() {
       category: s.category || "Outros",
       segment: s.segment || "Geral",
       systemType: s.systemType || "Outros",
+      isLegacySaipos: Boolean(s.isLegacySaipos),
+      legacySystem: s.legacySystem || "",
       notes: s.notes || ""
     });
     setFormTab("geral");
@@ -306,11 +335,14 @@ export default function SuppliersPage() {
       category: "Outros",
       segment: "Geral",
       systemType: "Outros",
+      isLegacySaipos: false,
+      legacySystem: "",
       notes: ""
     });
   }
 
   const filtered = suppliers.filter(s =>
+    (originFilter === "ALL" || (originFilter === "SAIPOS" ? Boolean(s.isLegacySaipos) : !s.isLegacySaipos)) &&
     (catFilter === "Todos" || s.category === catFilter) &&
     (s.name.toLowerCase().includes(search.toLowerCase()) ||
       (s.tradeName && s.tradeName.toLowerCase().includes(search.toLowerCase())) ||
@@ -326,26 +358,75 @@ export default function SuppliersPage() {
           <h1 className="text-2xl font-black text-gray-900 tracking-tight">Fornecedores</h1>
           <p className="text-gray-500 text-sm mt-0.5">Gerencie seu catálogo completo de fornecedores, dados fiscais e logística de entrega.</p>
         </div>
-        <button
-          onClick={() => { resetForm(); setEditSupplierData(null); setFormTab("geral"); setIsModalOpen(true); }}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-md shadow-blue-500/20 active:scale-95 text-xs"
-        >
-          <Plus size={16} /> Novo Fornecedor
-        </button>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            type="button"
+            onClick={handleSyncLegacySaipos}
+            disabled={syncingSaipos}
+            className="bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all text-xs cursor-pointer disabled:opacity-50"
+            title="Verifica entradas/notas anteriores a 04/11/2026 ou registros importados do Saipos"
+          >
+            <RefreshCw size={15} className={syncingSaipos ? "animate-spin" : ""} />
+            <span>{syncingSaipos ? "Detectando..." : "Detectar Antigos (Saipos)"}</span>
+          </button>
+          <button
+            onClick={() => { resetForm(); setEditSupplierData(null); setFormTab("geral"); setIsModalOpen(true); }}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-md shadow-blue-500/20 active:scale-95 text-xs cursor-pointer"
+          >
+            <Plus size={16} /> Novo Fornecedor
+          </button>
+        </div>
       </div>
+
+      {syncFeedback && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl px-4 py-3 text-xs font-bold flex items-center justify-between gap-2">
+          <span className="flex items-center gap-2">
+            <History size={15} className="text-amber-600 shrink-0" />
+            {syncFeedback}
+          </span>
+          <button onClick={() => setSyncFeedback(null)} className="text-amber-700 hover:text-amber-900 p-0.5">
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { label: "Total Fornecedores", value: suppliers.length, color: "blue" },
           { label: "Ativos", value: suppliers.filter(s => s.status === "ACTIVE").length, color: "emerald" },
-          { label: "Inativos", value: suppliers.filter(s => s.status === "INACTIVE").length, color: "amber" },
+          { label: "Antigos (Saipos)", value: suppliers.filter(s => s.isLegacySaipos).length, color: "amber" },
           { label: "Categorias", value: [...new Set(suppliers.map(s => s.category))].filter(Boolean).length, color: "purple" },
         ].map((stat) => (
           <div key={stat.label} className="bg-white border border-gray-200 shadow-sm rounded-2xl p-5 hover:border-gray-300 transition-all">
             <p className="text-gray-500 text-xs font-extrabold uppercase tracking-wider">{stat.label}</p>
             <p className="text-2xl font-black mt-1 text-gray-900 font-mono">{stat.value}</p>
           </div>
+        ))}
+      </div>
+
+      {/* Filtro rápido de Origem: Todos / Atuais / Antigos (Saipos) */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {[
+          { key: "ALL" as const, label: "Todos" },
+          { key: "CURRENT" as const, label: "Atuais (Sistema Novo)" },
+          { key: "SAIPOS" as const, label: "Antigos (Saipos)" },
+        ].map(tab => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setOriginFilter(tab.key)}
+            className={`px-4 py-2 rounded-xl text-xs font-extrabold border transition-all cursor-pointer flex items-center gap-1.5 ${
+              originFilter === tab.key
+                ? tab.key === "SAIPOS"
+                  ? "bg-amber-600 border-amber-600 text-white shadow-sm"
+                  : "bg-blue-600 border-blue-600 text-white shadow-sm"
+                : "bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:text-gray-900"
+            }`}
+          >
+            {tab.key === "SAIPOS" && <History size={13} />}
+            <span>{tab.label}</span>
+          </button>
         ))}
       </div>
 
@@ -405,7 +486,14 @@ export default function SuppliersPage() {
                         {s.name.charAt(0)}
                       </div>
                       <div>
-                        <p className="font-bold text-gray-900 leading-snug">{s.name}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-bold text-gray-900 leading-snug">{s.name}</p>
+                          {s.isLegacySaipos && (
+                            <span className="inline-flex items-center gap-1 text-[10px] bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded-full font-extrabold">
+                              Antigo / Saipos
+                            </span>
+                          )}
+                        </div>
                         {s.tradeName && <p className="text-xs text-gray-500 font-medium">{s.tradeName}</p>}
                         <p className="text-gray-500 text-[11px] font-medium flex items-center gap-1 mt-0.5"><MapPin size={10} />{s.city || "S/C"} - {s.state || "S/E"}</p>
                       </div>
@@ -462,9 +550,16 @@ export default function SuppliersPage() {
                 <div>
                   <h2 className="text-xl font-black text-gray-900">{selected.name}</h2>
                   <p className="text-xs text-gray-500 mt-0.5">{selected.tradeName || "Sem Nome Fantasia"}</p>
-                  <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-full mt-1.5 ${selected.status === "ACTIVE" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-gray-100 text-gray-600 border border-gray-200"}`}>
-                    {selected.status === "ACTIVE" ? "Ativo" : "Inativo"}
-                  </span>
+                  <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+                    <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-full ${selected.status === "ACTIVE" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-gray-100 text-gray-600 border border-gray-200"}`}>
+                      {selected.status === "ACTIVE" ? "Ativo" : "Inativo"}
+                    </span>
+                    {selected.isLegacySaipos && (
+                      <span className="inline-block text-xs font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
+                        Antigo / Saipos
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
               <button onClick={() => setSelected(null)} className="p-2 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-700 transition-colors">
@@ -717,6 +812,30 @@ export default function SuppliersPage() {
                         placeholder="Fornecedor homologado com desconto extra..." 
                         className="w-full bg-white border border-gray-300 focus:border-blue-600 focus:ring-1 focus:ring-blue-600 text-gray-900 placeholder:text-gray-400 px-4 py-2.5 rounded-xl outline-none text-sm shadow-2xs font-medium" 
                       />
+                    </div>
+                    <div className="col-span-2 pt-1">
+                      <label className="flex items-center gap-3 p-3.5 rounded-xl border border-amber-200 bg-amber-50/70 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.isLegacySaipos}
+                          onChange={e =>
+                            setFormData(prev => ({
+                              ...prev,
+                              isLegacySaipos: e.target.checked,
+                              legacySystem: e.target.checked ? "SAIPOS" : "",
+                            }))
+                          }
+                          className="w-4 h-4 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                        />
+                        <div>
+                          <span className="text-xs font-bold text-amber-900 block">
+                            Fornecedor Antigo (Saipos)
+                          </span>
+                          <span className="text-[11px] text-amber-800 block">
+                            Marque para separar fornecedores migrados do sistema antigo Saipos dos fornecedores atuais.
+                          </span>
+                        </div>
+                      </label>
                     </div>
                   </div>
                 )}

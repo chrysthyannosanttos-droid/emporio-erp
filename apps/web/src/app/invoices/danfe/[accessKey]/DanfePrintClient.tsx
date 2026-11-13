@@ -42,11 +42,20 @@ export default function DanfePrintClient({ invoice }: { invoice: RadarInvoice })
       {/* Barra de Ações Superior (Visível apenas na tela, oculta na impressão/PDF) */}
       <div className="no-print fixed top-0 left-0 right-0 bg-gray-900/95 backdrop-blur-md text-white p-3 z-50 flex items-center justify-between shadow-xl">
         <div className="flex items-center gap-3">
+          <a
+            href="/invoices"
+            className="flex items-center gap-1.5 text-xs font-bold text-white bg-blue-600/90 hover:bg-blue-700 px-3 py-2 rounded-xl transition-colors"
+          >
+            <ArrowLeft size={14} /> Voltar às Notas
+          </a>
           <button
-            onClick={() => window.close()}
+            onClick={() => {
+              window.close();
+              window.location.href = "/invoices";
+            }}
             className="flex items-center gap-1.5 text-xs font-bold text-gray-300 hover:text-white bg-gray-800 px-3 py-2 rounded-xl transition-colors"
           >
-            <ArrowLeft size={14} /> Fechar
+            Fechar
           </button>
           <div>
             <h1 className="text-sm font-black flex items-center gap-2">

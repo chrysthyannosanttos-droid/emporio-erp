@@ -1,8 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { listTenantUsers, createTenantUser, toggleTenantUserActive } from "@/actions/users";
-import { User, Plus, Shield, Loader2, CheckCircle, XCircle } from "lucide-react";
+import {
+  listTenantUsers,
+  createTenantUser,
+  toggleTenantUserActive,
+  setUserMobilePdvAccess,
+} from "@/actions/users";
+import { User, Plus, Shield, Loader2, CheckCircle, XCircle, Smartphone, AlertTriangle } from "lucide-react";
 
 export function TenantUsersManager() {
   const [users, setUsers] = useState<any[]>([]);
@@ -10,6 +15,8 @@ export function TenantUsersManager() {
   const [showModal, setShowModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
+  const [selectedRole, setSelectedRole] = useState("OPERATOR");
+  const [allowMobilePdv, setAllowMobilePdv] = useState(false);
 
   async function loadUsers() {
     setLoading(true);
@@ -27,13 +34,22 @@ export function TenantUsersManager() {
     setCreating(true);
     setError("");
     const formData = new FormData(e.currentTarget);
-    const res = await createTenantUser(formData as any);
+    const role = (formData.get("role") as string) || "OPERATOR";
+    const res = await createTenantUser({
+      name: String(formData.get("name") || ""),
+      email: String(formData.get("email") || ""),
+      password: String(formData.get("password") || ""),
+      role,
+      allowMobilePdv: role === "ADMIN" ? true : allowMobilePdv,
+    });
     setCreating(false);
 
     if (res?.error) {
       setError(res.error);
     } else {
       setShowModal(false);
+      setAllowMobilePdv(false);
+      setSelectedRole("OPERATOR");
       loadUsers();
     }
   }
@@ -43,9 +59,20 @@ export function TenantUsersManager() {
     loadUsers();
   }
 
+  async function handleToggleMobilePdv(userId: string, currentHasMobile: boolean) {
+    const res = await setUserMobilePdvAccess(userId, !currentHasMobile);
+    if (res?.error) {
+      alert(res.error);
+      return;
+    }
+    loadUsers();
+  }
+
   const roleLabels: Record<string, string> = {
     ADMIN: "Administrador",
     MANAGER: "Gerente",
+    SUPERVISOR: "Fiscal de Caixa",
+    STOCKIST: "Estoque",
     FINANCIAL: "Financeiro",
     SELLER: "Vendedor",
     OPERATOR: "Operador de Caixa",
@@ -59,7 +86,12 @@ export function TenantUsersManager() {
           <p className="text-slate-500 text-sm">Gerencie o acesso e permissões (RBAC) dos seus colaboradores.</p>
         </div>
         <button
-          onClick={() => setShowModal(true)}
+          onClick={() => {
+            setSelectedRole("OPERATOR");
+            setAllowMobilePdv(false);
+            setError("");
+            setShowModal(true);
+          }}
           className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-2 transition-colors shadow-lg shadow-indigo-600/20"
         >
           <Plus size={16} /> Novo Usuário
@@ -89,10 +121,18 @@ export function TenantUsersManager() {
                     <div className="text-xs text-slate-500">{u.email}</div>
                   </td>
                   <td className="px-5 py-4">
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-500/10 text-indigo-600 border border-indigo-200">
-                      <Shield size={12} />
-                      {roleLabels[u.role] || u.role}
-                    </span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-500/10 text-indigo-600 border border-indigo-200">
+                        <Shield size={12} />
+                        {roleLabels[u.role] || u.role}
+                      </span>
+                      {u.hasMobilePdv && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/15 text-emerald-700 border border-emerald-500/30">
+                          <Smartphone size={11} />
+                          PDV Mobile
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-5 py-4">
                     <span className={`inline-flex items-center gap-1 text-xs font-bold ${u.active ? "text-emerald-600" : "text-red-600"}`}>
@@ -101,16 +141,32 @@ export function TenantUsersManager() {
                     </span>
                   </td>
                   <td className="px-5 py-4 text-right">
-                    <button
-                      onClick={() => handleToggle(u.id, u.active)}
-                      className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors ${
-                        u.active
-                          ? "border-red-500/30 text-red-600 hover:bg-red-500/10"
-                          : "border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10"
-                      }`}
-                    >
-                      {u.active ? "Desativar" : "Ativar"}
-                    </button>
+                    <div className="inline-flex items-center justify-end gap-2">
+                      {u.role !== "ADMIN" && (
+                        <button
+                          onClick={() => handleToggleMobilePdv(u.id, Boolean(u.hasMobilePdv))}
+                          className={`text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-colors inline-flex items-center gap-1 ${
+                            u.hasMobilePdv
+                              ? "border-amber-500/30 text-amber-700 hover:bg-amber-500/10"
+                              : "border-emerald-500/30 text-emerald-700 hover:bg-emerald-500/10"
+                          }`}
+                          title={u.hasMobilePdv ? "Revogar acesso ao Caixa Mobile" : "Liberar acesso ao Caixa Mobile"}
+                        >
+                          <Smartphone size={12} />
+                          {u.hasMobilePdv ? "Remover Mobile" : "Liberar Mobile"}
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleToggle(u.id, u.active)}
+                        className={`text-xs font-bold px-3 py-1.5 rounded-lg border transition-colors ${
+                          u.active
+                            ? "border-red-500/30 text-red-600 hover:bg-red-500/10"
+                            : "border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10"
+                        }`}
+                      >
+                        {u.active ? "Desativar" : "Ativar"}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -170,15 +226,52 @@ export function TenantUsersManager() {
                 <label className="block text-xs font-bold text-slate-600 mb-1">Perfil de Acesso (RBAC)</label>
                 <select
                   name="role"
+                  value={selectedRole}
+                  onChange={(e) => {
+                    const nextRole = e.target.value;
+                    setSelectedRole(nextRole);
+                    if (nextRole === "ADMIN") setAllowMobilePdv(true);
+                  }}
                   className="w-full px-3 py-2 bg-[#eaf1fc] border border-indigo-200 text-gray-900 rounded-xl text-sm outline-none focus:border-indigo-500"
                 >
-                  <option value="OPERATOR">Operador de Caixa</option>
+                  <option value="OPERATOR">Operador de Caixa (Abre direto no PDV)</option>
+                  <option value="SUPERVISOR">Fiscal de Caixa & Supervisão</option>
+                  <option value="STOCKIST">Estoque & Depósito</option>
                   <option value="SELLER">Vendedor / Atendente</option>
                   <option value="FINANCIAL">Financeiro / Faturamento</option>
                   <option value="MANAGER">Gerente de Loja</option>
                   <option value="ADMIN">Administrador</option>
                 </select>
+                {selectedRole === "OPERATOR" && (
+                  <p className="mt-1.5 text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1.5 flex items-start gap-1.5">
+                    <AlertTriangle size={13} className="text-amber-600 shrink-0 mt-0.5" />
+                    <span>
+                      Caixa dedicado: este perfil abre diretamente o PDV ao fazer login. Para acessar o sistema completo no celular, escolha outro perfil (ex.: Estoque ou Gerente).
+                    </span>
+                  </p>
+                )}
               </div>
+
+              <label className="flex items-start gap-3 p-3 rounded-xl border border-indigo-200 bg-[#eaf1fc]/60 cursor-pointer">
+                <input
+                  type="checkbox"
+                  disabled={selectedRole === "ADMIN"}
+                  checked={selectedRole === "ADMIN" ? true : allowMobilePdv}
+                  onChange={(e) => setAllowMobilePdv(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded border-indigo-300 text-emerald-600 focus:ring-emerald-500"
+                />
+                <div>
+                  <span className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                    <Smartphone size={13} className="text-emerald-600" />
+                    Acesso ao Caixa Mobile (PDV Mobile no Celular)
+                  </span>
+                  <span className="text-[11px] text-slate-600 block mt-0.5">
+                    {selectedRole === "ADMIN"
+                      ? "Administrador já possui acesso automático ao PDV Mobile."
+                      : "Libera o uso do PDV Mobile pelo celular/tablet para este colaborador."}
+                  </span>
+                </div>
+              </label>
 
               {error && <div className="text-xs text-red-600 font-bold">{error}</div>}
 

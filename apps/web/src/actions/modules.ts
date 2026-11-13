@@ -5,18 +5,18 @@ import { getSession } from "@/lib/session";
 import { revalidatePath } from "next/cache";
 import { SYSTEM_MODULES_CATALOG } from "@/lib/modules-catalog";
 
-const modulesConfigCache = new Map<string, { data: any; expiry: number }>();
-
 export async function getCompanyModulesConfig() {
   try {
     const session = await getSession();
     if (!session?.companyId) {
-      return { error: "Não autorizado", operationTypes: ["RETAIL"], activeModules: [] };
-    }
-
-    const cached = modulesConfigCache.get(session.companyId);
-    if (cached && Date.now() < cached.expiry) {
-      return cached.data;
+      return {
+        error: "Não autorizado",
+        companyName: "",
+        operationTypes: ["RETAIL"],
+        activeModules: [] as string[],
+        hasHotelTabs: false,
+        allModules: SYSTEM_MODULES_CATALOG,
+      };
     }
 
     const company = await prisma.company.findUnique({
@@ -27,18 +27,35 @@ export async function getCompanyModulesConfig() {
         operationTypes: true,
         activeModules: true,
         companyModules: true,
+        hasHotelTabs: true,
       },
     });
 
     if (!company) {
-      return { error: "Empresa não encontrada", operationTypes: ["RETAIL"], activeModules: [] };
+      return {
+        error: "Empresa não encontrada",
+        companyName: "",
+        operationTypes: ["RETAIL"],
+        activeModules: [] as string[],
+        hasHotelTabs: false,
+        allModules: SYSTEM_MODULES_CATALOG,
+      };
     }
 
     let operationTypes: string[] = ["RETAIL"];
     try {
       operationTypes = JSON.parse(company.operationTypes || "[\"RETAIL\"]");
+      if (!Array.isArray(operationTypes) || operationTypes.length === 0) {
+        operationTypes = ["RETAIL"];
+      }
     } catch {
       operationTypes = ["RETAIL"];
+    }
+
+    // Garante isolamento estrito da feature flag HOTEL_TABS controlada pelo Master
+    operationTypes = operationTypes.filter((op) => op !== "HOTEL_TABS");
+    if (company.hasHotelTabs === true) {
+      operationTypes.push("HOTEL_TABS");
     }
 
     let activeModules: string[] = [];
@@ -59,12 +76,19 @@ export async function getCompanyModulesConfig() {
       companyName: company.name,
       operationTypes,
       activeModules,
+      hasHotelTabs: Boolean(company.hasHotelTabs),
       allModules: SYSTEM_MODULES_CATALOG,
     };
-    modulesConfigCache.set(session.companyId, { data: result, expiry: Date.now() + 60000 });
     return result;
   } catch (err: any) {
-    return { error: err.message, operationTypes: ["RETAIL"], activeModules: [] };
+    return {
+      error: err.message,
+      companyName: "",
+      operationTypes: ["RETAIL"],
+      activeModules: [] as string[],
+      hasHotelTabs: false,
+      allModules: SYSTEM_MODULES_CATALOG,
+    };
   }
 }
 
@@ -78,7 +102,8 @@ export async function updateCompanyModules(data: {
       return { error: "Sessão expirada ou não autorizada" };
     }
 
-    const operationTypesJson = JSON.stringify(data.operationTypes);
+    const sanitizedOperationTypes = (data.operationTypes || []).filter((op) => op !== "HOTEL_TABS");
+    const operationTypesJson = JSON.stringify(sanitizedOperationTypes);
     const activeModulesJson = JSON.stringify(data.activeModules);
 
     await prisma.company.update({
@@ -107,7 +132,6 @@ export async function updateCompanyModules(data: {
       });
     }
 
-    modulesConfigCache.delete(session.companyId);
     revalidatePath("/", "layout");
     return { success: true };
   } catch (err: any) {

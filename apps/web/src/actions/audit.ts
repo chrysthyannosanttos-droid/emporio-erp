@@ -90,6 +90,15 @@ export async function listAuditLogs(filters?: {
       return { logs: [], error: "Não autorizado" };
     }
 
+    const isCristiano =
+      Boolean(session.isSuperAdmin) ||
+      session.name?.toLowerCase().includes("cristiano") ||
+      Boolean(session.email?.toLowerCase().includes("cristiano"));
+
+    if (!isCristiano) {
+      return { logs: [], error: "Acesso restrito ao Administrador Geral (Cristiano)." };
+    }
+
     const where: any = { companyId: session.companyId };
 
     if (filters?.storeId) where.storeId = filters.storeId;

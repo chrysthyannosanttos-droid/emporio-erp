@@ -51,7 +51,7 @@ export default async function MasterLogsPage() {
                     {log.company?.name ?? "Sistema Master"}
                   </td>
                   <td className="px-6 py-4 text-xs text-slate-500 font-mono">
-                    {log.details ? String(log.details).slice(0, 80) : "—"}
+                    {(log as any).details || (log as any).reason || (log as any).newValue ? String((log as any).details || (log as any).reason || (log as any).newValue).slice(0, 80) : "—"}
                   </td>
                 </tr>
               ))}

@@ -3,65 +3,270 @@
 import { prisma } from "@emporio/database";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/session";
+import { resolveActiveCompany } from "@/lib/tenant";
 
 async function getOrCreateCompany() {
-  let company = await prisma.company.findFirst();
+  let company = await resolveActiveCompany();
   if (!company) {
     company = await prisma.company.create({
-      data: { name: "Emporio Default", document: "00.000.000/0001-00" }
+      data: { name: "EMPORIO AGROBELEM LTDA", document: "65.522.409/0001-13" }
     });
   }
   return company;
 }
 
-export async function createProduct(formData: FormData) {
-  try {
-    const name = formData.get("name") as string;
-    const barcode = formData.get("barcode") as string;
-    const price = parseFloat(formData.get("price") as string);
-    const costRaw = parseFloat(formData.get("cost") as string);
-    const cost = Number.isFinite(costRaw) ? costRaw : null;
-    const stock = parseFloat(formData.get("stock") as string) || 0;
-    const ncm = formData.get("ncm") as string;
-    const cest = formData.get("cest") as string;
-    const cfop = formData.get("cfop") as string;
-    const cst = formData.get("cst") as string;
-    const origin = (formData.get("origin") as string) || "0";
-    const icmsRate = parseFloat(formData.get("icmsRate") as string) || 0;
-    const icmsRedBaseRate = parseFloat(formData.get("icmsRedBaseRate") as string) || 0;
-    const cstPis = (formData.get("cstPis") as string) || null;
-    const pisRate = parseFloat(formData.get("pisRate") as string) || 0;
-    const cstCofins = (formData.get("cstCofins") as string) || null;
-    const cofinsRate = parseFloat(formData.get("cofinsRate") as string) || 0;
-    const cstIpi = (formData.get("cstIpi") as string) || null;
-    const ipiRate = parseFloat(formData.get("ipiRate") as string) || 0;
-    const fecoepRate = parseFloat(formData.get("fecoepRate") as string) || 0;
-    const ibsRate = parseFloat(formData.get("ibsRate") as string) || 0;
-    const cbsRate = parseFloat(formData.get("cbsRate") as string) || 0;
-    const isRate = parseFloat(formData.get("isRate") as string) || 0;
-    // Entrada (compra)
-    const cfopIn = (formData.get("cfopIn") as string) || null;
-    const cstIn = (formData.get("cstIn") as string) || null;
-    const icmsRateIn = parseFloat(formData.get("icmsRateIn") as string) || 0;
-    const icmsRedBaseRateIn = parseFloat(formData.get("icmsRedBaseRateIn") as string) || 0;
-    const fecoepRateIn = parseFloat(formData.get("fecoepRateIn") as string) || 0;
-    const cstPisIn = (formData.get("cstPisIn") as string) || null;
-    const pisRateIn = parseFloat(formData.get("pisRateIn") as string) || 0;
-    const cstCofinsIn = (formData.get("cstCofinsIn") as string) || null;
-    const cofinsRateIn = parseFloat(formData.get("cofinsRateIn") as string) || 0;
-    const cstIpiIn = (formData.get("cstIpiIn") as string) || null;
-    const ipiRateIn = parseFloat(formData.get("ipiRateIn") as string) || 0;
-    const isSelfProduced = formData.get("isSelfProduced") === "true";
-    const sendToScale = formData.get("sendToScale") === "true";
-    const scaleDaysRaw = parseInt(formData.get("scaleDays") as string, 10);
-    const scaleDays = isNaN(scaleDaysRaw) ? 0 : scaleDaysRaw;
-    const scaleDeptRaw = parseInt(formData.get("scaleDept") as string, 10);
-    const scaleDept = isNaN(scaleDeptRaw) ? 1 : scaleDeptRaw;
-    let internalCode = (formData.get("internalCode") as string)?.trim() || null;
-    const unit = (formData.get("unit") as string) || (sendToScale ? "KG" : "UN");
-    const parentProductId = formData.get("parentProductId") as string || undefined;
+export type ProductRecipeItemInput = {
+  productId: string;
+  quantity: number;
+  unit: string;
+  itemRole: "INGREDIENT" | "PACKAGING";
+};
 
-    const categoryId = (formData.get("categoryId") as string) || null;
+export type ProductRecipeExtraOptions = {
+  recipeItems?: ProductRecipeItemInput[];
+  recipeYield?: number;
+  recipeInstructions?: string | null;
+};
+
+type InputReader = {
+  has: (key: string) => boolean;
+  str: (key: string) => string;
+  optStr: (key: string) => string | null;
+  num: (key: string, fallback?: number) => number;
+  optNum: (key: string) => number | null;
+  int: (key: string, fallback?: number) => number;
+  bool: (key: string) => boolean;
+  recipeItems: () => ProductRecipeItemInput[] | undefined;
+  recipeYield: () => number | undefined;
+  recipeInstructions: () => string | null | undefined;
+};
+
+function createInputReader(
+  input: FormData | Record<string, any>,
+  extra?: ProductRecipeExtraOptions
+): InputReader {
+  const isFd = typeof FormData !== "undefined" && input instanceof FormData;
+
+  const has = (key: string) => {
+    if (isFd) return (input as FormData).has(key);
+    return (input as Record<string, any>)[key] !== undefined;
+  };
+
+  const raw = (key: string) => {
+    if (isFd) return (input as FormData).get(key);
+    return (input as Record<string, any>)[key];
+  };
+
+  const str = (key: string) => {
+    const v = raw(key);
+    return v === null || v === undefined ? "" : String(v);
+  };
+
+  const optStr = (key: string) => {
+    const s = str(key).trim();
+    return s.length > 0 ? s : null;
+  };
+
+  const num = (key: string, fallback = 0) => {
+    const n = parseFloat(str(key));
+    return Number.isFinite(n) ? n : fallback;
+  };
+
+  const optNum = (key: string) => {
+    const s = str(key).trim();
+    if (!s) return null;
+    const n = parseFloat(s);
+    return Number.isFinite(n) ? n : null;
+  };
+
+  const int = (key: string, fallback = 0) => {
+    const n = parseInt(str(key), 10);
+    return Number.isFinite(n) ? n : fallback;
+  };
+
+  const bool = (key: string) => {
+    const v = raw(key);
+    if (typeof v === "boolean") return v;
+    return String(v) === "true";
+  };
+
+  const recipeItems = (): ProductRecipeItemInput[] | undefined => {
+    if (extra?.recipeItems !== undefined) return extra.recipeItems;
+    const r = raw("recipeItems");
+    if (r === null || r === undefined) return undefined;
+    if (Array.isArray(r)) return r;
+    if (typeof r === "string" && r.trim()) {
+      try {
+        const parsed = JSON.parse(r);
+        return Array.isArray(parsed) ? parsed : undefined;
+      } catch {
+        return undefined;
+      }
+    }
+    return undefined;
+  };
+
+  const recipeYield = (): number | undefined => {
+    if (extra?.recipeYield !== undefined) return Number(extra.recipeYield);
+    if (!has("recipeYield")) return undefined;
+    const n = parseFloat(str("recipeYield"));
+    return Number.isFinite(n) && n > 0 ? n : 1;
+  };
+
+  const recipeInstructions = (): string | null | undefined => {
+    if (extra?.recipeInstructions !== undefined) return extra.recipeInstructions;
+    if (!has("recipeInstructions")) return undefined;
+    return optStr("recipeInstructions");
+  };
+
+  return { has, str, optStr, num, optNum, int, bool, recipeItems, recipeYield, recipeInstructions };
+}
+
+async function syncProductRecipe(
+  tx: any,
+  params: {
+    productId: string;
+    companyId: string;
+    isSelfProduced: boolean;
+    recipeItems?: ProductRecipeItemInput[];
+    recipeYield?: number;
+    recipeInstructions?: string | null;
+  }
+) {
+  if (!params.isSelfProduced || params.recipeItems === undefined) return;
+
+  const validItems = params.recipeItems
+    .filter(
+      (it) =>
+        it &&
+        typeof it.productId === "string" &&
+        it.productId.trim() !== "" &&
+        it.productId !== params.productId &&
+        Number(it.quantity) > 0
+    )
+    .map((it) => ({
+      productId: it.productId.trim(),
+      quantity: Number(it.quantity),
+      unit: (it.unit || "UN").trim() || "UN",
+      itemRole: (it.itemRole === "PACKAGING" ? "PACKAGING" : "INGREDIENT") as
+        | "INGREDIENT"
+        | "PACKAGING",
+    }));
+
+  if (validItems.length > 0) {
+    const itemIds = Array.from(new Set(validItems.map((i) => i.productId)));
+    const validProducts = await tx.product.findMany({
+      where: { id: { in: itemIds }, companyId: params.companyId },
+      select: { id: true },
+    });
+    const validSet = new Set(validProducts.map((p: { id: string }) => p.id));
+    for (const it of validItems) {
+      if (!validSet.has(it.productId)) {
+        throw new Error("Um ou mais insumos/embalagens selecionados não pertencem à empresa.");
+      }
+    }
+  }
+
+  const existingRecipe = await tx.recipe.findUnique({
+    where: { productId: params.productId },
+  });
+
+  const yieldVal =
+    params.recipeYield && Number.isFinite(params.recipeYield) && params.recipeYield > 0
+      ? Number(params.recipeYield)
+      : existingRecipe?.yield || 1;
+
+  const instructionsVal =
+    params.recipeInstructions !== undefined
+      ? params.recipeInstructions?.trim() || null
+      : existingRecipe?.instructions || null;
+
+  if (existingRecipe) {
+    await tx.recipe.update({
+      where: { id: existingRecipe.id },
+      data: {
+        yield: yieldVal,
+        instructions: instructionsVal,
+      },
+    });
+    await tx.recipeItem.deleteMany({
+      where: { recipeId: existingRecipe.id },
+    });
+    if (validItems.length > 0) {
+      await tx.recipeItem.createMany({
+        data: validItems.map((it) => ({
+          recipeId: existingRecipe.id,
+          productId: it.productId,
+          quantity: it.quantity,
+          unit: it.unit,
+          itemRole: it.itemRole,
+        })),
+      });
+    }
+  } else if (validItems.length > 0) {
+    await tx.recipe.create({
+      data: {
+        productId: params.productId,
+        companyId: params.companyId,
+        yield: yieldVal,
+        instructions: instructionsVal,
+        items: {
+          create: validItems,
+        },
+      },
+    });
+  }
+}
+
+export async function createProduct(
+  formDataOrInput: FormData | Record<string, any>,
+  extraOptions?: ProductRecipeExtraOptions
+) {
+  try {
+    const r = createInputReader(formDataOrInput, extraOptions);
+    const name = r.str("name").trim();
+    const barcode = r.str("barcode");
+    const price = r.num("price", NaN);
+    const cost = r.optNum("cost");
+    const stock = r.num("stock", 0);
+    const ncm = r.str("ncm");
+    const cest = r.str("cest");
+    const cfop = r.str("cfop");
+    const cst = r.str("cst");
+    const origin = r.str("origin") || "0";
+    const icmsRate = r.num("icmsRate", 0);
+    const icmsRedBaseRate = r.num("icmsRedBaseRate", 0);
+    const cstPis = r.optStr("cstPis");
+    const pisRate = r.num("pisRate", 0);
+    const cstCofins = r.optStr("cstCofins");
+    const cofinsRate = r.num("cofinsRate", 0);
+    const cstIpi = r.optStr("cstIpi");
+    const ipiRate = r.num("ipiRate", 0);
+    const fecoepRate = r.num("fecoepRate", 0);
+    const ibsRate = r.num("ibsRate", 0);
+    const cbsRate = r.num("cbsRate", 0);
+    const isRate = r.num("isRate", 0);
+    // Entrada (compra)
+    const cfopIn = r.optStr("cfopIn");
+    const cstIn = r.optStr("cstIn");
+    const icmsRateIn = r.num("icmsRateIn", 0);
+    const icmsRedBaseRateIn = r.num("icmsRedBaseRateIn", 0);
+    const fecoepRateIn = r.num("fecoepRateIn", 0);
+    const cstPisIn = r.optStr("cstPisIn");
+    const pisRateIn = r.num("pisRateIn", 0);
+    const cstCofinsIn = r.optStr("cstCofinsIn");
+    const cofinsRateIn = r.num("cofinsRateIn", 0);
+    const cstIpiIn = r.optStr("cstIpiIn");
+    const ipiRateIn = r.num("ipiRateIn", 0);
+
+    const isSelfProduced = r.bool("isSelfProduced");
+    const sendToScale = r.bool("sendToScale");
+    const scaleDays = r.int("scaleDays", 0);
+    const scaleDept = r.int("scaleDept", 1);
+    let internalCode = r.optStr("internalCode");
+    const unit = r.str("unit") || (sendToScale ? "KG" : "UN");
+    const parentProductId = r.str("parentProductId") || undefined;
+    const categoryId = r.optStr("categoryId");
 
     if (!name || isNaN(price)) return { error: "Nome e Preço são obrigatórios e válidos" };
 
@@ -110,31 +315,36 @@ export async function createProduct(formData: FormData) {
       internalCode = String(nextNum).padStart(5, '0');
     }
 
-    // Campos Multissetoriais (Distribuição / Indústria / Logística)
-    const sku = (formData.get("sku") as string) || null;
-    const brand = (formData.get("brand") as string) || null;
-    const manufacturer = (formData.get("manufacturer") as string) || null;
-    const unitPurchase = (formData.get("unitPurchase") as string) || null;
-    const unitSale = (formData.get("unitSale") as string) || null;
-    const unitConvFactor = parseFloat(formData.get("unitConvFactor") as string) || 1;
-    const packagingType = (formData.get("packagingType") as string) || null;
-    const unitsPerPack = parseFloat(formData.get("unitsPerPack") as string) || 1;
-    const minOrderQty = parseFloat(formData.get("minOrderQty") as string) || 1;
-    const grossWeight = formData.get("grossWeight") ? parseFloat(formData.get("grossWeight") as string) : null;
-    const netWeight = formData.get("netWeight") ? parseFloat(formData.get("netWeight") as string) : null;
-    const width = formData.get("width") ? parseFloat(formData.get("width") as string) : null;
-    const height = formData.get("height") ? parseFloat(formData.get("height") as string) : null;
-    const depth = formData.get("depth") ? parseFloat(formData.get("depth") as string) : null;
-    const isRawMaterial = formData.get("isRawMaterial") === "true";
-    const isFinishedGood = formData.get("isFinishedGood") === "true";
-    const isPackaging = formData.get("isPackaging") === "true";
-    const minStock = parseFloat(formData.get("minStock") as string) || 0;
-    const maxStock = formData.get("maxStock") ? parseFloat(formData.get("maxStock") as string) : null;
-    const leadTimeDays = parseInt(formData.get("leadTimeDays") as string, 10) || 0;
+    // Campos Multissetoriais (Distribuição / Indústria / Logística / Cardápio)
+    const sku = r.optStr("sku");
+    const brand = r.optStr("brand");
+    const manufacturer = r.optStr("manufacturer");
+    const unitPurchase = r.optStr("unitPurchase");
+    const unitSale = r.optStr("unitSale");
+    const unitConvFactor = r.num("unitConvFactor", 1);
+    const packagingType = r.optStr("packagingType");
+    const unitsPerPack = r.num("unitsPerPack", 1);
+    const minOrderQty = r.num("minOrderQty", 1);
+    const grossWeight = r.optNum("grossWeight");
+    const netWeight = r.optNum("netWeight");
+    const width = r.optNum("width");
+    const height = r.optNum("height");
+    const depth = r.optNum("depth");
+    const isRawMaterial = r.bool("isRawMaterial");
+    const isFinishedGood = r.bool("isFinishedGood");
+    const isPackaging = r.bool("isPackaging");
+    const showInDigitalMenu = r.bool("showInDigitalMenu");
+    const minStock = r.num("minStock", 0);
+    const maxStock = r.optNum("maxStock");
+    const leadTimeDays = r.int("leadTimeDays", 0);
+
+    const recipeItems = r.recipeItems();
+    const recipeYield = r.recipeYield();
+    const recipeInstructions = r.recipeInstructions();
 
     const productData = {
       name,
-      barcode: barcode || undefined,
+      barcode: cleanBarcode || undefined,
       price,
       cost,
       stock,
@@ -175,7 +385,6 @@ export async function createProduct(formData: FormData) {
       parentProductId,
       categoryId: categoryId || undefined,
       companyId,
-      // Novos campos multissetoriais
       sku,
       brand,
       manufacturer,
@@ -193,34 +402,48 @@ export async function createProduct(formData: FormData) {
       isRawMaterial,
       isFinishedGood,
       isPackaging,
+      showInDigitalMenu,
       minStock,
       maxStock,
       leadTimeDays,
       createdAt: new Date(), // Considera cadastro feito de ontem pra hoje conforme regra do balanço
     };
 
-    if (existingProductId) {
-      // Atualiza o cadastro existente para validar com a contagem atual
-      await prisma.product.update({
-        where: { id: existingProductId },
-        data: productData,
+    const savedProduct = await prisma.$transaction(async (tx) => {
+      const prod = existingProductId
+        ? await tx.product.update({
+            where: { id: existingProductId },
+            data: productData,
+          })
+        : await tx.product.create({
+            data: productData,
+          });
+
+      await syncProductRecipe(tx, {
+        productId: prod.id,
+        companyId,
+        isSelfProduced,
+        recipeItems,
+        recipeYield,
+        recipeInstructions,
       });
-    } else {
-      await prisma.product.create({
-        data: productData,
-      });
-    }
+
+      return prod;
+    });
 
     revalidatePath("/stock");
     revalidatePath("/scales");
-    return { success: true, updated: Boolean(existingProductId) };
+    revalidatePath("/production");
+    revalidatePath("/restaurant/recipes");
+    return { success: true, updated: Boolean(existingProductId), productId: savedProduct.id };
   } catch (err: any) {
     // Fail-safe: se der erro de unique constraint, localiza o existente e atualiza
     if (err?.code === "P2002" || err?.message?.includes("Unique constraint")) {
       try {
         const session = await getSession();
         const compId = session?.companyId;
-        const cleanBar = (formData.get("barcode") as string)?.trim() || null;
+        const r = createInputReader(formDataOrInput, extraOptions);
+        const cleanBar = r.optStr("barcode");
         if (compId && cleanBar) {
           const dup = await prisma.product.findFirst({
             where: { barcode: cleanBar, companyId: compId },
@@ -229,10 +452,10 @@ export async function createProduct(formData: FormData) {
             await prisma.product.update({
               where: { id: dup.id },
               data: {
-                name: formData.get("name") as string,
-                price: parseFloat(formData.get("price") as string) || 0,
-                stock: parseFloat(formData.get("stock") as string) || 0,
-                unit: (formData.get("unit") as string) || "UN",
+                name: r.str("name"),
+                price: r.num("price", 0),
+                stock: r.num("stock", 0),
+                unit: r.str("unit") || "UN",
                 createdAt: new Date(),
               },
             });
@@ -246,7 +469,11 @@ export async function createProduct(formData: FormData) {
   }
 }
 
-export async function updateProduct(productId: string, formData: FormData) {
+export async function updateProduct(
+  productId: string,
+  formDataOrInput: FormData | Record<string, any>,
+  extraOptions?: ProductRecipeExtraOptions
+) {
   try {
     const session = await getSession();
     if (!session?.companyId) {
@@ -254,22 +481,27 @@ export async function updateProduct(productId: string, formData: FormData) {
     }
     const companyId = session.companyId;
 
-    const name = formData.get("name") as string;
-    const barcode = (formData.get("barcode") as string)?.trim() || null;
-    const price = parseFloat(formData.get("price") as string);
-    const costRaw = parseFloat(formData.get("cost") as string);
-    const cost = Number.isFinite(costRaw) ? costRaw : null;
-    const stock = parseFloat(formData.get("stock") as string) || 0;
-    const unit = (formData.get("unit") as string) || "UN";
-    const categoryId = (formData.get("categoryId") as string) || null;
+    const existingProduct = await prisma.product.findFirst({
+      where: { id: productId, companyId },
+    });
+    if (!existingProduct) {
+      return { error: "Produto não encontrado ou não pertence à sua empresa." };
+    }
 
-    const sendToScale = formData.get("sendToScale") === "true";
-    const scaleDaysRaw = parseInt(formData.get("scaleDays") as string, 10);
-    const scaleDays = isNaN(scaleDaysRaw) ? 0 : scaleDaysRaw;
-    const scaleDeptRaw = parseInt(formData.get("scaleDept") as string, 10);
-    const scaleDept = isNaN(scaleDeptRaw) ? 1 : scaleDeptRaw;
-    const internalCode = (formData.get("internalCode") as string)?.trim() || null;
-    const isSelfProduced = formData.get("isSelfProduced") === "true";
+    const r = createInputReader(formDataOrInput, extraOptions);
+    const name = r.str("name").trim();
+    const barcode = r.optStr("barcode");
+    const price = r.num("price", NaN);
+    const cost = r.has("cost") ? r.optNum("cost") : existingProduct.cost ? Number(existingProduct.cost) : null;
+    const stock = r.has("stock") ? r.num("stock", 0) : existingProduct.stock;
+    const unit = r.has("unit") ? r.str("unit") || "UN" : existingProduct.unit;
+    const categoryId = r.has("categoryId") ? r.optStr("categoryId") : existingProduct.categoryId;
+
+    const sendToScale = r.has("sendToScale") ? r.bool("sendToScale") : existingProduct.sendToScale;
+    const scaleDays = r.has("scaleDays") ? r.int("scaleDays", 0) : (existingProduct.scaleDays ?? 0);
+    const scaleDept = r.has("scaleDept") ? r.int("scaleDept", 1) : (existingProduct.scaleDept ?? 1);
+    const internalCode = r.has("internalCode") ? r.optStr("internalCode") : existingProduct.internalCode;
+    const isSelfProduced = r.has("isSelfProduced") ? r.bool("isSelfProduced") : existingProduct.isSelfProduced;
 
     if (!name || isNaN(price)) {
       return { error: "Nome e Preço são obrigatórios e válidos" };
@@ -301,26 +533,89 @@ export async function updateProduct(productId: string, formData: FormData) {
       }
     }
 
-    await prisma.product.update({
-      where: { id: productId },
-      data: {
-        name,
-        barcode,
-        price,
-        cost,
-        stock,
-        unit,
-        categoryId: categoryId || undefined,
-        sendToScale,
-        scaleDays,
-        scaleDept,
-        internalCode,
+    const updateData: Record<string, any> = {
+      name,
+      barcode,
+      price,
+      cost,
+      stock,
+      unit,
+      categoryId: categoryId || null,
+      sendToScale,
+      scaleDays,
+      scaleDept,
+      internalCode,
+      isSelfProduced,
+      ...(Number(existingProduct.price) !== price ? { priceChangedAt: new Date() } : {}),
+    };
+
+    // Persistir flags e campos multissetoriais sempre que enviados
+    if (r.has("isRawMaterial")) updateData.isRawMaterial = r.bool("isRawMaterial");
+    if (r.has("isFinishedGood")) updateData.isFinishedGood = r.bool("isFinishedGood");
+    if (r.has("isPackaging")) updateData.isPackaging = r.bool("isPackaging");
+    if (r.has("showInDigitalMenu")) updateData.showInDigitalMenu = r.bool("showInDigitalMenu");
+
+    if (r.has("sku")) updateData.sku = r.optStr("sku");
+    if (r.has("brand")) updateData.brand = r.optStr("brand");
+    if (r.has("manufacturer")) updateData.manufacturer = r.optStr("manufacturer");
+    if (r.has("unitPurchase")) updateData.unitPurchase = r.optStr("unitPurchase");
+    if (r.has("unitSale")) updateData.unitSale = r.optStr("unitSale");
+    if (r.has("unitConvFactor")) updateData.unitConvFactor = r.num("unitConvFactor", 1);
+    if (r.has("packagingType")) updateData.packagingType = r.optStr("packagingType");
+    if (r.has("unitsPerPack")) updateData.unitsPerPack = r.num("unitsPerPack", 1);
+    if (r.has("minOrderQty")) updateData.minOrderQty = r.num("minOrderQty", 1);
+    if (r.has("grossWeight")) updateData.grossWeight = r.optNum("grossWeight");
+    if (r.has("netWeight")) updateData.netWeight = r.optNum("netWeight");
+    if (r.has("width")) updateData.width = r.optNum("width");
+    if (r.has("height")) updateData.height = r.optNum("height");
+    if (r.has("depth")) updateData.depth = r.optNum("depth");
+    if (r.has("minStock")) updateData.minStock = r.num("minStock", 0);
+    if (r.has("maxStock")) updateData.maxStock = r.optNum("maxStock");
+    if (r.has("leadTimeDays")) updateData.leadTimeDays = r.int("leadTimeDays", 0);
+
+    // Campos fiscais (caso enviados na edição)
+    if (r.has("ncm")) updateData.ncm = r.optStr("ncm");
+    if (r.has("cest")) updateData.cest = r.optStr("cest");
+    if (r.has("cfop")) updateData.cfop = r.optStr("cfop");
+    if (r.has("cst")) updateData.cst = r.optStr("cst");
+    if (r.has("origin")) updateData.origin = r.str("origin") || "0";
+    if (r.has("icmsRate")) updateData.icmsRate = r.num("icmsRate", 0);
+    if (r.has("icmsRedBaseRate")) updateData.icmsRedBaseRate = r.num("icmsRedBaseRate", 0);
+    if (r.has("fecoepRate")) updateData.fecoepRate = r.num("fecoepRate", 0);
+    if (r.has("cstPis")) updateData.cstPis = r.optStr("cstPis");
+    if (r.has("pisRate")) updateData.pisRate = r.num("pisRate", 0);
+    if (r.has("cstCofins")) updateData.cstCofins = r.optStr("cstCofins");
+    if (r.has("cofinsRate")) updateData.cofinsRate = r.num("cofinsRate", 0);
+    if (r.has("cstIpi")) updateData.cstIpi = r.optStr("cstIpi");
+    if (r.has("ipiRate")) updateData.ipiRate = r.num("ipiRate", 0);
+    if (r.has("ibsRate")) updateData.ibsRate = r.num("ibsRate", 0);
+    if (r.has("cbsRate")) updateData.cbsRate = r.num("cbsRate", 0);
+    if (r.has("isRate")) updateData.isRate = r.num("isRate", 0);
+
+    const recipeItems = r.recipeItems();
+    const recipeYield = r.recipeYield();
+    const recipeInstructions = r.recipeInstructions();
+
+    await prisma.$transaction(async (tx) => {
+      await tx.product.update({
+        where: { id: productId },
+        data: updateData,
+      });
+
+      await syncProductRecipe(tx, {
+        productId,
+        companyId,
         isSelfProduced,
-      }
+        recipeItems,
+        recipeYield,
+        recipeInstructions,
+      });
     });
 
     revalidatePath("/stock");
     revalidatePath("/scales");
+    revalidatePath("/production");
+    revalidatePath("/restaurant/recipes");
     return { success: true };
   } catch (err: any) {
     if (err?.code === "P2002" || err?.message?.includes("Unique constraint")) {
@@ -924,33 +1219,55 @@ export async function quickCreateProductByBarcode(data: {
   }
 }
 
-function serializeProduct(p: any) {
+function serializeProduct(p: any): any {
   if (!p) return p;
   return {
     ...p,
     price: Number(p.price),
-    cost: p.cost ? Number(p.cost) : null,
-    // Balança
+    cost: p.cost !== null && p.cost !== undefined ? Number(p.cost) : null,
+    // Flags & Balança
+    showInDigitalMenu: p.showInDigitalMenu ?? false,
     sendToScale: p.sendToScale ?? false,
     scaleDays: p.scaleDays ?? 0,
     scaleDept: p.scaleDept ?? 1,
+    // Pesos & Dimensões (Decimal -> number)
+    grossWeight: p.grossWeight !== null && p.grossWeight !== undefined ? Number(p.grossWeight) : null,
+    netWeight: p.netWeight !== null && p.netWeight !== undefined ? Number(p.netWeight) : null,
+    width: p.width !== null && p.width !== undefined ? Number(p.width) : null,
+    height: p.height !== null && p.height !== undefined ? Number(p.height) : null,
+    depth: p.depth !== null && p.depth !== undefined ? Number(p.depth) : null,
     // Saída
-    icmsRate: p.icmsRate ? Number(p.icmsRate) : null,
-    icmsRedBaseRate: p.icmsRedBaseRate ? Number(p.icmsRedBaseRate) : null,
-    pisRate: p.pisRate ? Number(p.pisRate) : null,
-    cofinsRate: p.cofinsRate ? Number(p.cofinsRate) : null,
-    ipiRate: p.ipiRate ? Number(p.ipiRate) : null,
-    fecoepRate: p.fecoepRate ? Number(p.fecoepRate) : null,
-    ibsRate: p.ibsRate ? Number(p.ibsRate) : null,
-    cbsRate: p.cbsRate ? Number(p.cbsRate) : null,
-    isRate: p.isRate ? Number(p.isRate) : null,
+    icmsRate: p.icmsRate !== null && p.icmsRate !== undefined ? Number(p.icmsRate) : null,
+    icmsRedBaseRate: p.icmsRedBaseRate !== null && p.icmsRedBaseRate !== undefined ? Number(p.icmsRedBaseRate) : null,
+    pisRate: p.pisRate !== null && p.pisRate !== undefined ? Number(p.pisRate) : null,
+    cofinsRate: p.cofinsRate !== null && p.cofinsRate !== undefined ? Number(p.cofinsRate) : null,
+    ipiRate: p.ipiRate !== null && p.ipiRate !== undefined ? Number(p.ipiRate) : null,
+    fecoepRate: p.fecoepRate !== null && p.fecoepRate !== undefined ? Number(p.fecoepRate) : null,
+    ibsRate: p.ibsRate !== null && p.ibsRate !== undefined ? Number(p.ibsRate) : null,
+    cbsRate: p.cbsRate !== null && p.cbsRate !== undefined ? Number(p.cbsRate) : null,
+    isRate: p.isRate !== null && p.isRate !== undefined ? Number(p.isRate) : null,
     // Entrada
-    icmsRateIn: p.icmsRateIn ? Number(p.icmsRateIn) : null,
-    icmsRedBaseRateIn: p.icmsRedBaseRateIn ? Number(p.icmsRedBaseRateIn) : null,
-    fecoepRateIn: p.fecoepRateIn ? Number(p.fecoepRateIn) : null,
-    pisRateIn: p.pisRateIn ? Number(p.pisRateIn) : null,
-    cofinsRateIn: p.cofinsRateIn ? Number(p.cofinsRateIn) : null,
-    ipiRateIn: p.ipiRateIn ? Number(p.ipiRateIn) : null,
+    icmsRateIn: p.icmsRateIn !== null && p.icmsRateIn !== undefined ? Number(p.icmsRateIn) : null,
+    icmsRedBaseRateIn: p.icmsRedBaseRateIn !== null && p.icmsRedBaseRateIn !== undefined ? Number(p.icmsRedBaseRateIn) : null,
+    fecoepRateIn: p.fecoepRateIn !== null && p.fecoepRateIn !== undefined ? Number(p.fecoepRateIn) : null,
+    pisRateIn: p.pisRateIn !== null && p.pisRateIn !== undefined ? Number(p.pisRateIn) : null,
+    cofinsRateIn: p.cofinsRateIn !== null && p.cofinsRateIn !== undefined ? Number(p.cofinsRateIn) : null,
+    ipiRateIn: p.ipiRateIn !== null && p.ipiRateIn !== undefined ? Number(p.ipiRateIn) : null,
+    // Ficha Técnica (quando incluída)
+    ...(p.recipe !== undefined
+      ? {
+          recipe: p.recipe
+            ? {
+                ...p.recipe,
+                items: (p.recipe.items || []).map((item: any) => ({
+                  ...item,
+                  itemRole: item.itemRole || "INGREDIENT",
+                  product: item.product ? serializeProduct(item.product) : undefined,
+                })),
+              }
+            : null,
+        }
+      : {}),
   };
 }
 
@@ -1002,7 +1319,16 @@ export async function getProducts() {
     const companyId = session?.companyId;
     const products = await prisma.product.findMany({
       where: companyId ? { companyId } : undefined,
-      include: { category: true },
+      include: {
+        category: true,
+        recipe: {
+          include: {
+            items: {
+              include: { product: true },
+            },
+          },
+        },
+      },
       orderBy: { name: 'asc' }
     });
     const serialized = products.map(serializeProduct);
@@ -1010,6 +1336,98 @@ export async function getProducts() {
     return { products: withPromo };
   } catch (err: any) {
     return { error: err.message || "Erro ao buscar produtos", products: [] };
+  }
+}
+
+export async function getProductById(productId: string) {
+  try {
+    const session = await getSession();
+    let companyId = session?.companyId;
+    if (!companyId) {
+      const company = await getOrCreateCompany();
+      companyId = company.id;
+    }
+
+    const product = await prisma.product.findFirst({
+      where: { id: productId, companyId },
+      include: {
+        category: true,
+        recipe: {
+          include: {
+            items: {
+              include: { product: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!product) {
+      return { product: null, error: "Produto não encontrado." };
+    }
+
+    const serialized = serializeProduct(product);
+    const [withPromo] = await applyPromoPrices([serialized]);
+    return { product: withPromo };
+  } catch (err: any) {
+    return { product: null, error: err.message || "Erro ao buscar produto" };
+  }
+}
+
+export async function getIngredientAndPackagingCatalog() {
+  try {
+    const session = await getSession();
+    let companyId = session?.companyId;
+    if (!companyId) {
+      const company = await getOrCreateCompany();
+      companyId = company.id;
+    }
+
+    const products = await prisma.product.findMany({
+      where: { companyId },
+      include: { category: true },
+      orderBy: { name: "asc" },
+    });
+
+    return {
+      success: true,
+      products: products.map((p) => {
+        const catName = (p.category?.name || "").toLowerCase();
+        const nameLower = (p.name || "").toLowerCase();
+        const suggestedRole: "INGREDIENT" | "PACKAGING" =
+          p.isPackaging ||
+          catName.includes("embalag") ||
+          catName.includes("descart") ||
+          /copo|tampa|sacola|saco|pote|caixa|embalag|canudo|guardanapo|colher|garfo|mexedor|pazinha/.test(
+            nameLower
+          )
+            ? "PACKAGING"
+            : "INGREDIENT";
+
+        return {
+          id: p.id,
+          name: p.name,
+          barcode: p.barcode || null,
+          internalCode: p.internalCode || null,
+          unit: p.unitSale || p.unit || "UN",
+          cost: p.cost !== null && p.cost !== undefined ? Number(p.cost) : 0,
+          price: Number(p.price || 0),
+          stock: Number(p.stock || 0),
+          isRawMaterial: Boolean(p.isRawMaterial),
+          isPackaging: Boolean(p.isPackaging),
+          isFinishedGood: Boolean(p.isFinishedGood),
+          isSelfProduced: Boolean(p.isSelfProduced),
+          categoryName: p.category?.name || "Geral",
+          suggestedRole,
+        };
+      }),
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err.message || "Erro ao carregar catálogo de insumos e embalagens",
+      products: [],
+    };
   }
 }
 

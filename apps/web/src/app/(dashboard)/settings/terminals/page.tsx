@@ -91,11 +91,12 @@ export default function TerminalsPage() {
         setGenNumber(nextNum);
         setGenName(`Caixa ${String(nextNum).padStart(2, "0")} - Frente`);
       }
-      if (storesRes.stores) {
-        setStores(storesRes.stores);
-        if (storesRes.stores.length > 0 && !genStoreId) {
-          setGenStoreId(storesRes.stores[0].id);
-          setPairStoreId(storesRes.stores[0].id);
+      const storesList = Array.isArray(storesRes) ? storesRes : (storesRes as any)?.stores || [];
+      if (storesList.length > 0) {
+        setStores(storesList);
+        if (!genStoreId) {
+          setGenStoreId(storesList[0].id);
+          setPairStoreId(storesList[0].id);
         }
       }
     } catch (err) {
@@ -902,9 +903,43 @@ export default function TerminalsPage() {
                 </a>
               </div>
 
+              {/* Driver Oficial Epson TM-T20 & Impressão Direta */}
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50/70 border border-blue-200 rounded-2xl p-4">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-bold text-blue-950 text-sm">
+                    2. Impressora Epson TM-T20 / TM-T20X (Driver Oficial e Impressão Direta)
+                  </span>
+                  <span className="text-[10px] bg-blue-600 text-white font-black px-2 py-0.5 rounded-full uppercase">
+                    Bobina 80mm
+                  </span>
+                </div>
+                <p className="text-blue-900 text-[11px] leading-relaxed mb-3">
+                  Permite ao caixa imprimir cupom não fiscal instantaneamente sem janela de confirmação do Windows, com corte de guilhotina e abertura automática de gaveta.
+                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <a
+                    href="/api/pdv/driver/epson?action=driver"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-all"
+                  >
+                    <Download size={13} />
+                    Driver Oficial Epson (APD)
+                  </a>
+                  <a
+                    href="/api/pdv/driver/epson?action=script"
+                    download="Configurar-Epson-TM-T20.bat"
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-xs transition-all"
+                  >
+                    <Download size={13} />
+                    Configurador 1-Clique (.bat)
+                  </a>
+                </div>
+              </div>
+
               <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-4">
                 <span className="font-bold text-blue-900 text-sm block mb-1">
-                  2. Modo Kiosk em Tela Cheia (Navegador)
+                  3. Modo Kiosk em Tela Cheia (Navegador)
                 </span>
                 <p className="text-blue-800 text-[11px] leading-relaxed mb-3">
                   Crie um atalho no Windows com o comando abaixo para iniciar o PDV travado em tela cheia, sem barra de abas ou navegação do Windows:
@@ -922,7 +957,7 @@ export default function TerminalsPage() {
 
               <div className="bg-gray-50 border border-gray-200 rounded-2xl p-4">
                 <span className="font-bold text-gray-900 text-sm block mb-1">
-                  3. Acesso Direto Web
+                  4. Acesso Direto Web
                 </span>
                 <p className="text-gray-600 text-[11px] leading-relaxed">
                   Basta abrir o navegador no link <span className="font-mono text-blue-600 font-bold">/pdv</span>. Ao abrir pela primeira vez, o PDV pede o Código de Ativação e se auto-configura.

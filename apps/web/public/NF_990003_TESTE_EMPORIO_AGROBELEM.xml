@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
+  <NFe xmlns="http://www.portalfiscal.inf.br/nfe">
+    <infNFe Id="NFe15261112345678000357550010009900031100000033" versao="4.00">
+      <ide><cUF>15</cUF><natOp>VENDA DE PRODUCAO DO ESTABELECIMENTO (TESTE HOMOLOGACAO)</natOp><mod>55</mod><serie>1</serie><nNF>990003</nNF><dhEmi>2026-11-09T16:40:00-03:00</dhEmi><tpNF>1</tpNF><tpAmb>2</tpAmb><finNFe>1</finNFe></ide>
+      <emit><CNPJ>12345678000357</CNPJ><xNome>SOLAR COCA-COLA BELEM (TESTE)</xNome><enderEmit><xLgr>Av. Augusto Montenegro, 4000 - Belem/PA</xLgr><UF>PA</UF></enderEmit><IE>ISENTO</IE><CRT>3</CRT></emit>
+      <dest><CNPJ>65522409000113</CNPJ><xNome>EMPORIO AGROBELEM LTDA</xNome></dest>
+      <det nItem="1">
+        <prod>
+          <cProd>7894900010015</cProd><cEAN>7894900010015</cEAN>
+          <xProd>Refrigerante Coca-Cola Lata 350ml</xProd>
+          <NCM>22021000</NCM><CFOP>5401</CFOP>
+          <uCom>UN</uCom><qCom>48.0000</qCom><vUnCom>2.7000</vUnCom><vProd>129.60</vProd>
+          <cEANTrib>7894900010015</cEANTrib><uTrib>UN</uTrib><qTrib>48.0000</qTrib><vUnTrib>2.7000</vUnTrib>
+          <indTot>1</indTot>
+          <rastro><nLote>LT-990003-1</nLote><qLote>48.000</qLote><dFab>2026-10-01</dFab><dVal>2027-03-28</dVal></rastro>
+        </prod>
+        <imposto><ICMS><ICMS00><orig>0</orig><CST>00</CST><modBC>3</modBC><vBC>129.60</vBC><pICMS>12.00</pICMS><vICMS>15.55</vICMS></ICMS00></ICMS></imposto>
+      </det>
+      <total><ICMSTot><vBC>129.60</vBC><vICMS>15.55</vICMS><vProd>129.60</vProd><vNF>129.60</vNF></ICMSTot></total>
+    </infNFe>
+  </NFe>
+  <protNFe versao="4.00"><infProt><tpAmb>2</tpAmb><chNFe>15261112345678000357550010009900031100000033</chNFe><dhRecbto>2026-11-09T16:40:00-03:00</dhRecbto><nProt>1152600990003</nProt><cStat>100</cStat><xMotivo>Autorizado o uso da NF-e (HOMOLOGACAO TESTE)</xMotivo></infProt></protNFe>
+</nfeProc>

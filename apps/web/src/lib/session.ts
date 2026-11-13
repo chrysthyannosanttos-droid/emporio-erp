@@ -1,6 +1,6 @@
 import { cache } from "react";
 import { SignJWT, jwtVerify } from "jose";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 const secretKey = process.env.JWT_SECRET_KEY || "super_secret_dev_key_only_for_local_use";
@@ -9,6 +9,7 @@ const encodedKey = new TextEncoder().encode(secretKey);
 export type SessionPayload = {
   userId: string;
   name: string;
+  email?: string;
   role: string;
   companyId?: string;
   companyName?: string;
@@ -39,13 +40,23 @@ export async function createSession(payload: SessionPayload) {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const session = await encrypt(payload);
 
+  let cookieDomain: string | undefined = undefined;
+  try {
+    const hdrs = await headers();
+    const host = hdrs.get("x-forwarded-host") || hdrs.get("host") || "";
+    if (host.includes("cybertechapp.com.br")) {
+      cookieDomain = ".cybertechapp.com.br";
+    }
+  } catch {}
+
   const cookieStore = await cookies();
   cookieStore.set("session", session, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production" && process.env.VERCEL === "1",
+    secure: process.env.NODE_ENV === "production" || !!cookieDomain,
     expires: expiresAt,
     sameSite: "lax",
     path: "/",
+    ...(cookieDomain ? { domain: cookieDomain } : {}),
   });
 }
 
@@ -76,6 +87,24 @@ export async function updateSession() {
 }
 
 export async function deleteSession() {
+  let cookieDomain: string | undefined = undefined;
+  try {
+    const hdrs = await headers();
+    const host = hdrs.get("x-forwarded-host") || hdrs.get("host") || "";
+    if (host.includes("cybertechapp.com.br")) {
+      cookieDomain = ".cybertechapp.com.br";
+    }
+  } catch {}
+
   const cookieStore = await cookies();
   cookieStore.delete("session");
+  if (cookieDomain) {
+    try {
+      cookieStore.set("session", "", {
+        domain: cookieDomain,
+        path: "/",
+        expires: new Date(0),
+      });
+    } catch {}
+  }
 }

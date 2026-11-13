@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { login } from "@/actions/auth";
-import { Lock, User, Eye, EyeOff, Loader2, ArrowRight } from "lucide-react";
+import { login, getLoginSubdomainBrand } from "@/actions/auth";
+import { Lock, User, Eye, EyeOff, Loader2, ArrowRight, Building2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
@@ -10,8 +10,36 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>("auto");
+  const [tenantBrand, setTenantBrand] = useState<{
+    companyName: string | null;
+    companySlug: string | null;
+    companyId: string | null;
+    isMasterHost: boolean;
+    companies: Array<{ id: string; name: string; slug: string | null }>;
+  }>({
+    companyName: null,
+    companySlug: null,
+    companyId: null,
+    isMasterHost: false,
+    companies: [],
+  });
 
   useEffect(() => {
+    getLoginSubdomainBrand()
+      .then((res: any) => {
+        if (res) {
+          setTenantBrand({
+            companyName: res.companyName,
+            companySlug: res.companySlug,
+            companyId: res.companyId,
+            isMasterHost: res.isMasterHost,
+            companies: res.companies || [],
+          });
+        }
+      })
+      .catch(() => {});
+
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       if (params.get("reason") === "concurrent_session") {
@@ -266,6 +294,23 @@ export default function LoginPage() {
           >
             Faça login para continuar
           </p>
+          {(tenantBrand.companyName || tenantBrand.isMasterHost) && (
+            <div
+              style={{
+                display: "inline-block",
+                marginTop: 10,
+                padding: "4px 12px",
+                borderRadius: 999,
+                background: "rgba(0, 140, 255, 0.14)",
+                border: "1px solid rgba(0, 160, 255, 0.35)",
+                color: "#93c5fd",
+                fontSize: 11.5,
+                fontWeight: 600,
+              }}
+            >
+              {tenantBrand.isMasterHost ? "Ambiente Master / Suporte" : `Ambiente: ${tenantBrand.companyName}`}
+            </div>
+          )}
         </div>
 
         {/* Mensagem de Erro se houver */}
@@ -291,6 +336,52 @@ export default function LoginPage() {
           onSubmit={handleSubmit}
           style={{ display: "flex", flexDirection: "column", gap: 18 }}
         >
+          {/* Seletor de Empresa / Ambiente (Permite Cristiano ou qualquer usuário escolher qualquer empresa) */}
+          {tenantBrand.companies && tenantBrand.companies.length > 0 && (
+            <div style={{ position: "relative" }}>
+              <div
+                style={{
+                  position: "absolute",
+                  left: 15,
+                  top: "50%",
+                  transform: "translateY(-50%)",
+                  color: "#557293",
+                  display: "flex",
+                  alignItems: "center",
+                  pointerEvents: "none",
+                }}
+              >
+                <Building2 size={18} />
+              </div>
+              <select
+                name="companyId"
+                value={selectedCompanyId}
+                onChange={(e) => setSelectedCompanyId(e.target.value)}
+                className="login-input"
+                style={{
+                  paddingLeft: 46,
+                  cursor: "pointer",
+                  appearance: "none",
+                  WebkitAppearance: "none",
+                }}
+              >
+                <option value="auto" style={{ background: "#06142e", color: "#f1f5f9" }}>
+                  {tenantBrand.companyName
+                    ? `Empresa Detectada: ${tenantBrand.companyName}`
+                    : "Entrar em Qualquer Empresa (Auto)"}
+                </option>
+                {tenantBrand.companies.map((comp) => (
+                  <option key={comp.id} value={comp.id} style={{ background: "#06142e", color: "#f1f5f9" }}>
+                    🏢 {comp.name}
+                  </option>
+                ))}
+                <option value="master" style={{ background: "#06142e", color: "#60a5fa" }}>
+                  ⚡ Painel Master & Suporte (SaaS)
+                </option>
+              </select>
+            </div>
+          )}
+
           {/* Campo Usuário */}
           <div style={{ position: "relative" }}>
             <div

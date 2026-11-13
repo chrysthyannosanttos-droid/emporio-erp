@@ -1,16 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Users, Search, Plus, Store, UserCheck, FileText, Handshake } from "lucide-react";
+import { Users, Search, Plus, Store, UserCheck, FileText, Handshake, Briefcase, Wallet } from "lucide-react";
 import Link from "next/link";
-import { getCustomers, updateCustomerType } from "@/actions/customer";
+import { getCustomers, updateCustomerType, updateCustomerCreditLimit } from "@/actions/customer";
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"ALL" | "REVENDA" | "CONSUMIDOR_FINAL">("ALL");
+  const [typeFilter, setTypeFilter] = useState<"ALL" | "REVENDA" | "CONSUMIDOR_FINAL" | "FUNCIONARIO">("ALL");
 
   useEffect(() => {
     loadData();
@@ -24,9 +24,17 @@ export default function CustomersPage() {
     setLoading(false);
   }
 
-  async function handleToggleType(c: any) {
-    const nextType = c.customerType === "REVENDA" ? "CONSUMIDOR_FINAL" : "REVENDA";
+  async function handleChangeType(c: any, nextType: "REVENDA" | "CONSUMIDOR_FINAL" | "FUNCIONARIO") {
     await updateCustomerType(c.id, nextType);
+    await loadData();
+  }
+
+  async function handleEditLimit(c: any) {
+    const raw = prompt(`Definir limite de crediário (R$) para ${c.name} (0 = sem limite fixo):`, String(c.creditLimit || 0));
+    if (raw === null) return;
+    const val = parseFloat(raw.replace(",", "."));
+    if (!Number.isFinite(val) || val < 0) return;
+    await updateCustomerCreditLimit(c.id, val);
     await loadData();
   }
 
@@ -40,7 +48,8 @@ export default function CustomersPage() {
   });
 
   const revendaCount = customers.filter((c) => c.customerType === "REVENDA").length;
-  const finalCount = customers.filter((c) => c.customerType !== "REVENDA").length;
+  const funcionarioCount = customers.filter((c) => c.customerType === "FUNCIONARIO").length;
+  const finalCount = customers.filter((c) => c.customerType === "CONSUMIDOR_FINAL").length;
 
   return (
     <div className="w-full flex flex-col gap-5 select-none pb-16">
@@ -54,6 +63,12 @@ export default function CustomersPage() {
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <Link
+            href="/finance?tab=crediario"
+            className="bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all text-xs"
+          >
+            <Wallet size={15} /> Crediário Funcionários
+          </Link>
           <Link
             href="/reports?tab=resale-sales"
             className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all text-xs"
@@ -123,6 +138,17 @@ export default function CustomersPage() {
             >
               <UserCheck size={13} /> Consumidor Final ({finalCount})
             </button>
+            <button
+              type="button"
+              onClick={() => setTypeFilter("FUNCIONARIO")}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                typeFilter === "FUNCIONARIO"
+                  ? "bg-amber-600 text-white shadow-xs"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              <Briefcase size={13} /> Funcionários ({funcionarioCount})
+            </button>
           </div>
         </div>
 
@@ -171,22 +197,39 @@ export default function CustomersPage() {
                 ) : (
                   filtered.map((c: any) => {
                     const isRevenda = c.customerType === "REVENDA";
+                    const isFuncionario = c.customerType === "FUNCIONARIO";
                     return (
                       <tr key={c.id} className="hover:bg-blue-50/40 transition-colors">
                         <td className="px-5 py-3.5 font-bold text-gray-900 flex items-center gap-3">
                           <div
                             className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs border shrink-0 ${
-                              isRevenda
+                              isFuncionario
+                                ? "bg-amber-50 text-amber-700 border-amber-200"
+                                : isRevenda
                                 ? "bg-indigo-50 text-indigo-700 border-indigo-200"
                                 : "bg-blue-50 text-blue-600 border-blue-100"
                             }`}
                           >
                             {c.name.charAt(0).toUpperCase()}
                           </div>
-                          {c.name}
+                          <div>
+                            <div>{c.name}</div>
+                            {isFuncionario && (
+                              <div className="text-[11px] font-mono text-amber-700 font-semibold">
+                                Em aberto: R$ {Number(c.creditUsed || 0).toFixed(2).replace(".", ",")}
+                                {Number(c.creditLimit || 0) > 0
+                                  ? ` / Limite: R$ ${Number(c.creditLimit).toFixed(2).replace(".", ",")}`
+                                  : " (Sem teto fixo)"}
+                              </div>
+                            )}
+                          </div>
                         </td>
                         <td className="px-5 py-3.5">
-                          {isRevenda ? (
+                          {isFuncionario ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-extrabold bg-amber-100 text-amber-900 border border-amber-300">
+                              <Briefcase size={12} /> FUNCIONÁRIO (CREDIÁRIO)
+                            </span>
+                          ) : isRevenda ? (
                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-extrabold bg-indigo-100 text-indigo-800 border border-indigo-200">
                               <Store size={12} /> CLIENTE REVENDA
                             </span>
@@ -206,13 +249,26 @@ export default function CustomersPage() {
                           R$ {Number(c.totalBought || 0).toFixed(2).replace(".", ",")}
                         </td>
                         <td className="px-5 py-3.5 text-right">
-                          <button
-                            type="button"
-                            onClick={() => handleToggleType(c)}
-                            className="text-blue-600 hover:text-blue-800 text-xs font-bold bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
-                          >
-                            Mudar para {isRevenda ? "Consumidor Final" : "Revenda"}
-                          </button>
+                          <div className="inline-flex items-center gap-1.5">
+                            {isFuncionario && (
+                              <button
+                                type="button"
+                                onClick={() => handleEditLimit(c)}
+                                className="text-amber-700 hover:text-amber-900 text-xs font-bold bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2.5 py-1.5 rounded-lg transition-colors cursor-pointer"
+                              >
+                                Limite
+                              </button>
+                            )}
+                            <select
+                              value={c.customerType}
+                              onChange={(e) => handleChangeType(c, e.target.value as any)}
+                              className="text-blue-700 text-xs font-bold bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1.5 rounded-lg outline-none cursor-pointer"
+                            >
+                              <option value="CONSUMIDOR_FINAL">Consumidor Final</option>
+                              <option value="REVENDA">Revenda</option>
+                              <option value="FUNCIONARIO">Funcionário (Crediário)</option>
+                            </select>
+                          </div>
                         </td>
                       </tr>
                     );

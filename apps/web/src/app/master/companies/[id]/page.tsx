@@ -1,20 +1,21 @@
-import { getCompanyDetails } from "@/actions/masterCompany";
+import { getCompanySupportBundle } from "@/actions/masterCompany";
 import { listPlans } from "@/actions/plans";
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 import {
   ArrowLeft,
-  Building2,
   Users,
   Package,
   ShoppingCart,
-  FileText,
+  Truck,
   UserCheck,
-  Store,
+  Monitor,
+  ClipboardList,
+  Globe,
 } from "lucide-react";
 import Link from "next/link";
-import { CompanyActions } from "./CompanyActions";
 import { EditCompanyModal } from "./EditCompanyModal";
+import { SupportHubClient } from "./SupportHubClient";
 import { AccessTenantButton } from "@/components/AccessTenantButton";
 
 export default async function CompanyDetailPage({
@@ -41,16 +42,16 @@ export default async function CompanyDetailPage({
     );
   }
 
-  const [{ company }, { plans }] = await Promise.all([
-    getCompanyDetails(companyId),
+  const [{ bundle, error }, { plans }] = await Promise.all([
+    getCompanySupportBundle(companyId),
     listPlans(),
   ]);
 
-  if (!company) {
+  if (!bundle) {
     return (
       <div className="flex items-center justify-center h-full">
         <div className="text-center">
-          <p className="text-slate-500">Empresa não encontrada.</p>
+          <p className="text-slate-500">{error || "Empresa não encontrada."}</p>
           <Link href="/master/companies" className="text-emerald-600 hover:underline text-sm mt-2 block">
             Voltar para a lista
           </Link>
@@ -59,148 +60,109 @@ export default async function CompanyDetailPage({
     );
   }
 
+  const { company, counts } = bundle;
+  const serializedPlans = (plans || []).map((p) => ({
+    id: String(p.id),
+    name: String(p.name),
+    price: Number(p.price || 0),
+  }));
   const isExpired = new Date(company.licenseExpiresAt) < new Date();
 
   const statusColors: Record<string, string> = {
-    ACTIVE: "bg-emerald-500/10 text-emerald-600",
-    TRIAL: "bg-blue-500/10 text-blue-600",
-    SUSPENDED: "bg-amber-500/10 text-amber-600",
-    EXPIRED: "bg-red-500/10 text-red-600",
-    READ_ONLY: "bg-slate-500/10 text-slate-500",
+    ACTIVE: "bg-emerald-500/10 text-emerald-700 border border-emerald-500/20",
+    TRIAL: "bg-blue-500/10 text-blue-700 border border-blue-500/20",
+    SUSPENDED: "bg-amber-500/10 text-amber-700 border border-amber-500/20",
+    EXPIRED: "bg-red-500/10 text-red-700 border border-red-500/20",
+    READ_ONLY: "bg-slate-500/10 text-slate-600 border border-slate-500/20",
   };
 
   return (
-    <div className="h-full flex flex-col gap-6 overflow-auto">
+    <div className="h-full flex flex-col gap-5 overflow-auto pr-1">
       {/* Header */}
-      <div className="flex items-center gap-4 shrink-0">
-        <Link href="/master/companies" className="p-2 text-slate-500 hover:text-gray-900 hover:bg-slate-700 rounded-lg transition-colors">
-          <ArrowLeft size={18} />
-        </Link>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight truncate">{company.name}</h1>
-            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusColors[company.licenseStatus] || statusColors.EXPIRED}`}>
-              {company.licenseStatus}
-            </span>
-          </div>
-          <p className="text-sm text-slate-500 mt-0.5">CNPJ/CPF: {company.document}</p>
-        </div>
-
-        <div className="flex items-center gap-2.5">
-          <EditCompanyModal company={company} plans={plans} />
-          <AccessTenantButton companyId={company.id} companyName={company.name} />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Coluna Esquerda: Info + Ações */}
-        <div className="flex flex-col gap-5">
-          {/* Info Card */}
-          <div className="bg-[#fbfdff] border border-emerald-500/[0.08] rounded-xl p-5">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-gray-900">Informações da Licença</h2>
-            </div>
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Plano Atual</span>
-                <span className="text-gray-900 font-medium">{company.plan?.name ?? "Sem Plano"}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Vencimento</span>
-                <span className={`font-medium ${isExpired ? "text-red-600" : "text-gray-900"}`}>
-                  {new Date(company.licenseExpiresAt).toLocaleDateString("pt-BR")}
-                  {isExpired && " (Expirado)"}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Cliente desde</span>
-                <span className="text-gray-900">{new Date(company.createdAt).toLocaleDateString("pt-BR")}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Módulos Contratados Card */}
-          <div className="bg-[#fbfdff] border border-emerald-500/[0.08] rounded-xl p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-gray-900">Módulos Ativos</h2>
-              <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                {(() => {
-                  try {
-                    const list = typeof company.activeModules === "string" ? JSON.parse(company.activeModules || "[]") : company.activeModules;
-                    return Array.isArray(list) ? list.length : 0;
-                  } catch {
-                    return 0;
-                  }
-                })()} ativos
+      <div className="flex flex-wrap items-center justify-between gap-4 shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <Link
+            href="/master/companies"
+            className="p-2 text-slate-500 hover:text-gray-900 hover:bg-white rounded-lg border border-transparent hover:border-slate-200 transition-colors"
+          >
+            <ArrowLeft size={18} />
+          </Link>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <h1 className="text-2xl font-bold text-gray-900 tracking-tight truncate">
+                {company.name}
+              </h1>
+              <span
+                className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                  statusColors[company.licenseStatus] || statusColors.EXPIRED
+                }`}
+              >
+                {company.licenseStatus}
               </span>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {(() => {
-                try {
-                  const list = typeof company.activeModules === "string" ? JSON.parse(company.activeModules || "[]") : company.activeModules;
-                  if (!Array.isArray(list) || list.length === 0) {
-                    return <span className="text-xs text-slate-400">Todos os módulos básicos liberados</span>;
-                  }
-                  return list.map((m: string) => (
-                    <span key={m} className="px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                      {m}
-                    </span>
-                  ));
-                } catch {
-                  return <span className="text-xs text-slate-400">Padrão do segmento</span>;
-                }
-              })()}
-            </div>
-          </div>
-
-          {/* Ações */}
-          <CompanyActions companyId={company.id} currentStatus={company.licenseStatus} />
-        </div>
-
-        {/* Coluna Direita: Métricas + Usuários */}
-        <div className="lg:col-span-2 flex flex-col gap-5">
-          {/* Métricas */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
-              { icon: <Users size={16} />, label: "Usuários", value: company._count.users },
-              { icon: <Package size={16} />, label: "Produtos", value: company._count.products },
-              { icon: <ShoppingCart size={16} />, label: "Vendas", value: company._count.sales },
-              { icon: <FileText size={16} />, label: "NF-e", value: company._count.invoices },
-            ].map((item) => (
-              <div key={item.label} className="bg-[#fbfdff] border border-emerald-500/[0.08] rounded-xl p-4">
-                <div className="text-emerald-600 mb-2">{item.icon}</div>
-                <div className="text-2xl font-bold text-gray-900">{item.value}</div>
-                <div className="text-xs text-slate-500 mt-0.5">{item.label}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Usuários da Empresa */}
-          <div className="bg-[#fbfdff] border border-emerald-500/[0.08] rounded-xl flex flex-col flex-1">
-            <div className="flex items-center gap-3 px-5 py-4 border-b border-emerald-500/[0.06]">
-              <UserCheck size={16} className="text-emerald-600" />
-              <h2 className="text-sm font-semibold text-gray-900">Usuários da Empresa</h2>
-            </div>
-            <div className="divide-y divide-emerald-500/[0.04]">
-              {company.users.map((user) => (
-                <div key={user.id} className="flex items-center justify-between px-5 py-3">
-                  <div>
-                    <p className="text-sm font-medium text-gray-900">{user.name}</p>
-                    <p className="text-xs text-slate-500">{user.email}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs px-2 py-1 rounded bg-slate-700 text-slate-600">{user.role}</span>
-                    <span className={`w-2 h-2 rounded-full ${user.active ? "bg-emerald-500" : "bg-red-500"}`} />
-                  </div>
-                </div>
-              ))}
-              {company.users.length === 0 && (
-                <p className="text-sm text-slate-500 text-center py-8">Nenhum usuário cadastrado.</p>
+              {isExpired && (
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-100 text-red-700 border border-red-200">
+                  Vencida
+                </span>
+              )}
+              {company.slug && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <Globe size={11} /> /loja/{company.slug}
+                </span>
               )}
             </div>
+            <p className="text-xs text-slate-500 mt-1">
+              CNPJ/CPF: <span className="font-mono font-semibold text-slate-700">{company.document}</span>
+              {" • "}Plano: <span className="font-semibold text-slate-700">{company.plan?.name || "Sem plano"}</span>
+              {" • "}Vencimento:{" "}
+              <span className={`font-semibold ${isExpired ? "text-red-600" : "text-slate-700"}`}>
+                {new Date(company.licenseExpiresAt).toLocaleDateString("pt-BR")}
+              </span>
+            </p>
           </div>
         </div>
+
+        <div className="flex flex-wrap items-center gap-2.5">
+          <EditCompanyModal company={company} plans={serializedPlans} />
+          <AccessTenantButton
+            companyId={company.id}
+            companyName={company.name}
+            label={`Acessar ${company.name}`}
+          />
+        </div>
       </div>
+
+      {/* Métricas Reais do Tenant */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 shrink-0">
+        {[
+          { icon: <Users size={15} />, label: "Usuários", value: counts.users, sub: "colaboradores" },
+          { icon: <Package size={15} />, label: "Produtos", value: counts.products, sub: `${counts.digitalMenuProducts} no cardápio` },
+          { icon: <UserCheck size={15} />, label: "Clientes", value: counts.customers, sub: "cadastrados" },
+          {
+            icon: <Truck size={15} />,
+            label: "Fornecedores",
+            value: counts.suppliers,
+            sub: counts.legacySaiposSuppliers > 0 ? `${counts.legacySaiposSuppliers} Saipos` : "ativos",
+          },
+          { icon: <ClipboardList size={15} />, label: "Entradas / Balanço", value: counts.stockEntries, sub: "StockEntry" },
+          { icon: <ShoppingCart size={15} />, label: "Vendas", value: counts.sales, sub: `${counts.invoices} NF` },
+          { icon: <Monitor size={15} />, label: "Terminais PDV", value: counts.pdvTerminals, sub: "pareados" },
+        ].map((item) => (
+          <div
+            key={item.label}
+            className="bg-[#fbfdff] border border-emerald-500/[0.08] rounded-xl p-3.5"
+          >
+            <div className="flex items-center justify-between text-emerald-600 mb-1.5">
+              {item.icon}
+              <span className="text-[10px] font-medium text-slate-400">{item.sub}</span>
+            </div>
+            <div className="text-xl font-bold text-gray-900 leading-tight">{item.value}</div>
+            <div className="text-[11px] font-medium text-slate-500 mt-0.5 truncate">{item.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Central Autônoma de Suporte & Implantação (Checklist + 4 Abas) */}
+      <SupportHubClient bundle={bundle} plans={serializedPlans} />
     </div>
   );
 }

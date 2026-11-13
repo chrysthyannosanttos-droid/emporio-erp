@@ -6,7 +6,7 @@ import {
   Users, UserPlus, Search, Shield, Key, Store, Check, X,
   ShieldCheck, AlertTriangle, ChevronRight, Lock, Unlock,
   Sliders, History, Eye, EyeOff, Building2, UserCog, Loader2,
-  Trash2, Edit
+  Trash2, Edit, Clock, Terminal, Smartphone
 } from "lucide-react";
 import {
   listTenantUsers, getUserDetails, createTenantUser,
@@ -52,7 +52,7 @@ export default function UsersSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
-  const [currentUser, setCurrentUser] = useState<{ userId: string; role: string; isAdmin: boolean } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ userId: string; role: string; isAdmin: boolean; isCristiano?: boolean } | null>(null);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
   // Form State
@@ -63,7 +63,8 @@ export default function UsersSettingsPage() {
   const [formRole, setFormRole] = useState("OPERATOR");
   const [formStores, setFormStores] = useState<string[]>([]);
   const [formDefaultStore, setFormDefaultStore] = useState<string>("");
-  const [formCustomPerms, setFormCustomPerms] = useState<Record<string, boolean>>({}); // permissionId -> granted (true/false)
+  const [formAllowMobilePdv, setFormAllowMobilePdv] = useState(false);
+  const [formCustomPerms, setFormCustomPerms] = useState<Record<string, boolean | undefined>>({}); // permissionId -> granted (true/false)
   const [userHistory, setUserHistory] = useState<{ auditLogs: any[]; requestedApprovals: any[]; authorizedApprovals: any[] }>({
     auditLogs: [],
     requestedApprovals: [],
@@ -145,6 +146,7 @@ export default function UsersSettingsPage() {
     setFormRole("OPERATOR");
     setFormStores(stores.length > 0 ? [stores[0].id] : []);
     setFormDefaultStore(stores.length > 0 ? stores[0].id : "");
+    setFormAllowMobilePdv(false);
     setFormCustomPerms({});
     setUserHistory({ auditLogs: [], requestedApprovals: [], authorizedApprovals: [] });
     setActiveTab("INFO");
@@ -175,16 +177,34 @@ export default function UsersSettingsPage() {
         setFormPin("");
         setFormRole(u.role);
         
-        const storeIds = u.userStores.map(us => us.storeId);
+        const storeIds = u.userStores.map((us: any) => us.storeId);
         setFormStores(storeIds);
-        const def = u.userStores.find(us => us.isDefault)?.storeId || storeIds[0] || "";
+        const def = u.userStores.find((us: any) => us.isDefault)?.storeId || storeIds[0] || "";
         setFormDefaultStore(def);
 
-        const customMap: Record<string, boolean> = {};
-        u.userPermissions.forEach(up => {
+        const customMap: Record<string, boolean | undefined> = {};
+        u.userPermissions.forEach((up: any) => {
           customMap[up.permissionId] = up.granted;
         });
         setFormCustomPerms(customMap);
+
+        // Calcula estado inicial do Acesso ao Caixa Mobile (pdv.mobile)
+        if (u.role === "ADMIN") {
+          setFormAllowMobilePdv(true);
+        } else {
+          const mobileOverride = u.userPermissions?.find(
+            (up: any) => up.permission?.code === "pdv.mobile"
+          );
+          if (mobileOverride) {
+            setFormAllowMobilePdv(Boolean(mobileOverride.granted));
+          } else {
+            const roleHasMobile = u.roleRelation?.permissions?.some(
+              (rp: any) => rp.permission?.code === "pdv.mobile"
+            );
+            const listedUser = users.find((x) => x.id === userId);
+            setFormAllowMobilePdv(Boolean(roleHasMobile ?? listedUser?.hasMobilePdv ?? false));
+          }
+        }
 
         setUserHistory({
           auditLogs: u.auditLogs || [],
@@ -219,12 +239,20 @@ export default function UsersSettingsPage() {
     setSaving(true);
 
     try {
+      const mobilePermObj = permissions.find((p) => p.code === "pdv.mobile");
+
       if (editingUserId) {
         // Atualização
-        const customPermsArray = Object.entries(formCustomPerms).map(([permissionId, granted]) => ({
-          permissionId,
-          granted,
-        }));
+        const customPermsArray = Object.entries(formCustomPerms)
+          .filter(([permissionId, granted]) => {
+            if (granted === undefined) return false;
+            if (mobilePermObj && permissionId === mobilePermObj.id) return false; // controlado pelo toggle allowMobilePdv
+            return true;
+          })
+          .map(([permissionId, granted]) => ({
+            permissionId,
+            granted: Boolean(granted),
+          }));
 
         const res = await updateTenantUser(editingUserId, {
           name: formName,
@@ -235,6 +263,7 @@ export default function UsersSettingsPage() {
           storeIds: formStores,
           defaultStoreId: formDefaultStore,
           customPermissions: customPermsArray,
+          allowMobilePdv: formRole === "ADMIN" ? true : formAllowMobilePdv,
         });
 
         if (res.success) {
@@ -260,6 +289,7 @@ export default function UsersSettingsPage() {
           role: formRole,
           storeIds: formStores,
           defaultStoreId: formDefaultStore,
+          allowMobilePdv: formRole === "ADMIN" ? true : formAllowMobilePdv,
         });
 
         if (res.success) {
@@ -429,6 +459,9 @@ export default function UsersSettingsPage() {
                 <tr>
                   <th className="px-4 py-3 font-semibold">Colaborador</th>
                   <th className="px-4 py-3 font-semibold">Perfil / Hierarquia</th>
+                  {currentUser?.isCristiano && (
+                    <th className="px-4 py-3 font-semibold">Último Acesso & Máquina</th>
+                  )}
                   <th className="px-4 py-3 font-semibold">Lojas Vinculadas</th>
                   <th className="px-4 py-3 font-semibold">Permissões</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
@@ -470,6 +503,29 @@ export default function UsersSettingsPage() {
                         </span>
                       </td>
 
+                      {/* Último Acesso & Máquina (Exibido apenas para Cristiano) */}
+                      {currentUser?.isCristiano && (
+                        <td className="px-4 py-3">
+                          {user.lastLogin || user.auditLogs?.[0] ? (
+                            <div>
+                              <div className="flex items-center gap-1.5 text-gray-900 font-medium">
+                                <Clock size={11} className="text-indigo-600" />
+                                <span>{new Date(user.auditLogs?.[0]?.createdAt || user.lastLogin).toLocaleString("pt-BR")}</span>
+                              </div>
+                              <div className="flex items-center gap-1 text-[10px] text-slate-500 mt-0.5">
+                                <Terminal size={10} className="text-indigo-500" />
+                                <span className="font-mono text-slate-700 font-medium">{user.auditLogs?.[0]?.terminal || "Web / Desktop"}</span>
+                                {user.auditLogs?.[0]?.ipAddress && (
+                                  <span className="text-slate-400 font-mono">({user.auditLogs[0].ipAddress})</span>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 italic text-[11px]">Nunca acessou</span>
+                          )}
+                        </td>
+                      )}
+
                       {/* Lojas */}
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-1 max-w-[200px]">
@@ -489,10 +545,19 @@ export default function UsersSettingsPage() {
 
                       {/* Permissões */}
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="text-slate-600 font-medium">
-                            {user.role === "ADMIN" ? "Acesso Total (35)" : "Perfil Padrão"}
+                            {user.role === "ADMIN" ? "Acesso Total" : "Perfil Padrão"}
                           </span>
+                          {user.hasMobilePdv && (
+                            <span
+                              title="Possui acesso ao Caixa Mobile (PDV Mobile no Celular)"
+                              className="inline-flex items-center gap-1 text-[10px] bg-emerald-500/15 text-emerald-700 font-bold px-2 py-0.5 rounded-full border border-emerald-500/30"
+                            >
+                              <Smartphone size={10} />
+                              PDV Mobile
+                            </span>
+                          )}
                           {user.userPermissions && user.userPermissions.length > 0 && (
                             <span className="text-[10px] bg-indigo-500/15 text-indigo-700 font-semibold px-1.5 py-0.5 rounded border border-indigo-200">
                               +{user.userPermissions.length} custom
@@ -633,7 +698,7 @@ export default function UsersSettingsPage() {
                 <Sliders size={14} />
                 <span>3. Permissões Granulares</span>
               </button>
-              {editingUserId && (
+              {editingUserId && currentUser?.isCristiano && (
                 <button
                   type="button"
                   onClick={() => setActiveTab("HISTORY")}
@@ -709,7 +774,17 @@ export default function UsersSettingsPage() {
                         return (
                           <div
                             key={r.id}
-                            onClick={() => setFormRole(r.key)}
+                            onClick={() => {
+                              setFormRole(r.key);
+                              if (r.key === "ADMIN") {
+                                setFormAllowMobilePdv(true);
+                              } else if (!editingUserId) {
+                                const roleHasMobile = Boolean(
+                                  r.permissions?.some((rp: any) => rp.permission?.code === "pdv.mobile")
+                                );
+                                setFormAllowMobilePdv(roleHasMobile);
+                              }
+                            }}
                             className={`p-3 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
                               isSelected
                                 ? "bg-indigo-600/15 border-indigo-500 shadow-md shadow-indigo-600/10"
@@ -725,6 +800,69 @@ export default function UsersSettingsPage() {
                         );
                       })}
                     </div>
+
+                    {(formRole === "OPERATOR" || formRole === "CASHIER") && (
+                      <div className="mt-2.5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900 flex items-start gap-2">
+                        <AlertTriangle size={14} className="text-amber-600 shrink-0 mt-0.5" />
+                        <span>
+                          <strong>Caixa Dedicado:</strong> colaboradores com o perfil <strong>Operador de Caixa</strong> abrem diretamente na tela do <strong>PDV Frente de Caixa</strong>. Para funcionários que precisam usar o sistema completo (Estoque, Avarias, Compras) no computador ou celular, selecione outro perfil (ex.: Estoque, Supervisor ou Gerente).
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Interruptor Visível: Acesso ao Caixa Mobile (PDV Mobile no Celular) */}
+                  <div className="pt-2 border-t border-[#c4d5ee]">
+                    <label
+                      className={`flex items-center justify-between gap-4 p-3.5 rounded-2xl border transition-all ${
+                        formRole === "ADMIN"
+                          ? "bg-violet-50 border-violet-200 cursor-not-allowed"
+                          : formAllowMobilePdv
+                          ? "bg-emerald-50 border-emerald-300 cursor-pointer"
+                          : "bg-[#f3f7fe] border-[#c4d5ee] hover:border-indigo-300 cursor-pointer"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                            formRole === "ADMIN" || formAllowMobilePdv
+                              ? "bg-emerald-600 text-white"
+                              : "bg-slate-200 text-slate-500"
+                          }`}
+                        >
+                          <Smartphone size={18} />
+                        </div>
+                        <div>
+                          <span className="text-xs font-bold text-gray-900 block">
+                            Acesso ao Caixa Mobile (PDV Mobile no Celular)
+                          </span>
+                          <span className="text-[11px] text-slate-600 block mt-0.5">
+                            {formRole === "ADMIN"
+                              ? "Administradores já possuem acesso automático ao PDV Mobile."
+                              : "Quando ativado, libera a permissão pdv.mobile para registrar vendas pelo celular/tablet e enviar cupom digital."}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <input
+                          type="checkbox"
+                          disabled={formRole === "ADMIN"}
+                          checked={formRole === "ADMIN" ? true : formAllowMobilePdv}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setFormAllowMobilePdv(checked);
+                            const mobilePermObj = permissions.find((p) => p.code === "pdv.mobile");
+                            if (mobilePermObj) {
+                              setFormCustomPerms((prev) => ({
+                                ...prev,
+                                [mobilePermObj.id]: checked,
+                              }));
+                            }
+                          }}
+                          className="w-5 h-5 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                        />
+                      </div>
+                    </label>
                   </div>
 
                   {/* Senha e PIN */}
@@ -891,10 +1029,14 @@ export default function UsersSettingsPage() {
                                         type="button"
                                         title="Conceder permissão manual"
                                         onClick={() => {
+                                          const nextVal = customOverride === true ? undefined : true;
                                           setFormCustomPerms(prev => ({
                                             ...prev,
-                                            [p.id]: customOverride === true ? undefined : true,
+                                            [p.id]: nextVal,
                                           }));
+                                          if (p.code === "pdv.mobile") {
+                                            setFormAllowMobilePdv(nextVal ?? isInherited);
+                                          }
                                         }}
                                         className={`w-6 h-6 rounded-lg text-xs font-bold flex items-center justify-center transition-all ${
                                           customOverride === true
@@ -908,10 +1050,14 @@ export default function UsersSettingsPage() {
                                         type="button"
                                         title="Revogar permissão manual"
                                         onClick={() => {
+                                          const nextVal = customOverride === false ? undefined : false;
                                           setFormCustomPerms(prev => ({
                                             ...prev,
-                                            [p.id]: customOverride === false ? undefined : false,
+                                            [p.id]: nextVal,
                                           }));
+                                          if (p.code === "pdv.mobile") {
+                                            setFormAllowMobilePdv(nextVal ?? isInherited);
+                                          }
                                         }}
                                         className={`w-6 h-6 rounded-lg text-xs font-bold flex items-center justify-center transition-all ${
                                           customOverride === false
@@ -963,10 +1109,21 @@ export default function UsersSettingsPage() {
                       {userHistory.auditLogs.map((log: any) => (
                         <div key={log.id} className="p-3 bg-[#f3f7fe] border border-[#c4d5ee] rounded-xl text-xs flex items-center justify-between">
                           <div>
-                            <span className="font-semibold text-slate-600 block">{log.action}: {log.operation}</span>
-                            <span className="text-[10px] text-slate-500">{new Date(log.createdAt).toLocaleString("pt-BR")}</span>
+                            <span className="font-semibold text-gray-900 block">{log.action}: {log.operation}</span>
+                            <div className="flex items-center gap-2 text-[10px] text-slate-500 mt-0.5">
+                              <span>{new Date(log.createdAt).toLocaleString("pt-BR")}</span>
+                              <span>•</span>
+                              <span className="font-mono text-indigo-700 font-semibold flex items-center gap-1">
+                                <Terminal size={10} className="text-indigo-600" />
+                                {log.terminal || "Web / Desktop"}
+                              </span>
+                              {log.ipAddress && <span className="font-mono text-slate-400">({log.ipAddress})</span>}
+                            </div>
+                            {log.reason && <p className="text-[10px] text-slate-500 italic mt-0.5">"{log.reason}"</p>}
                           </div>
-                          <span className="text-[10px] text-indigo-600 bg-indigo-500/10 px-2 py-0.5 rounded font-mono">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded font-mono ${
+                            log.result === "SUCCESS" ? "bg-emerald-500/10 text-emerald-600" : "bg-red-500/10 text-red-600"
+                          }`}>
                             {log.result}
                           </span>
                         </div>

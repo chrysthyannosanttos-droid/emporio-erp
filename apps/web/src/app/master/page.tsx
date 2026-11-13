@@ -3,6 +3,7 @@ import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 import { Building2, Users, Activity, ShieldOff, Clock, Plus } from "lucide-react";
 import Link from "next/link";
+import { AccessTenantButton } from "@/components/AccessTenantButton";
 
 export default async function MasterDashboardPage() {
   const session = await getSession();
@@ -168,9 +169,18 @@ export default async function MasterDashboardPage() {
                     </td>
                     <td className="px-6 py-4 text-gray-900 font-medium">{company._count.users}</td>
                     <td className="px-6 py-4 text-right">
-                      <Link href={`/master/companies/${company.id}`} className="text-emerald-600 hover:text-emerald-700 font-medium text-xs transition-colors">
-                        Gerenciar
-                      </Link>
+                      <div className="flex items-center justify-end gap-2">
+                        <AccessTenantButton
+                          companyId={company.id}
+                          companyName={company.name}
+                          label="Acessar Loja"
+                          size={13}
+                          className="px-2.5 py-1 text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200 flex items-center gap-1.5 cursor-pointer"
+                        />
+                        <Link href={`/master/companies/${company.id}`} className="px-2.5 py-1 text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg transition-colors border border-emerald-200">
+                          Gerenciar
+                        </Link>
+                      </div>
                     </td>
                   </tr>
                 );

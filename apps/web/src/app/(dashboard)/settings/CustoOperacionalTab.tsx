@@ -153,7 +153,7 @@ export function CustoOperacionalTab() {
       defaultOperationalRate: operationalRate,
       defaultProfitMargin: desiredMargin,
       defaultFreightOther: freightOther,
-      operationalCostDetails: details,
+      operationalCostDetails: details as unknown as Record<string, number>,
     });
 
     setSaving(false);

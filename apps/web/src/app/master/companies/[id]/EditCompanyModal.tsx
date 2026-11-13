@@ -2,35 +2,54 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { updateCompanyMaster } from "@/actions/masterCompany";
-import { Edit, X, Check, Save, Loader2, Package, Shield, Calendar, Building2 } from "lucide-react";
-import { SYSTEM_MODULES_CATALOG } from "@/lib/modules-catalog";
+import { updateTenantFullConfig } from "@/actions/masterCompany";
+import { Edit, X, Check, Save, Loader2, Building2 } from "lucide-react";
+import { SYSTEM_MODULES_CATALOG, SEGMENT_PRESETS } from "@/lib/modules-catalog";
 
-export function EditCompanyModal({
-  company,
-  plans,
-}: {
-  company: any;
-  plans: any[];
-}) {
+interface EditCompanyModalProps {
+  company: {
+    id: string;
+    name?: string;
+    document?: string;
+    slug?: string | null;
+    whatsapp?: string | null;
+    phone?: string | null;
+    segment?: string | null;
+    licenseStatus?: string;
+    planId?: string | null;
+    digitalMenuEnabled?: boolean;
+    hasHotelTabs?: boolean;
+    licenseExpiresAt?: string | Date;
+    activeModules?: string | string[];
+  };
+  plans: Array<{ id: string; name: string; price: number }>;
+}
+
+export function EditCompanyModal({ company, plans }: EditCompanyModalProps) {
   const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // Form states
   const [name, setName] = useState(company.name || "");
   const [document, setDocument] = useState(company.document || "");
+  const [slug, setSlug] = useState(company.slug || "");
+  const [whatsapp, setWhatsapp] = useState(company.whatsapp || "");
+  const [phone, setPhone] = useState(company.phone || "");
+  const [segment, setSegment] = useState(company.segment || "SUPERMARKET");
+  const [licenseStatus, setLicenseStatus] = useState(company.licenseStatus || "ACTIVE");
   const [planId, setPlanId] = useState(company.planId || "");
+  const [digitalMenuEnabled, setDigitalMenuEnabled] = useState<boolean>(
+    company.digitalMenuEnabled !== undefined ? Boolean(company.digitalMenuEnabled) : true
+  );
+  const [hasHotelTabs, setHasHotelTabs] = useState<boolean>(Boolean(company.hasHotelTabs));
 
-  // Format date to YYYY-MM-DD for date input
   const initialDate = company.licenseExpiresAt
     ? new Date(company.licenseExpiresAt).toISOString().split("T")[0]
     : "";
   const [licenseExpiresAt, setLicenseExpiresAt] = useState(initialDate);
 
-  // Parse activeModules safely
   let parsedActiveModules: string[] = [];
   try {
     if (typeof company.activeModules === "string") {
@@ -38,16 +57,14 @@ export function EditCompanyModal({
     } else if (Array.isArray(company.activeModules)) {
       parsedActiveModules = company.activeModules;
     }
-  } catch (e) {
+  } catch {
     parsedActiveModules = [];
   }
   const [selectedModules, setSelectedModules] = useState<string[]>(parsedActiveModules);
 
   const toggleModule = (moduleKey: string) => {
     setSelectedModules((prev) =>
-      prev.includes(moduleKey)
-        ? prev.filter((k) => k !== moduleKey)
-        : [...prev, moduleKey]
+      prev.includes(moduleKey) ? prev.filter((k) => k !== moduleKey) : [...prev, moduleKey]
     );
   };
 
@@ -65,12 +82,21 @@ export function EditCompanyModal({
     setError("");
     setSuccess("");
 
-    const res = await updateCompanyMaster(company.id, {
+    const preset = SEGMENT_PRESETS[segment];
+    const res = await updateTenantFullConfig(company.id, {
       name,
       document,
+      slug,
+      whatsapp,
+      phone,
+      segment,
+      operationTypes: preset?.operationTypes,
       planId: planId || null,
+      licenseStatus,
       licenseExpiresAt,
       activeModules: selectedModules,
+      digitalMenuEnabled,
+      hasHotelTabs,
     });
 
     setLoading(false);
@@ -78,23 +104,24 @@ export function EditCompanyModal({
     if (res?.error) {
       setError(res.error);
     } else {
-      setSuccess("Dados da empresa e módulos atualizados com sucesso!");
+      setSuccess("Dados da empresa, cardápio e módulos atualizados!");
       setTimeout(() => {
         setIsOpen(false);
         router.refresh();
-      }, 700);
+      }, 650);
     }
   }
 
   return (
     <>
       <button
+        type="button"
         onClick={() => setIsOpen(true)}
-        className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold border border-slate-300 shadow-sm transition-all"
-        title="Editar cadastro e módulos da empresa"
+        className="flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-semibold border border-slate-300 shadow-sm transition-all cursor-pointer"
+        title="Editar cadastro rápido e módulos da empresa"
       >
         <Edit size={14} className="text-slate-600" />
-        <span>Editar Informações & Módulos</span>
+        <span>Edição Rápida</span>
       </button>
 
       {isOpen && (
@@ -107,11 +134,14 @@ export function EditCompanyModal({
                   <Building2 size={18} />
                 </div>
                 <div>
-                  <h2 className="text-base font-bold text-gray-900">Editar Cadastro da Empresa</h2>
-                  <p className="text-xs text-slate-500">Alterar dados cadastrais, plano vinculado e módulos contratados</p>
+                  <h2 className="text-base font-bold text-gray-900">Editar Cadastro Rápido</h2>
+                  <p className="text-xs text-slate-500">
+                    Dados cadastrais, slug do cardápio digital, plano e módulos contratados
+                  </p>
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setIsOpen(false)}
                 className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-200 rounded-lg transition-colors"
               >
@@ -121,7 +151,6 @@ export function EditCompanyModal({
 
             {/* Content / Form */}
             <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-6 space-y-6">
-              {/* Informações Básicas */}
               <div className="space-y-4">
                 <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
                   1. Dados da Empresa
@@ -153,7 +182,62 @@ export function EditCompanyModal({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Slug Cardápio (/loja/slug)
+                    </label>
+                    <input
+                      type="text"
+                      value={slug}
+                      onChange={(e) => setSlug(e.target.value)}
+                      placeholder="ex: emporio-belem"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:border-emerald-500 font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      WhatsApp
+                    </label>
+                    <input
+                      type="text"
+                      value={whatsapp}
+                      onChange={(e) => setWhatsapp(e.target.value)}
+                      placeholder="(00) 90000-0000"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:border-emerald-500 font-medium"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Telefone
+                    </label>
+                    <input
+                      type="text"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="(00) 3000-0000"
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:border-emerald-500 font-medium"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Segmento
+                    </label>
+                    <select
+                      value={segment}
+                      onChange={(e) => setSegment(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:border-emerald-500 font-medium"
+                    >
+                      {Object.entries(SEGMENT_PRESETS).map(([key, val]) => (
+                        <option key={key} value={key}>
+                          {val.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
                       Plano Vinculado
@@ -173,7 +257,23 @@ export function EditCompanyModal({
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Data de Vencimento da Licença
+                      Status Licença
+                    </label>
+                    <select
+                      value={licenseStatus}
+                      onChange={(e) => setLicenseStatus(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:border-emerald-500 font-medium"
+                    >
+                      <option value="ACTIVE">ACTIVE (Ativo)</option>
+                      <option value="TRIAL">TRIAL (Teste)</option>
+                      <option value="SUSPENDED">SUSPENDED (Suspenso)</option>
+                      <option value="READ_ONLY">READ_ONLY (Somente Leitura)</option>
+                      <option value="EXPIRED">EXPIRED (Expirado)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                      Vencimento
                     </label>
                     <input
                       type="date"
@@ -182,6 +282,27 @@ export function EditCompanyModal({
                       className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-lg text-sm text-gray-900 focus:outline-none focus:border-emerald-500 font-medium"
                     />
                   </div>
+                </div>
+
+                <div className="flex flex-wrap gap-4 pt-1">
+                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={digitalMenuEnabled}
+                      onChange={(e) => setDigitalMenuEnabled(e.target.checked)}
+                      className="w-4 h-4 accent-emerald-600 rounded"
+                    />
+                    Cardápio Digital Ativo
+                  </label>
+                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={hasHotelTabs}
+                      onChange={(e) => setHasHotelTabs(e.target.checked)}
+                      className="w-4 h-4 accent-emerald-600 rounded"
+                    />
+                    Comandas de Quartos / Hotel
+                  </label>
                 </div>
               </div>
 
@@ -283,4 +404,3 @@ export function EditCompanyModal({
     </>
   );
 }
-

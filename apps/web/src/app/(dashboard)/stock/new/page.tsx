@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Loader2, AlertCircle, Check, Search, Calculator, Scale, RefreshCw, Hash } from "lucide-react";
+import { ArrowLeft, Save, Loader2, AlertCircle, Check, Search, Calculator, Scale, RefreshCw, Hash, Plus, Trash2, ChefHat, Package, Utensils } from "lucide-react";
 import Link from "next/link";
-import { createProduct, getProductInfoByAiBarcode } from "@/actions/product";
+import { createProduct, getProductInfoByAiBarcode, getIngredientAndPackagingCatalog } from "@/actions/product";
 import { getMercadologico } from "@/actions/mercadologico";
 import { getOperationalCostConfig } from "@/actions/company";
 import { calculateProductPricing, formatBRL, formatPct } from "@/lib/product-pricing";
@@ -161,6 +161,7 @@ export default function NewProductPage() {
   const [isRawMaterial, setIsRawMaterial] = useState(false);
   const [isFinishedGood, setIsFinishedGood] = useState(false);
   const [isPackaging, setIsPackaging] = useState(false);
+  const [showInDigitalMenu, setShowInDigitalMenu] = useState(false);
   const [minStock, setMinStock] = useState("");
   const [maxStock, setMaxStock] = useState("");
   const [leadTimeDays, setLeadTimeDays] = useState("");
@@ -168,6 +169,119 @@ export default function NewProductPage() {
   const [operationalRate, setOperationalRate] = useState("15");
   const [desiredMargin, setDesiredMargin] = useState("25");
   const [priceManual, setPriceManual] = useState(false);
+
+  // Composição: Insumos & Embalagens (Ficha Técnica)
+  type CompositionCatalogItem = {
+    id: string;
+    name: string;
+    unit: string;
+    cost: number;
+    stock: number;
+    isRawMaterial: boolean;
+    isPackaging: boolean;
+    categoryName: string;
+    suggestedRole: "INGREDIENT" | "PACKAGING";
+  };
+  type CompositionRow = {
+    productId: string;
+    name: string;
+    quantity: number;
+    unit: string;
+    unitCost: number;
+    stock: number;
+    itemRole: "INGREDIENT" | "PACKAGING";
+  };
+  const [catalogItems, setCatalogItems] = useState<CompositionCatalogItem[]>([]);
+  const [catalogLoaded, setCatalogLoaded] = useState(false);
+  const [catalogFilter, setCatalogFilter] = useState<"ALL" | "INGREDIENT" | "PACKAGING">("ALL");
+  const [compSearch, setCompSearch] = useState("");
+  const [selectedCompId, setSelectedCompId] = useState("");
+  const [selectedCompQty, setSelectedCompQty] = useState("1");
+  const [selectedCompUnit, setSelectedCompUnit] = useState("UN");
+  const [selectedCompRole, setSelectedCompRole] = useState<"INGREDIENT" | "PACKAGING">("INGREDIENT");
+  const [recipeYield, setRecipeYield] = useState("1");
+  const [recipeInstructions, setRecipeInstructions] = useState("");
+  const [recipeItems, setRecipeItems] = useState<CompositionRow[]>([]);
+
+  useEffect(() => {
+    if (!isSelfProduced || catalogLoaded) return;
+    getIngredientAndPackagingCatalog().then((res) => {
+      if (res.success && res.products) {
+        setCatalogItems(res.products);
+        setCatalogLoaded(true);
+      }
+    });
+  }, [isSelfProduced, catalogLoaded]);
+
+  const filteredCatalog = useMemo(() => {
+    const q = compSearch.trim().toLowerCase();
+    return catalogItems.filter((item) => {
+      const matchQuery = !q || item.name.toLowerCase().includes(q) || item.categoryName.toLowerCase().includes(q);
+      if (!matchQuery) return false;
+      if (catalogFilter === "INGREDIENT") return item.isRawMaterial || item.suggestedRole === "INGREDIENT";
+      if (catalogFilter === "PACKAGING") return item.isPackaging || item.suggestedRole === "PACKAGING";
+      return true;
+    });
+  }, [catalogItems, compSearch, catalogFilter]);
+
+  const compositionTotalCost = useMemo(
+    () => recipeItems.reduce((acc, it) => acc + Number(it.quantity || 0) * Number(it.unitCost || 0), 0),
+    [recipeItems]
+  );
+
+  const compositionUnitCost = useMemo(() => {
+    const y = parseFloat(recipeYield);
+    return y > 0 ? compositionTotalCost / y : compositionTotalCost;
+  }, [compositionTotalCost, recipeYield]);
+
+  function handleSelectCatalogProduct(prodId: string) {
+    setSelectedCompId(prodId);
+    const found = catalogItems.find((c) => c.id === prodId);
+    if (found) {
+      setSelectedCompUnit(found.unit || "UN");
+      setSelectedCompRole(found.suggestedRole);
+    }
+  }
+
+  function handleAddCompositionItem() {
+    if (!selectedCompId) return;
+    const found = catalogItems.find((c) => c.id === selectedCompId);
+    if (!found) return;
+    const qty = parseFloat(selectedCompQty);
+    if (!Number.isFinite(qty) || qty <= 0) return;
+
+    setRecipeItems((prev) => {
+      const existingIdx = prev.findIndex(
+        (r) => r.productId === found.id && r.itemRole === selectedCompRole
+      );
+      if (existingIdx >= 0) {
+        const updated = [...prev];
+        updated[existingIdx] = {
+          ...updated[existingIdx],
+          quantity: Number((updated[existingIdx].quantity + qty).toFixed(4)),
+        };
+        return updated;
+      }
+      return [
+        ...prev,
+        {
+          productId: found.id,
+          name: found.name,
+          quantity: qty,
+          unit: selectedCompUnit || found.unit || "UN",
+          unitCost: found.cost || 0,
+          stock: found.stock || 0,
+          itemRole: selectedCompRole,
+        },
+      ];
+    });
+    setSelectedCompId("");
+    setSelectedCompQty("1");
+  }
+
+  function handleRemoveCompositionItem(idx: number) {
+    setRecipeItems((prev) => prev.filter((_, i) => i !== idx));
+  }
 
   const [activeTab, setActiveTab] = useState<"general" | "logistics" | "fiscal" | "rates">("general");
   const [fiscalSubTab, setFiscalSubTab] = useState<"saida" | "entrada">("saida");
@@ -389,9 +503,26 @@ export default function NewProductPage() {
     formData.append("isRawMaterial", String(isRawMaterial));
     formData.append("isFinishedGood", String(isFinishedGood));
     formData.append("isPackaging", String(isPackaging));
+    formData.append("showInDigitalMenu", String(showInDigitalMenu));
     formData.append("minStock", minStock);
     formData.append("maxStock", maxStock);
     formData.append("leadTimeDays", leadTimeDays);
+
+    if (isSelfProduced) {
+      formData.append("recipeYield", recipeYield || "1");
+      formData.append("recipeInstructions", recipeInstructions);
+      formData.append(
+        "recipeItems",
+        JSON.stringify(
+          recipeItems.map((it) => ({
+            productId: it.productId,
+            quantity: Number(it.quantity),
+            unit: it.unit,
+            itemRole: it.itemRole,
+          }))
+        )
+      );
+    }
 
     const result = await createProduct(formData);
 
@@ -575,6 +706,13 @@ export default function NewProductPage() {
                         <input type="checkbox" checked={isSelfProduced} onChange={(e) => setIsSelfProduced(e.target.checked)}
                           className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500" />
                         <span className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider">Fabricação Própria</span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer w-fit">
+                        <input type="checkbox" checked={showInDigitalMenu} onChange={(e) => setShowInDigitalMenu(e.target.checked)}
+                          className="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500" />
+                        <span className="text-[10px] text-indigo-700 font-bold uppercase tracking-wider flex items-center gap-1">
+                          <Utensils size={12} className="text-indigo-600" /> Exibir no Cardápio Digital
+                        </span>
                       </label>
                     </div>
 
@@ -779,6 +917,276 @@ export default function NewProductPage() {
                     <input type="number" value={stock} onChange={(e) => setStock(e.target.value)} className={inputMonoClass} placeholder="0" />
                   </div>
                 </div>
+
+                {isSelfProduced && (
+                  <div className="rounded-2xl border-2 border-emerald-300 bg-emerald-50/40 p-4 space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3 border-b border-emerald-200 pb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                          <ChefHat size={17} />
+                        </div>
+                        <div>
+                          <h3 className="text-xs font-black uppercase tracking-wider text-emerald-950">
+                            Composição: Insumos &amp; Embalagens (Ficha Técnica)
+                          </h3>
+                          <p className="text-[11px] text-emerald-800">
+                            Selecione os insumos (ex: Açúcar Sachê, Café) e embalagens (ex: Copo, Tampa) consumidos na produção/venda.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 bg-white border border-emerald-200 rounded-xl px-3 py-1.5">
+                        <span className="text-[10px] font-bold uppercase text-gray-500">Rendimento:</span>
+                        <input
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          value={recipeYield}
+                          onChange={(e) => setRecipeYield(e.target.value)}
+                          className="w-16 text-center font-mono font-black text-xs text-gray-900 outline-none border-b border-emerald-300"
+                        />
+                        <span className="text-[10px] font-bold text-gray-600">{unitSale}</span>
+                      </div>
+                    </div>
+
+                    {/* Filtro + Seletor de Insumo / Embalagem */}
+                    <div className="bg-white border border-emerald-200 rounded-xl p-3 space-y-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5">
+                          {[
+                            { key: "ALL" as const, label: "Todos" },
+                            { key: "INGREDIENT" as const, label: "Insumos" },
+                            { key: "PACKAGING" as const, label: "Embalagens" },
+                          ].map((f) => (
+                            <button
+                              key={f.key}
+                              type="button"
+                              onClick={() => setCatalogFilter(f.key)}
+                              className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-colors ${
+                                catalogFilter === f.key
+                                  ? "bg-emerald-600 text-white"
+                                  : "text-gray-600 hover:text-gray-900"
+                              }`}
+                            >
+                              {f.label}
+                            </button>
+                          ))}
+                        </div>
+                        <div className="relative flex-1 min-w-[180px]">
+                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" size={13} />
+                          <input
+                            type="text"
+                            value={compSearch}
+                            onChange={(e) => setCompSearch(e.target.value)}
+                            placeholder="Filtrar catálogo por nome (ex: Açúcar, Copo)..."
+                            className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs outline-none focus:border-emerald-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
+                        <div className="md:col-span-5">
+                          <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">
+                            Produto do Catálogo
+                          </label>
+                          <select
+                            value={selectedCompId}
+                            onChange={(e) => handleSelectCatalogProduct(e.target.value)}
+                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-emerald-500"
+                          >
+                            <option value="">Selecione um insumo ou embalagem...</option>
+                            {filteredCatalog.map((item) => (
+                              <option key={item.id} value={item.id}>
+                                {item.name} ({item.unit}) — Custo R$ {item.cost.toFixed(2)} | Saldo: {item.stock}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">
+                            Papel
+                          </label>
+                          <select
+                            value={selectedCompRole}
+                            onChange={(e) =>
+                              setSelectedCompRole(e.target.value as "INGREDIENT" | "PACKAGING")
+                            }
+                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-2 text-xs font-bold text-gray-900 outline-none focus:border-emerald-500"
+                          >
+                            <option value="INGREDIENT">Insumo</option>
+                            <option value="PACKAGING">Embalagem</option>
+                          </select>
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">
+                            Qtd p/ Rendimento
+                          </label>
+                          <input
+                            type="number"
+                            step="0.001"
+                            min="0.001"
+                            value={selectedCompQty}
+                            onChange={(e) => setSelectedCompQty(e.target.value)}
+                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-2 text-xs font-mono font-bold text-gray-900 outline-none focus:border-emerald-500"
+                          />
+                        </div>
+
+                        <div className="md:col-span-1">
+                          <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">
+                            Unid.
+                          </label>
+                          <select
+                            value={selectedCompUnit}
+                            onChange={(e) => setSelectedCompUnit(e.target.value)}
+                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-2 py-2 text-xs font-bold text-gray-900 outline-none"
+                          >
+                            <option value="UN">UN</option>
+                            <option value="KG">KG</option>
+                            <option value="G">G</option>
+                            <option value="L">L</option>
+                            <option value="ML">ML</option>
+                          </select>
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <button
+                            type="button"
+                            onClick={handleAddCompositionItem}
+                            disabled={!selectedCompId}
+                            className="w-full py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-xs font-bold flex items-center justify-center gap-1 transition-colors"
+                          >
+                            <Plus size={14} /> Adicionar
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tabela da Composição */}
+                    {recipeItems.length === 0 ? (
+                      <div className="bg-white/70 border border-dashed border-emerald-300 rounded-xl p-4 text-center text-xs text-emerald-800">
+                        Nenhum insumo ou embalagem adicionado. Selecione itens acima para compor a ficha técnica e calcular o custo.
+                      </div>
+                    ) : (
+                      <div className="bg-white border border-emerald-200 rounded-xl overflow-hidden">
+                        <table className="w-full text-xs text-left">
+                          <thead className="bg-emerald-50/70 text-emerald-900 uppercase text-[10px] font-black border-b border-emerald-100">
+                            <tr>
+                              <th className="px-3 py-2">Item</th>
+                              <th className="px-3 py-2">Papel</th>
+                              <th className="px-3 py-2 text-center">Qtd / Unid.</th>
+                              <th className="px-3 py-2 text-right">Custo Unit.</th>
+                              <th className="px-3 py-2 text-right">Subtotal</th>
+                              <th className="px-3 py-2 text-right">Ação</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-emerald-100">
+                            {recipeItems.map((it, idx) => (
+                              <tr key={`${it.productId}-${it.itemRole}-${idx}`}>
+                                <td className="px-3 py-2 font-bold text-gray-900">{it.name}</td>
+                                <td className="px-3 py-2">
+                                  <select
+                                    value={it.itemRole}
+                                    onChange={(e) => {
+                                      const role = e.target.value as "INGREDIENT" | "PACKAGING";
+                                      setRecipeItems((prev) =>
+                                        prev.map((row, rIdx) =>
+                                          rIdx === idx ? { ...row, itemRole: role } : row
+                                        )
+                                      );
+                                    }}
+                                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold border outline-none ${
+                                      it.itemRole === "PACKAGING"
+                                        ? "bg-amber-50 text-amber-800 border-amber-200"
+                                        : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                    }`}
+                                  >
+                                    <option value="INGREDIENT">Insumo</option>
+                                    <option value="PACKAGING">Embalagem</option>
+                                  </select>
+                                </td>
+                                <td className="px-3 py-2 text-center">
+                                  <div className="inline-flex items-center gap-1">
+                                    <input
+                                      type="number"
+                                      step="0.001"
+                                      min="0.001"
+                                      value={it.quantity}
+                                      onChange={(e) => {
+                                        const val = parseFloat(e.target.value) || 0;
+                                        setRecipeItems((prev) =>
+                                          prev.map((row, rIdx) =>
+                                            rIdx === idx ? { ...row, quantity: val } : row
+                                          )
+                                        );
+                                      }}
+                                      className="w-16 text-center bg-gray-50 border border-gray-200 rounded px-1.5 py-0.5 font-mono font-bold"
+                                    />
+                                    <span className="font-mono text-[10px] text-gray-500">
+                                      {it.unit}
+                                    </span>
+                                  </div>
+                                </td>
+                                <td className="px-3 py-2 text-right font-mono text-gray-600">
+                                  {formatBRL(it.unitCost)}
+                                </td>
+                                <td className="px-3 py-2 text-right font-mono font-bold text-gray-900">
+                                  {formatBRL(it.quantity * it.unitCost)}
+                                </td>
+                                <td className="px-3 py-2 text-right">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveCompositionItem(idx)}
+                                    className="p-1 text-red-500 hover:bg-red-50 rounded-lg"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 items-center">
+                      <div>
+                        <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">
+                          Instruções / Modo de Preparo (Opcional)
+                        </label>
+                        <input
+                          type="text"
+                          value={recipeInstructions}
+                          onChange={(e) => setRecipeInstructions(e.target.value)}
+                          placeholder="Ex: Extrair café expresso 50ml, servir com 2 sachês e tampa..."
+                          className="w-full bg-white border border-emerald-200 rounded-xl px-3 py-2 text-xs outline-none focus:border-emerald-500"
+                        />
+                      </div>
+
+                      <div className="bg-white border border-emerald-300 rounded-xl p-3 flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <span className="text-[10px] font-bold uppercase text-emerald-800 block">
+                            Custo Estimado da Composição ({unitSale})
+                          </span>
+                          <span className="text-lg font-mono font-black text-emerald-700">
+                            {formatBRL(compositionUnitCost)}
+                          </span>
+                          <span className="text-[10px] text-gray-500 ml-2">
+                            (Lote total: {formatBRL(compositionTotalCost)})
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setCost(compositionUnitCost.toFixed(2))}
+                          disabled={recipeItems.length === 0}
+                          className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white text-[11px] font-black transition-colors shadow-xs"
+                        >
+                          Usar custo calculado como custo do produto
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 <div className="rounded-xl border border-[#c4d5ee] bg-indigo-500/[0.04] p-4 space-y-4">
                   <div className="flex items-center justify-between gap-3 flex-wrap">

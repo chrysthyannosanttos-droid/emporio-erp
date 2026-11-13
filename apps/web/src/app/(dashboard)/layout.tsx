@@ -30,28 +30,23 @@ export default async function DashboardLayout({
     redirect("/login");
   }
 
-  // Se o colaborador for do grupo Operador de Caixa, redireciona diretamente para a Frente de Caixa (PDV)
+  // Se o colaborador for do perfil caixa dedicado (OPERATOR ou CASHIER), redireciona para a Frente de Caixa (PDV).
+  // Outros perfis (SUPERVISOR, STOCKIST, FINANCIAL, MANAGER ou customizados) seguem normalmente no painel.
   const roleUpper = (session.role || "").trim().toUpperCase();
-  const isCashier =
-    roleUpper === "OPERATOR" ||
-    roleUpper === "CASHIER" ||
-    roleUpper.includes("OPERATOR") ||
-    roleUpper.includes("OPERADOR") ||
-    roleUpper.includes("CAIXA") ||
-    roleUpper.includes("CASHIER");
+  const isCashier = roleUpper === "OPERATOR" || roleUpper === "CASHIER";
 
   if (isCashier) {
     redirect("/pdv");
   }
 
-  // ADMIN e SuperAdmin têm acesso total; os demais dependem das permissões do perfil.
+  // ADMIN e SuperAdmin têm acesso total; os demais dependem estritamente da permissão "pdv.mobile".
   // A consulta roda em paralelo com as demais, sem aumentar o tempo de espera.
   const mobilePdvPromise: Promise<boolean> =
     session.role === "ADMIN" || Boolean(session.isSuperAdmin)
       ? Promise.resolve(true)
       : getUserEffectivePermissions(session.userId)
-        .then((perms) => perms.includes("pdv.mobile") || perms.includes("pdv.sale") || perms.includes("pdv.access"))
-        .catch(() => true);
+        .then((perms) => perms.includes("pdv.mobile"))
+        .catch(() => false);
 
   const [{ theme }, { activeModules, operationTypes }, canMobilePdv] = await Promise.all([
     getTenantTheme(),
@@ -67,6 +62,11 @@ export default async function DashboardLayout({
     Boolean(session.isSuperAdmin) ||
     session.name.toLowerCase().includes("cristiano");
 
+  const isCristiano =
+    Boolean(session.isSuperAdmin) ||
+    session.name.toLowerCase().includes("cristiano") ||
+    Boolean(session.email?.toLowerCase().includes("cristiano"));
+
   return (
     <DrawerLayout
       userName={userName}
@@ -77,6 +77,7 @@ export default async function DashboardLayout({
       operationTypes={operationTypes}
       canMobilePdv={canMobilePdv}
       isMasterEligible={isMasterEligible}
+      isCristiano={isCristiano}
     >
       {children}
     </DrawerLayout>

@@ -4,13 +4,14 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import {
   Upload, FileCode, FileText, X, CheckCircle2, AlertCircle, AlertTriangle,
   Package, Search, ChevronRight, GitMerge, Loader2, RefreshCw,
-  Receipt, Calendar, Truck, Hash, ArrowRight, Plus, ClipboardCheck,
+  Receipt, Calendar, Truck, Hash, ArrowRight, ArrowLeft, RotateCcw, Plus, ClipboardCheck,
   Radio, Eye, Download, ShieldCheck, Sparkles, Building2, Printer,
-  FileX, Ban, HelpCircle, Check, MessageSquare, Sliders
+  FileX, Ban, HelpCircle, Check, MessageSquare, Sliders, Archive, Lock
 } from "lucide-react";
 import { getCois, type CoiDTO } from "@/actions/coi";
 import {
   confirmStockEntry,
+  revertStockEntry,
   getStockEntries,
   getOpenPurchaseOrders,
   matchProducts,
@@ -25,8 +26,8 @@ function parseNFeXMLClient(xmlText: string) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(xmlText, "application/xml");
 
-  const get = (parent: Element | Document, tag: string) =>
-    parent.querySelector(tag)?.textContent?.trim() || null;
+  const get = (parent: Element | Document | null | undefined, tag: string) =>
+    parent?.querySelector(tag)?.textContent?.trim() || null;
 
   const nfeProc = doc.querySelector("nfeProc") || doc.querySelector("NFe") || doc;
   const infNFe = nfeProc.querySelector("infNFe");
@@ -84,6 +85,9 @@ type ParsedItem = {
   cfop: string | null; unit: string; quantity: number; unitCost: number;
   totalCost: number; expirationDate: string | null; batchNumber: string | null;
   matchedProductId?: string | null; matchedProductName?: string | null; isNew?: boolean;
+  unitPurchase: string;
+  unitSale: string;
+  conversionFactor: number;
 };
 
 type ParsedNFe = {
@@ -92,8 +96,52 @@ type ParsedNFe = {
   totalAmount: number; items: ParsedItem[];
 };
 
+const BOX_UNITS = new Set(["CX", "CAIXA", "FD", "FARDO", "FDO", "DP", "DISPLAY", "DIS", "PCT", "PACOTE", "KIT", "PC"]);
+const PURCHASE_UNIT_OPTIONS = ["UN", "CX", "FD", "DP", "DIS", "PCT", "KG", "LT", "KIT"];
+const SALE_UNIT_OPTIONS = ["UN", "KG", "LT", "DIS"];
+
+function detectPackFactorFromName(name: string): number {
+  const s = (name || "").toUpperCase();
+  const explicitPack = s.match(/\b(?:CX|C|FD|FDO|DP|DIS|PCT)[\s\/\-X]*(\d{1,3})\b/);
+  if (explicitPack) {
+    const n = parseInt(explicitPack[1], 10);
+    if (n > 1 && n <= 200) return n;
+  }
+  const parenPack = s.match(/\((\d{1,3})\)/);
+  if (parenPack) {
+    const n = parseInt(parenPack[1], 10);
+    if (n > 1 && n <= 200) return n;
+  }
+  return 1;
+}
+
+function enrichItemWithUnitConversion(
+  item: Omit<ParsedItem, "unitPurchase" | "unitSale" | "conversionFactor">,
+  match: any
+): ParsedItem {
+  const unitPurchase = String(item.unit || "UN").trim().toUpperCase() || "UN";
+  const isBox = BOX_UNITS.has(unitPurchase);
+  let conversionFactor = 1;
+  if (match?.unitConvFactor && Number(match.unitConvFactor) > 1 && isBox) {
+    conversionFactor = Number(match.unitConvFactor);
+  } else if (isBox) {
+    conversionFactor = detectPackFactorFromName(item.productName);
+  }
+  const unitSale = match?.unitSale || (isBox ? "UN" : unitPurchase === "LT" || unitPurchase === "KG" ? unitPurchase : "UN");
+
+  return {
+    ...item,
+    matchedProductId: match?.id || null,
+    matchedProductName: match?.name || null,
+    isNew: !match,
+    unitPurchase,
+    unitSale,
+    conversionFactor,
+  };
+}
+
 type StepState = "idle" | "parsing" | "reviewing" | "confirming" | "done" | "error";
-type TabType = "radar" | "upload" | "history";
+type TabType = "radar" | "saipos" | "upload" | "history";
 
 const REASONS_REFUSAL = [
   "Mercadoria avariada durante o transporte e recusada no ato da entrega",
@@ -103,18 +151,74 @@ const REASONS_REFUSAL = [
   "Nota fiscal emitida indevidamente contra este CNPJ"
 ];
 
-function detectSuggestedCoiCode(items: Array<{ cfop?: string | null }>): string {
-  const cfop = String(items[0]?.cfop || "").trim();
-  if (cfop.startsWith("5910") || cfop.startsWith("6910") || cfop.startsWith("1910") || cfop.startsWith("2910")) {
-    return "002"; // Bonificação / Brinde
+function detectSuggestedCoiCode(items: Array<{ cfop?: string | null; name?: string }>): string {
+  // 1. Verificação por CFOP nos itens da nota
+  for (const item of items) {
+    const cfop = String(item?.cfop || "").trim();
+
+    // Comodato (Remessa de bem por contrato de comodato)
+    if (cfop.startsWith("5908") || cfop.startsWith("6908") || cfop.startsWith("1908") || cfop.startsWith("2908")) {
+      return "007";
+    }
+
+    // Material para Uso e Consumo Interno
+    if (
+      cfop.startsWith("5556") || cfop.startsWith("6556") || cfop.startsWith("1556") || cfop.startsWith("2556") ||
+      cfop.startsWith("5407") || cfop.startsWith("6407") || cfop.startsWith("1407") || cfop.startsWith("2407")
+    ) {
+      return "008";
+    }
+
+    // Ativo Imobilizado (Bens permanentes e infraestrutura)
+    if (cfop.startsWith("5551") || cfop.startsWith("6551") || cfop.startsWith("1551") || cfop.startsWith("2551")) {
+      return "009";
+    }
+
+    // Bonificação / Doação / Brinde
+    if (cfop.startsWith("5910") || cfop.startsWith("6910") || cfop.startsWith("1910") || cfop.startsWith("2910")) {
+      return "002";
+    }
+
+    // Transferência entre filiais / depósito
+    if (cfop.startsWith("5152") || cfop.startsWith("6152") || cfop.startsWith("1152") || cfop.startsWith("2152")) {
+      return "006";
+    }
+
+    // Devolução de fornecedor / troca
+    if (cfop.startsWith("5202") || cfop.startsWith("6202") || cfop.startsWith("1202") || cfop.startsWith("2202")) {
+      return "005";
+    }
   }
-  if (cfop.startsWith("5152") || cfop.startsWith("6152") || cfop.startsWith("1152") || cfop.startsWith("2152")) {
-    return "006"; // Transferência entre lojas
+
+  // 2. Verificação de apoio pelo nome do item se o emissor emitiu com CFOP genérico 5102
+  const allNames = items.map(i => String(i.name || "").toLowerCase()).join(" ");
+  if (
+    allNames.includes("freezer") ||
+    allNames.includes("refrigerador horizontal") ||
+    allNames.includes("maquina cafe") ||
+    allNames.includes("tres coracoes") ||
+    allNames.includes("chopeira")
+  ) {
+    return "007"; // Comodato
   }
-  if (cfop.startsWith("5202") || cfop.startsWith("6202") || cfop.startsWith("1202") || cfop.startsWith("2202")) {
-    return "005"; // Devolução / Troca
+
+  if (
+    allNames.includes("bobina termica") ||
+    allNames.includes("papel a4") ||
+    allNames.includes("copo descartavel") ||
+    allNames.includes("saco para lixo") ||
+    allNames.includes("saco de lixo") ||
+    allNames.includes("agua sanitaria") ||
+    allNames.includes("papel toalha")
+  ) {
+    return "008"; // Uso e Consumo
   }
-  return "001"; // Entrada por Compra de Fornecedor
+
+  if (allNames.includes("balanca toledo") || allNames.includes("fatiador de frios") || allNames.includes("ar condicionado")) {
+    return "009"; // Ativo Imobilizado
+  }
+
+  return "001"; // Entrada padrão por Compra para Revenda
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -151,6 +255,7 @@ export default function InvoicesPage() {
   const [selectedManifestType, setSelectedManifestType] = useState<ManifestType>("CIENCIA");
   const [refusalReason, setRefusalReason] = useState("");
   const [isSubmittingManifest, setIsSubmittingManifest] = useState(false);
+  const [revertingNum, setRevertingNum] = useState<string | null>(null);
 
   // Load data on mount
   useEffect(() => {
@@ -184,8 +289,31 @@ export default function InvoicesPage() {
     }
   };
 
+  // ── Voltar / Estornar entrada da Nota no Radar XML ──
+  const handleRevertEntry = async (inv: RadarInvoice) => {
+    setRevertingNum(inv.invoiceNum);
+    try {
+      const res = await revertStockEntry(inv.invoiceNum);
+      if (res.error) {
+        alert(res.error);
+      } else {
+        setManifestSuccess(`Entrada da NF ${inv.invoiceNum} revertida! A nota voltou como pendente no Radar XML.`);
+        setTimeout(() => setManifestSuccess(null), 5000);
+        await loadData();
+      }
+    } catch (e: any) {
+      alert(e.message || "Erro ao voltar nota");
+    } finally {
+      setRevertingNum(null);
+    }
+  };
+
   // ── Import from Radar Invoice ──
   const handleImportFromRadar = async (inv: RadarInvoice) => {
+    if (inv.isLegacySaipos) {
+      alert("Esta nota fiscal já foi dada entrada no sistema Saipos anteriormente. A entrada no sistema novo está desativada para evitar duplicidade de estoque.");
+      return;
+    }
     setStep("parsing");
     setErrorMsg("");
 
@@ -209,12 +337,7 @@ export default function InvoicesPage() {
 
       const itemsWithMatch: ParsedItem[] = rawItems.map((item, idx) => {
         const match = matchResult.matches?.find((m: any) => m.idx === idx)?.match;
-        return {
-          ...item,
-          matchedProductId: match?.id || null,
-          matchedProductName: match?.name || null,
-          isNew: !match,
-        };
+        return enrichItemWithUnitConversion(item, match);
       });
 
       // REGRA DO PEDIDO DE COMPRA:
@@ -290,7 +413,7 @@ export default function InvoicesPage() {
       if (res.error) {
         setManifestError(res.error);
       } else {
-        setManifestSuccess(res.message);
+        setManifestSuccess(res.message || "Manifestação enviada com sucesso!");
         setTimeout(() => setManifestSuccess(null), 5000);
 
         // Atualiza estado local
@@ -349,12 +472,7 @@ export default function InvoicesPage() {
 
       const itemsWithMatch: ParsedItem[] = data.items.map((item, idx) => {
         const match = matchResult.matches?.find((m: any) => m.idx === idx)?.match;
-        return {
-          ...item,
-          matchedProductId: match?.id || null,
-          matchedProductName: match?.name || null,
-          isNew: !match,
-        };
+        return enrichItemWithUnitConversion(item, match);
       });
 
       // REGRA DO PEDIDO DE COMPRA:
@@ -372,7 +490,7 @@ export default function InvoicesPage() {
         setMatchedPO(null);
       }
 
-      setParsed(data);
+      setParsed({ ...data, items: itemsWithMatch });
       setItems(itemsWithMatch);
       const suggestedCode = detectSuggestedCoiCode(data.items);
       const matchedCoi = cois.find(c => c.code === suggestedCode) || cois.find(c => c.code === "001") || cois[0];
@@ -391,6 +509,39 @@ export default function InvoicesPage() {
     if (file) handleFile(file);
   }, [handleFile]);
 
+  const updateItemUnitConversion = (
+    idx: number,
+    patch: Partial<Pick<ParsedItem, "unitPurchase" | "unitSale" | "conversionFactor">>
+  ) => {
+    setItems(prev =>
+      prev.map((it, i) => {
+        if (i !== idx) return it;
+        const nextPurchase = patch.unitPurchase ?? it.unitPurchase;
+        let nextFactor = patch.conversionFactor ?? it.conversionFactor;
+        let nextSale = patch.unitSale ?? it.unitSale;
+
+        if (patch.unitPurchase !== undefined) {
+          const isBox = BOX_UNITS.has(nextPurchase);
+          if (!isBox) {
+            nextFactor = 1;
+            nextSale = nextPurchase === "KG" || nextPurchase === "LT" ? nextPurchase : "UN";
+          } else {
+            nextSale = "UN";
+            if (nextFactor <= 1) {
+              nextFactor = detectPackFactorFromName(it.productName);
+            }
+          }
+        }
+        return {
+          ...it,
+          unitPurchase: nextPurchase,
+          unitSale: nextSale,
+          conversionFactor: Math.max(0.001, Number(nextFactor) || 1),
+        };
+      })
+    );
+  };
+
   // ── Confirm entry ──
   const handleConfirm = async () => {
     if (!parsed) return;
@@ -405,17 +556,27 @@ export default function InvoicesPage() {
         totalAmount: parsed.totalAmount,
         purchaseOrderId: selectedPO || null,
         coiId: selectedCoi || null,
-        items: items.map(i => ({
-          productId: i.matchedProductId || null,
-          productName: i.productName,
-          barcode: i.barcode,
-          ncm: i.ncm,
-          unit: i.unit,
-          quantity: i.quantity,
-          unitCost: i.unitCost,
-          expirationDate: i.expirationDate,
-          batchNumber: i.batchNumber,
-        }))
+        items: items.map(i => {
+          const factor = Math.max(0.001, Number(i.conversionFactor || 1));
+          const finalQty = Math.round(i.quantity * factor * 1000) / 1000;
+          const finalUnitCost =
+            finalQty > 0
+              ? Math.round((i.totalCost / finalQty) * 10000) / 10000
+              : i.unitCost;
+          return {
+            productId: i.matchedProductId || null,
+            productName: i.productName,
+            barcode: i.barcode,
+            ncm: i.ncm,
+            unit: i.unitSale || i.unit || "UN",
+            unitPurchase: i.unitPurchase || i.unit,
+            unitConvFactor: factor,
+            quantity: finalQty,
+            unitCost: finalUnitCost,
+            expirationDate: i.expirationDate,
+            batchNumber: i.batchNumber,
+          };
+        })
       }) as any;
 
       if (result?.error) {
@@ -444,7 +605,12 @@ export default function InvoicesPage() {
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
-  const filteredRadar = radarInvoices.filter(inv =>
+  const newRadarInvoices = radarInvoices.filter(inv => !inv.isLegacySaipos);
+  const legacySaiposInvoices = radarInvoices.filter(inv => inv.isLegacySaipos);
+
+  const currentTabInvoices = activeTab === "saipos" ? legacySaiposInvoices : newRadarInvoices;
+
+  const filteredRadar = currentTabInvoices.filter(inv =>
     !radarKeySearch ||
     inv.accessKey.includes(radarKeySearch) ||
     inv.invoiceNum.includes(radarKeySearch) ||
@@ -485,9 +651,23 @@ export default function InvoicesPage() {
                   : "bg-white text-gray-600 hover:bg-gray-50 border border-gray-200"
               }`}
             >
-              <Radio size={16} /> Radar XML (SEFAZ DF-e)
+              <Radio size={16} /> Radar SEFAZ (Novas Notas)
               <span className={`text-xs px-2 py-0.5 rounded-full font-black ${activeTab === "radar" ? "bg-white/20 text-white" : "bg-blue-100 text-blue-700"}`}>
-                {radarInvoices.filter(i => !i.imported && i.statusManifest !== "RECUSADA").length} ativas
+                {newRadarInvoices.filter(i => !i.imported && i.statusManifest !== "RECUSADA").length} novas
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab("saipos")}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all ${
+                activeTab === "saipos"
+                  ? "bg-purple-700 text-white shadow-md shadow-purple-500/20"
+                  : "bg-white text-purple-700 hover:bg-purple-50 border border-purple-200"
+              }`}
+            >
+              <Archive size={16} /> Notas Antigas - Sistema Saipos
+              <span className={`text-xs px-2 py-0.5 rounded-full font-black ${activeTab === "saipos" ? "bg-white/20 text-white" : "bg-purple-100 text-purple-800"}`}>
+                {legacySaiposInvoices.length} arquivadas
               </span>
             </button>
 
@@ -542,42 +722,78 @@ export default function InvoicesPage() {
       <div className="flex-1 min-h-0 flex flex-col gap-4 overflow-y-auto">
 
         {/* ══════════════════════════════════════════════════════════════════════
-            ABA 1: RADAR XML (SEFAZ DF-e)
+            ABA 1 & 2: RADAR SEFAZ & NOTAS ANTIGAS SAIPOS
         ══════════════════════════════════════════════════════════════════════ */}
-        {(step === "idle" || step === "done") && activeTab === "radar" && (
+        {(step === "idle" || step === "done") && (activeTab === "radar" || activeTab === "saipos") && (
           <div className="flex flex-col gap-4 flex-1 min-h-0">
-            {/* Status do Radar */}
-            <div className="bg-gradient-to-r from-blue-900 to-indigo-900 text-white rounded-2xl p-5 shadow-sm shrink-0 flex items-center justify-between flex-wrap gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-300">
-                  <Radio size={24} className="animate-pulse" />
+            {/* Status do Banner */}
+            {activeTab === "saipos" ? (
+              <div className="bg-gradient-to-r from-purple-950 via-indigo-950 to-slate-900 text-white rounded-2xl p-5 shadow-sm shrink-0 flex items-center justify-between flex-wrap gap-4 border border-purple-800/30">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-purple-500/20 border border-purple-400/30 flex items-center justify-center text-purple-300">
+                    <Archive size={24} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="font-black text-base">Arquivo Fiscal · Notas do Sistema Saipos</h2>
+                      <span className="bg-purple-500/80 text-white text-[10px] font-black px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                        <Lock size={10} /> 85 NOTAS ARQUIVADAS
+                      </span>
+                    </div>
+                    <p className="text-xs text-purple-200 mt-1 max-w-2xl leading-relaxed">
+                      Essas 85 notas fiscais (01/06 a 31/10/2026) já foram lançadas anteriormente no sistema Saipos. O estoque e o financeiro já constam no balanço da loja. O lançamento no sistema novo está desativado para evitar duplicidade de estoque, mas você pode visualizar e consultar a DANFE sempre que desejar.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="font-black text-base">Radar SEFAZ Conectado &amp; Ativo</h2>
-                    <span className="bg-emerald-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" /> ONLINE
+
+                <div className="flex items-center gap-6 text-xs text-purple-200">
+                  <div>
+                    <span className="opacity-70 block text-[10px] uppercase font-bold">Origem dos Dados</span>
+                    <span className="font-bold text-white flex items-center gap-1">
+                      <Archive size={14} className="text-purple-400" /> Sistema Saipos
                     </span>
                   </div>
-                  <p className="text-xs text-blue-200 mt-0.5">
-                    Monitoramento contínuo DF-e. Veja as notas capturadas, confira a DANFE ou registre manifestos e recusas na SEFAZ.
-                  </p>
+                  <div>
+                    <span className="opacity-70 block text-[10px] uppercase font-bold">Status de Entrada</span>
+                    <span className="font-bold text-emerald-400 flex items-center gap-1">
+                      <CheckCircle2 size={14} /> Já Lançadas no Saipos
+                    </span>
+                  </div>
                 </div>
               </div>
+            ) : (
+              <div className="bg-gradient-to-r from-blue-900 to-indigo-900 text-white rounded-2xl p-5 shadow-sm shrink-0 flex items-center justify-between flex-wrap gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-blue-500/20 border border-blue-400/30 flex items-center justify-center text-blue-300">
+                    <Radio size={24} className="animate-pulse" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="font-black text-base">Radar SEFAZ Conectado &amp; Ativo</h2>
+                      <span className="bg-emerald-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" /> ONLINE
+                      </span>
+                    </div>
+                    <p className="text-xs text-blue-200 mt-0.5">
+                      Monitoramento contínuo DF-e de novas notas. Veja as notas capturadas, confira a DANFE ou registre manifestos e recusas na SEFAZ.
+                    </p>
+                  </div>
+                </div>
 
-              <div className="flex items-center gap-6 text-xs text-blue-200">
-                <div>
-                  <span className="opacity-70 block text-[10px] uppercase font-bold">Certificado Digital A1</span>
-                  <span className="font-bold text-white flex items-center gap-1">
-                    <ShieldCheck size={14} className="text-emerald-400" /> Homologado
-                  </span>
-                </div>
-                <div>
-                  <span className="opacity-70 block text-[10px] uppercase font-bold">Última Varredura</span>
-                  <span className="font-bold text-white">{lastSyncTime || "Agora"}</span>
+                <div className="flex items-center gap-6 text-xs text-blue-200">
+                  <div>
+                    <span className="opacity-70 block text-[10px] uppercase font-bold">Certificado Digital A1</span>
+                    <span className="font-bold text-white flex items-center gap-1">
+                      <ShieldCheck size={14} className="text-emerald-400" /> Homologado
+                    </span>
+                  </div>
+                  <div>
+                    <span className="opacity-70 block text-[10px] uppercase font-bold">Última Varredura</span>
+                    <span className="font-bold text-white">{lastSyncTime || "Agora"}</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             {/* Busca e Indicadores */}
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-3 shrink-0 flex items-center justify-between gap-3">
@@ -603,7 +819,7 @@ export default function InvoicesPage() {
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between px-1 py-1">
                 <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
-                  Notas Fiscais no Radar ({filteredRadar.length})
+                  {activeTab === "saipos" ? "Notas Antigas do Sistema Saipos" : "Novas Notas no Radar SEFAZ"} ({filteredRadar.length})
                 </span>
                 <span className="text-[11px] text-gray-400">
                   Clique no <Eye size={12} className="inline mx-0.5 text-blue-600" /> para ver a DANFE ou em <strong>Manifestar</strong> para confirmar ou recusar com justificativa
@@ -626,8 +842,25 @@ export default function InvoicesPage() {
                       <tr>
                         <td colSpan={5} className="py-16 text-center text-gray-400">
                           <Radio size={40} className="mx-auto text-gray-200 mb-2" />
-                          <p className="font-bold text-sm">Nenhuma nota encontrada no Radar</p>
-                          <p className="text-xs mt-1">Clique em "Sincronizar Radar SEFAZ" para consultar novamente</p>
+                          <p className="font-bold text-sm">
+                            {activeTab === "radar"
+                              ? "Nenhuma nova nota fiscal pendente no Radar SEFAZ"
+                              : "Nenhuma nota encontrada no arquivo Saipos"}
+                          </p>
+                          {activeTab === "radar" ? (
+                            <p className="text-xs mt-2 text-gray-500">
+                              As 85 notas fiscais anteriores já foram processadas no sistema Saipos e estão preservadas na aba{" "}
+                              <button
+                                type="button"
+                                onClick={() => setActiveTab("saipos")}
+                                className="text-purple-600 font-bold underline hover:text-purple-800"
+                              >
+                                Notas Antigas - Sistema Saipos
+                              </button>
+                            </p>
+                          ) : (
+                            <p className="text-xs mt-1">Nenhum registro coincide com o filtro de pesquisa</p>
+                          )}
                         </td>
                       </tr>
                     ) : (
@@ -653,9 +886,16 @@ export default function InvoicesPage() {
                           </td>
 
                           <td className="px-4 py-3 bg-white group-hover:bg-blue-50/40 border-y border-gray-200/80">
-                            <div className="font-bold text-gray-900 text-xs flex items-center gap-1.5">
-                              <Building2 size={13} className="text-gray-400" />
-                              {inv.supplierName}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <div className="font-bold text-gray-900 text-xs flex items-center gap-1.5">
+                                <Building2 size={13} className="text-gray-400 shrink-0" />
+                                {inv.supplierName}
+                              </div>
+                              {inv.isLegacySaipos && (
+                                <span className="text-[10px] font-black bg-purple-100 text-purple-900 border border-purple-200 px-2 py-0.5 rounded-md inline-flex items-center gap-1 shadow-xs">
+                                  <Archive size={11} className="text-purple-600" /> Nota antiga sistema Saipos
+                                </span>
+                              )}
                             </div>
                             <div className="text-[10px] text-gray-400 font-mono mt-0.5">
                               CNPJ: {inv.supplierCnpj}
@@ -710,9 +950,64 @@ export default function InvoicesPage() {
 
                           <td className="px-4 py-3 text-center whitespace-nowrap bg-white group-hover:bg-blue-50/40 border-y first:border-l last:border-r first:rounded-l-xl last:rounded-r-xl border-gray-200/80">
                             {inv.imported ? (
-                              <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
-                                <CheckCircle2 size={13} /> Entrada Realizada
-                              </span>
+                              <div className="flex items-center justify-center gap-1.5">
+                                <a
+                                  href={`/invoices/danfe/${inv.accessKey}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-2.5 py-1.5 rounded-xl transition-all flex items-center gap-1 shadow-xs"
+                                  title="Abrir DANFE original em PDF / Imprimir"
+                                >
+                                  <FileText size={13} className="text-red-600" /> PDF
+                                </a>
+                                <button
+                                  onClick={() => setViewingDanfe(inv)}
+                                  className="text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1.5 rounded-xl transition-all flex items-center gap-1"
+                                  title="Visualizar espelho da DANFE"
+                                >
+                                  <Eye size={13} /> Ver
+                                </button>
+                                <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1.5 rounded-xl">
+                                  <CheckCircle2 size={13} /> Entrada Realizada
+                                </span>
+                                <button
+                                  type="button"
+                                  disabled={revertingNum === inv.invoiceNum}
+                                  onClick={() => handleRevertEntry(inv)}
+                                  title="Desfazer a entrada e voltar esta nota para o Radar XML"
+                                  className="text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-2.5 py-1.5 rounded-xl transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                                >
+                                  <RotateCcw size={13} className={revertingNum === inv.invoiceNum ? "animate-spin" : ""} />
+                                  Voltar Nota
+                                </button>
+                              </div>
+                            ) : inv.isLegacySaipos ? (
+                              <div className="flex items-center justify-center gap-1.5">
+                                <a
+                                  href={`/invoices/danfe/${inv.accessKey}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs font-bold text-red-700 bg-red-50 hover:bg-red-100 border border-red-200 px-2.5 py-1.5 rounded-xl transition-all flex items-center gap-1 shadow-xs"
+                                  title="Abrir DANFE original em PDF / Imprimir"
+                                >
+                                  <FileText size={13} className="text-red-600" /> PDF Original
+                                </a>
+
+                                <button
+                                  onClick={() => setViewingDanfe(inv)}
+                                  className="text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2.5 py-1.5 rounded-xl transition-all flex items-center gap-1"
+                                  title="Visualizar espelho da DANFE com itens e impostos"
+                                >
+                                  <Eye size={13} /> Visualizar
+                                </button>
+
+                                <span
+                                  className="text-xs font-bold text-purple-800 bg-purple-100/70 border border-purple-200 px-3 py-1.5 rounded-xl inline-flex items-center gap-1 cursor-default"
+                                  title="Esta nota fiscal já foi processada no sistema Saipos. Entrada bloqueada para evitar duplicidade de estoque."
+                                >
+                                  <Lock size={12} className="text-purple-600" /> Entrada no Saipos
+                                </span>
+                              </div>
                             ) : inv.statusManifest === "RECUSADA" ? (
                               <div className="flex items-center justify-center gap-2">
                                 <button
@@ -724,6 +1019,16 @@ export default function InvoicesPage() {
                                 <span className="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-1 rounded-lg">
                                   Recusa Homologada
                                 </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setRadarInvoices(prev => prev.map(r => r.accessKey === inv.accessKey ? { ...r, statusManifest: "AGUARDANDO_MANIFESTACAO", manifestJustificativa: null } : r));
+                                  }}
+                                  className="text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-2.5 py-1.5 rounded-xl transition-all flex items-center gap-1 cursor-pointer"
+                                  title="Reabrir esta nota no Radar XML"
+                                >
+                                  <RotateCcw size={13} /> Voltar Nota
+                                </button>
                               </div>
                             ) : (
                               <div className="flex items-center justify-center gap-1.5">
@@ -849,6 +1154,7 @@ export default function InvoicesPage() {
                       <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-center">Itens</th>
                       <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-right">Total</th>
                       <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider">Pedido de Compra</th>
+                      <th className="px-4 py-3 text-right text-[10px] font-bold uppercase tracking-wider">Ação</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -874,6 +1180,22 @@ export default function InvoicesPage() {
                             </span>
                           ) : (
                             <span className="text-gray-300 text-xs">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3.5 text-right">
+                          {e.invoiceNum && !String(e.invoiceNum).startsWith("BALANCO-") ? (
+                            <button
+                              type="button"
+                              disabled={revertingNum === e.invoiceNum}
+                              onClick={() => handleRevertEntry({ invoiceNum: e.invoiceNum } as RadarInvoice)}
+                              className="inline-flex items-center gap-1 text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-300 px-2.5 py-1 rounded-lg cursor-pointer disabled:opacity-50"
+                              title="Desfazer lançamento e voltar esta nota para o Radar XML"
+                            >
+                              <RotateCcw size={12} className={revertingNum === e.invoiceNum ? "animate-spin" : ""} />
+                              Voltar Nota
+                            </button>
+                          ) : (
+                            <span className="text-[10px] text-gray-400">Oficial</span>
                           )}
                         </td>
                       </tr>
@@ -1098,61 +1420,130 @@ export default function InvoicesPage() {
                     <tr>
                       <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider">Produto da NF-e</th>
                       <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider">Correspondência no Sistema</th>
-                      <th className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-center">Qtd</th>
+                      <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider">Unidade / Conversão (Caixa → Unid.)</th>
+                      <th className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-center">Qtd Entrada</th>
                       <th className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-right">Custo Unit.</th>
-                      <th className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-right">Total</th>
+                      <th className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-right">Total NF</th>
                       <th className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider text-center">Validade / Lote</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {items.map((item, idx) => (
-                      <tr key={idx} className={`hover:bg-gray-50/70 transition-colors ${item.isNew ? "bg-amber-50/30" : ""}`}>
-                        <td className="px-4 py-3">
-                          <p className="font-bold text-gray-900 text-xs leading-tight">{item.productName}</p>
-                          {item.barcode && item.barcode !== "SEM GTIN" && item.barcode !== "0" && (
-                            <p className="text-[10px] text-gray-400 font-mono mt-0.5">{item.barcode}</p>
-                          )}
-                          {item.ncm && <p className="text-[10px] text-gray-400">NCM: {item.ncm}</p>}
-                        </td>
-                        <td className="px-4 py-3">
-                          {item.isNew ? (
-                            <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                              <Plus size={9} /> Cadastrar automaticamente
-                            </span>
-                          ) : (
-                            <div>
-                              <p className="text-xs font-bold text-emerald-700 flex items-center gap-1">
-                                <CheckCircle2 size={11} /> {item.matchedProductName}
-                              </p>
-                              <p className="text-[10px] text-gray-400">Item vinculado no cadastro</p>
+                    {items.map((item, idx) => {
+                      const factor = Math.max(0.001, Number(item.conversionFactor || 1));
+                      const finalQty = Math.round(item.quantity * factor * 1000) / 1000;
+                      const finalUnitCost = finalQty > 0 ? item.totalCost / finalQty : item.unitCost;
+                      const isBox = BOX_UNITS.has(item.unitPurchase) || factor > 1;
+
+                      return (
+                        <tr key={idx} className={`hover:bg-gray-50/70 transition-colors ${item.isNew ? "bg-amber-50/30" : ""}`}>
+                          <td className="px-4 py-3">
+                            <p className="font-bold text-gray-900 text-xs leading-tight">{item.productName}</p>
+                            {item.barcode && item.barcode !== "SEM GTIN" && item.barcode !== "0" && (
+                              <p className="text-[10px] text-gray-400 font-mono mt-0.5">{item.barcode}</p>
+                            )}
+                            {item.ncm && <p className="text-[10px] text-gray-400">NCM: {item.ncm}</p>}
+                          </td>
+                          <td className="px-4 py-3">
+                            {item.isNew ? (
+                              <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                                <Plus size={9} /> Cadastrar automaticamente
+                              </span>
+                            ) : (
+                              <div>
+                                <p className="text-xs font-bold text-emerald-700 flex items-center gap-1">
+                                  <CheckCircle2 size={11} /> {item.matchedProductName}
+                                </p>
+                                <p className="text-[10px] text-gray-400">Item vinculado no cadastro</p>
+                              </div>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <select
+                                value={PURCHASE_UNIT_OPTIONS.includes(item.unitPurchase) ? item.unitPurchase : "UN"}
+                                onChange={(e) => updateItemUnitConversion(idx, { unitPurchase: e.target.value })}
+                                title="Unidade em que o produto veio na NF-e (ex: CX, FD, UN)"
+                                className="px-2 py-1 bg-white border border-gray-300 rounded-lg text-xs font-bold text-gray-800 outline-none focus:border-blue-500"
+                              >
+                                {PURCHASE_UNIT_OPTIONS.map(u => (
+                                  <option key={u} value={u}>{u}</option>
+                                ))}
+                              </select>
+
+                              {isBox && (
+                                <>
+                                  <span className="text-[11px] font-bold text-gray-400">×</span>
+                                  <input
+                                    type="number"
+                                    min="0.001"
+                                    step="1"
+                                    value={item.conversionFactor}
+                                    onChange={(e) => updateItemUnitConversion(idx, { conversionFactor: parseFloat(e.target.value) || 1 })}
+                                    title="Quantas unidades vêm dentro de 1 caixa/fardo"
+                                    className={`w-16 px-2 py-1 border rounded-lg text-xs font-mono font-black text-center outline-none focus:border-blue-500 ${
+                                      factor <= 1
+                                        ? "border-amber-400 bg-amber-50 text-amber-900"
+                                        : "border-emerald-300 bg-emerald-50 text-emerald-900"
+                                    }`}
+                                  />
+                                  <select
+                                    value={SALE_UNIT_OPTIONS.includes(item.unitSale) ? item.unitSale : "UN"}
+                                    onChange={(e) => updateItemUnitConversion(idx, { unitSale: e.target.value })}
+                                    title="Unidade final que entrará no estoque / venda no PDV"
+                                    className="px-2 py-1 bg-white border border-gray-300 rounded-lg text-xs font-bold text-gray-800 outline-none focus:border-blue-500"
+                                  >
+                                    {SALE_UNIT_OPTIONS.map(u => (
+                                      <option key={u} value={u}>{u}</option>
+                                    ))}
+                                  </select>
+                                </>
+                              )}
                             </div>
-                          )}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <span className="font-black text-gray-900 text-sm">{item.quantity}</span>
-                          <span className="text-[10px] text-gray-400 ml-1">{item.unit}</span>
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono font-bold text-gray-700 text-xs whitespace-nowrap">
-                          {fmt(item.unitCost)}
-                        </td>
-                        <td className="px-4 py-3 text-right font-mono font-bold text-gray-900 text-xs whitespace-nowrap">
-                          {fmt(item.totalCost)}
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          {item.expirationDate ? (
-                            <span className="text-[10px] font-bold bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
-                              {new Date(item.expirationDate).toLocaleDateString("pt-BR")}
-                            </span>
-                          ) : (
-                            <span className="text-gray-300 text-[10px]">—</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                            {isBox && (
+                              <p className={`text-[10px] mt-1 font-semibold ${factor > 1 ? "text-emerald-700" : "text-amber-700"}`}>
+                                {factor > 1
+                                  ? `1 ${item.unitPurchase} = ${factor} ${item.unitSale} no estoque`
+                                  : `Informe quantas ${item.unitSale} tem na ${item.unitPurchase}`}
+                              </p>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="font-black text-gray-900 text-sm">{finalQty}</span>
+                            <span className="text-[10px] font-bold text-blue-700 ml-1">{item.unitSale}</span>
+                            {factor !== 1 && (
+                              <span className="block text-[10px] text-gray-400 font-mono">
+                                NF: {item.quantity} {item.unitPurchase}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono font-bold text-gray-700 text-xs whitespace-nowrap">
+                            {fmt(finalUnitCost)}
+                            <span className="text-[10px] text-gray-400 font-normal">/{item.unitSale}</span>
+                            {factor !== 1 && (
+                              <span className="block text-[10px] text-gray-400 font-normal">
+                                NF: {fmt(item.unitCost)}/{item.unitPurchase}
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3 text-right font-mono font-bold text-gray-900 text-xs whitespace-nowrap">
+                            {fmt(item.totalCost)}
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {item.expirationDate ? (
+                              <span className="text-[10px] font-bold bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">
+                                {new Date(item.expirationDate).toLocaleDateString("pt-BR")}
+                              </span>
+                            ) : (
+                              <span className="text-gray-300 text-[10px]">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                   <tfoot className="border-t-2 border-gray-200 bg-gray-50">
                     <tr>
-                      <td colSpan={3} className="px-4 py-3 text-xs font-bold text-gray-500">
+                      <td colSpan={4} className="px-4 py-3 text-xs font-bold text-gray-500">
                         Total da Nota Fiscal
                       </td>
                       <td colSpan={2} className="px-4 py-3 text-right font-black text-gray-900 text-base">
@@ -1166,17 +1557,26 @@ export default function InvoicesPage() {
             </div>
 
             {/* Rodapé de Confirmação */}
-            <div className="flex items-center justify-between bg-white rounded-2xl border border-gray-200 shadow-sm p-4 shrink-0">
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-white rounded-2xl border border-gray-200 shadow-sm p-4 shrink-0">
               <div className="text-xs text-gray-600">
                 <strong>Ao confirmar:</strong> O estoque será incrementado · Os custos serão atualizados
                 {selectedPO && " · O Pedido de Compra receberá baixa"}
               </div>
-              <button
-                onClick={handleConfirm}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-black text-sm flex items-center gap-2 shadow-md shadow-blue-500/20 transition-all"
-              >
-                <CheckCircle2 size={16} /> Confirmar Entrada no Estoque
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={reset}
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2.5 rounded-xl font-bold text-sm flex items-center gap-1.5 transition-colors cursor-pointer"
+                >
+                  <ArrowLeft size={15} /> Voltar às Notas
+                </button>
+                <button
+                  onClick={handleConfirm}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-xl font-black text-sm flex items-center gap-2 shadow-md shadow-blue-500/20 transition-all cursor-pointer"
+                >
+                  <CheckCircle2 size={16} /> Confirmar Entrada no Estoque
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -1218,6 +1618,17 @@ export default function InvoicesPage() {
 
             {/* Conteúdo DANFE */}
             <div className="flex-1 overflow-auto p-6 space-y-6 text-gray-800 text-xs">
+              {viewingDanfe.isLegacySaipos && (
+                <div className="bg-purple-50 border border-purple-200 text-purple-900 p-4 rounded-2xl text-xs font-bold flex items-center gap-3 shrink-0">
+                  <Archive size={22} className="text-purple-600 shrink-0" />
+                  <div>
+                    <span className="font-black text-sm block">Nota antiga sistema Saipos</span>
+                    <span className="font-normal text-purple-800 leading-relaxed block mt-0.5">
+                      Esta nota fiscal foi processada e registrada durante o período do sistema Saipos. O estoque e o financeiro já constam consolidados no balanço da loja. A entrada no sistema novo está desativada para proteger a integridade do estoque atual.
+                    </span>
+                  </div>
+                </div>
+              )}
               {/* Box Emitente e Chave */}
               <div className="border border-gray-300 rounded-2xl p-4 grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50/50">
                 <div className="md:col-span-2 space-y-1">
@@ -1350,7 +1761,7 @@ export default function InvoicesPage() {
                 >
                   Fechar
                 </button>
-                {!viewingDanfe.imported && viewingDanfe.statusManifest !== "RECUSADA" && (
+                {!viewingDanfe.imported && !viewingDanfe.isLegacySaipos && viewingDanfe.statusManifest !== "RECUSADA" && (
                   <button
                     onClick={() => {
                       const inv = viewingDanfe;

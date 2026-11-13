@@ -1,409 +1,474 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
-  ChefHat, Package, Plus, Trash2, Edit3, Save, X, Search, Utensils,
-  Layers, AlertCircle, CheckCircle2, ShieldCheck, Scale, DollarSign,
-  TrendingUp, TrendingDown, Percent, RefreshCw, AlertTriangle, ArrowUpDown,
-  Sparkles, Calculator, Lightbulb
+  ChefHat,
+  Package,
+  Plus,
+  Trash2,
+  Edit3,
+  Save,
+  X,
+  Search,
+  Utensils,
+  Percent,
+  AlertTriangle,
+  CheckCircle2,
+  RefreshCw,
+  AlertCircle,
 } from "lucide-react";
+import {
+  getProductionWorkspace,
+  saveRecipe,
+  deleteRecipe,
+  saveRawMaterialProduct,
+  deleteRawMaterialProduct,
+} from "@/actions/production";
 
-// ─── Interfaces ─────────────────────────────────────────────────────────────
-
-interface RecipeIngredient {
-  rawMaterialId: string;
+interface RecipeItemRow {
+  productId: string;
   name: string;
   quantity: number;
   unit: string;
   unitCost: number;
+  itemRole: "INGREDIENT" | "PACKAGING";
 }
 
-interface DishRecipe {
+interface RealRecipe {
   id: string;
+  productId: string;
   dishName: string;
   category: string;
   salePrice: number;
-  sector: string;
-  yieldServings?: number;
-  prepTimeMinutes?: number;
-  instructions?: string;
-  ingredients: RecipeIngredient[];
+  unit: string;
+  yieldAmount: number;
+  instructions: string;
+  items: RecipeItemRow[];
 }
 
-interface StockMaterial {
+interface RealProduct {
   id: string;
   name: string;
-  unit: "KG" | "G" | "UN" | "L" | "ML";
+  unit: string;
   cost: number;
-  stockQty: number;
+  price: number;
+  stock: number;
   minStock: number;
+  isRawMaterial: boolean;
+  isPackaging: boolean;
+  isSelfProduced: boolean;
+  categoryName: string;
 }
 
-// ─── Dados Iniciais Padrão ───────────────────────────────────────────────────
-
-const INITIAL_MATERIALS: StockMaterial[] = [
-  { id: "rm-1", name: "Carne Blend Bovina 80/20", unit: "KG", cost: 32.00, stockQty: 45.0, minStock: 10.0 },
-  { id: "rm-2", name: "Pão Brioche Gourmet", unit: "UN", cost: 1.80, stockQty: 120, minStock: 30 },
-  { id: "rm-3", name: "Queijo Cheddar Inglês", unit: "KG", cost: 48.00, stockQty: 12.5, minStock: 5.0 },
-  { id: "rm-4", name: "Bacon Defumado Fatiado", unit: "KG", cost: 38.00, stockQty: 15.0, minStock: 4.0 },
-  { id: "rm-5", name: "Massa de Pizza Artesanal", unit: "UN", cost: 4.50, stockQty: 80, minStock: 20 },
-  { id: "rm-6", name: "Queijo Mussarela Ralada", unit: "KG", cost: 42.00, stockQty: 25.0, minStock: 8.0 },
-  { id: "rm-7", name: "Calabresa Fatiada Curada", unit: "KG", cost: 34.00, stockQty: 18.0, minStock: 6.0 },
-  { id: "rm-8", name: "Molho de Tomate Rústico", unit: "L", cost: 14.50, stockQty: 30.0, minStock: 10.0 },
-  { id: "rm-9", name: "Maionese Artesanal da Casa", unit: "KG", cost: 16.00, stockQty: 8.0, minStock: 3.0 },
-  { id: "rm-10", name: "Cebola Caramelizada", unit: "KG", cost: 22.00, stockQty: 6.5, minStock: 2.0 },
-];
-
-const INITIAL_RECIPES: DishRecipe[] = [
-  {
-    id: "rec-1",
-    dishName: "Hambúrguer Smash Bacon Duplo",
-    category: "Lanches",
-    salePrice: 38.90,
-    sector: "Chapa & Hamburgueria",
-    yieldServings: 1,
-    prepTimeMinutes: 12,
-    instructions: "Modelar 2 bolas de 100g, smash na chapa bem quente a 220°C por 2 minutos de cada lado. Derreter cheddar, tostar o pão na manteiga e finalizar com bacon crocante.",
-    ingredients: [
-      { rawMaterialId: "rm-1", name: "Carne Blend Bovina 80/20", quantity: 0.200, unit: "KG", unitCost: 32.00 },
-      { rawMaterialId: "rm-2", name: "Pão Brioche Gourmet", quantity: 1, unit: "UN", unitCost: 1.80 },
-      { rawMaterialId: "rm-3", name: "Queijo Cheddar Inglês", quantity: 0.040, unit: "KG", unitCost: 48.00 },
-      { rawMaterialId: "rm-4", name: "Bacon Defumado Fatiado", quantity: 0.030, unit: "KG", unitCost: 38.00 },
-      { rawMaterialId: "rm-9", name: "Maionese Artesanal da Casa", quantity: 0.025, unit: "KG", unitCost: 16.00 },
-    ]
-  },
-  {
-    id: "rec-2",
-    dishName: "Pizza Calabresa Especial (8 Fatias)",
-    category: "Pizzas",
-    salePrice: 62.00,
-    sector: "Forno & Pizzaria",
-    yieldServings: 8,
-    prepTimeMinutes: 18,
-    instructions: "Abrir a massa manualmente com 35cm, espalhar 80ml de molho rústico, cobrir com mussarela ralada e fatias de calabresa. Assar a 320°C no forno de esteira ou pedra.",
-    ingredients: [
-      { rawMaterialId: "rm-5", name: "Massa de Pizza Artesanal", quantity: 1, unit: "UN", unitCost: 4.50 },
-      { rawMaterialId: "rm-8", name: "Molho de Tomate Rústico", quantity: 0.080, unit: "L", unitCost: 14.50 },
-      { rawMaterialId: "rm-6", name: "Queijo Mussarela Ralada", quantity: 0.250, unit: "KG", unitCost: 42.00 },
-      { rawMaterialId: "rm-7", name: "Calabresa Fatiada Curada", quantity: 0.200, unit: "KG", unitCost: 34.00 }
-    ]
-  }
-];
-
 function fmt(v: number) {
-  return v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return Number(v || 0).toLocaleString("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 }
 
 export default function RestaurantRecipesPage() {
   const [activeTab, setActiveTab] = useState<"recipes" | "materials">("recipes");
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Estado das Fichas Técnicas e Insumos com persistência local
-  const [recipes, setRecipes] = useState<DishRecipe[]>(INITIAL_RECIPES);
-  const [materials, setMaterials] = useState<StockMaterial[]>(INITIAL_MATERIALS);
-  const [selectedRecipe, setSelectedRecipe] = useState<DishRecipe | null>(null);
+  // Dados 100% reais do PostgreSQL
+  const [recipes, setRecipes] = useState<RealRecipe[]>([]);
+  const [allProducts, setAllProducts] = useState<RealProduct[]>([]);
+  const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>(null);
 
   // Filtros
   const [searchRecipe, setSearchRecipe] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("TODOS");
   const [searchMaterial, setSearchMaterial] = useState("");
+  const [materialRoleFilter, setMaterialRoleFilter] = useState<"ALL" | "INGREDIENT" | "PACKAGING">("ALL");
 
-  // Modais
+  // Modal: Criar / Editar Ficha Técnica
   const [isRecipeModalOpen, setIsRecipeModalOpen] = useState(false);
-  const [editingRecipe, setEditingRecipe] = useState<DishRecipe | null>(null);
+  const [editingProductId, setEditingProductId] = useState("");
+  const [editingYield, setEditingYield] = useState("1");
+  const [editingInstructions, setEditingInstructions] = useState("");
+  const [editingItems, setEditingItems] = useState<RecipeItemRow[]>([]);
 
-  const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false);
-  const [editingMaterial, setEditingMaterial] = useState<StockMaterial | null>(null);
-
-  // Insumo rápido sendo adicionado no modal da Ficha Técnica
   const [selectedMatIdToAdd, setSelectedMatIdToAdd] = useState("");
-  const [selectedQtyToAdd, setSelectedQtyToAdd] = useState(1);
+  const [selectedQtyToAdd, setSelectedQtyToAdd] = useState("1");
+  const [selectedRoleToAdd, setSelectedRoleToAdd] = useState<"INGREDIENT" | "PACKAGING">("INGREDIENT");
 
-  // Carregar do localStorage
+  // Modal: Criar / Editar Insumo ou Embalagem no Banco
+  const [isMaterialModalOpen, setIsMaterialModalOpen] = useState(false);
+  const [editingMaterial, setEditingMaterial] = useState<{
+    id?: string;
+    name: string;
+    unit: string;
+    cost: number;
+    stock: number;
+    minStock: number;
+    isPackaging: boolean;
+  } | null>(null);
+
   useEffect(() => {
-    try {
-      const savedRecipes = localStorage.getItem("erp_restaurant_recipes_v2");
-      if (savedRecipes) {
-        const parsed = JSON.parse(savedRecipes);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setRecipes(parsed);
-          setSelectedRecipe(parsed[0]);
-        } else {
-          setSelectedRecipe(INITIAL_RECIPES[0]);
-        }
-      } else {
-        setSelectedRecipe(INITIAL_RECIPES[0]);
-      }
-
-      const savedMaterials = localStorage.getItem("erp_restaurant_materials_v2");
-      if (savedMaterials) {
-        const parsedM = JSON.parse(savedMaterials);
-        if (Array.isArray(parsedM) && parsedM.length > 0) {
-          setMaterials(parsedM);
-        }
-      }
-    } catch {
-      setSelectedRecipe(INITIAL_RECIPES[0]);
-    }
+    loadWorkspace();
   }, []);
 
-  // Salvar no localStorage quando alterar
-  const saveRecipesState = (newRecipes: DishRecipe[]) => {
-    setRecipes(newRecipes);
+  async function loadWorkspace(preferRecipeId?: string) {
+    setLoading(true);
+    setErrorMsg(null);
     try {
-      localStorage.setItem("erp_restaurant_recipes_v2", JSON.stringify(newRecipes));
-    } catch {}
-  };
+      const res = await getProductionWorkspace();
+      if (!res.success) {
+        setErrorMsg(res.error || "Não foi possível carregar as fichas técnicas.");
+        return;
+      }
 
-  const saveMaterialsState = (newMats: StockMaterial[]) => {
-    setMaterials(newMats);
-    try {
-      localStorage.setItem("erp_restaurant_materials_v2", JSON.stringify(newMats));
-    } catch {}
-  };
+      const mappedProducts: RealProduct[] = (res.ingredients || []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        unit: p.unit || "UN",
+        cost: Number(p.cost || 0),
+        price: Number(p.price || 0),
+        stock: Number(p.stock || 0),
+        minStock: Number(p.minStock || 0),
+        isRawMaterial: Boolean(p.isRawMaterial),
+        isPackaging: Boolean(p.isPackaging),
+        isSelfProduced: Boolean(p.isSelfProduced),
+        categoryName: p.categoryName || "Geral",
+      }));
+      setAllProducts(mappedProducts);
 
-  // Cálculos de custos
-  const calcRecipeCost = (recipe: DishRecipe) => {
-    return recipe.ingredients.reduce((acc, i) => acc + (i.quantity * i.unitCost), 0);
-  };
+      const mappedRecipes: RealRecipe[] = (res.recipes || []).map((r: any) => ({
+        id: r.id,
+        productId: r.productId,
+        dishName: r.product?.name || "Produto",
+        category: r.product?.categoryName || "Geral",
+        salePrice: Number(r.product?.price || 0),
+        unit: r.product?.unit || "UN",
+        yieldAmount: Number(r.yield || 1),
+        instructions: r.instructions || "",
+        items: (r.items || []).map((it: any) => ({
+          productId: it.productId,
+          name: it.product?.name || "Insumo",
+          quantity: Number(it.quantity || 0),
+          unit: it.unit || it.product?.unit || "UN",
+          unitCost: Number(it.product?.cost || 0),
+          itemRole: it.itemRole === "PACKAGING" ? "PACKAGING" : "INGREDIENT",
+        })),
+      }));
+      setRecipes(mappedRecipes);
 
-  // Categorias disponíveis
-  const categories = ["TODOS", ...Array.from(new Set(recipes.map(r => r.category)))];
+      setSelectedRecipeId((prev) => {
+        const target = preferRecipeId || prev;
+        if (target && mappedRecipes.some((r) => r.id === target)) return target;
+        return mappedRecipes[0]?.id || null;
+      });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const selectedRecipe = useMemo(
+    () => recipes.find((r) => r.id === selectedRecipeId) || null,
+    [recipes, selectedRecipeId]
+  );
+
+  // Lista de insumos e embalagens do banco
+  const materials = useMemo(() => {
+    const tagged = allProducts.filter((p) => p.isRawMaterial || p.isPackaging);
+    // Se a empresa ainda não marcou flags específicas, exibe todos que não são exclusivamente acabados para facilitar
+    return tagged.length > 0 ? tagged : allProducts;
+  }, [allProducts]);
+
+  const calcRecipeCost = (items: RecipeItemRow[]) =>
+    items.reduce((acc, i) => acc + Number(i.quantity || 0) * Number(i.unitCost || 0), 0);
+
+  const categories = useMemo(
+    () => ["TODOS", ...Array.from(new Set(recipes.map((r) => r.category)))],
+    [recipes]
+  );
 
   // ─── AÇÕES DE FICHA TÉCNICA ────────────────────────────────────────────────
 
   const handleOpenCreateRecipe = () => {
-    setEditingRecipe({
-      id: `rec-${Date.now()}`,
-      dishName: "",
-      category: "Lanches",
-      salePrice: 0,
-      sector: "Cozinha Principal",
-      yieldServings: 1,
-      prepTimeMinutes: 10,
-      instructions: "",
-      ingredients: []
-    });
+    setEditingProductId("");
+    setEditingYield("1");
+    setEditingInstructions("");
+    setEditingItems([]);
     setSelectedMatIdToAdd("");
-    setSelectedQtyToAdd(1);
+    setSelectedQtyToAdd("1");
+    setSelectedRoleToAdd("INGREDIENT");
     setIsRecipeModalOpen(true);
   };
 
-  const handleOpenEditRecipe = (recipe: DishRecipe) => {
-    setEditingRecipe(JSON.parse(JSON.stringify(recipe)));
+  const handleOpenEditRecipe = (recipe: RealRecipe) => {
+    setEditingProductId(recipe.productId);
+    setEditingYield(String(recipe.yieldAmount || 1));
+    setEditingInstructions(recipe.instructions || "");
+    setEditingItems(recipe.items.map((i) => ({ ...i })));
     setSelectedMatIdToAdd("");
-    setSelectedQtyToAdd(1);
+    setSelectedQtyToAdd("1");
+    setSelectedRoleToAdd("INGREDIENT");
     setIsRecipeModalOpen(true);
   };
 
-  const handleDeleteRecipe = (id: string, name: string) => {
+  const handleDeleteRecipe = async (id: string, name: string) => {
     if (!confirm(`Tem certeza que deseja remover a ficha técnica do prato "${name}"?`)) return;
-
-    const updated = recipes.filter(r => r.id !== id);
-    saveRecipesState(updated);
-    if (selectedRecipe?.id === id) {
-      setSelectedRecipe(updated[0] || null);
+    setErrorMsg(null);
+    const res = await deleteRecipe(id);
+    if (res.success) {
+      setSuccessMsg(`Ficha técnica de "${name}" removida.`);
+      await loadWorkspace();
+    } else {
+      setErrorMsg(res.error || "Não foi possível remover a ficha técnica.");
     }
   };
 
-  const handleSaveRecipeSubmit = (e: React.FormEvent) => {
+  const handleAddIngredientToEditing = () => {
+    if (!selectedMatIdToAdd) return;
+    const mat = allProducts.find((m) => m.id === selectedMatIdToAdd);
+    if (!mat) return;
+    const qty = parseFloat(selectedQtyToAdd) || 0;
+    if (qty <= 0) return;
+
+    setEditingItems((prev) => {
+      const idx = prev.findIndex(
+        (i) => i.productId === mat.id && i.itemRole === selectedRoleToAdd
+      );
+      if (idx >= 0) {
+        const updated = [...prev];
+        updated[idx] = {
+          ...updated[idx],
+          quantity: Number((updated[idx].quantity + qty).toFixed(4)),
+        };
+        return updated;
+      }
+      return [
+        ...prev,
+        {
+          productId: mat.id,
+          name: mat.name,
+          quantity: qty,
+          unit: mat.unit,
+          unitCost: mat.cost,
+          itemRole: selectedRoleToAdd,
+        },
+      ];
+    });
+
+    setSelectedMatIdToAdd("");
+    setSelectedQtyToAdd("1");
+  };
+
+  const handleRemoveIngredientFromEditing = (index: number) => {
+    setEditingItems((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSaveRecipeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editingRecipe || !editingRecipe.dishName.trim()) {
-      alert("Informe o nome do prato!");
+    if (!editingProductId) {
+      alert("Selecione o produto/prato acabado cadastrado no estoque!");
+      return;
+    }
+    if (editingItems.length === 0) {
+      alert("Adicione pelo menos um insumo ou embalagem!");
       return;
     }
 
-    const exists = recipes.some(r => r.id === editingRecipe.id);
-    let updated: DishRecipe[];
-    if (exists) {
-      updated = recipes.map(r => r.id === editingRecipe.id ? editingRecipe : r);
+    setSubmitting(true);
+    setErrorMsg(null);
+    const res = await saveRecipe({
+      productId: editingProductId,
+      yieldAmount: parseFloat(editingYield) || 1,
+      instructions: editingInstructions,
+      items: editingItems.map((it) => ({
+        productId: it.productId,
+        quantity: Number(it.quantity),
+        unit: it.unit,
+        itemRole: it.itemRole,
+      })),
+    });
+    setSubmitting(false);
+
+    if (res.success && res.recipe) {
+      setIsRecipeModalOpen(false);
+      setSuccessMsg("Ficha técnica salva no banco de dados com sucesso!");
+      await loadWorkspace(res.recipe.id);
     } else {
-      updated = [editingRecipe, ...recipes];
+      setErrorMsg(res.error || "Erro ao salvar ficha técnica.");
     }
-
-    saveRecipesState(updated);
-    setSelectedRecipe(editingRecipe);
-    setIsRecipeModalOpen(false);
   };
 
-  // Adicionar ingrediente na receita em edição
-  const handleAddIngredientToEditing = () => {
-    if (!editingRecipe || !selectedMatIdToAdd) return;
-
-    const mat = materials.find(m => m.id === selectedMatIdToAdd);
-    if (!mat) return;
-
-    const existsIndex = editingRecipe.ingredients.findIndex(i => i.rawMaterialId === mat.id);
-    if (existsIndex >= 0) {
-      const updatedIngs = [...editingRecipe.ingredients];
-      updatedIngs[existsIndex].quantity += Number(selectedQtyToAdd);
-      setEditingRecipe({ ...editingRecipe, ingredients: updatedIngs });
-    } else {
-      const newIng: RecipeIngredient = {
-        rawMaterialId: mat.id,
-        name: mat.name,
-        quantity: Number(selectedQtyToAdd) || 1,
-        unit: mat.unit,
-        unitCost: mat.cost,
-      };
-      setEditingRecipe({ ...editingRecipe, ingredients: [...editingRecipe.ingredients, newIng] });
-    }
-
-    setSelectedMatIdToAdd("");
-    setSelectedQtyToAdd(1);
-  };
-
-  // Remover ingrediente da receita em edição
-  const handleRemoveIngredientFromEditing = (index: number) => {
-    if (!editingRecipe) return;
-    const updated = editingRecipe.ingredients.filter((_, i) => i !== index);
-    setEditingRecipe({ ...editingRecipe, ingredients: updated });
-  };
-
-  // ─── AÇÕES DE INSUMOS ──────────────────────────────────────────────────────
+  // ─── AÇÕES DE INSUMOS / EMBALAGENS ────────────────────────────────────────
 
   const handleOpenCreateMaterial = () => {
     setEditingMaterial({
-      id: `rm-${Date.now()}`,
       name: "",
       unit: "KG",
       cost: 0,
-      stockQty: 0,
+      stock: 0,
       minStock: 0,
+      isPackaging: false,
     });
     setIsMaterialModalOpen(true);
   };
 
-  const handleOpenEditMaterial = (mat: StockMaterial) => {
-    setEditingMaterial({ ...mat });
+  const handleOpenEditMaterial = (mat: RealProduct) => {
+    setEditingMaterial({
+      id: mat.id,
+      name: mat.name,
+      unit: mat.unit || "UN",
+      cost: mat.cost,
+      stock: mat.stock,
+      minStock: mat.minStock,
+      isPackaging: mat.isPackaging,
+    });
     setIsMaterialModalOpen(true);
   };
 
-  const handleDeleteMaterial = (id: string, name: string) => {
-    const isUsedIn = recipes.filter(r => r.ingredients.some(i => i.rawMaterialId === id));
-    if (isUsedIn.length > 0) {
-      alert(`Não é possível remover "${name}" porque ele está sendo usado em ${isUsedIn.length} ficha(s) técnica(s): ${isUsedIn.map(r => r.dishName).join(", ")}.`);
-      return;
-    }
-
-    if (!confirm(`Remover o insumo "${name}" do cadastro?`)) return;
-
-    const updated = materials.filter(m => m.id !== id);
-    saveMaterialsState(updated);
-  };
-
-  const handleSaveMaterialSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingMaterial || !editingMaterial.name.trim()) {
-      alert("Informe o nome do insumo!");
-      return;
-    }
-
-    const exists = materials.some(m => m.id === editingMaterial.id);
-    let updated: StockMaterial[];
-    if (exists) {
-      updated = materials.map(m => m.id === editingMaterial.id ? editingMaterial : m);
-      
-      // Atualizar o custo nas fichas técnicas que usam esse insumo
-      const updatedRecipes = recipes.map(r => ({
-        ...r,
-        ingredients: r.ingredients.map(ing => {
-          if (ing.rawMaterialId === editingMaterial.id) {
-            return {
-              ...ing,
-              name: editingMaterial.name,
-              unit: editingMaterial.unit,
-              unitCost: editingMaterial.cost,
-            };
-          }
-          return ing;
-        })
-      }));
-      saveRecipesState(updatedRecipes);
-      if (selectedRecipe) {
-        const refreshed = updatedRecipes.find(r => r.id === selectedRecipe.id);
-        if (refreshed) setSelectedRecipe(refreshed);
-      }
+  const handleDeleteMaterial = async (id: string, name: string) => {
+    if (!confirm(`Remover "${name}" do banco de dados?`)) return;
+    setErrorMsg(null);
+    const res = await deleteRawMaterialProduct(id);
+    if (res.success) {
+      setSuccessMsg(`Item "${name}" excluído.`);
+      await loadWorkspace();
     } else {
-      updated = [editingMaterial, ...materials];
+      setErrorMsg(res.error || "Erro ao excluir insumo.");
     }
-
-    saveMaterialsState(updated);
-    setIsMaterialModalOpen(false);
   };
 
-  // Métricas de topo
-  const totalRecipesCount = recipes.length;
-  const totalMaterialsCount = materials.length;
-  const lowStockMaterials = materials.filter(m => m.stockQty <= m.minStock);
-  const avgCmv = recipes.length > 0
-    ? (recipes.reduce((sum, r) => {
-        const c = calcRecipeCost(r);
-        return sum + (r.salePrice > 0 ? (c / r.salePrice) * 100 : 0);
-      }, 0) / recipes.length).toFixed(1)
-    : "0";
+  const handleSaveMaterialSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingMaterial || !editingMaterial.name.trim()) return;
+
+    setSubmitting(true);
+    setErrorMsg(null);
+    const res = await saveRawMaterialProduct(editingMaterial);
+    setSubmitting(false);
+
+    if (res.success) {
+      setIsMaterialModalOpen(false);
+      setSuccessMsg("Insumo / Embalagem salvo no banco de dados!");
+      await loadWorkspace();
+    } else {
+      setErrorMsg(res.error || "Erro ao salvar insumo.");
+    }
+  };
+
+  // Métricas reais de topo
+  const lowStockMaterials = materials.filter((m) => m.stock <= m.minStock);
+  const avgCmv =
+    recipes.length > 0
+      ? (
+          recipes.reduce((sum, r) => {
+            const c = calcRecipeCost(r.items) / (r.yieldAmount || 1);
+            return sum + (r.salePrice > 0 ? (c / r.salePrice) * 100 : 0);
+          }, 0) / recipes.length
+        ).toFixed(1)
+      : "0.0";
+
+  const filteredMaterials = materials.filter((m) => {
+    const matchSearch = m.name.toLowerCase().includes(searchMaterial.toLowerCase());
+    if (!matchSearch) return false;
+    if (materialRoleFilter === "INGREDIENT") return !m.isPackaging;
+    if (materialRoleFilter === "PACKAGING") return m.isPackaging;
+    return true;
+  });
 
   return (
-    <div className="flex flex-col space-y-5 text-gray-900 animate-in fade-in duration-200">
-      
-      {/* ── 1. Top Header com Controles Principais ──────────────────────────── */}
-      <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-3xl p-5 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="flex flex-col space-y-5 text-gray-900 pb-16">
+      {/* Header */}
+      <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-3xl p-5 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/30">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
             <ChefHat size={26} />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-black text-gray-900 tracking-tight">Fichas Técnicas & Insumos</h1>
-              <span className="text-[10px] font-bold text-indigo-700 bg-indigo-500/15 border border-indigo-200 px-2 py-0.5 rounded-md">
-                Gestão Integrada
+              <h1 className="text-xl font-black text-gray-900 tracking-tight">
+                Fichas Técnicas &amp; Insumos (Banco Real)
+              </h1>
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-500/15 border border-emerald-200 px-2 py-0.5 rounded-md">
+                PostgreSQL Integrado
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
-              Cadastre pratos, composições, insumos do estoque e custos em um único painel com baixa automática no PDV.
+              Composições reais de pratos e bebidas com insumos e embalagens vinculados diretamente ao estoque da empresa.
             </p>
           </div>
         </div>
 
-        {/* Botões de Adicionar Principais */}
-        <div className="flex items-center gap-2.5 w-full md:w-auto">
+        <div className="flex items-center gap-2 w-full md:w-auto flex-wrap">
           <button
-            onClick={handleOpenCreateMaterial}
-            className="flex-1 md:flex-none bg-[#eaf1fc] hover:bg-[#eaf1fc] text-slate-700 hover:text-gray-900 border border-indigo-200 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all shadow-md active:scale-95"
+            type="button"
+            onClick={() => loadWorkspace()}
+            className="bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 font-bold px-3 py-2.5 rounded-xl text-xs flex items-center gap-1.5"
           >
-            <Plus size={16} className="text-indigo-600" />
-            <span>+ Adicionar Insumo</span>
+            <RefreshCw size={14} className={loading ? "animate-spin" : ""} /> Atualizar
           </button>
-          
           <button
-            onClick={handleOpenCreateRecipe}
-            className="flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30 transition-all active:scale-95"
+            type="button"
+            onClick={handleOpenCreateMaterial}
+            className="flex-1 md:flex-none bg-[#eaf1fc] hover:bg-indigo-100 text-slate-800 border border-indigo-200 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all"
           >
-            <Plus size={16} />
-            <span>+ Nova Ficha Técnica</span>
+            <Plus size={15} className="text-indigo-600" />
+            <span>Novo Insumo / Embalagem</span>
+          </button>
+          <button
+            type="button"
+            onClick={handleOpenCreateRecipe}
+            className="flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 shadow-md shadow-indigo-600/20 transition-all"
+          >
+            <Plus size={15} />
+            <span>Nova Ficha Técnica</span>
           </button>
         </div>
       </div>
 
-      {/* ── 2. Cards de Resumo & Indicadores ───────────────────────────────── */}
+      {errorMsg && (
+        <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-bold flex items-center gap-2">
+          <AlertCircle size={16} className="shrink-0" />
+          <span>{errorMsg}</span>
+        </div>
+      )}
+      {successMsg && (
+        <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center justify-between gap-2">
+          <span className="flex items-center gap-2">
+            <CheckCircle2 size={16} className="text-emerald-600 shrink-0" />
+            {successMsg}
+          </span>
+          <button type="button" onClick={() => setSuccessMsg(null)} className="text-emerald-700">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
+      {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
         <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl p-3.5">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Fichas de Pratos</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+            Fichas Cadastradas
+          </span>
           <div className="text-xl font-black font-mono text-gray-900 mt-0.5 flex items-center gap-2">
             <Utensils size={18} className="text-indigo-600" />
-            {totalRecipesCount} pratos
+            {recipes.length} pratos
           </div>
         </div>
 
         <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl p-3.5">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Insumos Cadastrados</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+            Insumos &amp; Embalagens
+          </span>
           <div className="text-xl font-black font-mono text-gray-900 mt-0.5 flex items-center gap-2">
             <Package size={18} className="text-purple-600" />
-            {totalMaterialsCount} itens
+            {materials.length} itens
           </div>
         </div>
 
         <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl p-3.5">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">CMV Médio Cardápio</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+            CMV Médio Unitário
+          </span>
           <div className="text-xl font-black font-mono text-emerald-600 mt-0.5 flex items-center gap-2">
             <Percent size={18} className="text-emerald-600" />
             {avgCmv}%
@@ -411,64 +476,77 @@ export default function RestaurantRecipesPage() {
         </div>
 
         <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl p-3.5">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Insumos em Alerta</span>
-          <div className={`text-xl font-black font-mono mt-0.5 flex items-center gap-2 ${lowStockMaterials.length > 0 ? "text-amber-600" : "text-slate-500"}`}>
-            <AlertTriangle size={18} className={lowStockMaterials.length > 0 ? "text-amber-600" : "text-slate-500"} />
+          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+            Itens em Estoque Baixo
+          </span>
+          <div
+            className={`text-xl font-black font-mono mt-0.5 flex items-center gap-2 ${
+              lowStockMaterials.length > 0 ? "text-amber-600" : "text-slate-500"
+            }`}
+          >
+            <AlertTriangle
+              size={18}
+              className={lowStockMaterials.length > 0 ? "text-amber-600" : "text-slate-500"}
+            />
             {lowStockMaterials.length} críticos
           </div>
         </div>
       </div>
 
-      {/* ── 3. Seletor de Abas: Fichas Técnicas vs Banco de Insumos ──────────── */}
+      {/* Abas */}
       <div className="flex items-center gap-2 border-b border-[#c4d5ee] pb-2">
         <button
+          type="button"
           onClick={() => setActiveTab("recipes")}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
             activeTab === "recipes"
-              ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
+              ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
               : "text-slate-500 hover:text-gray-900 hover:bg-indigo-500/10"
           }`}
         >
           <Utensils size={15} />
-          <span>Fichas Técnicas & Pratos ({recipes.length})</span>
+          <span>Fichas Técnicas &amp; Pratos ({recipes.length})</span>
         </button>
 
         <button
+          type="button"
           onClick={() => setActiveTab("materials")}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
             activeTab === "materials"
-              ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
+              ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/20"
               : "text-slate-500 hover:text-gray-900 hover:bg-indigo-500/10"
           }`}
         >
           <Package size={15} />
-          <span>Banco de Insumos & Ingredientes ({materials.length})</span>
+          <span>Catálogo de Insumos &amp; Embalagens ({materials.length})</span>
         </button>
       </div>
 
-      {/* ── 4. CONTEÚDO DA ABA: FICHAS TÉCNICAS (PRATOS) ────────────────────── */}
+      {/* ABA 1: FICHAS TÉCNICAS */}
       {activeTab === "recipes" && (
-        <div className="grid grid-cols-12 gap-5 min-h-[550px]">
-          {/* Coluna Esquerda: Lista de Fichas (5 Colunas) */}
-          <div className="col-span-12 lg:col-span-5 bg-[#fbfdff] border border-[#c4d5ee] rounded-3xl p-4 flex flex-col space-y-3 shadow-xl">
-            {/* Barra de Busca e Filtro de Categoria */}
+        <div className="grid grid-cols-12 gap-5 min-h-[520px]">
+          {/* Lista à esquerda */}
+          <div className="col-span-12 lg:col-span-5 bg-[#fbfdff] border border-[#c4d5ee] rounded-3xl p-4 flex flex-col space-y-3 shadow-xs">
             <div className="space-y-2">
               <div className="relative">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+                <Search
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500"
+                  size={14}
+                />
                 <input
                   type="text"
                   value={searchRecipe}
-                  onChange={e => setSearchRecipe(e.target.value)}
-                  placeholder="Buscar prato por nome..."
+                  onChange={(e) => setSearchRecipe(e.target.value)}
+                  placeholder="Buscar prato ou bebida..."
                   className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 pl-9 pr-3.5 py-2 rounded-xl text-xs outline-none focus:border-indigo-500 font-semibold"
                 />
               </div>
 
-              {/* Pílulas de Categoria */}
-              <div className="flex items-center gap-1.5 overflow-x-auto py-1 custom-scrollbar">
-                {categories.map(cat => (
+              <div className="flex items-center gap-1.5 overflow-x-auto py-1">
+                {categories.map((cat) => (
                   <button
                     key={cat}
+                    type="button"
                     onClick={() => setCategoryFilter(cat)}
                     className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase transition-all shrink-0 ${
                       categoryFilter === cat
@@ -482,113 +560,126 @@ export default function RestaurantRecipesPage() {
               </div>
             </div>
 
-            {/* Lista dos Pratos */}
-            <div className="flex-1 overflow-y-auto space-y-2.5 custom-scrollbar pr-1 max-h-[500px]">
-              {recipes
-                .filter(r => categoryFilter === "TODOS" || r.category === categoryFilter)
-                .filter(r => r.dishName.toLowerCase().includes(searchRecipe.toLowerCase()))
-                .map(r => {
-                  const cost = calcRecipeCost(r);
-                  const cmv = r.salePrice > 0 ? (cost / r.salePrice) * 100 : 0;
-                  const isSelected = selectedRecipe?.id === r.id;
+            <div className="flex-1 overflow-y-auto space-y-2.5 pr-1 max-h-[500px]">
+              {loading ? (
+                <div className="text-center py-12 text-xs text-slate-400 font-bold">
+                  Carregando fichas técnicas do banco...
+                </div>
+              ) : recipes.length === 0 ? (
+                <div className="text-center py-12 text-xs text-slate-400">
+                  Nenhuma ficha técnica cadastrada ainda no banco de dados.
+                </div>
+              ) : (
+                recipes
+                  .filter((r) => categoryFilter === "TODOS" || r.category === categoryFilter)
+                  .filter((r) => r.dishName.toLowerCase().includes(searchRecipe.toLowerCase()))
+                  .map((r) => {
+                    const totalCost = calcRecipeCost(r.items);
+                    const unitCost = totalCost / (r.yieldAmount || 1);
+                    const cmv = r.salePrice > 0 ? (unitCost / r.salePrice) * 100 : 0;
+                    const isSelected = selectedRecipe?.id === r.id;
 
-                  return (
-                    <div
-                      key={r.id}
-                      onClick={() => setSelectedRecipe(r)}
-                      className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative group ${
-                        isSelected
-                          ? "bg-indigo-600/20 border-indigo-500/50 shadow-md"
-                          : "bg-[#e8f0fc] border-[#c4d5ee] hover:border-indigo-200 hover:bg-[#eaf1fc]"
-                      }`}
-                    >
-                      <div className="flex justify-between items-start gap-2 mb-1.5">
-                        <div>
-                          <span className="text-xs font-black text-gray-900 block leading-tight">{r.dishName}</span>
-                          <span className="text-[10px] text-slate-500 font-medium">{r.sector} · {r.ingredients.length} insumos</span>
+                    return (
+                      <div
+                        key={r.id}
+                        onClick={() => setSelectedRecipeId(r.id)}
+                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative group ${
+                          isSelected
+                            ? "bg-indigo-600/15 border-indigo-500/50 shadow-sm"
+                            : "bg-[#e8f0fc] border-[#c4d5ee] hover:border-indigo-300"
+                        }`}
+                      >
+                        <div className="flex justify-between items-start gap-2 mb-1.5">
+                          <div>
+                            <span className="text-xs font-black text-gray-900 block leading-tight">
+                              {r.dishName}
+                            </span>
+                            <span className="text-[10px] text-slate-500 font-medium">
+                              {r.category} • Rendimento: {r.yieldAmount} {r.unit} • {r.items.length}{" "}
+                              itens
+                            </span>
+                          </div>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-md border font-mono ${
+                              cmv <= 35
+                                ? "bg-emerald-500/15 text-emerald-700 border-emerald-500/30"
+                                : "bg-amber-500/15 text-amber-700 border-amber-500/30"
+                            }`}
+                          >
+                            CMV {cmv.toFixed(1)}%
+                          </span>
                         </div>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border font-mono ${
-                          cmv <= 32 ? "bg-emerald-500/15 text-emerald-700 border-emerald-500/30" : "bg-amber-500/15 text-amber-700 border-amber-500/30"
-                        }`}>
-                          CMV {cmv.toFixed(1)}%
-                        </span>
-                      </div>
 
-                      <div className="flex justify-between items-center text-[11px] pt-2 border-t border-[#c4d5ee]">
-                        <span className="text-slate-500 font-mono">Custo: <strong className="text-amber-600">R$ {fmt(cost)}</strong></span>
-                        <span className="text-emerald-600 font-mono font-bold">Venda: R$ {fmt(r.salePrice)}</span>
+                        <div className="flex justify-between items-center text-[11px] pt-2 border-t border-[#c4d5ee]">
+                          <span className="text-slate-500 font-mono">
+                            Custo Unit.:{" "}
+                            <strong className="text-amber-700">R$ {fmt(unitCost)}</strong>
+                          </span>
+                          <span className="text-emerald-700 font-mono font-bold">
+                            Venda: R$ {fmt(r.salePrice)}
+                          </span>
+                        </div>
                       </div>
-
-                      {/* Botões rápidos ao passar o mouse */}
-                      <div className="absolute top-2 right-2 hidden group-hover:flex items-center gap-1 bg-[#fbfdff] p-1 rounded-lg border border-indigo-200 shadow-md">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleOpenEditRecipe(r); }}
-                          title="Editar Ficha Técnica"
-                          className="p-1 text-slate-500 hover:text-indigo-700 hover:bg-indigo-500/15 rounded"
-                        >
-                          <Edit3 size={13} />
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleDeleteRecipe(r.id, r.dishName); }}
-                          title="Remover Ficha Técnica"
-                          className="p-1 text-slate-500 hover:text-rose-600 hover:bg-rose-500/15 rounded"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
+                    );
+                  })
+              )}
             </div>
           </div>
 
-          {/* Coluna Direita: Detalhes da Ficha Técnica Selecionada (7 Colunas) */}
-          <div className="col-span-12 lg:col-span-7 bg-[#fbfdff] border border-[#c4d5ee] rounded-3xl p-5 flex flex-col space-y-4 shadow-xl">
+          {/* Detalhes à direita */}
+          <div className="col-span-12 lg:col-span-7 bg-[#fbfdff] border border-[#c4d5ee] rounded-3xl p-5 flex flex-col space-y-4 shadow-xs">
             {selectedRecipe ? (
               <>
-                {/* Header do Prato Selecionado */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-[#c4d5ee] pb-4 gap-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h2 className="text-lg font-black text-gray-900">{selectedRecipe.dishName}</h2>
+                      <h2 className="text-lg font-black text-gray-900">
+                        {selectedRecipe.dishName}
+                      </h2>
                       <span className="text-[10px] font-bold bg-indigo-500/15 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-md">
                         {selectedRecipe.category}
                       </span>
                     </div>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Setor: <strong className="text-slate-600">{selectedRecipe.sector}</strong> · Rendimento: {selectedRecipe.yieldServings || 1} un · Tempo: {selectedRecipe.prepTimeMinutes || 10} min
+                      Rendimento Padrão:{" "}
+                      <strong>
+                        {selectedRecipe.yieldAmount} {selectedRecipe.unit}
+                      </strong>
                     </p>
                   </div>
 
-                  {/* Ações: Editar e Remover Ficha */}
                   <div className="flex items-center gap-2">
                     <button
+                      type="button"
                       onClick={() => handleOpenEditRecipe(selectedRecipe)}
-                      className="px-3.5 py-2 bg-[#eaf1fc] hover:bg-indigo-600/30 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                      className="px-3.5 py-2 bg-[#eaf1fc] hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
                     >
                       <Edit3 size={14} /> Editar Ficha
                     </button>
                     <button
-                      onClick={() => handleDeleteRecipe(selectedRecipe.id, selectedRecipe.dishName)}
+                      type="button"
+                      onClick={() =>
+                        handleDeleteRecipe(selectedRecipe.id, selectedRecipe.dishName)
+                      }
                       className="px-3 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 border border-rose-500/20 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5"
-                      title="Excluir esta ficha técnica"
                     >
-                      <Trash2 size={14} /> Remover Ficha
+                      <Trash2 size={14} /> Remover
                     </button>
                   </div>
                 </div>
 
-                {/* Tabela de Insumos da Ficha */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar space-y-3">
+                <div className="flex-1 overflow-y-auto space-y-3">
                   <div className="flex items-center justify-between">
                     <h3 className="text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5">
-                      <Package size={14} className="text-indigo-600" /> Insumos & Matérias-Primas Utilizadas ({selectedRecipe.ingredients.length})
+                      <Package size={14} className="text-indigo-600" /> Insumos &amp; Embalagens (
+                      {selectedRecipe.items.length})
                     </h3>
                     <button
+                      type="button"
                       onClick={() => handleOpenEditRecipe(selectedRecipe)}
                       className="text-xs text-indigo-600 hover:text-indigo-700 font-semibold flex items-center gap-1"
                     >
-                      <Plus size={13} /> Adicionar / Remover Ingredientes
+                      <Plus size={13} /> Alterar Composição
                     </button>
                   </div>
 
@@ -596,26 +687,48 @@ export default function RestaurantRecipesPage() {
                     <table className="w-full text-xs text-left">
                       <thead className="bg-[#fbfdff] text-slate-500 border-b border-[#c4d5ee]">
                         <tr>
-                          <th className="px-4 py-3 font-bold uppercase text-[10px]">Insumo</th>
+                          <th className="px-4 py-3 font-bold uppercase text-[10px]">Item</th>
+                          <th className="px-4 py-3 font-bold uppercase text-[10px]">Papel</th>
                           <th className="px-4 py-3 text-center uppercase text-[10px]">Qtd. Baixa</th>
                           <th className="px-4 py-3 text-right uppercase text-[10px]">Custo Unit.</th>
-                          <th className="px-4 py-3 text-right uppercase text-[10px]">Custo no Prato</th>
-                          <th className="px-4 py-3 text-right uppercase text-[10px]">% do Custo</th>
+                          <th className="px-4 py-3 text-right uppercase text-[10px]">Subtotal</th>
+                          <th className="px-4 py-3 text-right uppercase text-[10px]">%</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-[#c4d5ee] font-mono">
-                        {selectedRecipe.ingredients.map((ing, i) => {
-                          const totalDishCost = calcRecipeCost(selectedRecipe);
+                        {selectedRecipe.items.map((ing, i) => {
+                          const totalDishCost = calcRecipeCost(selectedRecipe.items);
                           const ingTotal = ing.quantity * ing.unitCost;
                           const perc = totalDishCost > 0 ? (ingTotal / totalDishCost) * 100 : 0;
 
                           return (
-                            <tr key={i} className="hover:bg-indigo-500/5 transition-colors">
-                              <td className="px-4 py-3 font-bold text-gray-900 font-sans">{ing.name}</td>
-                              <td className="px-4 py-3 text-center text-indigo-700 font-bold">{ing.quantity} {ing.unit}</td>
-                              <td className="px-4 py-3 text-right text-slate-500">R$ {fmt(ing.unitCost)}</td>
-                              <td className="px-4 py-3 text-right text-amber-600 font-bold">R$ {fmt(ingTotal)}</td>
-                              <td className="px-4 py-3 text-right text-slate-500">{perc.toFixed(1)}%</td>
+                            <tr key={i} className="hover:bg-indigo-500/5">
+                              <td className="px-4 py-3 font-bold text-gray-900 font-sans">
+                                {ing.name}
+                              </td>
+                              <td className="px-4 py-3 font-sans">
+                                <span
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                    ing.itemRole === "PACKAGING"
+                                      ? "bg-amber-50 text-amber-800 border-amber-200"
+                                      : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                  }`}
+                                >
+                                  {ing.itemRole === "PACKAGING" ? "Embalagem" : "Insumo"}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3 text-center text-indigo-700 font-bold">
+                                {ing.quantity} {ing.unit}
+                              </td>
+                              <td className="px-4 py-3 text-right text-slate-600">
+                                R$ {fmt(ing.unitCost)}
+                              </td>
+                              <td className="px-4 py-3 text-right text-amber-700 font-bold">
+                                R$ {fmt(ingTotal)}
+                              </td>
+                              <td className="px-4 py-3 text-right text-slate-500">
+                                {perc.toFixed(1)}%
+                              </td>
                             </tr>
                           );
                         })}
@@ -623,48 +736,70 @@ export default function RestaurantRecipesPage() {
                     </table>
                   </div>
 
-                  {/* Instruções de Preparo (se houver) */}
                   {selectedRecipe.instructions && (
                     <div className="bg-[#e8f0fc] p-3.5 rounded-2xl border border-[#c4d5ee] space-y-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Modo de Preparo / Instruções da Cozinha:</span>
-                      <p className="text-xs text-slate-600 leading-relaxed font-sans">{selectedRecipe.instructions}</p>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                        Modo de Preparo / Instruções:
+                      </span>
+                      <p className="text-xs text-slate-700 leading-relaxed">
+                        {selectedRecipe.instructions}
+                      </p>
                     </div>
                   )}
                 </div>
 
-                {/* Footer Resumo de Custo & Margem */}
-                <div className="bg-[#e8f0fc] p-4 rounded-2xl border border-[#c4d5ee] grid grid-cols-2 sm:grid-cols-4 gap-3 shrink-0">
-                  <div>
-                    <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block">Custo dos Insumos</span>
-                    <span className="text-base font-black text-amber-600 font-mono">
-                      R$ {fmt(calcRecipeCost(selectedRecipe))}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block">Preço de Venda</span>
-                    <span className="text-base font-black text-emerald-600 font-mono">
-                      R$ {fmt(selectedRecipe.salePrice)}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block">Lucro Bruto</span>
-                    <span className="text-base font-black text-gray-900 font-mono">
-                      R$ {fmt(selectedRecipe.salePrice - calcRecipeCost(selectedRecipe))}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-500 uppercase font-bold tracking-wider block">CMV Atual</span>
-                    <span className="text-base font-black font-mono text-indigo-700">
-                      {selectedRecipe.salePrice > 0 ? ((calcRecipeCost(selectedRecipe) / selectedRecipe.salePrice) * 100).toFixed(1) : 0}%
-                    </span>
-                  </div>
-                </div>
+                {(() => {
+                  const totalBatch = calcRecipeCost(selectedRecipe.items);
+                  const unitCost = totalBatch / (selectedRecipe.yieldAmount || 1);
+                  const profit = selectedRecipe.salePrice - unitCost;
+                  const cmv =
+                    selectedRecipe.salePrice > 0
+                      ? ((unitCost / selectedRecipe.salePrice) * 100).toFixed(1)
+                      : "0.0";
+                  return (
+                    <div className="bg-[#e8f0fc] p-4 rounded-2xl border border-[#c4d5ee] grid grid-cols-2 sm:grid-cols-4 gap-3 shrink-0">
+                      <div>
+                        <span className="text-[10px] text-slate-500 uppercase font-bold block">
+                          Custo Unitário
+                        </span>
+                        <span className="text-base font-black text-amber-700 font-mono">
+                          R$ {fmt(unitCost)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-500 uppercase font-bold block">
+                          Preço Venda
+                        </span>
+                        <span className="text-base font-black text-emerald-700 font-mono">
+                          R$ {fmt(selectedRecipe.salePrice)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-500 uppercase font-bold block">
+                          Margem Bruta
+                        </span>
+                        <span className="text-base font-black text-gray-900 font-mono">
+                          R$ {fmt(profit)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-500 uppercase font-bold block">
+                          CMV Real
+                        </span>
+                        <span className="text-base font-black font-mono text-indigo-700">
+                          {cmv}%
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </>
             ) : (
-              <div className="flex-1 flex flex-col items-center justify-center text-slate-500 text-xs space-y-2">
-                <Utensils size={32} className="text-slate-600" />
+              <div className="flex-1 flex flex-col items-center justify-center text-slate-500 text-xs space-y-2 py-12">
+                <Utensils size={32} className="text-slate-400" />
                 <p>Nenhuma ficha técnica selecionada.</p>
                 <button
+                  type="button"
                   onClick={handleOpenCreateRecipe}
                   className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2 rounded-xl text-xs"
                 >
@@ -676,95 +811,138 @@ export default function RestaurantRecipesPage() {
         </div>
       )}
 
-      {/* ── 5. CONTEÚDO DA ABA: BANCO DE INSUMOS & MATÉRIAS-PRIMAS ─────────── */}
+      {/* ABA 2: CATÁLOGO REAL DE INSUMOS E EMBALAGENS */}
       {activeTab === "materials" && (
-        <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-3xl p-5 shadow-xl space-y-4">
+        <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-3xl p-5 shadow-xs space-y-4">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-[#c4d5ee] pb-4">
             <div>
               <h2 className="text-base font-black text-gray-900 flex items-center gap-2">
-                <Package className="text-indigo-600" size={18} /> Insumos & Ingredientes Cadastrados
+                <Package className="text-indigo-600" size={18} /> Insumos &amp; Embalagens Reais
               </h2>
               <p className="text-xs text-slate-500">
-                Estes insumos alimentam as receitas dos pratos e têm estoque abatido automaticamente nas vendas.
+                Produtos reais da empresa usados na composição das receitas e baixados na produção/venda.
               </p>
             </div>
 
-            <div className="flex items-center gap-2.5 w-full sm:w-auto">
-              <div className="relative flex-1 sm:w-64">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
+            <div className="flex items-center gap-2 flex-wrap w-full sm:w-auto">
+              <div className="inline-flex rounded-xl border border-indigo-200 bg-white p-0.5">
+                {[
+                  { key: "ALL" as const, label: "Todos" },
+                  { key: "INGREDIENT" as const, label: "Insumos" },
+                  { key: "PACKAGING" as const, label: "Embalagens" },
+                ].map((f) => (
+                  <button
+                    key={f.key}
+                    type="button"
+                    onClick={() => setMaterialRoleFilter(f.key)}
+                    className={`px-3 py-1.5 rounded-lg text-[11px] font-bold ${
+                      materialRoleFilter === f.key
+                        ? "bg-indigo-600 text-white"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+              <div className="relative flex-1 sm:w-56">
+                <Search
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500"
+                  size={14}
+                />
                 <input
                   type="text"
                   value={searchMaterial}
-                  onChange={e => setSearchMaterial(e.target.value)}
-                  placeholder="Buscar insumo..."
-                  className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 pl-9 pr-3.5 py-2 rounded-xl text-xs outline-none focus:border-indigo-500 font-semibold"
+                  onChange={(e) => setSearchMaterial(e.target.value)}
+                  placeholder="Buscar item..."
+                  className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 pl-8 pr-3 py-2 rounded-xl text-xs outline-none font-semibold"
                 />
               </div>
-
               <button
+                type="button"
                 onClick={handleOpenCreateMaterial}
-                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-indigo-600/30 shrink-0"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3.5 py-2 rounded-xl text-xs flex items-center gap-1"
               >
-                <Plus size={15} /> + Adicionar Insumo
+                <Plus size={14} /> Cadastrar Item
               </button>
             </div>
           </div>
 
-          {/* Tabela de Insumos com Botões de Editar e Remover */}
-          <div className="bg-[#e8f0fc] rounded-2xl border border-[#c4d5ee] overflow-hidden">
+          <div className="bg-[#e8f0fc] rounded-2xl border border-[#c4d5ee] overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead className="bg-[#fbfdff] text-slate-500 border-b border-[#c4d5ee]">
                 <tr>
-                  <th className="px-4 py-3 font-bold uppercase text-[10px]">Nome do Insumo</th>
+                  <th className="px-4 py-3 font-bold uppercase text-[10px]">Item</th>
+                  <th className="px-4 py-3 text-center uppercase text-[10px]">Tipo</th>
                   <th className="px-4 py-3 text-center uppercase text-[10px]">Unidade</th>
-                  <th className="px-4 py-3 text-right uppercase text-[10px]">Custo de Compra</th>
+                  <th className="px-4 py-3 text-right uppercase text-[10px]">Custo</th>
                   <th className="px-4 py-3 text-center uppercase text-[10px]">Estoque Atual</th>
-                  <th className="px-4 py-3 text-center uppercase text-[10px]">Estoque Mínimo</th>
-                  <th className="px-4 py-3 text-center uppercase text-[10px]">Status Estoque</th>
+                  <th className="px-4 py-3 text-center uppercase text-[10px]">Mínimo</th>
                   <th className="px-4 py-3 text-right uppercase text-[10px]">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#c4d5ee] font-mono">
-                {materials
-                  .filter(m => m.name.toLowerCase().includes(searchMaterial.toLowerCase()))
-                  .map(mat => {
-                    const isLow = mat.stockQty <= mat.minStock;
-                    const usedInRecipes = recipes.filter(r => r.ingredients.some(i => i.rawMaterialId === mat.id));
+                {filteredMaterials.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center text-slate-500 font-sans">
+                      Nenhum insumo ou embalagem encontrado.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredMaterials.map((mat) => {
+                    const isLow = mat.stock <= mat.minStock;
+                    const usedCount = recipes.filter((r) =>
+                      r.items.some((i) => i.productId === mat.id)
+                    ).length;
 
                     return (
-                      <tr key={mat.id} className="hover:bg-indigo-500/5 transition-colors">
+                      <tr key={mat.id} className="hover:bg-indigo-500/5">
                         <td className="px-4 py-3 font-sans">
                           <span className="font-bold text-gray-900 block">{mat.name}</span>
-                          <span className="text-[10px] text-slate-500 font-normal">Presente em {usedInRecipes.length} prato(s)</span>
+                          <span className="text-[10px] text-slate-500">
+                            Usado em {usedCount} ficha(s) técnica(s)
+                          </span>
                         </td>
-                        <td className="px-4 py-3 text-center font-bold text-indigo-700">{mat.unit}</td>
-                        <td className="px-4 py-3 text-right text-amber-600 font-bold">R$ {fmt(mat.cost)}</td>
-                        <td className="px-4 py-3 text-center text-gray-900 font-bold">{mat.stockQty} {mat.unit}</td>
-                        <td className="px-4 py-3 text-center text-slate-500">{mat.minStock} {mat.unit}</td>
                         <td className="px-4 py-3 text-center font-sans">
-                          {isLow ? (
-                            <span className="text-[10px] font-bold text-amber-700 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                              <AlertTriangle size={11} /> Repor Estoque
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                              <CheckCircle2 size={11} /> Normal
-                            </span>
-                          )}
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                              mat.isPackaging
+                                ? "bg-amber-50 text-amber-800 border-amber-200"
+                                : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                            }`}
+                          >
+                            {mat.isPackaging ? "Embalagem" : "Insumo"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center font-bold text-indigo-700">
+                          {mat.unit}
+                        </td>
+                        <td className="px-4 py-3 text-right text-amber-700 font-bold">
+                          R$ {fmt(mat.cost)}
+                        </td>
+                        <td
+                          className={`px-4 py-3 text-center font-bold ${
+                            isLow ? "text-amber-700" : "text-gray-900"
+                          }`}
+                        >
+                          {mat.stock} {mat.unit}
+                        </td>
+                        <td className="px-4 py-3 text-center text-slate-500">
+                          {mat.minStock} {mat.unit}
                         </td>
                         <td className="px-4 py-3 text-right font-sans">
                           <div className="flex items-center justify-end gap-1.5">
                             <button
+                              type="button"
                               onClick={() => handleOpenEditMaterial(mat)}
-                              className="p-1.5 text-slate-500 hover:text-indigo-700 hover:bg-indigo-500/15 rounded-lg border border-[#c4d5ee] transition-colors"
-                              title="Editar Insumo"
+                              className="p-1.5 text-slate-500 hover:text-indigo-700 hover:bg-indigo-100 rounded-lg border border-[#c4d5ee]"
                             >
                               <Edit3 size={14} />
                             </button>
                             <button
+                              type="button"
                               onClick={() => handleDeleteMaterial(mat.id, mat.name)}
-                              className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-500/15 rounded-lg border border-[#c4d5ee] transition-colors"
-                              title="Remover Insumo"
+                              className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-100 rounded-lg border border-[#c4d5ee]"
                             >
                               <Trash2 size={14} />
                             </button>
@@ -772,186 +950,176 @@ export default function RestaurantRecipesPage() {
                         </td>
                       </tr>
                     );
-                  })}
+                  })
+                )}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
-      {/* ── 6. MODAL: CRIAR / EDITAR FICHA TÉCNICA COM BOTÃO ADICIONAR E REMOVER ── */}
-      {isRecipeModalOpen && editingRecipe && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#fbfdff] border border-indigo-200 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-150">
-            {/* Modal Header */}
-            <div className="p-5 border-b border-[#c4d5ee] flex justify-between items-center bg-[#f3f7fe]">
+      {/* MODAL: CRIAR / EDITAR FICHA TÉCNICA REAL */}
+      {isRecipeModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-indigo-200 rounded-3xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+            <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-[#f3f7fe]">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-indigo-600/30 text-indigo-600 border border-indigo-200 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-xl bg-indigo-600/20 text-indigo-700 flex items-center justify-center">
                   <ChefHat size={18} />
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-gray-900">
-                    {editingRecipe.dishName ? `Ficha Técnica: ${editingRecipe.dishName}` : "Nova Ficha Técnica"}
+                    Salvar Ficha Técnica no Banco
                   </h3>
-                  <p className="text-[11px] text-slate-500">Adicione e remova ingredientes e calcule o custo exato do prato.</p>
+                  <p className="text-[11px] text-slate-500">
+                    Vincule o produto acabado aos insumos e embalagens reais do estoque.
+                  </p>
                 </div>
               </div>
-              <button onClick={() => setIsRecipeModalOpen(false)} className="p-1.5 text-slate-500 hover:text-gray-900 rounded-lg hover:bg-indigo-500/10">
+              <button
+                type="button"
+                onClick={() => setIsRecipeModalOpen(false)}
+                className="p-1.5 text-slate-500 hover:text-gray-900 rounded-lg"
+              >
                 <X size={18} />
               </button>
             </div>
 
-            {/* Modal Form */}
-            <form onSubmit={handleSaveRecipeSubmit} className="p-5 space-y-4 overflow-y-auto flex-1 custom-scrollbar">
-              {/* Informações Básicas do Prato */}
+            <form onSubmit={handleSaveRecipeSubmit} className="p-5 space-y-4 overflow-y-auto flex-1">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="sm:col-span-2">
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nome do Prato *</label>
-                  <input
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                    Produto / Prato Acabado *
+                  </label>
+                  <select
                     required
-                    type="text"
-                    value={editingRecipe.dishName}
-                    onChange={e => setEditingRecipe({ ...editingRecipe, dishName: e.target.value })}
-                    placeholder="Ex: Hambúrguer Artesanal Smash"
-                    className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3.5 py-2.5 rounded-xl text-xs outline-none focus:border-indigo-500 font-semibold"
-                  />
+                    value={editingProductId}
+                    onChange={(e) => setEditingProductId(e.target.value)}
+                    className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3 py-2.5 rounded-xl text-xs font-bold outline-none"
+                  >
+                    <option value="">Selecione o produto cadastrado...</option>
+                    {allProducts.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({p.unit}) — Venda R$ {fmt(p.price)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Preço Venda (R$) *</label>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                    Rendimento Padrão *
+                  </label>
                   <input
                     required
                     type="number"
                     step="0.01"
-                    value={editingRecipe.salePrice || ""}
-                    onChange={e => setEditingRecipe({ ...editingRecipe, salePrice: parseFloat(e.target.value) || 0 })}
-                    placeholder="0.00"
-                    className="w-full bg-[#e8f0fc] border border-indigo-200 text-emerald-600 px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold outline-none focus:border-indigo-500"
+                    min="0.01"
+                    value={editingYield}
+                    onChange={(e) => setEditingYield(e.target.value)}
+                    className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3 py-2.5 rounded-xl text-xs font-mono font-bold outline-none"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Categoria</label>
-                  <input
-                    type="text"
-                    value={editingRecipe.category}
-                    onChange={e => setEditingRecipe({ ...editingRecipe, category: e.target.value })}
-                    placeholder="Ex: Lanches, Pizzas..."
-                    className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3.5 py-2 rounded-xl text-xs outline-none focus:border-indigo-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Setor da Cozinha</label>
-                  <input
-                    type="text"
-                    value={editingRecipe.sector}
-                    onChange={e => setEditingRecipe({ ...editingRecipe, sector: e.target.value })}
-                    placeholder="Ex: Chapa, Pizzaria..."
-                    className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3.5 py-2 rounded-xl text-xs outline-none focus:border-indigo-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Rendimento (Porções)</label>
-                  <input
-                    type="number"
-                    value={editingRecipe.yieldServings || 1}
-                    onChange={e => setEditingRecipe({ ...editingRecipe, yieldServings: parseInt(e.target.value) || 1 })}
-                    className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3.5 py-2 rounded-xl text-xs font-mono outline-none focus:border-indigo-500"
-                  />
-                </div>
-              </div>
-
-              {/* Seção de Ingredientes com Adicionar e Remover */}
-              <div className="space-y-3 pt-3 border-t border-[#c4d5ee]">
+              {/* Bloco para adicionar Insumo ou Embalagem */}
+              <div className="space-y-2.5 pt-2 border-t border-gray-100">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider flex items-center gap-1.5">
-                    <Package size={14} /> Ingredientes da Receita ({editingRecipe.ingredients.length})
+                  <span className="text-xs font-bold text-indigo-700 uppercase tracking-wider">
+                    Composição ({editingItems.length} itens)
                   </span>
-                  <span className="text-xs font-mono text-slate-500">
-                    Custo Total: <strong className="text-amber-600">R$ {fmt(calcRecipeCost(editingRecipe))}</strong>
+                  <span className="text-xs font-mono text-slate-600">
+                    Custo Total Lote:{" "}
+                    <strong className="text-amber-700">R$ {fmt(calcRecipeCost(editingItems))}</strong>
                   </span>
                 </div>
 
-                {/* Bloco para Adicionar Novo Ingrediente */}
-                <div className="bg-[#e8f0fc] p-3 rounded-2xl border border-indigo-200 flex flex-col sm:flex-row items-center gap-2">
+                <div className="bg-[#e8f0fc] p-3 rounded-2xl border border-indigo-200 grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
                   <select
-                    value={selectedMatIdToAdd}
-                    onChange={e => setSelectedMatIdToAdd(e.target.value)}
-                    className="flex-1 w-full bg-[#fbfdff] border border-indigo-200 text-gray-900 px-3 py-2 rounded-xl text-xs outline-none focus:border-indigo-500 font-semibold"
+                    value={selectedRoleToAdd}
+                    onChange={(e) =>
+                      setSelectedRoleToAdd(e.target.value as "INGREDIENT" | "PACKAGING")
+                    }
+                    className="sm:col-span-3 bg-white border border-indigo-200 text-gray-900 px-2.5 py-2 rounded-xl text-xs font-bold outline-none"
                   >
-                    <option value="">Selecione um Insumo do Estoque...</option>
-                    {materials.map(m => (
-                      <option key={m.id} value={m.id}>
-                        {m.name} (R$ {fmt(m.cost)} / {m.unit})
-                      </option>
-                    ))}
+                    <option value="INGREDIENT">Insumo</option>
+                    <option value="PACKAGING">Embalagem</option>
                   </select>
 
-                  <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <input
-                      type="number"
-                      step="0.001"
-                      min="0.001"
-                      value={selectedQtyToAdd}
-                      onChange={e => setSelectedQtyToAdd(parseFloat(e.target.value) || 0)}
-                      placeholder="Qtd"
-                      className="w-24 bg-[#fbfdff] border border-indigo-200 text-gray-900 px-3 py-2 rounded-xl text-xs font-mono text-center outline-none focus:border-indigo-500 font-bold"
-                    />
+                  <select
+                    value={selectedMatIdToAdd}
+                    onChange={(e) => setSelectedMatIdToAdd(e.target.value)}
+                    className="sm:col-span-5 bg-white border border-indigo-200 text-gray-900 px-2.5 py-2 rounded-xl text-xs font-semibold outline-none"
+                  >
+                    <option value="">Selecione do estoque...</option>
+                    {allProducts
+                      .filter((p) => p.id !== editingProductId)
+                      .map((m) => (
+                        <option key={m.id} value={m.id}>
+                          {m.name} (R$ {fmt(m.cost)}/{m.unit})
+                        </option>
+                      ))}
+                  </select>
 
-                    <button
-                      type="button"
-                      onClick={handleAddIngredientToEditing}
-                      disabled={!selectedMatIdToAdd}
-                      className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-bold px-4 py-2 rounded-xl text-xs flex items-center gap-1.5 shadow-md shadow-indigo-600/25 shrink-0"
-                    >
-                      <Plus size={14} /> Adicionar Ingrediente
-                    </button>
-                  </div>
+                  <input
+                    type="number"
+                    step="0.001"
+                    min="0.001"
+                    value={selectedQtyToAdd}
+                    onChange={(e) => setSelectedQtyToAdd(e.target.value)}
+                    className="sm:col-span-2 bg-white border border-indigo-200 text-gray-900 px-2 py-2 rounded-xl text-xs font-mono text-center font-bold outline-none"
+                    placeholder="Qtd"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={handleAddIngredientToEditing}
+                    disabled={!selectedMatIdToAdd}
+                    className="sm:col-span-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-bold px-3 py-2 rounded-xl text-xs"
+                  >
+                    + Incluir
+                  </button>
                 </div>
 
-                {/* Lista de Ingredientes Adicionados */}
-                {editingRecipe.ingredients.length === 0 ? (
-                  <div className="text-center py-6 border border-dashed border-[#c4d5ee] rounded-2xl text-slate-500 text-xs">
-                    Nenhum ingrediente adicionado ainda. Escolha um insumo acima e clique em <strong>Adicionar Ingrediente</strong>.
-                  </div>
-                ) : (
-                  <div className="space-y-1.5 max-h-48 overflow-y-auto custom-scrollbar pr-1">
-                    {editingRecipe.ingredients.map((ing, idx) => (
+                {editingItems.length > 0 && (
+                  <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                    {editingItems.map((ing, idx) => (
                       <div
                         key={idx}
-                        className="flex items-center justify-between gap-3 bg-[#e8f0fc] p-2.5 rounded-xl border border-[#c4d5ee] text-xs"
+                        className="flex items-center justify-between gap-2 bg-[#f3f7fe] p-2.5 rounded-xl border border-indigo-100 text-xs"
                       >
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                            ing.itemRole === "PACKAGING"
+                              ? "bg-amber-50 text-amber-800 border-amber-200"
+                              : "bg-emerald-50 text-emerald-800 border-emerald-200"
+                          }`}
+                        >
+                          {ing.itemRole === "PACKAGING" ? "Embalagem" : "Insumo"}
+                        </span>
                         <span className="font-bold text-gray-900 flex-1 truncate">{ing.name}</span>
-
-                        <div className="flex items-center gap-1">
-                          <input
-                            type="number"
-                            step="0.001"
-                            value={ing.quantity}
-                            onChange={e => {
-                              const val = parseFloat(e.target.value) || 0;
-                              const updated = [...editingRecipe.ingredients];
-                              updated[idx].quantity = val;
-                              setEditingRecipe({ ...editingRecipe, ingredients: updated });
-                            }}
-                            className="w-20 bg-[#fbfdff] border border-indigo-200 text-indigo-700 text-center font-mono font-bold py-1 rounded-lg outline-none"
-                          />
-                          <span className="text-slate-500 w-8 font-mono text-[11px]">{ing.unit}</span>
-                        </div>
-
-                        <span className="w-24 text-right font-mono text-amber-600 font-bold">
+                        <input
+                          type="number"
+                          step="0.001"
+                          value={ing.quantity}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value) || 0;
+                            setEditingItems((prev) =>
+                              prev.map((row, rIdx) =>
+                                rIdx === idx ? { ...row, quantity: val } : row
+                              )
+                            );
+                          }}
+                          className="w-20 bg-white border border-indigo-200 text-indigo-700 text-center font-mono font-bold py-1 rounded-lg outline-none"
+                        />
+                        <span className="text-slate-500 w-8 font-mono text-[11px]">{ing.unit}</span>
+                        <span className="w-20 text-right font-mono text-amber-700 font-bold">
                           R$ {fmt(ing.quantity * ing.unitCost)}
                         </span>
-
                         <button
                           type="button"
                           onClick={() => handleRemoveIngredientFromEditing(idx)}
-                          className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-500/10 rounded-lg transition-colors"
-                          title="Remover ingrediente"
+                          className="p-1 text-slate-500 hover:text-rose-600 rounded"
                         >
                           <Trash2 size={14} />
                         </button>
@@ -961,32 +1129,33 @@ export default function RestaurantRecipesPage() {
                 )}
               </div>
 
-              {/* Instruções */}
               <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Instruções / Modo de Preparo</label>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                  Instruções / Modo de Preparo
+                </label>
                 <textarea
                   rows={2}
-                  value={editingRecipe.instructions || ""}
-                  onChange={e => setEditingRecipe({ ...editingRecipe, instructions: e.target.value })}
-                  placeholder="Passo a passo para a equipe da cozinha..."
-                  className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3.5 py-2 rounded-xl text-xs outline-none focus:border-indigo-500"
+                  value={editingInstructions}
+                  onChange={(e) => setEditingInstructions(e.target.value)}
+                  placeholder="Passo a passo para a equipe..."
+                  className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3 py-2 rounded-xl text-xs outline-none"
                 />
               </div>
 
-              {/* Botões do Rodapé do Modal */}
-              <div className="flex gap-2.5 pt-3 border-t border-[#c4d5ee]">
+              <div className="flex gap-2.5 pt-3 border-t border-gray-100">
                 <button
                   type="button"
                   onClick={() => setIsRecipeModalOpen(false)}
-                  className="flex-1 bg-[#e8f0fc] hover:bg-[#eaf1fc] text-slate-500 hover:text-gray-900 py-2.5 rounded-xl text-xs font-bold transition-all"
+                  className="flex-1 bg-gray-100 text-slate-600 py-2.5 rounded-xl text-xs font-bold"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-1.5 transition-all"
+                  disabled={submitting}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
-                  <Save size={15} /> Salvar Ficha Técnica
+                  <Save size={15} /> {submitting ? "Salvando..." : "Salvar Ficha Técnica"}
                 </button>
               </div>
             </form>
@@ -994,109 +1163,146 @@ export default function RestaurantRecipesPage() {
         </div>
       )}
 
-      {/* ── 7. MODAL: CRIAR / EDITAR INSUMO ──────────────────────────────────── */}
+      {/* MODAL: CRIAR / EDITAR INSUMO OU EMBALAGEM NO BANCO */}
       {isMaterialModalOpen && editingMaterial && (
-        <div className="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#fbfdff] border border-indigo-200 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-150">
-            <div className="p-5 border-b border-[#c4d5ee] flex justify-between items-center bg-[#f3f7fe]">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-purple-600/30 text-purple-600 border border-purple-500/20 flex items-center justify-center">
-                  <Package size={18} />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-gray-900">
-                    {editingMaterial.name ? `Editar Insumo: ${editingMaterial.name}` : "Novo Insumo / Matéria-Prima"}
-                  </h3>
-                  <p className="text-[11px] text-slate-500">Cadastre o ingrediente para uso nas fichas técnicas.</p>
-                </div>
-              </div>
-              <button onClick={() => setIsMaterialModalOpen(false)} className="p-1.5 text-slate-500 hover:text-gray-900 rounded-lg hover:bg-indigo-500/10">
+        <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-indigo-200 rounded-3xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
+            <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-[#f3f7fe]">
+              <h3 className="text-base font-bold text-gray-900">
+                {editingMaterial.id ? "Editar Insumo / Embalagem" : "Novo Insumo / Embalagem"}
+              </h3>
+              <button
+                type="button"
+                onClick={() => setIsMaterialModalOpen(false)}
+                className="p-1.5 text-slate-500 hover:text-gray-900"
+              >
                 <X size={18} />
               </button>
             </div>
 
             <form onSubmit={handleSaveMaterialSubmit} className="p-5 space-y-3.5">
               <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Nome do Insumo *</label>
+                <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                  Nome *
+                </label>
                 <input
                   required
                   type="text"
                   value={editingMaterial.name}
-                  onChange={e => setEditingMaterial({ ...editingMaterial, name: e.target.value })}
-                  placeholder="Ex: Queijo Mussarela Ralada"
-                  className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3.5 py-2.5 rounded-xl text-xs outline-none focus:border-indigo-500 font-semibold"
+                  onChange={(e) =>
+                    setEditingMaterial({ ...editingMaterial, name: e.target.value })
+                  }
+                  placeholder="Ex: Açúcar Sachê ou Copo 200ml"
+                  className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3.5 py-2.5 rounded-xl text-xs font-semibold outline-none"
                 />
               </div>
 
+              <label className="flex items-center gap-2 cursor-pointer bg-[#f3f7fe] p-3 rounded-xl border border-indigo-100">
+                <input
+                  type="checkbox"
+                  checked={editingMaterial.isPackaging}
+                  onChange={(e) =>
+                    setEditingMaterial({ ...editingMaterial, isPackaging: e.target.checked })
+                  }
+                  className="rounded text-indigo-600"
+                />
+                <span className="text-xs font-bold text-gray-800">
+                  Classificar como Embalagem / Descartável (Copo, Tampa, Pote, Sacola)
+                </span>
+              </label>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Unidade de Medida</label>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                    Unidade
+                  </label>
                   <select
                     value={editingMaterial.unit}
-                    onChange={e => setEditingMaterial({ ...editingMaterial, unit: e.target.value as any })}
-                    className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3.5 py-2.5 rounded-xl text-xs outline-none focus:border-indigo-500 font-semibold"
+                    onChange={(e) =>
+                      setEditingMaterial({ ...editingMaterial, unit: e.target.value })
+                    }
+                    className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3 py-2.5 rounded-xl text-xs font-semibold outline-none"
                   >
+                    <option value="UN">Unidade (UN)</option>
                     <option value="KG">Quilograma (KG)</option>
                     <option value="G">Grama (G)</option>
-                    <option value="UN">Unidade (UN)</option>
-                    <option value="L">Litro (L)</option>
+                    <option value="LT">Litro (LT)</option>
                     <option value="ML">Mililitro (ML)</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Custo de Compra (R$) *</label>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                    Custo Unit. (R$) *
+                  </label>
                   <input
                     required
                     type="number"
                     step="0.01"
-                    value={editingMaterial.cost || ""}
-                    onChange={e => setEditingMaterial({ ...editingMaterial, cost: parseFloat(e.target.value) || 0 })}
-                    placeholder="0.00"
-                    className="w-full bg-[#e8f0fc] border border-indigo-200 text-amber-600 px-3.5 py-2.5 rounded-xl text-xs font-mono font-bold outline-none focus:border-indigo-500"
+                    value={editingMaterial.cost}
+                    onChange={(e) =>
+                      setEditingMaterial({
+                        ...editingMaterial,
+                        cost: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    className="w-full bg-[#e8f0fc] border border-indigo-200 text-amber-700 px-3 py-2.5 rounded-xl text-xs font-mono font-bold outline-none"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Estoque Atual</label>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                    Estoque Atual
+                  </label>
                   <input
                     type="number"
                     step="0.001"
-                    value={editingMaterial.stockQty || ""}
-                    onChange={e => setEditingMaterial({ ...editingMaterial, stockQty: parseFloat(e.target.value) || 0 })}
-                    placeholder="0.00"
-                    className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3.5 py-2.5 rounded-xl text-xs font-mono outline-none focus:border-indigo-500"
+                    value={editingMaterial.stock}
+                    onChange={(e) =>
+                      setEditingMaterial({
+                        ...editingMaterial,
+                        stock: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3 py-2.5 rounded-xl text-xs font-mono outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Estoque Mínimo</label>
+                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
+                    Estoque Mínimo
+                  </label>
                   <input
                     type="number"
                     step="0.001"
-                    value={editingMaterial.minStock || ""}
-                    onChange={e => setEditingMaterial({ ...editingMaterial, minStock: parseFloat(e.target.value) || 0 })}
-                    placeholder="0.00"
-                    className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3.5 py-2.5 rounded-xl text-xs font-mono outline-none focus:border-indigo-500"
+                    value={editingMaterial.minStock}
+                    onChange={(e) =>
+                      setEditingMaterial({
+                        ...editingMaterial,
+                        minStock: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3 py-2.5 rounded-xl text-xs font-mono outline-none"
                   />
                 </div>
               </div>
 
-              <div className="flex gap-2.5 pt-3 border-t border-[#c4d5ee]">
+              <div className="flex gap-2.5 pt-3 border-t border-gray-100">
                 <button
                   type="button"
                   onClick={() => setIsMaterialModalOpen(false)}
-                  className="flex-1 bg-[#e8f0fc] hover:bg-[#eaf1fc] text-slate-500 hover:text-gray-900 py-2.5 rounded-xl text-xs font-bold transition-all"
+                  className="flex-1 bg-gray-100 text-slate-600 py-2.5 rounded-xl text-xs font-bold"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-xl text-xs font-bold shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-1.5 transition-all"
+                  disabled={submitting}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-50"
                 >
-                  <Save size={15} /> Salvar Insumo
+                  <Save size={15} /> {submitting ? "Salvando..." : "Salvar no Banco"}
                 </button>
               </div>
             </form>

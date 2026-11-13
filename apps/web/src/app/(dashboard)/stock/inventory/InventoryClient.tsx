@@ -492,6 +492,28 @@ export function InventoryClient({ initialStats, initialProducts }: Props) {
           <p className="text-xs text-slate-400">
             Ajuste o estoque físico por leitor de código de barras, código interno (PLU), nome ou câmera do celular.
           </p>
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <a
+              href="/RELATORIO_LANCAMENTO_BALANCO_EMPORIO_AGROBELEM.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 transition-all shadow-sm"
+              title="Abrir e baixar o Relatório Oficial de Lançamento de Balanço em PDF"
+            >
+              <FileText size={13} className="text-emerald-400" />
+              <span>Baixar Relatório do Balanço (PDF)</span>
+            </a>
+            <a
+              href="/RELATORIO_PRODUTOS_RETIRADOS_ESTOQUE_EMPORIO_AGROBELEM.pdf"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-red-500/10 hover:bg-red-500/20 text-red-300 border border-red-500/30 transition-all shadow-sm"
+              title="Abrir e baixar o Relatório Oficial de Produtos Retirados do Estoque em PDF"
+            >
+              <FileText size={13} className="text-red-400" />
+              <span>Baixar Itens Retirados (PDF)</span>
+            </a>
+          </div>
         </div>
 
         {/* Alternador de Modo de Bipagem */}

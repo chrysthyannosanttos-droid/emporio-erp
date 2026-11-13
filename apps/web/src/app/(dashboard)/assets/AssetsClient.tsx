@@ -20,6 +20,7 @@ interface Props {
 }
 
 const CATEGORY_LABELS: Record<string, { label: string; color: string }> = {
+  COMODATO: { label: "Equipamento em Comodato", color: "bg-indigo-50 text-indigo-700 border-indigo-200" },
   AUTOMATION_IT: { label: "Balanças & PDV / TI", color: "bg-blue-50 text-blue-700 border-blue-200" },
   REFRIGERATION: { label: "Refrigeração & Frio", color: "bg-cyan-50 text-cyan-700 border-cyan-200" },
   FOOD_PRODUCTION: { label: "Gastronomia & Cozinha", color: "bg-amber-50 text-amber-700 border-amber-200" },

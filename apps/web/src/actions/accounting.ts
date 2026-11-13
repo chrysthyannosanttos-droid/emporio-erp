@@ -1,18 +1,23 @@
 "use server";
 
 import { prisma } from "@emporio/database";
+import { resolveActiveCompany } from "@/lib/tenant";
 
 export async function generateSpedAndXmlData(competencia: string) {
   try {
-    const company = await prisma.company.findFirst();
+    const company = await resolveActiveCompany();
+    const companyFilter = company?.id ? { companyId: company.id } : {};
     const invoices = await prisma.invoice.findMany({
+      where: companyFilter,
       orderBy: { createdAt: "desc" },
       take: 200,
     });
     const products = await prisma.product.findMany({
+      where: companyFilter,
       take: 300,
     });
     const sales = await prisma.sale.findMany({
+      where: companyFilter,
       orderBy: { createdAt: "desc" },
       take: 200,
     });
@@ -57,7 +62,7 @@ export async function generateSpedAndXmlData(competencia: string) {
 
     if (invoices.length > 0) {
       for (const inv of invoices) {
-        const val = Number(inv.total || 0);
+        const val = Number((inv as any).total || 0);
         totalFiscal += val;
         const valStr = val.toFixed(2).replace(".", ",");
         const dtStr = fmtDateSped(new Date(inv.createdAt));
@@ -88,7 +93,7 @@ export async function generateSpedAndXmlData(competencia: string) {
 
     // Bloco H - Inventário Físico (Estoque de Revenda + Produtos Acabados e Insumos)
     const totalInventoryValue = products.reduce(
-      (acc, p) => acc + Math.max(0, Number(p.stock || 0)) * Number(p.costPrice || p.price || 0),
+      (acc, p) => acc + Math.max(0, Number(p.stock || 0)) * Number(p.cost || p.price || 0),
       0
     );
     lines.push(`|H001|0|`);
@@ -96,7 +101,7 @@ export async function generateSpedAndXmlData(competencia: string) {
     let hCount = 3;
     for (const p of products.slice(0, 50)) {
       const stk = Math.max(0, Number(p.stock || 0));
-      const unitCost = Number(p.costPrice || p.price || 0);
+      const unitCost = Number(p.cost || p.price || 0);
       const itemTotal = stk * unitCost;
       lines.push(
         `|H010|${p.id.slice(0, 10).toUpperCase()}|${p.unit === "KG" ? "KG" : "UN"}|${stk.toFixed(3).replace(".", ",")}|${unitCost.toFixed(2).replace(".", ",")}|${itemTotal.toFixed(2).replace(".", ",")}|0|||1010101|${itemTotal.toFixed(2).replace(".", ",")}||`

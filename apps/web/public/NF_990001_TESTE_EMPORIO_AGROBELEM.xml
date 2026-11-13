@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc versao="4.00" xmlns="http://www.portalfiscal.inf.br/nfe">
+  <NFe xmlns="http://www.portalfiscal.inf.br/nfe">
+    <infNFe Id="NFe15261112345678000195550010009900011000000019" versao="4.00">
+      <ide>
+        <cUF>15</cUF>
+        <cNF>00000001</cNF>
+        <natOp>VENDA DE MERCADORIA (NOTA DE TESTE - HOMOLOGACAO EMPORIO)</natOp>
+        <mod>55</mod>
+        <serie>1</serie>
+        <nNF>990001</nNF>
+        <dhEmi>2026-11-10T10:30:00-03:00</dhEmi>
+        <tpNF>1</tpNF>
+        <idDest>1</idDest>
+        <cMunFG>1501402</cMunFG>
+        <tpImp>1</tpImp>
+        <tpEmis>1</tpEmis>
+        <cDV>9</cDV>
+        <tpAmb>2</tpAmb>
+        <finNFe>1</finNFe>
+        <indFinal>0</indFinal>
+        <indPres>9</indPres>
+        <procEmi>0</procEmi>
+        <verProc>CyberTech-Homologacao-1.0</verProc>
+      </ide>
+      <emit>
+        <CNPJ>12345678000195</CNPJ>
+        <xNome>DISTRIBUIDORA TESTE HOMOLOGACAO (EMPORIO)</xNome>
+        <xFant>DISTRIBUIDORA TESTE</xFant>
+        <enderEmit>
+          <xLgr>Av. Nazare</xLgr>
+          <nro>100</nro>
+          <xBairro>Nazare</xBairro>
+          <cMun>1501402</cMun>
+          <xMun>Belem</xMun>
+          <UF>PA</UF>
+          <CEP>66035170</CEP>
+          <cPais>1058</cPais>
+          <xPais>Brasil</xPais>
+        </enderEmit>
+        <IE>ISENTO</IE>
+        <CRT>3</CRT>
+      </emit>
+      <dest>
+        <CNPJ>65522409000113</CNPJ>
+        <xNome>EMPORIO AGROBELEM LTDA</xNome>
+        <enderDest>
+          <xLgr>RUA PRINCIPAL</xLgr>
+          <nro>S/N</nro>
+          <xBairro>CENTRO</xBairro>
+          <cMun>1501402</cMun>
+          <xMun>BELEM</xMun>
+          <UF>PA</UF>
+          <CEP>66000000</CEP>
+          <cPais>1058</cPais>
+          <xPais>Brasil</xPais>
+        </enderDest>
+        <indIEDest>1</indIEDest>
+      </dest>
+      <det nItem="1">
+        <prod>
+          <cProd>7896045101733</cProd>
+          <cEAN>7896045101733</cEAN>
+          <xProd>CAPSULA CAFE TRES ESPRESSO FORZA 8X10X8G</xProd>
+          <NCM>09012100</NCM>
+          <CFOP>5102</CFOP>
+          <uCom>DIS</uCom>
+          <qCom>1.0000</qCom>
+          <vUnCom>18.2300</vUnCom>
+          <vProd>18.23</vProd>
+          <cEANTrib>7896045101733</cEANTrib>
+          <uTrib>DIS</uTrib>
+          <qTrib>1.0000</qTrib>
+          <vUnTrib>18.2300</vUnTrib>
+          <indTot>1</indTot>
+          <rastro>
+            <nLote>LOTE-TESTE-01</nLote>
+            <qLote>1.000</qLote>
+            <dFab>2026-10-01</dFab>
+            <dVal>2027-08-30</dVal>
+          </rastro>
+        </prod>
+        <imposto>
+          <ICMS><ICMS00><orig>0</orig><CST>00</CST><modBC>3</modBC><vBC>18.23</vBC><pICMS>12.00</pICMS><vICMS>2.19</vICMS></ICMS00></ICMS>
+        </imposto>
+      </det>
+      <det nItem="2">
+        <prod>
+          <cProd>7896045101658</cProd>
+          <cEAN>7896045101658</cEAN>
+          <xProd>CAFE TORRADO MOIDO 3CORACOES GOURMET CERRADO MINEIRO 4SOLDAS 20X250G</xProd>
+          <NCM>09012100</NCM>
+          <CFOP>5102</CFOP>
+          <uCom>UN</uCom>
+          <qCom>1.0000</qCom>
+          <vUnCom>24.6300</vUnCom>
+          <vProd>24.63</vProd>
+          <cEANTrib>7896045101658</cEANTrib>
+          <uTrib>UN</uTrib>
+          <qTrib>1.0000</qTrib>
+          <vUnTrib>24.6300</vUnTrib>
+          <indTot>1</indTot>
+          <rastro>
+            <nLote>LOTE-TESTE-02</nLote>
+            <qLote>1.000</qLote>
+            <dFab>2026-10-15</dFab>
+            <dVal>2027-09-15</dVal>
+          </rastro>
+        </prod>
+        <imposto>
+          <ICMS><ICMS00><orig>0</orig><CST>00</CST><modBC>3</modBC><vBC>24.63</vBC><pICMS>12.00</pICMS><vICMS>2.95</vICMS></ICMS00></ICMS>
+        </imposto>
+      </det>
+      <det nItem="3">
+        <prod>
+          <cProd>7899999990011</cProd>
+          <cEAN>7899999990011</cEAN>
+          <xProd>BISCOITO ARTESANAL TESTE HOMOLOGACAO 200G</xProd>
+          <NCM>19053100</NCM>
+          <CFOP>5102</CFOP>
+          <uCom>UN</uCom>
+          <qCom>1.0000</qCom>
+          <vUnCom>13.6400</vUnCom>
+          <vProd>13.64</vProd>
+          <cEANTrib>7899999990011</cEANTrib>
+          <uTrib>UN</uTrib>
+          <qTrib>1.0000</qTrib>
+          <vUnTrib>13.6400</vUnTrib>
+          <indTot>1</indTot>
+          <rastro>
+            <nLote>LOTE-TESTE-03</nLote>
+            <qLote>1.000</qLote>
+            <dFab>2026-11-01</dFab>
+            <dVal>2027-05-30</dVal>
+          </rastro>
+        </prod>
+        <imposto>
+          <ICMS><ICMS00><orig>0</orig><CST>00</CST><modBC>3</modBC><vBC>13.64</vBC><pICMS>12.00</pICMS><vICMS>1.64</vICMS></ICMS00></ICMS>
+        </imposto>
+      </det>
+      <total>
+        <ICMSTot>
+          <vBC>56.50</vBC>
+          <vICMS>6.78</vICMS>
+          <vICMSDeson>0.00</vICMSDeson>
+          <vFCP>0.00</vFCP>
+          <vBCST>0.00</vBCST>
+          <vST>0.00</vST>
+          <vFCPST>0.00</vFCPST>
+          <vFCPSTRet>0.00</vFCPSTRet>
+          <vProd>56.50</vProd>
+          <vFrete>0.00</vFrete>
+          <vSeg>0.00</vSeg>
+          <vDesc>0.00</vDesc>
+          <vII>0.00</vII>
+          <vIPI>0.00</vIPI>
+          <vIPIDevol>0.00</vIPIDevol>
+          <vPIS>0.00</vPIS>
+          <vCOFINS>0.00</vCOFINS>
+          <vOutro>0.00</vOutro>
+          <vNF>56.50</vNF>
+        </ICMSTot>
+      </total>
+    </infNFe>
+  </NFe>
+  <protNFe versao="4.00">
+    <infProt>
+      <tpAmb>2</tpAmb>
+      <verAplic>SVRS-TESTE</verAplic>
+      <chNFe>15261112345678000195550010009900011000000019</chNFe>
+      <dhRecbto>2026-11-10T10:30:05-03:00</dhRecbto>
+      <nProt>115260000990001</nProt>
+      <digVal>TESTE0000000000000000000000=</digVal>
+      <cStat>100</cStat>
+      <xMotivo>Autorizado o uso da NF-e (HOMOLOGACAO TESTE)</xMotivo>
+    </infProt>
+  </protNFe>
+</nfeProc>
+

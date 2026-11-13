@@ -4,6 +4,7 @@ import { prisma } from "@emporio/database";
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { toPlain } from "@/lib/serialize";
 
 // ─── Obter dados da empresa do Tenant logado ──────────────────────────────
 export async function getTenantCompanyInfo() {
@@ -366,27 +367,45 @@ export async function updateCompanyLicense(companyId: string, status: string, ex
   }
 }
 
-// ─── Dados públicos de uma empresa (para a página da loja) ───────────────────
-export async function getPublicCompany(companyId: string) {
-  const company = await prisma.company.findUnique({
-    where: { id: companyId },
-    include: {
+// ─── Dados públicos de uma empresa (para o Cardápio Digital da loja) ─────────
+export async function getPublicCompany(companyIdOrSlug: string) {
+  const key = (companyIdOrSlug || "").trim();
+  if (!key) return { company: null };
+
+  const company = await prisma.company.findFirst({
+    where: {
+      OR: [{ id: key }, { slug: key }],
+    },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      phone: true,
+      whatsapp: true,
+      address: true,
+      licenseStatus: true,
+      licenseExpiresAt: true,
+      digitalMenuEnabled: true,
+      digitalMenuBannerUrl: true,
+      digitalMenuNotes: true,
+      digitalMenuDeliveryFee: true,
+      digitalMenuMinOrder: true,
+      digitalMenuDeliveryEta: true,
+      digitalMenuHours: true,
+      digitalMenuPaymentMethods: true,
+      digitalMenuInstagram: true,
+      digitalMenuFacebook: true,
+      digitalMenuStoreInfo: true,
       fiscalConfig: {
-        select: { city: true, state: true, street: true, companyName: true, tradeName: true },
-      },
-      products: {
-        where: { stock: { gt: 0 } },
-        take: 48,
         select: {
-          id: true,
-          name: true,
-          price: true,
-          stock: true,
-          unit: true,
-          barcode: true,
-          category: { select: { name: true } },
+          city: true,
+          state: true,
+          street: true,
+          number: true,
+          district: true,
+          companyName: true,
+          tradeName: true,
         },
-        orderBy: { name: "asc" },
       },
       theme: {
         select: {
@@ -399,18 +418,191 @@ export async function getPublicCompany(companyId: string) {
     },
   });
 
+  if (!company) {
+    return { company: null };
+  }
+
   // Verificar se a licença não está suspensa ou expirada
-  if (company && (company.licenseStatus === "SUSPENDED" || new Date(company.licenseExpiresAt) < new Date())) {
+  if (
+    company.licenseStatus === "SUSPENDED" ||
+    new Date(company.licenseExpiresAt) < new Date()
+  ) {
     return { company: null, licenseIssue: true };
   }
 
-  if (company && (company as any).products) {
-    (company as any).products = (company as any).products.map((p: any) => ({
-      ...p,
-      price: Number(p.price || 0),
-      stock: Number(p.stock || 0),
-    }));
+  const fiscalAddress = [
+    company.fiscalConfig?.street,
+    company.fiscalConfig?.number,
+    company.fiscalConfig?.district,
+    company.fiscalConfig?.city,
+    company.fiscalConfig?.state,
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  const resolvedAddress = company.address || fiscalAddress || null;
+  const themeFormatted = company.theme
+    ? {
+        ...company.theme,
+        primaryColor: company.theme.corPrimaria || "#4f46e5",
+      }
+    : {
+        logoPrincipal: null,
+        corPrimaria: "#4f46e5",
+        corSecundaria: null,
+        backgroundSistema: null,
+        primaryColor: "#4f46e5",
+      };
+
+  // Se o cardápio digital estiver desativado para esta empresa, retorna indicador claro
+  if (company.digitalMenuEnabled === false) {
+    return {
+      digitalMenuDisabled: true,
+      company: toPlain({
+        id: company.id,
+        slug: company.slug,
+        name: company.name,
+        phone: company.phone,
+        whatsapp: company.whatsapp,
+        address: resolvedAddress,
+        digitalMenuEnabled: false,
+        digitalMenuBannerUrl: company.digitalMenuBannerUrl,
+        digitalMenuNotes: company.digitalMenuNotes,
+        fiscalConfig: company.fiscalConfig,
+        theme: themeFormatted,
+        products: [],
+        categories: [],
+      }),
+    };
   }
 
-  return { company };
+  const [products, allCategories] = await Promise.all([
+    prisma.product.findMany({
+      where: {
+        companyId: company.id,
+        showInDigitalMenu: true,
+        isRawMaterial: false,
+        isPackaging: false,
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        imageUrl: true,
+        price: true,
+        promoPrice: true,
+        promoStartDate: true,
+        promoEndDate: true,
+        featured: true,
+        stock: true,
+        unit: true,
+        barcode: true,
+        internalCode: true,
+        brand: true,
+        isSelfProduced: true,
+        categoryId: true,
+        category: {
+          select: {
+            id: true,
+            name: true,
+            imageUrl: true,
+            active: true,
+            sortOrder: true,
+          },
+        },
+      },
+      orderBy: { name: "asc" },
+    }),
+    prisma.category.findMany({
+      where: {
+        companyId: company.id,
+        active: true,
+      },
+      select: {
+        id: true,
+        name: true,
+        imageUrl: true,
+        sortOrder: true,
+      },
+      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    }),
+  ]);
+
+  const now = new Date();
+  const activeCategoryIds = new Set(allCategories.map((c) => c.id));
+
+  const normalizedProducts = products
+    .filter((p) => !p.categoryId || activeCategoryIds.has(p.categoryId))
+    .map((p) => {
+      const regularPrice = Number(p.price || 0);
+      const rawPromo = p.promoPrice !== null && p.promoPrice !== undefined ? Number(p.promoPrice) : null;
+      const promoInWindow =
+        rawPromo !== null &&
+        rawPromo > 0 &&
+        rawPromo < regularPrice &&
+        (!p.promoStartDate || new Date(p.promoStartDate) <= now) &&
+        (!p.promoEndDate || new Date(p.promoEndDate) >= now);
+
+      const effectivePrice = promoInWindow && rawPromo !== null ? rawPromo : regularPrice;
+      const discountPercent =
+        promoInWindow && rawPromo !== null && regularPrice > 0
+          ? Math.round(((regularPrice - rawPromo) / regularPrice) * 100)
+          : 0;
+
+      return {
+        ...p,
+        price: regularPrice,
+        promoPrice: promoInWindow ? rawPromo : null,
+        effectivePrice,
+        discountPercent,
+        stock: Number(p.stock || 0),
+      };
+    });
+
+  // Mostrar categorias ativas que tenham produtos publicados (ou todas ativas se houver produtos)
+  const usedCatIds = new Set(normalizedProducts.map((p) => p.categoryId).filter(Boolean));
+  const categories = allCategories.filter((c) => usedCatIds.has(c.id));
+
+  let parsedPaymentMethods: string[] = ["PIX", "DINHEIRO", "CARTAO"];
+  try {
+    if (company.digitalMenuPaymentMethods) {
+      const arr = JSON.parse(company.digitalMenuPaymentMethods);
+      if (Array.isArray(arr) && arr.length > 0) parsedPaymentMethods = arr;
+    }
+  } catch {}
+
+  const activeGateway = await prisma.paymentGatewayConfig.findFirst({
+    where: { companyId: company.id, active: true, status: "CONNECTED" },
+    select: { provider: true, merchantName: true, pixKey: true },
+  });
+
+  return {
+    digitalMenuDisabled: false,
+    company: toPlain({
+      id: company.id,
+      slug: company.slug,
+      name: company.name,
+      phone: company.phone,
+      whatsapp: company.whatsapp,
+      address: resolvedAddress,
+      digitalMenuEnabled: true,
+      digitalMenuBannerUrl: company.digitalMenuBannerUrl,
+      digitalMenuNotes: company.digitalMenuNotes,
+      digitalMenuDeliveryFee: Number(company.digitalMenuDeliveryFee || 0),
+      digitalMenuMinOrder: Number(company.digitalMenuMinOrder || 0),
+      digitalMenuDeliveryEta: company.digitalMenuDeliveryEta || "30 a 50 min",
+      digitalMenuHours: company.digitalMenuHours || null,
+      digitalMenuPaymentMethods: parsedPaymentMethods,
+      digitalMenuInstagram: company.digitalMenuInstagram || null,
+      digitalMenuFacebook: company.digitalMenuFacebook || null,
+      digitalMenuStoreInfo: company.digitalMenuStoreInfo || null,
+      hasDynamicPix: Boolean(activeGateway),
+      pixProvider: activeGateway?.provider || null,
+      pixMerchantName: activeGateway?.merchantName || null,
+      fiscalConfig: company.fiscalConfig,
+      theme: themeFormatted,
+      products: normalizedProducts,
+      categories,
+    }),
+  };
 }
