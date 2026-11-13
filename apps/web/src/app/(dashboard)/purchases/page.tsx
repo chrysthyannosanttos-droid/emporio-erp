@@ -1101,6 +1101,12 @@ export default function PurchasesPage() {
           <p className="text-gray-500 text-sm mt-0.5">Gerencie pedidos, dispare cotações e compare propostas de fornecedores.</p>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            href="/reports/purchases-by-supplier"
+            className="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-xs text-sm active:scale-95 cursor-pointer"
+          >
+            <BarChart2 size={16} className="text-emerald-600" /> Relatório por Fornecedor
+          </Link>
           <button
             onClick={() => { setTab("quotes"); setQuoteProducts([]); setSelectedQuoteSuppliers([]); }}
             className="bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-all shadow-xs text-sm active:scale-95"

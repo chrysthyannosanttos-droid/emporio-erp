@@ -25,6 +25,7 @@ import {
   CalendarClock,
   Receipt,
   Camera,
+  ShoppingBag,
 } from "lucide-react";
 import {
   getAllReportsDashboardData,
@@ -454,6 +455,13 @@ export default function ReportsPage() {
         </div>
 
         <div className="flex gap-2 flex-wrap items-center">
+          <Link
+            href="/reports/purchases-by-supplier"
+            className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+          >
+            <ShoppingBag size={15} />
+            <span>Compras por Fornecedor</span>
+          </Link>
           <a
             href="/RELATORIO_LANCAMENTO_BALANCO_EMPORIO_AGROBELEM.pdf"
             target="_blank"

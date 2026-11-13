@@ -386,6 +386,7 @@ export function DrawerLayout({
           {hasModule("SCALES") && <NavItem href="/scales" icon={<Scale size={16} />} label="Balanças (Toledo MGV6)" active={pathname === "/scales"} onNavigate={handleNavigate} />}
           {hasModule("EXPIRATIONS") && <NavItem href="/expirations" icon={<Calendar size={16} />} label="Controle de Validades" active={pathname === "/expirations"} onNavigate={handleNavigate} />}
           {hasModule("SUPPLIERS") && <NavItem href="/suppliers" icon={<Truck size={16} />} label="Fornecedores" active={pathname === "/suppliers"} onNavigate={handleNavigate} />}
+          {hasModule("PURCHASES") && <NavItem href="/reports/purchases-by-supplier" icon={<BarChart2 size={16} />} label="Compras por Fornecedor" active={pathname === "/reports/purchases-by-supplier"} onNavigate={handleNavigate} />}
           {hasModule("MERCADOLOGICO") && <NavItem href="/mercadologico" icon={<FolderTree size={16} />} label="Categorias" active={pathname === "/mercadologico"} onNavigate={handleNavigate} />}
         </div>
 
