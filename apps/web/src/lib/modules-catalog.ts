@@ -1,4 +1,4 @@
-﻿// Catálogo de módulos e presets de segmento — arquivo de dados puro (sem "use server")
+// Catálogo de módulos e presets de segmento — arquivo de dados puro (sem "use server")
 
 export interface SystemModuleInfo {
   key: string;
