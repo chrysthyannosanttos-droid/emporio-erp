@@ -16,6 +16,7 @@ import {
   getOpenPurchaseOrders,
   matchProducts,
   getRadarInvoices,
+  syncRadarWithSefazAction,
   manifestDFe,
   type RadarInvoice,
   type ManifestType
@@ -282,8 +283,14 @@ export default function InvoicesPage() {
   const syncRadar = async () => {
     setIsRadarSyncing(true);
     try {
-      await new Promise(r => setTimeout(r, 900));
+      const sefazResult = await syncRadarWithSefazAction();
+      if (sefazResult?.message) {
+        setManifestSuccess(sefazResult.message);
+        setTimeout(() => setManifestSuccess(null), 6000);
+      }
       await loadRadar();
+    } catch (err: any) {
+      alert("Erro ao consultar SEFAZ Nacional: " + (err.message || "Erro de conexão"));
     } finally {
       setIsRadarSyncing(false);
     }

@@ -452,7 +452,7 @@ export async function transmitSefazNfe4(params: {
 
   const infNFeId = `NFe${key}`;
   const infNFe =
-    `<infNFe Id="${infNFeId}" versao="4.00">` +
+    `<infNFe xmlns="http://www.portalfiscal.inf.br/nfe" Id="${infNFeId}" versao="4.00">` +
     `<ide>` +
     `<cUF>${cUF}</cUF>` +
     `<cNF>${cNF}</cNF>` +
@@ -522,7 +522,7 @@ export async function transmitSefazNfe4(params: {
     `</infNFe>`;
 
   const signature = signXmlElement(
-    `<infNFe xmlns="http://www.portalfiscal.inf.br/nfe" ${infNFe.slice(8)}`,
+    infNFe,
     infNFeId,
     keyPem,
     certBase64Clean

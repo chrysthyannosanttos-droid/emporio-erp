@@ -780,3 +780,150 @@ export async function manifestDFe(
     return { error: err.message || "Erro ao comunicar com a SEFAZ" };
   }
 }
+
+export async function syncRadarWithSefazAction(): Promise<{
+  success: boolean;
+  message: string;
+  docsReceived: number;
+  newUltNsu?: string;
+  cStat?: string;
+  xMotivo?: string;
+  error?: string;
+}> {
+  try {
+    const company = await resolveActiveCompany();
+    if (!company?.id) {
+      return { success: false, message: "Empresa não autenticada", docsReceived: 0, error: "Empresa não autenticada" };
+    }
+
+    const fiscal = await prisma.fiscalConfig.findUnique({ where: { companyId: company.id } });
+    if (!fiscal) {
+      return { success: false, message: "Configuração fiscal não encontrada", docsReceived: 0, error: "Configuração fiscal não encontrada" };
+    }
+
+    const dfeRes = await querySefazDistribuicaoDFe(company.id);
+    if (!dfeRes.ok && dfeRes.error) {
+      return { success: false, message: dfeRes.error, docsReceived: 0, error: dfeRes.error };
+    }
+
+    // Carregar cache atual
+    const candidatePaths = [
+      path.join(process.cwd(), "apps", "web", "src", "data", "real_radar_invoices.json"),
+      path.join(process.cwd(), "src", "data", "real_radar_invoices.json"),
+    ];
+    let targetPath = candidatePaths[0];
+    let cachedList: RadarInvoice[] = [];
+
+    for (const cp of candidatePaths) {
+      if (fs.existsSync(cp)) {
+        targetPath = cp;
+        try {
+          cachedList = JSON.parse(fs.readFileSync(cp, "utf-8"));
+        } catch {}
+        break;
+      }
+    }
+
+    const existingKeys = new Set(cachedList.map((i) => i.accessKey));
+    let newDocsCount = 0;
+
+    if (Array.isArray(dfeRes.docs)) {
+      for (const doc of dfeRes.docs) {
+        if (!doc.xml) continue;
+
+        const chMatch = doc.xml.match(/<chNFe>(.*?)<\/chNFe>/) || doc.xml.match(/Id="NFe(\d+)"/);
+        const accessKey = chMatch ? chMatch[1] : "";
+        if (!accessKey || existingKeys.has(accessKey)) continue;
+
+        const nNF = (doc.xml.match(/<nNF>(.*?)<\/nNF>/) || [])[1] || "";
+        const serie = (doc.xml.match(/<serie>(.*?)<\/serie>/) || [])[1] || "1";
+        const natOp = (doc.xml.match(/<natOp>(.*?)<\/natOp>/) || [])[1] || "COMPRA DE MERCADORIA";
+        const dhEmi = (doc.xml.match(/<dhEmi>(.*?)<\/dhEmi>/) || doc.xml.match(/<dEmi>(.*?)<\/dEmi>/) || [])[1] || new Date().toISOString();
+
+        const emitBlock = (doc.xml.match(/<emit>([\s\S]*?)<\/emit>/) || [])[1] || "";
+        const supplierName = (emitBlock.match(/<xNome>(.*?)<\/xNome>/) || [])[1] || "Fornecedor Parceiro";
+        const supplierCnpj = (emitBlock.match(/<CNPJ>(.*?)<\/CNPJ>/) || [])[1] || "";
+        const supplierIe = (emitBlock.match(/<IE>(.*?)<\/IE>/) || [])[1] || "";
+
+        const vNF = parseFloat((doc.xml.match(/<vNF>(.*?)<\/vNF>/) || [])[1] || "0");
+        const vICMS = parseFloat((doc.xml.match(/<vICMS>(.*?)<\/vICMS>/) || [])[1] || "0");
+
+        const detRegex = /<det\s+nItem="(\d+)">([\s\S]*?)<\/det>/g;
+        let dMatch;
+        const itemsPreview = [];
+
+        while ((dMatch = detRegex.exec(doc.xml)) !== null) {
+          const b = dMatch[2];
+          const name = (b.match(/<xProd>(.*?)<\/xProd>/) || [])[1] || "";
+          const qty = parseFloat((b.match(/<qCom>(.*?)<\/qCom>/) || [])[1] || "0");
+          const unit = (b.match(/<uCom>(.*?)<\/uCom>/) || [])[1] || "UN";
+          const unitCost = parseFloat((b.match(/<vUnCom>(.*?)<\/vUnCom>/) || [])[1] || "0");
+          const totalCost = parseFloat((b.match(/<vProd>(.*?)<\/vProd>/) || [])[1] || "0");
+          let barcode = (b.match(/<cEAN>(.*?)<\/cEAN>/) || [])[1] || null;
+          if (barcode === "SEM GTIN" || (barcode && barcode.length < 8)) barcode = null;
+          const ncm = (b.match(/<NCM>(.*?)<\/NCM>/) || [])[1] || null;
+          const cfop = (b.match(/<CFOP>(.*?)<\/CFOP>/) || [])[1] || null;
+
+          itemsPreview.push({ name, quantity: qty, unit, unitCost, totalCost, barcode, ncm, cfop });
+        }
+
+        cachedList.unshift({
+          accessKey,
+          invoiceNum: nNF,
+          series: serie,
+          naturezaOp: natOp,
+          issueDate: dhEmi,
+          supplierName,
+          supplierCnpj,
+          supplierIe,
+          totalAmount: vNF,
+          totalIcms: vICMS,
+          statusManifest: "CIENCIA_EMITIDA",
+          xmlAvailable: true,
+          imported: false,
+          nsu: doc.nsu,
+          itemsPreview,
+        });
+
+        existingKeys.add(accessKey);
+        newDocsCount++;
+      }
+    }
+
+    // Salvar cache atualizado
+    if (newDocsCount > 0) {
+      try {
+        fs.writeFileSync(targetPath, JSON.stringify(cachedList, null, 2), "utf-8");
+      } catch {}
+    }
+
+    // Atualizar lastNsu no emitterEndpoint se avançou
+    if (dfeRes.ultNSU) {
+      try {
+        let meta: Record<string, any> = {};
+        if (fiscal.emitterEndpoint && fiscal.emitterEndpoint.startsWith("{")) {
+          meta = JSON.parse(fiscal.emitterEndpoint);
+        }
+        meta.lastNsu = dfeRes.ultNSU;
+        await prisma.fiscalConfig.update({
+          where: { companyId: company.id },
+          data: { emitterEndpoint: JSON.stringify(meta) },
+        });
+      } catch {}
+    }
+
+    revalidatePath("/invoices");
+
+    return {
+      success: true,
+      message: `Sincronização concluída com a SEFAZ Nacional (${dfeRes.cStat} - ${dfeRes.xMotivo}). ${newDocsCount} novo(s) documento(s) recebido(s). Último NSU: ${dfeRes.ultNSU}`,
+      docsReceived: newDocsCount,
+      newUltNsu: dfeRes.ultNSU,
+      cStat: dfeRes.cStat,
+      xMotivo: dfeRes.xMotivo,
+    };
+  } catch (err: any) {
+    return { success: false, message: err.message || "Erro ao sincronizar com SEFAZ", docsReceived: 0, error: err.message };
+  }
+}
+

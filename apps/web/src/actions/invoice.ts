@@ -174,7 +174,7 @@ export async function simulateInvoiceEmission(saleId: string) {
           number: String(invoiceNumber),
           series: isNfce ? fiscalConfig!.nfceeSeries : fiscalConfig!.nfeSeries,
           accessKey: key,
-          status: "AUTHORIZED",
+          status: sefazErrorMsg ? "REJECTED" : "AUTHORIZED",
           environment: fiscalConfig!.environment,
           xmlUrl: `/api/fiscal/xml/${key}`,
           pdfUrl: `/api/fiscal/pdf/${key}`,
