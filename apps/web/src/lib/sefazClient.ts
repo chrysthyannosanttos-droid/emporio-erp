@@ -124,14 +124,14 @@ export function signXmlElement(xmlTagContent: string, referenceId: string, keyPe
 
   const signedInfo =
     `<SignedInfo xmlns="http://www.w3.org/2000/09/xmldsig#">` +
-    `<CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>` +
-    `<SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"/>` +
+    `<CanonicalizationMethod Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"></CanonicalizationMethod>` +
+    `<SignatureMethod Algorithm="http://www.w3.org/2000/09/xmldsig#rsa-sha1"></SignatureMethod>` +
     `<Reference URI="#${referenceId}">` +
     `<Transforms>` +
-    `<Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/>` +
-    `<Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"/>` +
+    `<Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"></Transform>` +
+    `<Transform Algorithm="http://www.w3.org/TR/2001/REC-xml-c14n-20010315"></Transform>` +
     `</Transforms>` +
-    `<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"/>` +
+    `<DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha1"></DigestMethod>` +
     `<DigestValue>${digest}</DigestValue>` +
     `</Reference>` +
     `</SignedInfo>`;
@@ -383,9 +383,16 @@ export async function transmitSefazNfe4(params: {
       const xProd =
         tpAmb === "2" && nItem === 1
           ? "NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
-          : (item.name || "PRODUTO").replace(/[<>&"']/g, "").slice(0, 120);
-      const ncm = (item.ncm || "21069090").replace(/\D/g, "").padEnd(8, "0").slice(0, 8);
-      const cfop = (item.cfop || "5102").replace(/\D/g, "").slice(0, 4);
+          : (item.name || "PRODUTO")
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .replace(/[<>&"']/g, "")
+              .trim()
+              .slice(0, 120);
+      const cleanNcm = (item.ncm || "").replace(/\D/g, "");
+      const ncm = cleanNcm.length === 8 && cleanNcm !== "00000000" ? cleanNcm : "21069090";
+      const cleanCfop = (item.cfop || "").replace(/\D/g, "");
+      const cfop = cleanCfop.length === 4 ? cleanCfop : "5102";
       const uCom = (item.unit || "UN").slice(0, 6);
       const qCom = item.quantity.toFixed(4);
       const vUnCom = item.unitPrice.toFixed(4);
@@ -451,8 +458,7 @@ export async function transmitSefazNfe4(params: {
       : "";
 
   const infNFeId = `NFe${key}`;
-  const infNFe =
-    `<infNFe xmlns="http://www.portalfiscal.inf.br/nfe" Id="${infNFeId}" versao="4.00">` +
+  const infNFeInner =
     `<ide>` +
     `<cUF>${cUF}</cUF>` +
     `<cNF>${cNF}</cNF>` +
@@ -476,14 +482,14 @@ export async function transmitSefazNfe4(params: {
     `</ide>` +
     `<emit>` +
     `<CNPJ>${cnpj}</CNPJ>` +
-    `<xNome>${(fiscal.companyName || "EMPORIO AGROBELEM LTDA").replace(/[<>&"']/g, "").slice(0, 60)}</xNome>` +
-    `<xFant>${(fiscal.tradeName || "EMPORIO AGROBELEM").replace(/[<>&"']/g, "").slice(0, 60)}</xFant>` +
+    `<xNome>${(fiscal.companyName || "EMPORIO AGROBELEM LTDA").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[<>&"']/g, "").trim().slice(0, 60)}</xNome>` +
+    `<xFant>${(fiscal.tradeName || "EMPORIO AGROBELEM").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[<>&"']/g, "").trim().slice(0, 60)}</xFant>` +
     `<enderEmit>` +
-    `<xLgr>${(fiscal.street || "Fazenda Boa Vista").replace(/[<>&"']/g, "")}</xLgr>` +
-    `<nro>${(fiscal.number || "SN").replace(/[<>&"']/g, "")}</nro>` +
-    `<xBairro>${(fiscal.district || "Zona Rural").replace(/[<>&"']/g, "")}</xBairro>` +
+    `<xLgr>${(fiscal.street || "Fazenda Boa Vista").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[<>&"']/g, "").trim()}</xLgr>` +
+    `<nro>${(fiscal.number || "SN").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[<>&"']/g, "").trim()}</nro>` +
+    `<xBairro>${(fiscal.district || "Zona Rural").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[<>&"']/g, "").trim()}</xBairro>` +
     `<cMun>${cMunFG}</cMun>` +
-    `<xMun>${(fiscal.city || "Belem").replace(/[<>&"']/g, "")}</xMun>` +
+    `<xMun>${(fiscal.city || "Belem").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[<>&"']/g, "").trim()}</xMun>` +
     `<UF>${fiscal.state || "AL"}</UF>` +
     `<CEP>${(fiscal.zipCode || "57630000").replace(/\D/g, "")}</CEP>` +
     `<cPais>1058</cPais>` +
@@ -521,8 +527,11 @@ export async function transmitSefazNfe4(params: {
     `<pag><detPag><tPag>${tPag}</tPag><vPag>${vNF}</vPag></detPag></pag>` +
     `</infNFe>`;
 
+  const infNFeXml = `<infNFe Id="${infNFeId}" versao="4.00">${infNFeInner}`;
+  const infNFeCanonical = `<infNFe xmlns="http://www.portalfiscal.inf.br/nfe" Id="${infNFeId}" versao="4.00">${infNFeInner}`;
+
   const signature = signXmlElement(
-    infNFe,
+    infNFeCanonical,
     infNFeId,
     keyPem,
     certBase64Clean
@@ -533,13 +542,13 @@ export async function transmitSefazNfe4(params: {
   if (params.model === "65") {
     const cIdToken = String(Number(meta.cscId || "1"));
     const csc = meta.cscToken || "000001";
-    const qrParams = `${key}|2|${tpAmb}|${cIdToken}`;
+    const sEntrada = `${key}|2|${tpAmb}|`;
     const cHashQRCode = crypto
       .createHash("sha1")
-      .update(qrParams + csc, "utf8")
+      .update(sEntrada + csc, "utf8")
       .digest("hex")
       .toUpperCase();
-    const qrUrl = `http://nfce.sefaz.al.gov.br/QRCode/consultarNFCe.jsp?p=${qrParams}|${cHashQRCode}`;
+    const qrUrl = `http://nfce.sefaz.al.gov.br/QRCode/consultarNFCe.jsp?p=${sEntrada}${cIdToken}|${cHashQRCode}`;
     const urlChave = "http://nfce.sefaz.al.gov.br/consulta";
     infNFeSupl = `<infNFeSupl><qrCode><![CDATA[${qrUrl}]]></qrCode><urlChave>${urlChave}</urlChave></infNFeSupl>`;
   }
@@ -548,7 +557,7 @@ export async function transmitSefazNfe4(params: {
     `<enviNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">` +
     `<idLote>${Date.now().toString().slice(-12)}</idLote>` +
     `<indSinc>1</indSinc>` +
-    `<NFe xmlns="http://www.portalfiscal.inf.br/nfe">${infNFe}${infNFeSupl}${signature}</NFe>` +
+    `<NFe xmlns="http://www.portalfiscal.inf.br/nfe">${infNFeXml}${infNFeSupl}${signature}</NFe>` +
     `</enviNFe>`;
 
   const soapXml =
