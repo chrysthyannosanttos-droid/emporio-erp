@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
   Receipt,
   FileText,
@@ -20,8 +20,25 @@ import {
   FileSpreadsheet,
   Archive,
   Save,
+  Play,
+  Pause,
+  Pencil,
+  Trash2,
+  ShieldCheck,
+  Loader2,
+  RotateCcw,
+  UploadCloud,
+  X,
 } from "lucide-react";
-import { getInvoices, cancelInvoice } from "@/actions/invoice";
+import {
+  getInvoices,
+  cancelInvoice,
+  retransmitInvoiceAction,
+  consultarSefazInvoiceAction,
+  updateRejectedInvoiceAction,
+  sendCartaCorrecaoAction,
+  inutilizarAndDeleteInvoiceAction,
+} from "@/actions/invoice";
 import { generateSpedAndXmlData } from "@/actions/accounting";
 
 interface AccountingScheduleConfig {
@@ -61,12 +78,35 @@ const DEFAULT_SCHEDULE: AccountingScheduleConfig = {
 };
 
 export default function FiscalPage() {
-  const [activeTab, setActiveTab] = useState<"contabilidade" | "notas">("contabilidade");
+  const [activeTab, setActiveTab] = useState<"contabilidade" | "notas">("notas");
   const [loading, setLoading] = useState(true);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"todas" | "pendentes" | "autorizadas" | "canceladas">("todas");
+
+  // Fila de Retransmissão Automática 5s + Manual SEFAZ-AL
+  const [autoEnabled, setAutoEnabled] = useState(false);
+  const [countdown, setCountdown] = useState(5);
+  const [busyInvoiceId, setBusyInvoiceId] = useState<string | null>(null);
+  const [attemptedIds, setAttemptedIds] = useState<Record<string, boolean>>({});
+  const [queueLogs, setQueueLogs] = useState<Array<{ id: string; number: string; ok: boolean; msg: string; time: string }>>([]);
+  const isSendingRef = useRef(false);
+
+  // Modais reais SEFAZ (Edição / CC-e / Cancelamento & Inutilização)
+  const [editModalInv, setEditModalInv] = useState<any | null>(null);
+  const [editItems, setEditItems] = useState<any[]>([]);
+  const [editDiscount, setEditDiscount] = useState<string>("0");
+  const [editSaving, setEditSaving] = useState(false);
+
+  const [cceModalInv, setCceModalInv] = useState<any | null>(null);
+  const [cceText, setCceText] = useState("");
+  const [cceSending, setCceSending] = useState(false);
+
+  const [sefazActionModal, setSefazActionModal] = useState<{ inv: any; mode: "CANCEL" | "INUTILIZAR" } | null>(null);
+  const [sefazJust, setSefazJust] = useState("");
+  const [sefazActionLoading, setSefazActionLoading] = useState(false);
 
   // Contabilidade: SPED & XML + Agendamento de E-mail
   const [competencia, setCompetencia] = useState("2026-10");
@@ -88,6 +128,18 @@ export default function FiscalPage() {
   const [sendingEmail, setSendingEmail] = useState(false);
   const [lastDispatchAlert, setLastDispatchAlert] = useState<AccountingSendLog | null>(null);
 
+  const loadInvoices = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    if (!silent) setError("");
+    const res = await getInvoices();
+    if (res.invoices) {
+      setInvoices(res.invoices);
+    } else {
+      setError(res.error || "Erro ao buscar notas fiscais.");
+    }
+    if (!silent) setLoading(false);
+  }, []);
+
   useEffect(() => {
     loadInvoices();
     try {
@@ -96,19 +148,72 @@ export default function FiscalPage() {
       const savedLogs = localStorage.getItem("EMPORIO_ACCOUNTING_LOGS");
       if (savedLogs) setSendLogs(JSON.parse(savedLogs));
     } catch {}
-  }, []);
+  }, [loadInvoices]);
 
-  const loadInvoices = async () => {
-    setLoading(true);
-    setError("");
-    const res = await getInvoices();
-    if (res.invoices) {
-      setInvoices(res.invoices);
-    } else {
-      setError(res.error || "Erro ao buscar notas fiscais.");
+  const pendingQueue = invoices.filter(
+    (i) => i.effectiveStatus === "REJECTED" && !attemptedIds[i.id]
+  );
+
+  const handleRetransmitSingle = useCallback(async (invoice: any, fromAuto = false) => {
+    if (isSendingRef.current) return;
+    isSendingRef.current = true;
+    setBusyInvoiceId(invoice.id);
+    if (!fromAuto) {
+      setError("");
+      setSuccess("");
     }
-    setLoading(false);
-  };
+
+    try {
+      const res = await retransmitInvoiceAction(invoice.id);
+      const timeStr = new Date().toLocaleTimeString("pt-BR");
+      if (res.ok) {
+        const okMsg = `SEFAZ (${res.cStat || "100"}): ${res.xMotivo || "Autorizada"}${res.nProt ? ` • Prot: ${res.nProt}` : ""}`;
+        setQueueLogs((prev) => [{ id: invoice.id, number: invoice.number || "—", ok: true, msg: okMsg, time: timeStr }, ...prev].slice(0, 30));
+        if (!fromAuto) setSuccess(`Nota #${invoice.number} autorizada pela SEFAZ! ${okMsg}`);
+      } else {
+        const errMsg = res.error || `${res.cStat || "ERR"}: ${res.xMotivo || "Falha na SEFAZ"}`;
+        setAttemptedIds((prev) => ({ ...prev, [invoice.id]: true }));
+        setQueueLogs((prev) => [{ id: invoice.id, number: invoice.number || "—", ok: false, msg: errMsg, time: timeStr }, ...prev].slice(0, 30));
+        if (!fromAuto) setError(`Nota #${invoice.number}: ${errMsg}`);
+      }
+      await loadInvoices(true);
+    } catch (e: any) {
+      setAttemptedIds((prev) => ({ ...prev, [invoice.id]: true }));
+      if (!fromAuto) setError(e?.message || "Erro ao comunicar com a SEFAZ.");
+    } finally {
+      isSendingRef.current = false;
+      setBusyInvoiceId(null);
+    }
+  }, [loadInvoices]);
+
+  // Loop automático a cada 5 segundos enquanto autoEnabled === true e houver pendentes
+  useEffect(() => {
+    if (!autoEnabled) {
+      setCountdown(5);
+      return;
+    }
+    if (pendingQueue.length === 0) {
+      setAutoEnabled(false);
+      setCountdown(5);
+      setSuccess("Fila de retransmissão concluída! Verifique o histórico abaixo.");
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          const nextInv = pendingQueue[0];
+          if (nextInv && !isSendingRef.current) {
+            void handleRetransmitSingle(nextInv, true);
+          }
+          return 5;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [autoEnabled, pendingQueue, handleRetransmitSingle]);
 
   const handleSaveSchedule = () => {
     if (!schedule.accountantEmail.trim()) {
@@ -216,17 +321,128 @@ export default function FiscalPage() {
     );
   };
 
-  const handleCancelInvoice = async (invoiceId: string) => {
-    if (!confirm("Deseja realmente solicitar o cancelamento desta nota fiscal na SEFAZ?")) return;
+  const handleConsultarSefaz = async (invoice: any) => {
+    setBusyInvoiceId(invoice.id);
+    setError("");
+    setSuccess("");
+    const res = await consultarSefazInvoiceAction(invoice.id);
+    setBusyInvoiceId(null);
+    if (res.authorized) {
+      setSuccess(`Nota #${invoice.number}: SEFAZ (${res.cStat}) ${res.xMotivo}${res.nProt ? ` • Prot: ${res.nProt}` : ""}`);
+    } else if (res.canceled) {
+      setSuccess(`Nota #${invoice.number}: Consta como CANCELADA na SEFAZ (${res.cStat}: ${res.xMotivo}).`);
+    } else if (res.error) {
+      setError(`Consulta SEFAZ #${invoice.number}: ${res.error}`);
+    } else {
+      setError(`Consulta SEFAZ #${invoice.number}: (${res.cStat}) ${res.xMotivo}`);
+    }
+    await loadInvoices(true);
+  };
+
+  const openEditModal = (invoice: any) => {
+    if (invoice.sefazAuthorized) {
+      if (invoice.type === "NFCe") {
+        setError("NFC-e (Modelo 65) já autorizada na SEFAZ não aceita edição nem Carta de Correção pela legislação fiscal. Use Cancelamento SEFAZ dentro do prazo.");
+        return;
+      }
+      setCceModalInv(invoice);
+      setCceText("");
+      return;
+    }
+    setEditModalInv(invoice);
+    setEditDiscount(String(invoice.discount || 0));
+    setEditItems(
+      (invoice.items || []).map((it: any) => ({
+        saleItemId: it.id,
+        productId: it.productId,
+        name: it.name || "",
+        ncm: it.ncm || "21069090",
+        cfop: it.cfop || "5102",
+        csosn: it.csosn || "102",
+        unit: it.unit || "UN",
+        quantity: Number(it.quantity),
+        unitPrice: Number(it.unitPrice),
+      }))
+    );
+  };
+
+  const handleSaveEditModal = async (retransmitAfter: boolean) => {
+    if (!editModalInv) return;
+    setEditSaving(true);
     setError("");
     setSuccess("");
 
-    const res = await cancelInvoice(invoiceId);
-    if (res.success) {
-      setSuccess("Nota fiscal cancelada com sucesso na SEFAZ.");
-      loadInvoices();
+    const res = await updateRejectedInvoiceAction(editModalInv.id, {
+      discount: Number(editDiscount || 0),
+      items: editItems,
+    });
+
+    if (!res.ok) {
+      setEditSaving(false);
+      setError(res.error || "Erro ao salvar alterações.");
+      return;
+    }
+
+    const savedId = editModalInv.id;
+    const savedNum = editModalInv.number;
+    setEditModalInv(null);
+    setEditSaving(false);
+    setAttemptedIds((prev) => {
+      const next = { ...prev };
+      delete next[savedId];
+      return next;
+    });
+    await loadInvoices(true);
+
+    if (retransmitAfter) {
+      await handleRetransmitSingle({ id: savedId, number: savedNum }, false);
     } else {
-      setError(res.error || "Erro ao cancelar nota.");
+      setSuccess(`Nota #${savedNum} atualizada. Clique em "Subir Manual" ou ative a fila automática para transmitir.`);
+    }
+  };
+
+  const handleSendCce = async () => {
+    if (!cceModalInv) return;
+    setCceSending(true);
+    setError("");
+    setSuccess("");
+    const res = await sendCartaCorrecaoAction(cceModalInv.id, cceText);
+    setCceSending(false);
+    if (res.ok) {
+      setSuccess(`Carta de Correção homologada na SEFAZ! (${res.cStat}: ${res.xMotivo}${res.nProt ? ` • Prot: ${res.nProt}` : ""})`);
+      setCceModalInv(null);
+    } else {
+      setError(res.error || "Erro ao enviar Carta de Correção na SEFAZ.");
+    }
+  };
+
+  const handleConfirmSefazDeleteOrCancel = async () => {
+    if (!sefazActionModal) return;
+    const { inv, mode } = sefazActionModal;
+    setSefazActionLoading(true);
+    setError("");
+    setSuccess("");
+
+    if (mode === "CANCEL") {
+      const res = await cancelInvoice(inv.id, sefazJust);
+      setSefazActionLoading(false);
+      if (res.success) {
+        setSefazActionModal(null);
+        setSuccess(`Cancelamento oficial homologado na SEFAZ! (${res.cStat}: ${res.xMotivo}${res.nProt ? ` • Prot: ${res.nProt}` : ""})`);
+        await loadInvoices(true);
+      } else {
+        setError(res.error || "SEFAZ recusou o cancelamento.");
+      }
+    } else {
+      const res = await inutilizarAndDeleteInvoiceAction(inv.id, sefazJust);
+      setSefazActionLoading(false);
+      if (res.ok) {
+        setSefazActionModal(null);
+        setSuccess(`Numeração #${inv.number} INUTILIZADA na SEFAZ (${res.cStat}: ${res.xMotivo}) e excluída da fila com segurança.`);
+        await loadInvoices(true);
+      } else {
+        setError(res.error || "SEFAZ recusou a inutilização.");
+      }
     }
   };
 
@@ -262,17 +478,23 @@ export default function FiscalPage() {
 
   const stats = {
     total: invoices.length,
-    authorized: invoices.filter(i => i.status === "AUTHORIZED").length,
-    canceled: invoices.filter(i => i.status === "CANCELED").length,
-    totalValue: invoices.reduce((acc, i) => acc + (i.status === "AUTHORIZED" ? Number(i.total) : 0), 0),
+    authorized: invoices.filter((i) => i.effectiveStatus === "AUTHORIZED").length,
+    rejected: invoices.filter((i) => i.effectiveStatus === "REJECTED").length,
+    canceled: invoices.filter((i) => i.effectiveStatus === "CANCELED").length,
+    totalValue: invoices.reduce((acc, i) => acc + (i.effectiveStatus === "AUTHORIZED" ? Number(i.total) : 0), 0),
   };
 
-  const filteredInvoices = invoices.filter(
-    i =>
+  const filteredInvoices = invoices.filter((i) => {
+    const matchesSearch =
       i.accessKey?.toLowerCase().includes(search.toLowerCase()) ||
       i.number?.includes(search) ||
-      i.customerName?.toLowerCase().includes(search.toLowerCase())
-  );
+      i.customerName?.toLowerCase().includes(search.toLowerCase());
+    if (!matchesSearch) return false;
+    if (statusFilter === "pendentes") return i.effectiveStatus === "REJECTED";
+    if (statusFilter === "autorizadas") return i.effectiveStatus === "AUTHORIZED";
+    if (statusFilter === "canceladas") return i.effectiveStatus === "CANCELED";
+    return true;
+  });
 
   return (
     <div className="space-y-5 text-slate-800 pb-14">
@@ -365,11 +587,12 @@ export default function FiscalPage() {
       )}
 
       {/* Stats row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <StatCard label="Total de Notas" value={String(stats.total)} color="slate" />
-        <StatCard label="Autorizadas" value={String(stats.authorized)} color="emerald" />
-        <StatCard label="Canceladas" value={String(stats.canceled)} color="red" />
-        <StatCard label="Faturado Fiscal" value={`R$ ${stats.totalValue.toFixed(2)}`} color="indigo" />
+        <StatCard label="Autorizadas SEFAZ" value={String(stats.authorized)} color="emerald" />
+        <StatCard label="Pendentes / Rejeitadas" value={String(stats.rejected)} color="red" />
+        <StatCard label="Canceladas" value={String(stats.canceled)} color="slate" />
+        <StatCard label="Faturado Autorizado" value={`R$ ${stats.totalValue.toFixed(2)}`} color="indigo" />
       </div>
 
       {/* ═══════════════════════════════════════════════════════════════
@@ -640,138 +863,572 @@ export default function FiscalPage() {
       )}
 
       {/* ═══════════════════════════════════════════════════════════════
-          ABA 2: NOTAS EMITIDAS (NF-e / NFC-e)
+          ABA 2: NOTAS EMITIDAS (NF-e / NFC-e) — SEFAZ-AL 100% REAL
       ═══════════════════════════════════════════════════════════════ */}
       {activeTab === "notas" && (
-        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
-          <div className="p-6 border-b border-gray-200 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <h2 className="text-lg font-bold text-gray-900">Notas Emitidas (NF-e / NFC-e)</h2>
-            <div className="flex items-center gap-2">
-              <div className="relative w-full md:w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
-                <input
-                  type="text"
-                  placeholder="Buscar por número, chave ou cliente..."
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 focus:border-blue-500 text-gray-900 text-sm rounded-xl py-2 pl-10 pr-4 outline-none transition-all"
-                />
+        <div className="space-y-4">
+          {/* Painel de Retransmissão Automática 5s + Controle Manual SEFAZ */}
+          <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm space-y-4">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-black text-gray-900 flex items-center gap-2">
+                    <UploadCloud className="text-blue-600" size={20} />
+                    Central de Transmissão Real SEFAZ-AL (NFC-e / NF-e)
+                  </span>
+                  {autoEnabled ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-black bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-0.5 rounded-full">
+                      <Loader2 size={12} className="animate-spin" />
+                      AUTOMÁTICO ATIVO • Próximo envio em {countdown}s
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold bg-gray-100 text-gray-700 border border-gray-300 px-2.5 py-0.5 rounded-full">
+                      Automático Pausado
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500">
+                  <strong>{stats.rejected}</strong> nota(s) pendente(s)/rejeitada(s) •{" "}
+                  <strong>{pendingQueue.length}</strong> aguardando tentativa na fila automática de 5s.
+                  Nenhuma operação é simulada — cada envio, edição, inutilização e cancelamento comunica ao vivo com a SEFAZ-AL.
+                </p>
               </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {autoEnabled ? (
+                  <button
+                    type="button"
+                    onClick={() => setAutoEnabled(false)}
+                    className="px-4 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white shadow-sm cursor-pointer"
+                  >
+                    <Pause size={15} /> Pausar Automática
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={pendingQueue.length === 0}
+                    onClick={() => {
+                      setError("");
+                      setSuccess("");
+                      setCountdown(5);
+                      setAutoEnabled(true);
+                    }}
+                    className="px-4 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white shadow-sm cursor-pointer"
+                  >
+                    <Play size={15} /> Iniciar Automática (5s)
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  disabled={!!busyInvoiceId || invoices.filter((i) => i.effectiveStatus === "REJECTED").length === 0}
+                  onClick={() => {
+                    const target = pendingQueue[0] || invoices.find((i) => i.effectiveStatus === "REJECTED");
+                    if (target) void handleRetransmitSingle(target, false);
+                  }}
+                  className="px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white shadow-sm cursor-pointer"
+                >
+                  {busyInvoiceId ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
+                  Subir Próxima Manual
+                </button>
+
+                {Object.keys(attemptedIds).length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setAttemptedIds({})}
+                    className="px-3 py-2.5 rounded-xl font-bold text-xs flex items-center gap-1.5 bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-300 cursor-pointer"
+                    title="Limpar marcação de notas já tentadas para reprocessar toda a fila"
+                  >
+                    <RotateCcw size={14} /> Resetar Fila ({Object.keys(attemptedIds).length})
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {queueLogs.length > 0 && (
+              <div className="bg-slate-950 text-slate-100 rounded-xl p-3 max-h-40 overflow-y-auto space-y-1 text-xs font-mono">
+                {queueLogs.map((l, idx) => (
+                  <div key={`${l.id}-${idx}`} className={l.ok ? "text-emerald-400" : "text-red-400"}>
+                    [{l.time}] Nota #{l.number} → {l.msg}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+            <div className="p-5 border-b border-gray-200 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h2 className="text-lg font-bold text-gray-900 mr-2">Notas Emitidas (NF-e / NFC-e)</h2>
+                {(
+                  [
+                    { k: "todas", label: `Todas (${invoices.length})` },
+                    { k: "pendentes", label: `Pendentes / Erro (${stats.rejected})` },
+                    { k: "autorizadas", label: `Autorizadas (${stats.authorized})` },
+                    { k: "canceladas", label: `Canceladas (${stats.canceled})` },
+                  ] as const
+                ).map((tab) => (
+                  <button
+                    key={tab.k}
+                    type="button"
+                    onClick={() => setStatusFilter(tab.k)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border cursor-pointer transition-all ${
+                      statusFilter === tab.k
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="relative w-full md:w-72">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                  <input
+                    type="text"
+                    placeholder="Buscar por número, chave ou cliente..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-200 focus:border-blue-500 text-gray-900 text-sm rounded-xl py-2 pl-10 pr-4 outline-none transition-all"
+                  />
+                </div>
+                <button
+                  onClick={() => loadInvoices()}
+                  className="bg-gray-50 hover:bg-gray-100 text-slate-800 border border-gray-200 px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 text-xs cursor-pointer"
+                >
+                  <RefreshCw size={15} /> Atualizar
+                </button>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="text-center py-16 text-slate-500">Buscando notas fiscais...</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-200 text-slate-500 font-bold">
+                    <tr>
+                      <th className="px-4 py-3.5 text-left">Número / Série</th>
+                      <th className="px-4 py-3.5 text-left">Chave de Acesso</th>
+                      <th className="px-4 py-3.5 text-left">Tipo</th>
+                      <th className="px-4 py-3.5 text-left">Cliente</th>
+                      <th className="px-4 py-3.5 text-right">Valor Total</th>
+                      <th className="px-4 py-3.5 text-left">Situação Real SEFAZ</th>
+                      <th className="px-4 py-3.5 text-right">Ações SEFAZ (100% Real)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {filteredInvoices.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                          Nenhuma nota fiscal encontrada.
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredInvoices.map((invoice) => {
+                        const isBusy = busyInvoiceId === invoice.id;
+                        return (
+                          <tr key={invoice.id} className="hover:bg-gray-50/60 transition-colors">
+                            <td className="px-4 py-3.5 text-gray-900 font-bold whitespace-nowrap">
+                              #{invoice.number} / Série {invoice.series}
+                              <span className="text-[10px] text-slate-500 block font-normal">
+                                {new Date(invoice.createdAt).toLocaleString("pt-BR")} • {invoice.environment}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3.5 font-mono text-xs whitespace-nowrap">
+                              <div className="flex items-center gap-1.5 text-slate-500">
+                                <span>
+                                  {invoice.accessKey?.slice(0, 14)}...{invoice.accessKey?.slice(-8)}
+                                </span>
+                                <button
+                                  onClick={() => copyToClipboard(invoice.accessKey)}
+                                  className="hover:text-blue-600 p-1 cursor-pointer"
+                                  title="Copiar Chave Completa"
+                                >
+                                  <Copy size={12} />
+                                </button>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3.5 whitespace-nowrap">
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                                  invoice.type === "NFe"
+                                    ? "bg-blue-50 text-blue-700 border border-blue-200"
+                                    : "bg-purple-50 text-purple-700 border border-purple-200"
+                                }`}
+                              >
+                                {invoice.type}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3.5 text-slate-600 font-medium">{invoice.customerName}</td>
+                            <td className="px-4 py-3.5 text-right font-mono font-bold text-slate-800 whitespace-nowrap">
+                              R$ {Number(invoice.total).toFixed(2)}
+                            </td>
+                            <td className="px-4 py-3.5 max-w-xs">
+                              {invoice.effectiveStatus === "AUTHORIZED" && (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                  <CheckCircle2 size={12} /> Autorizada SEFAZ
+                                </span>
+                              )}
+                              {invoice.effectiveStatus === "CANCELED" && (
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-gray-100 text-gray-700 border border-gray-300">
+                                  <XCircle size={12} /> Cancelada SEFAZ
+                                </span>
+                              )}
+                              {invoice.effectiveStatus === "REJECTED" && (
+                                <div className="space-y-1">
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-red-50 text-red-700 border border-red-200">
+                                    <AlertCircle size={12} /> Rejeitada / Pendente
+                                  </span>
+                                  {invoice.errorMsg && (
+                                    <p className="text-[11px] text-red-600 font-medium leading-tight">
+                                      {invoice.errorMsg}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                            <td className="px-4 py-3.5 text-right whitespace-nowrap">
+                              <div className="flex items-center justify-end gap-1.5">
+                                {invoice.effectiveStatus === "REJECTED" && (
+                                  <button
+                                    type="button"
+                                    disabled={isBusy}
+                                    onClick={() => handleRetransmitSingle(invoice, false)}
+                                    className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-2.5 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-1 cursor-pointer"
+                                    title="Subir esta nota manualmente para a SEFAZ agora"
+                                  >
+                                    {isBusy ? <Loader2 size={12} className="animate-spin" /> : <Send size={12} />}
+                                    Subir Manual
+                                  </button>
+                                )}
+
+                                <button
+                                  type="button"
+                                  disabled={isBusy}
+                                  onClick={() => handleConsultarSefaz(invoice)}
+                                  className="text-slate-700 hover:text-blue-700 px-2 py-1.5 bg-gray-50 hover:bg-blue-50 rounded-lg border border-gray-200 text-xs font-semibold inline-flex items-center gap-1 cursor-pointer"
+                                  title="Consultar Situação Real na SEFAZ-AL"
+                                >
+                                  <ShieldCheck size={13} /> SEFAZ
+                                </button>
+
+                                {invoice.effectiveStatus !== "CANCELED" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => openEditModal(invoice)}
+                                    className="text-amber-700 hover:bg-amber-50 px-2 py-1.5 bg-gray-50 rounded-lg border border-amber-200 text-xs font-semibold inline-flex items-center gap-1 cursor-pointer"
+                                    title={invoice.sefazAuthorized ? "Carta de Correção SEFAZ (NF-e 55)" : "Editar Itens/Impostos antes de reenviar"}
+                                  >
+                                    <Pencil size={12} /> {invoice.sefazAuthorized ? "CC-e" : "Editar"}
+                                  </button>
+                                )}
+
+                                <button
+                                  type="button"
+                                  onClick={() => downloadSingleInvoiceXml(invoice)}
+                                  className="text-slate-600 hover:text-blue-600 p-1.5 bg-gray-50 rounded-lg border border-gray-200 transition-colors cursor-pointer"
+                                  title="Download XML"
+                                >
+                                  <Download size={14} />
+                                </button>
+                                <a
+                                  href={`/invoices/danfe/${invoice.accessKey}`}
+                                  target="_blank"
+                                  className="text-slate-600 hover:text-blue-600 p-1.5 bg-gray-50 rounded-lg border border-gray-200 transition-colors"
+                                  title="Imprimir DANFE"
+                                >
+                                  <Printer size={14} />
+                                </a>
+
+                                {invoice.effectiveStatus === "AUTHORIZED" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSefazJust("Cancelamento solicitado por erro operacional no caixa.");
+                                      setSefazActionModal({ inv: invoice, mode: "CANCEL" });
+                                    }}
+                                    className="text-red-600 hover:text-white hover:bg-red-600 px-2 py-1.5 rounded-lg text-xs border border-red-200 transition-all font-semibold cursor-pointer"
+                                  >
+                                    Cancelar SEFAZ
+                                  </button>
+                                )}
+
+                                {invoice.effectiveStatus === "REJECTED" && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSefazJust("Inutilizacao de numeracao por falha ou rejeicao na emissao.");
+                                      setSefazActionModal({ inv: invoice, mode: "INUTILIZAR" });
+                                    }}
+                                    className="text-red-600 hover:text-white hover:bg-red-600 px-2 py-1.5 rounded-lg text-xs border border-red-200 transition-all font-semibold inline-flex items-center gap-1 cursor-pointer"
+                                    title="Inutilizar numeração oficialmente na SEFAZ e excluir da fila"
+                                  >
+                                    <Trash2 size={12} /> Inutilizar / Excluir
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 1: EDITAR NOTA REJEITADA / ITENS FISCAIS */}
+      {editModalInv && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+            <div className="p-5 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-black text-gray-900">
+                  Editar Nota #{editModalInv.number} ({editModalInv.type}) antes de retransmitir
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Corrija nome do produto, NCM, CFOP, CSOSN, quantidade ou preço e envie novamente para a SEFAZ-AL.
+                </p>
+              </div>
+              <button type="button" onClick={() => setEditModalInv(null)} className="text-gray-400 hover:text-gray-700 cursor-pointer">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="p-5 overflow-y-auto space-y-4 flex-1">
+              {editItems.length === 0 ? (
+                <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 font-bold">
+                  Esta nota não possui itens de venda vinculados no PDV para edição.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {editItems.map((it, idx) => (
+                    <div key={it.saleItemId} className="p-3.5 rounded-xl border border-gray-200 bg-gray-50 grid grid-cols-1 md:grid-cols-12 gap-2.5 items-end">
+                      <div className="md:col-span-4">
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Descrição do Produto</label>
+                        <input
+                          type="text"
+                          value={it.name}
+                          onChange={(e) => {
+                            const copy = [...editItems];
+                            copy[idx].name = e.target.value;
+                            setEditItems(copy);
+                          }}
+                          className="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-semibold"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">NCM (8 díg.)</label>
+                        <input
+                          type="text"
+                          value={it.ncm}
+                          onChange={(e) => {
+                            const copy = [...editItems];
+                            copy[idx].ncm = e.target.value;
+                            setEditItems(copy);
+                          }}
+                          className="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-mono"
+                        />
+                      </div>
+                      <div className="md:col-span-1">
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">CFOP</label>
+                        <input
+                          type="text"
+                          value={it.cfop}
+                          onChange={(e) => {
+                            const copy = [...editItems];
+                            copy[idx].cfop = e.target.value;
+                            setEditItems(copy);
+                          }}
+                          className="w-full bg-white border border-gray-300 rounded-lg px-2 py-1.5 text-xs font-mono"
+                        />
+                      </div>
+                      <div className="md:col-span-1">
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">CSOSN</label>
+                        <input
+                          type="text"
+                          value={it.csosn}
+                          onChange={(e) => {
+                            const copy = [...editItems];
+                            copy[idx].csosn = e.target.value;
+                            setEditItems(copy);
+                          }}
+                          className="w-full bg-white border border-gray-300 rounded-lg px-2 py-1.5 text-xs font-mono"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Qtd</label>
+                        <input
+                          type="number"
+                          step="0.001"
+                          value={it.quantity}
+                          onChange={(e) => {
+                            const copy = [...editItems];
+                            copy[idx].quantity = Number(e.target.value);
+                            setEditItems(copy);
+                          }}
+                          className="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-mono"
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Unit. (R$)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={it.unitPrice}
+                          onChange={(e) => {
+                            const copy = [...editItems];
+                            copy[idx].unitPrice = Number(e.target.value);
+                            setEditItems(copy);
+                          }}
+                          className="w-full bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-mono"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  <div className="flex items-center justify-end gap-3 pt-2">
+                    <label className="text-xs font-bold text-gray-600">Desconto (R$):</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editDiscount}
+                      onChange={(e) => setEditDiscount(e.target.value)}
+                      className="w-28 bg-white border border-gray-300 rounded-lg px-2.5 py-1.5 text-xs font-mono font-bold"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-gray-200 bg-gray-50 flex items-center justify-end gap-2">
               <button
-                onClick={loadInvoices}
-                className="bg-gray-50 hover:bg-gray-100 text-slate-800 border border-gray-200 px-3.5 py-2 rounded-xl font-bold flex items-center gap-1.5 text-xs cursor-pointer"
+                type="button"
+                onClick={() => setEditModalInv(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-gray-700 bg-white border border-gray-300 hover:bg-gray-100 cursor-pointer"
               >
-                <RefreshCw size={15} /> Atualizar
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={editSaving || editItems.length === 0}
+                onClick={() => handleSaveEditModal(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-gray-900 bg-amber-100 border border-amber-300 hover:bg-amber-200 disabled:opacity-50 cursor-pointer"
+              >
+                {editSaving ? "Salvando..." : "Salvar Alterações"}
+              </button>
+              <button
+                type="button"
+                disabled={editSaving || editItems.length === 0}
+                onClick={() => handleSaveEditModal(true)}
+                className="px-4 py-2 rounded-xl text-xs font-black text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1.5 cursor-pointer"
+              >
+                <Send size={13} /> Salvar & Subir SEFAZ Agora
               </button>
             </div>
           </div>
+        </div>
+      )}
 
-          {loading ? (
-            <div className="text-center py-16 text-slate-500">Buscando notas fiscais...</div>
-          ) : (
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200 text-slate-500 font-bold">
-                <tr>
-                  <th className="px-6 py-4 text-left">Número / Série</th>
-                  <th className="px-6 py-4 text-left">Chave de Acesso</th>
-                  <th className="px-6 py-4 text-left">Tipo</th>
-                  <th className="px-6 py-4 text-left">Cliente</th>
-                  <th className="px-6 py-4 text-right">Valor Total</th>
-                  <th className="px-6 py-4 text-center">Status</th>
-                  <th className="px-6 py-4 text-right">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filteredInvoices.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
-                      Nenhuma nota fiscal encontrada.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredInvoices.map(invoice => (
-                    <tr key={invoice.id} className="hover:bg-gray-50/60 transition-colors">
-                      <td className="px-6 py-4 text-gray-900 font-bold">
-                        #{invoice.number} / Série {invoice.series}
-                        <span className="text-[10px] text-slate-500 block">
-                          {new Date(invoice.createdAt).toLocaleString("pt-BR")}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 font-mono text-xs">
-                        <div className="flex items-center gap-1.5 text-slate-500">
-                          <span>
-                            {invoice.accessKey.slice(0, 16)}...{invoice.accessKey.slice(-8)}
-                          </span>
-                          <button
-                            onClick={() => copyToClipboard(invoice.accessKey)}
-                            className="hover:text-blue-600 p-1 cursor-pointer"
-                            title="Copiar Chave Completa"
-                          >
-                            <Copy size={12} />
-                          </button>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4">
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                            invoice.type === "NFe"
-                              ? "bg-blue-50 text-blue-700 border border-blue-200"
-                              : "bg-purple-50 text-purple-700 border border-purple-200"
-                          }`}
-                        >
-                          {invoice.type}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-slate-600 font-medium">{invoice.customerName}</td>
-                      <td className="px-6 py-4 text-right font-mono font-bold text-slate-800">
-                        R$ {Number(invoice.total).toFixed(2)}
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold ${
-                            invoice.status === "AUTHORIZED"
-                              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                              : "bg-red-50 text-red-700 border border-red-200"
-                          }`}
-                        >
-                          {invoice.status === "AUTHORIZED" ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
-                          {invoice.status === "AUTHORIZED" ? "Autorizada" : "Cancelada"}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            type="button"
-                            onClick={() => downloadSingleInvoiceXml(invoice)}
-                            className="text-slate-600 hover:text-blue-600 p-1.5 bg-gray-50 rounded-lg border border-gray-200 transition-colors cursor-pointer"
-                            title="Download XML Real"
-                          >
-                            <Download size={14} />
-                          </button>
-                          <a
-                            href={`/invoices/danfe/${invoice.accessKey}`}
-                            target="_blank"
-                            className="text-slate-600 hover:text-blue-600 p-1.5 bg-gray-50 rounded-lg border border-gray-200 transition-colors"
-                            title="Imprimir DANFE"
-                          >
-                            <Printer size={14} />
-                          </a>
-                          {invoice.status === "AUTHORIZED" && (
-                            <button
-                              onClick={() => handleCancelInvoice(invoice.id)}
-                              className="text-red-600 hover:text-white hover:bg-red-600 px-2 py-1 rounded-lg text-xs border border-red-200 transition-all font-semibold cursor-pointer"
-                            >
-                              Cancelar
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          )}
+      {/* MODAL 2: CARTA DE CORREÇÃO ELETRÔNICA (CC-e 110110) */}
+      {cceModalInv && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-2xl max-w-lg w-full p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-black text-gray-900">
+                Carta de Correção SEFAZ (CC-e) — NF-e #{cceModalInv.number}
+              </h3>
+              <button type="button" onClick={() => setCceModalInv(null)} className="text-gray-400 hover:text-gray-700 cursor-pointer">
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-xs text-gray-500">
+              Envia evento oficial <strong>110110</strong> direto para a SEFAZ-AL (mínimo 15 caracteres; não altera valores nem impostos).
+            </p>
+            <textarea
+              rows={4}
+              value={cceText}
+              onChange={(e) => setCceText(e.target.value)}
+              placeholder="Descreva a correção oficial (mínimo 15 caracteres)..."
+              className="w-full border border-gray-300 rounded-xl p-3 text-sm outline-none focus:border-blue-600"
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setCceModalInv(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-gray-700 bg-gray-100 cursor-pointer"
+              >
+                Fechar
+              </button>
+              <button
+                type="button"
+                disabled={cceSending || cceText.trim().length < 15}
+                onClick={handleSendCce}
+                className="px-4 py-2 rounded-xl text-xs font-black text-white bg-blue-600 hover:bg-blue-700 disabled:opacity-40 flex items-center gap-1.5 cursor-pointer"
+              >
+                {cceSending ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                Transmitir CC-e na SEFAZ
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: CANCELAMENTO (110111) OU INUTILIZAÇÃO / EXCLUSÃO REAL NA SEFAZ */}
+      {sefazActionModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-2xl max-w-lg w-full p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-black text-red-700">
+                {sefazActionModal.mode === "CANCEL"
+                  ? `Cancelamento Oficial SEFAZ (110111) — #${sefazActionModal.inv.number}`
+                  : `Inutilizar Numeração & Excluir SEFAZ — #${sefazActionModal.inv.number}`}
+              </h3>
+              <button type="button" onClick={() => setSefazActionModal(null)} className="text-gray-400 hover:text-gray-700 cursor-pointer">
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-xs text-gray-600">
+              {sefazActionModal.mode === "CANCEL"
+                ? "Esta ação transmite o evento oficial de Cancelamento assinado com Certificado A1 para a SEFAZ-AL. A nota só será marcada como Cancelada se a SEFAZ homologar."
+                : "Esta ação envia NfeInutilizacao4 assinado com Certificado A1 para a SEFAZ-AL inutilizando oficialmente este número de nota fiscal, e só remove da fila após homologação (cStat 102)."}
+            </p>
+            <div>
+              <label className="block text-[11px] font-bold text-gray-600 uppercase mb-1">
+                Justificativa Oficial SEFAZ (mínimo 15 caracteres)
+              </label>
+              <textarea
+                rows={3}
+                value={sefazJust}
+                onChange={(e) => setSefazJust(e.target.value)}
+                className="w-full border border-gray-300 rounded-xl p-3 text-sm outline-none focus:border-red-600"
+              />
+              <p className="text-[11px] text-gray-400 mt-1">{sefazJust.trim().length} / 15 caracteres mínimos</p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setSefazActionModal(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-gray-700 bg-gray-100 cursor-pointer"
+              >
+                Voltar
+              </button>
+              <button
+                type="button"
+                disabled={sefazActionLoading || sefazJust.trim().length < 15}
+                onClick={handleConfirmSefazDeleteOrCancel}
+                className="px-4 py-2 rounded-xl text-xs font-black text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 flex items-center gap-1.5 cursor-pointer"
+              >
+                {sefazActionLoading ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
+                {sefazActionModal.mode === "CANCEL" ? "Confirmar Cancelamento SEFAZ" : "Inutilizar na SEFAZ e Excluir"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

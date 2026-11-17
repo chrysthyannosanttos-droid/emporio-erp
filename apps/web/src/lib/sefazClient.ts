@@ -332,6 +332,391 @@ export async function sendSefazManifestacao(
 
 
 
+function sanitizeSefazText(value: string | null | undefined, maxLen: number, fallback = "NAO INFORMADO"): string {
+  const cleaned = (value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\x00-\x1f\x7f]/g, " ")
+    .replace(/[<>&"']/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, maxLen)
+    .trim();
+  return cleaned || fallback;
+}
+
+function getSvrsUrls(model: "65" | "55", tpAmb: "1" | "2") {
+  const base =
+    model === "65"
+      ? tpAmb === "1"
+        ? "https://nfce.svrs.rs.gov.br"
+        : "https://nfce-homologacao.svrs.rs.gov.br"
+      : tpAmb === "1"
+      ? "https://nfe.svrs.rs.gov.br"
+      : "https://nfe-homologacao.svrs.rs.gov.br";
+
+  return {
+    autorizacao: `${base}/ws/NfeAutorizacao/NFeAutorizacao4.asmx`,
+    consulta: `${base}/ws/NfeConsulta/NfeConsulta4.asmx`,
+    evento: `${base}/ws/recepcaoevento/recepcaoevento4.asmx`,
+    inutilizacao: `${base}/ws/nfeinutilizacao/nfeinutilizacao4.asmx`,
+  };
+}
+
+/**
+ * Consulta situação e protocolo real de uma NF-e / NFC-e na SEFAZ-AL (SVRS) via mTLS
+ */
+export async function querySefazProtocolo(
+  companyId: string,
+  accessKey: string,
+  model: "65" | "55" = "65"
+) {
+  const fiscal = await prisma.fiscalConfig.findUnique({ where: { companyId } });
+  if (!fiscal) return { ok: false, cStat: "", xMotivo: "Configuração fiscal ausente.", nProt: "" };
+
+  const pfxBuffer = loadCertificateBuffer(fiscal);
+  if (!pfxBuffer || !fiscal.certPassword) {
+    return { ok: false, cStat: "", xMotivo: "Certificado Digital A1 não carregado.", nProt: "" };
+  }
+
+  const { certPem, keyPem } = extractPemCredentials(pfxBuffer, fiscal.certPassword);
+  const tpAmb = fiscal.environment === "producao" ? "1" : "2";
+  const cleanKey = accessKey.replace(/\D/g, "");
+  const urls = getSvrsUrls(model, tpAmb);
+
+  const soapXml =
+    `<?xml version="1.0" encoding="utf-8"?>` +
+    `<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">` +
+    `<soap12:Body>` +
+    `<nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeConsultaProtocolo4">` +
+    `<consSitNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">` +
+    `<tpAmb>${tpAmb}</tpAmb>` +
+    `<xServ>CONSULTAR</xServ>` +
+    `<chNFe>${cleanKey}</chNFe>` +
+    `</consSitNFe>` +
+    `</nfeDadosMsg>` +
+    `</soap12:Body>` +
+    `</soap12:Envelope>`;
+
+  const res = await soapPostMtls(urls.consulta, soapXml, certPem, keyPem);
+  const cStat = (res.body.match(/<cStat>(.*?)<\/cStat>/) || [])[1] || "";
+  const xMotivo = (res.body.match(/<xMotivo>(.*?)<\/xMotivo>/) || [])[1] || "Sem resposta da SEFAZ";
+  const nProt = (res.body.match(/<nProt>(.*?)<\/nProt>/) || [])[1] || "";
+  const dhRecbto = (res.body.match(/<dhRecbto>(.*?)<\/dhRecbto>/) || [])[1] || "";
+
+  return {
+    ok: ["100", "150", "101", "151"].includes(cStat),
+    authorized: ["100", "150"].includes(cStat),
+    canceled: ["101", "151"].includes(cStat),
+    notFound: cStat === "217",
+    cStat,
+    xMotivo,
+    nProt,
+    dhRecbto,
+  };
+}
+
+/**
+ * Cancela uma NF-e (55) ou NFC-e (65) oficialmente na SEFAZ-AL (SVRS) via Evento 110111
+ */
+export async function cancelSefazNfe4(
+  companyId: string,
+  params: {
+    accessKey: string;
+    model: "65" | "55";
+    nProt?: string;
+    justification: string;
+  }
+) {
+  const xJust = sanitizeSefazText(params.justification, 255, "");
+  if (xJust.length < 15) {
+    return {
+      ok: false,
+      cStat: "LOCAL",
+      xMotivo: "A justificativa para cancelamento na SEFAZ deve ter no mínimo 15 caracteres.",
+      nProt: "",
+    };
+  }
+
+  const fiscal = await prisma.fiscalConfig.findUnique({ where: { companyId } });
+  if (!fiscal) return { ok: false, cStat: "LOCAL", xMotivo: "Configuração fiscal ausente.", nProt: "" };
+
+  const pfxBuffer = loadCertificateBuffer(fiscal);
+  if (!pfxBuffer || !fiscal.certPassword) {
+    return { ok: false, cStat: "LOCAL", xMotivo: "Certificado Digital A1 não carregado.", nProt: "" };
+  }
+
+  let nProtToUse = (params.nProt || "").replace(/\D/g, "");
+  if (!nProtToUse) {
+    const consulta = await querySefazProtocolo(companyId, params.accessKey, params.model);
+    if (consulta.notFound) {
+      return {
+        ok: false,
+        cStat: "217",
+        xMotivo: "SEFAZ (217): Nota não consta na base da SEFAZ (nunca foi autorizada). Para descartar o número, use Inutilização na SEFAZ.",
+        nProt: "",
+        notFoundOnSefaz: true,
+      };
+    }
+    if (consulta.canceled) {
+      return {
+        ok: true,
+        cStat: consulta.cStat,
+        xMotivo: `Nota já consta como Cancelada na SEFAZ (${consulta.xMotivo}).`,
+        nProt: consulta.nProt,
+      };
+    }
+    if (!consulta.nProt) {
+      return {
+        ok: false,
+        cStat: consulta.cStat || "ERR",
+        xMotivo: `Não foi possível obter o protocolo na SEFAZ (${consulta.cStat}: ${consulta.xMotivo}).`,
+        nProt: "",
+      };
+    }
+    nProtToUse = consulta.nProt;
+  }
+
+  const { certPem, keyPem, cleanCertBase64 } = extractPemCredentials(pfxBuffer, fiscal.certPassword);
+  const tpAmb = fiscal.environment === "producao" ? "1" : "2";
+  const cnpjClean = fiscal.cnpj.replace(/\D/g, "");
+  const cleanKey = params.accessKey.replace(/\D/g, "");
+  const cOrgao = cleanKey.slice(0, 2) || "27";
+  const eventId = `ID110111${cleanKey}01`;
+  const dhEvento = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 19) + "-03:00";
+
+  const infEvento =
+    `<infEvento Id="${eventId}">` +
+    `<cOrgao>${cOrgao}</cOrgao>` +
+    `<tpAmb>${tpAmb}</tpAmb>` +
+    `<CNPJ>${cnpjClean}</CNPJ>` +
+    `<chNFe>${cleanKey}</chNFe>` +
+    `<dhEvento>${dhEvento}</dhEvento>` +
+    `<tpEvento>110111</tpEvento>` +
+    `<nSeqEvento>1</nSeqEvento>` +
+    `<verEvento>1.00</verEvento>` +
+    `<detEvento versao="1.00">` +
+    `<descEvento>Cancelamento</descEvento>` +
+    `<nProt>${nProtToUse}</nProt>` +
+    `<xJust>${xJust}</xJust>` +
+    `</detEvento>` +
+    `</infEvento>`;
+
+  const infEventoCanonical = `<infEvento xmlns="http://www.portalfiscal.inf.br/nfe" Id="${eventId}">` +
+    infEvento.slice(`<infEvento Id="${eventId}">`.length);
+
+  const signature = signXmlElement(infEventoCanonical, eventId, keyPem, cleanCertBase64);
+  const eventoXml = `<evento xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.00">${infEvento}${signature}</evento>`;
+  const envEvento = `<envEvento xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.00"><idLote>${Date.now().toString().slice(-12)}</idLote>${eventoXml}</envEvento>`;
+
+  const soapXml =
+    `<?xml version="1.0" encoding="utf-8"?>` +
+    `<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">` +
+    `<soap12:Body>` +
+    `<nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4">${envEvento}</nfeDadosMsg>` +
+    `</soap12:Body>` +
+    `</soap12:Envelope>`;
+
+  const urls = getSvrsUrls(params.model, tpAmb);
+  const res = await soapPostMtls(urls.evento, soapXml, certPem, keyPem);
+  const cStats = [...res.body.matchAll(/<cStat>(.*?)<\/cStat>/g)].map((m) => m[1]);
+  const xMotivos = [...res.body.matchAll(/<xMotivo>(.*?)<\/xMotivo>/g)].map((m) => m[1]);
+  const nProt = (res.body.match(/<nProt>(.*?)<\/nProt>/) || [])[1] || nProtToUse;
+
+  const finalStat = cStats.length > 1 ? cStats[cStats.length - 1] : cStats[0] || "";
+  const finalMotivo = xMotivos.length > 1 ? xMotivos[xMotivos.length - 1] : xMotivos[0] || "Sem resposta da SEFAZ";
+
+  return {
+    ok: ["135", "136", "155", "573"].includes(finalStat),
+    cStat: finalStat,
+    xMotivo: finalMotivo,
+    nProt,
+  };
+}
+
+/**
+ * Envia Carta de Correção Eletrônica (CC-e, Evento 110110) oficial na SEFAZ-AL (apenas NF-e Modelo 55)
+ */
+export async function sendSefazCartaCorrecao(
+  companyId: string,
+  params: {
+    accessKey: string;
+    model: "65" | "55";
+    correctionText: string;
+    seqEvento?: number;
+  }
+) {
+  if (params.model === "65") {
+    return {
+      ok: false,
+      cStat: "REGRA",
+      xMotivo: "A SEFAZ não permite Carta de Correção (CC-e) para NFC-e (Modelo 65). Apenas NF-e (Modelo 55) aceita CC-e.",
+      nProt: "",
+    };
+  }
+  const xCorrecao = sanitizeSefazText(params.correctionText, 1000, "");
+  if (xCorrecao.length < 15) {
+    return {
+      ok: false,
+      cStat: "LOCAL",
+      xMotivo: "O texto da Carta de Correção deve ter no mínimo 15 caracteres.",
+      nProt: "",
+    };
+  }
+
+  const fiscal = await prisma.fiscalConfig.findUnique({ where: { companyId } });
+  if (!fiscal) return { ok: false, cStat: "LOCAL", xMotivo: "Configuração fiscal ausente.", nProt: "" };
+
+  const pfxBuffer = loadCertificateBuffer(fiscal);
+  if (!pfxBuffer || !fiscal.certPassword) {
+    return { ok: false, cStat: "LOCAL", xMotivo: "Certificado Digital A1 não carregado.", nProt: "" };
+  }
+
+  const { certPem, keyPem, cleanCertBase64 } = extractPemCredentials(pfxBuffer, fiscal.certPassword);
+  const tpAmb = fiscal.environment === "producao" ? "1" : "2";
+  const cnpjClean = fiscal.cnpj.replace(/\D/g, "");
+  const cleanKey = params.accessKey.replace(/\D/g, "");
+  const cOrgao = cleanKey.slice(0, 2) || "27";
+  const seq = params.seqEvento || 1;
+  const seqStr = String(seq).padStart(2, "0");
+  const eventId = `ID110110${cleanKey}${seqStr}`;
+  const dhEvento = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().slice(0, 19) + "-03:00";
+  const xCondUso =
+    "A Carta de Correcao e disciplinada pelo paragrafo 1o-A do art. 7o do Convenio S/N, de 15 de dezembro de 1970 e pode ser utilizada para regularizacao de erro ocorrido na emissao de documento fiscal, desde que o erro nao esteja relacionado com: I - as variaveis que determinam o valor do imposto tais como: base de calculo, aliquota, diferenca de preco, quantidade, valor da operacao ou da prestacao; II - a correcao de dados cadastrais que implique mudanca do remetente ou do destinatario; III - a data de emissao ou de saida.";
+
+  const infEvento =
+    `<infEvento Id="${eventId}">` +
+    `<cOrgao>${cOrgao}</cOrgao>` +
+    `<tpAmb>${tpAmb}</tpAmb>` +
+    `<CNPJ>${cnpjClean}</CNPJ>` +
+    `<chNFe>${cleanKey}</chNFe>` +
+    `<dhEvento>${dhEvento}</dhEvento>` +
+    `<tpEvento>110110</tpEvento>` +
+    `<nSeqEvento>${seq}</nSeqEvento>` +
+    `<verEvento>1.00</verEvento>` +
+    `<detEvento versao="1.00">` +
+    `<descEvento>Carta de Correcao</descEvento>` +
+    `<xCorrecao>${xCorrecao}</xCorrecao>` +
+    `<xCondUso>${xCondUso}</xCondUso>` +
+    `</detEvento>` +
+    `</infEvento>`;
+
+  const infEventoCanonical = `<infEvento xmlns="http://www.portalfiscal.inf.br/nfe" Id="${eventId}">` +
+    infEvento.slice(`<infEvento Id="${eventId}">`.length);
+
+  const signature = signXmlElement(infEventoCanonical, eventId, keyPem, cleanCertBase64);
+  const eventoXml = `<evento xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.00">${infEvento}${signature}</evento>`;
+  const envEvento = `<envEvento xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.00"><idLote>${Date.now().toString().slice(-12)}</idLote>${eventoXml}</envEvento>`;
+
+  const soapXml =
+    `<?xml version="1.0" encoding="utf-8"?>` +
+    `<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">` +
+    `<soap12:Body>` +
+    `<nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeRecepcaoEvento4">${envEvento}</nfeDadosMsg>` +
+    `</soap12:Body>` +
+    `</soap12:Envelope>`;
+
+  const urls = getSvrsUrls("55", tpAmb);
+  const res = await soapPostMtls(urls.evento, soapXml, certPem, keyPem);
+  const cStats = [...res.body.matchAll(/<cStat>(.*?)<\/cStat>/g)].map((m) => m[1]);
+  const xMotivos = [...res.body.matchAll(/<xMotivo>(.*?)<\/xMotivo>/g)].map((m) => m[1]);
+  const nProt = (res.body.match(/<nProt>(.*?)<\/nProt>/) || [])[1] || "";
+
+  const finalStat = cStats.length > 1 ? cStats[cStats.length - 1] : cStats[0] || "";
+  const finalMotivo = xMotivos.length > 1 ? xMotivos[xMotivos.length - 1] : xMotivos[0] || "Sem resposta da SEFAZ";
+
+  return {
+    ok: ["135", "136", "155"].includes(finalStat),
+    cStat: finalStat,
+    xMotivo: finalMotivo,
+    nProt,
+  };
+}
+
+/**
+ * Inutiliza oficialmente numeração de NF-e (55) ou NFC-e (65) na SEFAZ-AL (NfeInutilizacao4)
+ */
+export async function inutilizarSefazNumeracao(
+  companyId: string,
+  params: {
+    model: "65" | "55";
+    series: string;
+    startNumber: number;
+    endNumber: number;
+    year?: string;
+    justification: string;
+  }
+) {
+  const xJust = sanitizeSefazText(params.justification, 255, "");
+  if (xJust.length < 15) {
+    return {
+      ok: false,
+      cStat: "LOCAL",
+      xMotivo: "A justificativa para inutilização na SEFAZ deve ter no mínimo 15 caracteres.",
+      nProt: "",
+    };
+  }
+
+  const fiscal = await prisma.fiscalConfig.findUnique({ where: { companyId } });
+  if (!fiscal) return { ok: false, cStat: "LOCAL", xMotivo: "Configuração fiscal ausente.", nProt: "" };
+
+  const pfxBuffer = loadCertificateBuffer(fiscal);
+  if (!pfxBuffer || !fiscal.certPassword) {
+    return { ok: false, cStat: "LOCAL", xMotivo: "Certificado Digital A1 não carregado.", nProt: "" };
+  }
+
+  const { certPem, keyPem, cleanCertBase64 } = extractPemCredentials(pfxBuffer, fiscal.certPassword);
+  const tpAmb = fiscal.environment === "producao" ? "1" : "2";
+  const cUF = "27";
+  const ano = (params.year || String(new Date().getFullYear())).slice(-2);
+  const cnpj = fiscal.cnpj.replace(/\D/g, "").padStart(14, "0");
+  const mod = params.model;
+  const serieNum = Number(params.series || "1");
+  const serie3 = String(serieNum).padStart(3, "0");
+  const nNFIni9 = String(params.startNumber).padStart(9, "0");
+  const nNFFin9 = String(params.endNumber).padStart(9, "0");
+  const infInutId = `ID${cUF}${ano}${cnpj}${mod}${serie3}${nNFIni9}${nNFFin9}`;
+
+  const infInutInner =
+    `<tpAmb>${tpAmb}</tpAmb>` +
+    `<xServ>INUTILIZAR</xServ>` +
+    `<cUF>${cUF}</cUF>` +
+    `<ano>${ano}</ano>` +
+    `<CNPJ>${cnpj}</CNPJ>` +
+    `<mod>${mod}</mod>` +
+    `<serie>${serieNum}</serie>` +
+    `<nNFIni>${params.startNumber}</nNFIni>` +
+    `<nNFFin>${params.endNumber}</nNFFin>` +
+    `<xJust>${xJust}</xJust>` +
+    `</infInut>`;
+
+  const infInutXml = `<infInut Id="${infInutId}">${infInutInner}`;
+  const infInutCanonical = `<infInut xmlns="http://www.portalfiscal.inf.br/nfe" Id="${infInutId}">${infInutInner}`;
+  const signature = signXmlElement(infInutCanonical, infInutId, keyPem, cleanCertBase64);
+
+  const inutNFe = `<inutNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">${infInutXml}${signature}</inutNFe>`;
+  const soapXml =
+    `<?xml version="1.0" encoding="utf-8"?>` +
+    `<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">` +
+    `<soap12:Body>` +
+    `<nfeDadosMsg xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeInutilizacao4">${inutNFe}</nfeDadosMsg>` +
+    `</soap12:Body>` +
+    `</soap12:Envelope>`;
+
+  const urls = getSvrsUrls(params.model, tpAmb);
+  const res = await soapPostMtls(urls.inutilizacao, soapXml, certPem, keyPem);
+  const cStat = (res.body.match(/<cStat>(.*?)<\/cStat>/) || [])[1] || "";
+  const xMotivo = (res.body.match(/<xMotivo>(.*?)<\/xMotivo>/) || [])[1] || "Sem resposta da SEFAZ";
+  const nProt = (res.body.match(/<nProt>(.*?)<\/nProt>/) || [])[1] || "";
+
+  return {
+    ok: ["102", "563"].includes(cStat),
+    cStat,
+    xMotivo,
+    nProt,
+  };
+}
+
 /**
  * Monta, assina digitalmente (ICP-Brasil RSA-SHA1) e transmite NFC-e (65) / NF-e (55) 4.00
  * diretamente para a SEFAZ-AL (SVRS - Sefaz Virtual RS)
@@ -375,6 +760,7 @@ export async function transmitSefazNfe4(params: {
   const cNF = key.slice(35, 43);
   const cDV = key.slice(43, 44);
 
+  let vProdSum = 0;
   const detTags = params.items
     .map((item, idx) => {
       const nItem = idx + 1;
@@ -383,20 +769,19 @@ export async function transmitSefazNfe4(params: {
       const xProd =
         tpAmb === "2" && nItem === 1
           ? "NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
-          : (item.name || "PRODUTO")
-              .normalize("NFD")
-              .replace(/[\u0300-\u036f]/g, "")
-              .replace(/[<>&"']/g, "")
-              .trim()
-              .slice(0, 120);
+          : sanitizeSefazText(item.name, 120, "PRODUTO");
       const cleanNcm = (item.ncm || "").replace(/\D/g, "");
       const ncm = cleanNcm.length === 8 && cleanNcm !== "00000000" ? cleanNcm : "21069090";
       const cleanCfop = (item.cfop || "").replace(/\D/g, "");
       const cfop = cleanCfop.length === 4 ? cleanCfop : "5102";
-      const uCom = (item.unit || "UN").slice(0, 6);
-      const qCom = item.quantity.toFixed(4);
-      const vUnCom = item.unitPrice.toFixed(4);
-      const vProd = (item.quantity * item.unitPrice).toFixed(2);
+      const uCom = sanitizeSefazText(item.unit, 6, "UN").slice(0, 6);
+      const qComNum = Number(item.quantity || 0);
+      const vUnComNum = Number(item.unitPrice || 0);
+      const qCom = qComNum.toFixed(4);
+      const vUnCom = vUnComNum.toFixed(4);
+      const vProdItem = Number((qComNum * vUnComNum).toFixed(2));
+      vProdSum = Number((vProdSum + vProdItem).toFixed(2));
+      const vProd = vProdItem.toFixed(2);
       const csosn = item.csosn || "102";
 
       const icmsTag =
@@ -432,9 +817,11 @@ export async function transmitSefazNfe4(params: {
     })
     .join("");
 
-  const vProdTotal = params.items.reduce((acc, i) => acc + i.quantity * i.unitPrice, 0).toFixed(2);
-  const vDesc = (params.discount || 0).toFixed(2);
-  const vNF = params.total.toFixed(2);
+  const rawDiscount = Number((params.discount || 0).toFixed(2));
+  const vProdTotal = vProdSum.toFixed(2);
+  const vDescNum = Math.min(vProdSum, Math.max(0, rawDiscount));
+  const vDesc = vDescNum.toFixed(2);
+  const vNF = Math.max(0, Number((vProdSum - vDescNum).toFixed(2))).toFixed(2);
 
   const tPagMap: Record<string, string> = {
     MONEY: "01",
@@ -482,14 +869,14 @@ export async function transmitSefazNfe4(params: {
     `</ide>` +
     `<emit>` +
     `<CNPJ>${cnpj}</CNPJ>` +
-    `<xNome>${(fiscal.companyName || "EMPORIO AGROBELEM LTDA").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[<>&"']/g, "").trim().slice(0, 60)}</xNome>` +
-    `<xFant>${(fiscal.tradeName || "EMPORIO AGROBELEM").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[<>&"']/g, "").trim().slice(0, 60)}</xFant>` +
+    `<xNome>${sanitizeSefazText(fiscal.companyName || "EMPORIO AGROBELEM LTDA", 60, "EMPORIO AGROBELEM LTDA")}</xNome>` +
+    `<xFant>${sanitizeSefazText(fiscal.tradeName || "EMPORIO AGROBELEM", 60, "EMPORIO AGROBELEM")}</xFant>` +
     `<enderEmit>` +
-    `<xLgr>${(fiscal.street || "Fazenda Boa Vista").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[<>&"']/g, "").trim()}</xLgr>` +
-    `<nro>${(fiscal.number || "SN").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[<>&"']/g, "").trim()}</nro>` +
-    `<xBairro>${(fiscal.district || "Zona Rural").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[<>&"']/g, "").trim()}</xBairro>` +
+    `<xLgr>${sanitizeSefazText(fiscal.street || "Fazenda Boa Vista", 60, "Fazenda Boa Vista")}</xLgr>` +
+    `<nro>${sanitizeSefazText(fiscal.number || "SN", 60, "SN")}</nro>` +
+    `<xBairro>${sanitizeSefazText(fiscal.district || "Zona Rural", 60, "Zona Rural")}</xBairro>` +
     `<cMun>${cMunFG}</cMun>` +
-    `<xMun>${(fiscal.city || "Belem").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[<>&"']/g, "").trim()}</xMun>` +
+    `<xMun>${sanitizeSefazText(fiscal.city || "Belem", 60, "Belem")}</xMun>` +
     `<UF>${fiscal.state || "AL"}</UF>` +
     `<CEP>${(fiscal.zipCode || "57630000").replace(/\D/g, "")}</CEP>` +
     `<cPais>1058</cPais>` +
@@ -568,19 +955,13 @@ export async function transmitSefazNfe4(params: {
     `</soap12:Body>` +
     `</soap12:Envelope>`;
 
-  const urlAutorizacao =
-    params.model === "65"
-      ? tpAmb === "1"
-        ? "https://nfce.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx"
-        : "https://nfce-homologacao.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx"
-      : tpAmb === "1"
-      ? "https://nfe.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx"
-      : "https://nfe-homologacao.svrs.rs.gov.br/ws/NfeAutorizacao/NFeAutorizacao4.asmx";
+  const urlAutorizacao = getSvrsUrls(params.model, tpAmb).autorizacao;
 
   const res = await soapPostMtls(urlAutorizacao, soapXml, certPem, keyPem);
   const cStats = [...res.body.matchAll(/<cStat>(.*?)<\/cStat>/g)].map((m) => m[1]);
   const xMotivos = [...res.body.matchAll(/<xMotivo>(.*?)<\/xMotivo>/g)].map((m) => m[1]);
   const nProt = (res.body.match(/<nProt>(.*?)<\/nProt>/) || [])[1] || "";
+  const dhRecbto = (res.body.match(/<dhRecbto>(.*?)<\/dhRecbto>/) || [])[1] || "";
 
   const finalStat = cStats.length > 1 ? cStats[1] : cStats[0] || "";
   const finalMotivo = xMotivos.length > 1 ? xMotivos[1] : xMotivos[0] || "";
@@ -590,6 +971,7 @@ export async function transmitSefazNfe4(params: {
     cStat: finalStat,
     xMotivo: finalMotivo,
     nProt,
+    dhRecbto,
     signedXml: enviNFe,
   };
 }
