@@ -21,6 +21,7 @@ import {
   type RadarInvoice,
   type ManifestType
 } from "@/actions/invoices";
+import { searchProducts } from "@/actions/product";
 
 // ─── NF-e XML Parser (runs in browser) ───────────────────────────────────────
 function parseNFeXMLClient(xmlText: string) {
@@ -142,7 +143,7 @@ function enrichItemWithUnitConversion(
 }
 
 type StepState = "idle" | "parsing" | "reviewing" | "confirming" | "done" | "error";
-type TabType = "radar" | "saipos" | "upload" | "history";
+type TabType = "radar" | "saipos" | "upload" | "manual" | "history";
 
 const REASONS_REFUSAL = [
   "Mercadoria avariada durante o transporte e recusada no ato da entrega",
@@ -225,6 +226,31 @@ function detectSuggestedCoiCode(items: Array<{ cfop?: string | null; name?: stri
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function InvoicesPage() {
   const [activeTab, setActiveTab] = useState<TabType>("radar");
+
+  // Entrada Manual / Nota Própria State
+  const [manualMode, setManualMode] = useState<"TERCEIRO" | "PROPRIA">("TERCEIRO");
+  const [manualInvNum, setManualInvNum] = useState("");
+  const [manualSeries, setManualSeries] = useState("1");
+  const [manualAccessKey, setManualAccessKey] = useState("");
+  const [manualIssueDate, setManualIssueDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [manualSupplierName, setManualSupplierName] = useState("");
+  const [manualSupplierDoc, setManualSupplierDoc] = useState("");
+  const [manualSearchQuery, setManualSearchQuery] = useState("");
+  const [manualSearchResults, setManualSearchResults] = useState<any[]>([]);
+  const [manualItemName, setManualItemName] = useState("");
+  const [manualItemBarcode, setManualItemBarcode] = useState("");
+  const [manualItemUnit, setManualItemUnit] = useState("UN");
+  const [manualItemQty, setManualItemQty] = useState("1");
+  const [manualItemCost, setManualItemCost] = useState("");
+  const [manualItems, setManualItems] = useState<Array<{
+    id: string;
+    name: string;
+    barcode: string | null;
+    unit: string;
+    quantity: number;
+    unitCost: number;
+    totalCost: number;
+  }>>([]);
   const [step, setStep] = useState<StepState>("idle");
   const [parsed, setParsed] = useState<ParsedNFe | null>(null);
   const [items, setItems] = useState<ParsedItem[]>([]);
@@ -690,6 +716,17 @@ export default function InvoicesPage() {
             </button>
 
             <button
+              onClick={() => setActiveTab("manual")}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all ${
+                activeTab === "manual"
+                  ? "bg-emerald-600 text-white shadow-md shadow-emerald-500/20"
+                  : "bg-white text-emerald-700 hover:bg-emerald-50 border border-emerald-200"
+              }`}
+            >
+              <Plus size={16} /> Entrada Manual / Nota Própria
+            </button>
+
+            <button
               onClick={() => setActiveTab("history")}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all ${
                 activeTab === "history"
@@ -1142,6 +1179,351 @@ export default function InvoicesPage() {
                   <p className="text-[10px] text-gray-500">Conferência visual de chave e valores</p>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ══════════════════════════════════════════════════════════════════════
+            ABA: ENTRADA MANUAL / NOTA PRÓPRIA (tpNF=0)
+        ══════════════════════════════════════════════════════════════════════ */}
+        {(step === "idle" || step === "done") && activeTab === "manual" && (
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-5 overflow-y-auto">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-4">
+              <div>
+                <h2 className="text-lg font-black text-gray-900">
+                  Entrada Manual de Nota &amp; Nota Própria (Entrada)
+                </h2>
+                <p className="text-xs text-gray-500">
+                  Lance notas manualmente (quando tiver apenas PDF/papel) ou registre uma Nota Própria de Entrada da loja.
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setManualMode("TERCEIRO")}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-black border cursor-pointer ${
+                    manualMode === "TERCEIRO"
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-gray-50 text-gray-700 border-gray-200"
+                  }`}
+                >
+                  Nota de Terceiro (Manual)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setManualMode("PROPRIA")}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-black border cursor-pointer ${
+                    manualMode === "PROPRIA"
+                      ? "bg-emerald-600 text-white border-emerald-600"
+                      : "bg-gray-50 text-gray-700 border-gray-200"
+                  }`}
+                >
+                  Nota Própria (Entrada Loja)
+                </button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+              <div>
+                <label className="block text-[10px] font-black text-gray-500 uppercase mb-1">Nº da Nota *</label>
+                <input
+                  type="text"
+                  value={manualInvNum}
+                  onChange={(e) => setManualInvNum(e.target.value)}
+                  placeholder="Ex: 10452"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono font-bold outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-500 uppercase mb-1">Série</label>
+                <input
+                  type="text"
+                  value={manualSeries}
+                  onChange={(e) => setManualSeries(e.target.value)}
+                  placeholder="1"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono font-bold outline-none focus:border-blue-500"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-gray-500 uppercase mb-1">Data Emissão</label>
+                <input
+                  type="date"
+                  value={manualIssueDate}
+                  onChange={(e) => setManualIssueDate(e.target.value)}
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono font-bold outline-none focus:border-blue-500"
+                />
+              </div>
+              <div className="lg:col-span-3">
+                <label className="block text-[10px] font-black text-gray-500 uppercase mb-1">
+                  Chave de Acesso (44 dígitos — opcional)
+                </label>
+                <input
+                  type="text"
+                  value={manualAccessKey}
+                  onChange={(e) => setManualAccessKey(e.target.value.replace(/\D/g, "").slice(0, 44))}
+                  placeholder="Opcional: cole a chave de 44 dígitos"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono outline-none focus:border-blue-500"
+                />
+              </div>
+
+              <div className="sm:col-span-2 lg:col-span-4">
+                <label className="block text-[10px] font-black text-gray-500 uppercase mb-1">
+                  {manualMode === "PROPRIA" ? "Remetente / Produtor / Origem *" : "Fornecedor / Emitente *"}
+                </label>
+                <input
+                  type="text"
+                  value={manualSupplierName}
+                  onChange={(e) => setManualSupplierName(e.target.value)}
+                  placeholder={manualMode === "PROPRIA" ? "Ex: Produtor Rural / Nota Própria de Entrada" : "Razão Social ou Nome Fantasia do Fornecedor"}
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold outline-none focus:border-blue-500"
+                />
+              </div>
+              <div className="lg:col-span-2">
+                <label className="block text-[10px] font-black text-gray-500 uppercase mb-1">CNPJ / CPF</label>
+                <input
+                  type="text"
+                  value={manualSupplierDoc}
+                  onChange={(e) => setManualSupplierDoc(e.target.value)}
+                  placeholder="Somente números"
+                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono outline-none focus:border-blue-500"
+                />
+              </div>
+            </div>
+
+            {/* Adicionar Item */}
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+              <div className="text-xs font-black text-slate-700 uppercase">Adicionar Produtos da Nota</div>
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={manualSearchQuery}
+                  onChange={async (e) => {
+                    const val = e.target.value;
+                    setManualSearchQuery(val);
+                    if (val.trim().length >= 2) {
+                      const res = await searchProducts(val.trim());
+                      setManualSearchResults(Array.isArray(res) ? res.slice(0, 6) : []);
+                    } else {
+                      setManualSearchResults([]);
+                    }
+                  }}
+                  placeholder="Buscar produto cadastrado por nome ou código de barras..."
+                  className="w-full pl-9 pr-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-medium outline-none focus:border-blue-500"
+                />
+                {manualSearchResults.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 max-h-48 overflow-y-auto">
+                    {manualSearchResults.map((p: any) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          setManualItemName(p.name);
+                          setManualItemBarcode(p.barcode || "");
+                          setManualItemUnit(p.unit || "UN");
+                          setManualItemCost(String(Number(p.cost || p.price || 0).toFixed(2)));
+                          setManualSearchQuery("");
+                          setManualSearchResults([]);
+                        }}
+                        className="w-full text-left px-3 py-2 hover:bg-blue-50 text-xs flex items-center justify-between border-b border-gray-100 last:border-0 cursor-pointer"
+                      >
+                        <span className="font-bold text-gray-900">{p.name}</span>
+                        <span className="font-mono text-gray-500">
+                          {p.barcode || "S/EAN"} • Custo R$ {Number(p.cost || 0).toFixed(2)}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 items-end">
+                <div className="sm:col-span-5">
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Descrição do Item *</label>
+                  <input
+                    type="text"
+                    value={manualItemName}
+                    onChange={(e) => setManualItemName(e.target.value)}
+                    placeholder="Nome do produto"
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold outline-none"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Unidade</label>
+                  <input
+                    type="text"
+                    value={manualItemUnit}
+                    onChange={(e) => setManualItemUnit(e.target.value.toUpperCase())}
+                    placeholder="UN"
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-mono outline-none"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Quantidade</label>
+                  <input
+                    type="number"
+                    step="0.001"
+                    value={manualItemQty}
+                    onChange={(e) => setManualItemQty(e.target.value)}
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-mono outline-none"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Custo Unit. R$</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={manualItemCost}
+                    onChange={(e) => setManualItemCost(e.target.value)}
+                    placeholder="0.00"
+                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-mono outline-none"
+                  />
+                </div>
+                <div className="sm:col-span-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const q = Number(manualItemQty || 0);
+                      const c = Number(manualItemCost || 0);
+                      if (!manualItemName.trim() || q <= 0) return;
+                      setManualItems((prev) => [
+                        ...prev,
+                        {
+                          id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+                          name: manualItemName.trim(),
+                          barcode: manualItemBarcode.trim() || null,
+                          unit: manualItemUnit.trim() || "UN",
+                          quantity: q,
+                          unitCost: c,
+                          totalCost: Number((q * c).toFixed(2)),
+                        },
+                      ]);
+                      setManualItemName("");
+                      setManualItemBarcode("");
+                      setManualItemQty("1");
+                      setManualItemCost("");
+                    }}
+                    className="w-full py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs flex items-center justify-center cursor-pointer"
+                    title="Adicionar item"
+                  >
+                    <Plus size={16} />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Itens adicionados */}
+            {manualItems.length > 0 && (
+              <div className="border border-gray-200 rounded-xl overflow-hidden">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-gray-50 border-b border-gray-200 text-[10px] font-black text-gray-500 uppercase">
+                    <tr>
+                      <th className="py-2.5 px-3">Item</th>
+                      <th className="py-2.5 px-3 text-right">Qtd</th>
+                      <th className="py-2.5 px-3 text-right">Custo Unit.</th>
+                      <th className="py-2.5 px-3 text-right">Total</th>
+                      <th className="py-2.5 px-3 text-right">Remover</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {manualItems.map((it) => (
+                      <tr key={it.id}>
+                        <td className="py-2 px-3 font-semibold text-gray-900">{it.name}</td>
+                        <td className="py-2 px-3 text-right font-mono">{it.quantity} {it.unit}</td>
+                        <td className="py-2 px-3 text-right font-mono">R$ {it.unitCost.toFixed(2)}</td>
+                        <td className="py-2 px-3 text-right font-mono font-bold">R$ {it.totalCost.toFixed(2)}</td>
+                        <td className="py-2 px-3 text-right">
+                          <button
+                            type="button"
+                            onClick={() => setManualItems((prev) => prev.filter((x) => x.id !== it.id))}
+                            className="text-rose-600 hover:text-rose-800 p-1 cursor-pointer"
+                          >
+                            <X size={14} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+              <div className="text-sm font-black text-gray-900">
+                Total da Nota:{" "}
+                <span className="font-mono text-emerald-700">
+                  R$ {manualItems.reduce((acc, it) => acc + it.totalCost, 0).toFixed(2)}
+                </span>
+              </div>
+              <button
+                type="button"
+                disabled={!manualInvNum.trim() || !manualSupplierName.trim() || manualItems.length === 0}
+                onClick={async () => {
+                  setStep("parsing");
+                  setErrorMsg("");
+                  try {
+                    const matchResult = (await matchProducts(
+                      manualItems.map((i) => ({ barcode: i.barcode, name: i.name }))
+                    )) as any;
+
+                    const itemsWithMatch: ParsedItem[] = manualItems.map((it, idx) => {
+                      const match = matchResult?.matches?.find((m: any) => m.idx === idx)?.match;
+                      return enrichItemWithUnitConversion(
+                        {
+                          productName: it.name,
+                          barcode: it.barcode,
+                          ncm: null,
+                          cfop: manualMode === "PROPRIA" ? "1102" : "5102",
+                          unit: it.unit,
+                          quantity: it.quantity,
+                          unitCost: it.unitCost,
+                          totalCost: it.totalCost,
+                          expirationDate: "",
+                          batchNumber: "",
+                        },
+                        match
+                      );
+                    });
+
+                    const totalVal = Number(
+                      manualItems.reduce((acc, it) => acc + it.totalCost, 0).toFixed(2)
+                    );
+                    const accessKeyFinal =
+                      manualAccessKey.length === 44
+                        ? manualAccessKey
+                        : `MAN${Date.now()}`.padEnd(44, "0").slice(0, 44);
+
+                    setParsed({
+                      invoiceNum: manualInvNum.trim(),
+                      accessKey: accessKeyFinal,
+                      issueDate: manualIssueDate || new Date().toISOString().slice(0, 10),
+                      totalAmount: totalVal,
+                      supplier: {
+                        name:
+                          manualMode === "PROPRIA"
+                            ? `[NOTA PRÓPRIA] ${manualSupplierName.trim()}`
+                            : manualSupplierName.trim(),
+                        cnpj: manualSupplierDoc.replace(/\D/g, ""),
+                        ie: null,
+                        uf: null,
+                        city: null,
+                      },
+                      items: itemsWithMatch,
+                    });
+                    setItems(itemsWithMatch);
+                    const matchedCoi =
+                      cois.find((c) => c.code === "001") || cois[0];
+                    if (matchedCoi) setSelectedCoi(matchedCoi.id);
+                    setStep("reviewing");
+                  } catch (err: any) {
+                    setStep("error");
+                    setErrorMsg(err?.message || "Erro ao preparar nota manual.");
+                  }
+                }}
+                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white font-black text-xs flex items-center gap-2 shadow-sm cursor-pointer"
+              >
+                Conferir e Dar Entrada no Estoque <ArrowRight size={15} />
+              </button>
             </div>
           </div>
         )}
