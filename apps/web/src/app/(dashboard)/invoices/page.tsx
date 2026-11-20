@@ -280,10 +280,10 @@ export default function InvoicesPage() {
     }
   };
 
-  const syncRadar = async () => {
+  const syncRadar = async (resetNsu = false) => {
     setIsRadarSyncing(true);
     try {
-      const sefazResult = await syncRadarWithSefazAction();
+      const sefazResult = await syncRadarWithSefazAction({ resetNsu: resetNsu === true });
       if (sefazResult?.message) {
         setManifestSuccess(sefazResult.message);
         setTimeout(() => setManifestSuccess(null), 6000);
@@ -705,14 +705,25 @@ export default function InvoicesPage() {
           </div>
 
           {activeTab === "radar" && (
-            <button
-              onClick={syncRadar}
-              disabled={isRadarSyncing}
-              className="bg-white hover:bg-gray-50 text-blue-600 border border-blue-200 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm disabled:opacity-60"
-            >
-              <RefreshCw size={14} className={isRadarSyncing ? "animate-spin" : ""} />
-              {isRadarSyncing ? "Varrendo SEFAZ..." : "Sincronizar Radar SEFAZ"}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => syncRadar(true)}
+                disabled={isRadarSyncing}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm disabled:opacity-60 cursor-pointer"
+                title="Zera o ponteiro NSU e rebusca todas as notas disponíveis na SEFAZ desde 08/11"
+              >
+                <Download size={14} />
+                Rebuscar SEFAZ (08/11+)
+              </button>
+              <button
+                onClick={() => syncRadar(false)}
+                disabled={isRadarSyncing}
+                className="bg-white hover:bg-gray-50 text-blue-600 border border-blue-200 px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-sm disabled:opacity-60 cursor-pointer"
+              >
+                <RefreshCw size={14} className={isRadarSyncing ? "animate-spin" : ""} />
+                {isRadarSyncing ? "Varrendo SEFAZ..." : "Sincronizar Radar SEFAZ"}
+              </button>
+            </div>
           )}
         </div>
       )}

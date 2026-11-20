@@ -571,9 +571,34 @@ export type RadarInvoice = {
   }>;
 };
 
+let radarTableEnsured = false;
+
+async function ensureRadarInvoicesTable() {
+  if (radarTableEnsured) return;
+  try {
+    await prisma.$executeRawUnsafe(`
+      CREATE TABLE IF NOT EXISTS "radar_invoices" (
+        "companyId" TEXT NOT NULL,
+        "accessKey" TEXT NOT NULL,
+        "issueDate" TEXT NOT NULL,
+        "payloadJson" TEXT NOT NULL,
+        "createdAt" TEXT NOT NULL,
+        PRIMARY KEY ("companyId", "accessKey")
+      )
+    `);
+    radarTableEnsured = true;
+  } catch (err) {
+    console.error("Erro ao criar tabela radar_invoices:", err);
+  }
+}
+
+const RADAR_CUTOFF_DATE = new Date("2026-11-08T00:00:00-03:00");
+
 export async function getRadarInvoices(): Promise<{ invoices: RadarInvoice[]; lastSync: string; cnpjMonitorado: string }> {
   const company = await resolveActiveCompany();
   const companyId = company?.id;
+
+  await ensureRadarInvoicesTable();
 
   // Busca se já tem entradas salvas com essas chaves para marcar imported
   const existingEntries = companyId
@@ -584,6 +609,26 @@ export async function getRadarInvoices(): Promise<{ invoices: RadarInvoice[]; la
     : [];
 
   const importedNums = new Set(existingEntries.map(e => e.invoiceNum));
+
+  // Carrega notas reais sincronizadas no banco de dados (persistente em produção/Vercel)
+  let dbRadarInvoices: RadarInvoice[] = [];
+  if (companyId) {
+    try {
+      const dbRows = await prisma.$queryRawUnsafe<Array<{ payloadJson: string }>>(
+        `SELECT "payloadJson" FROM "radar_invoices" WHERE "companyId" = $1 ORDER BY "issueDate" DESC`,
+        companyId
+      );
+      dbRadarInvoices = dbRows
+        .map((r) => {
+          try {
+            return JSON.parse(r.payloadJson) as RadarInvoice;
+          } catch {
+            return null;
+          }
+        })
+        .filter(Boolean) as RadarInvoice[];
+    } catch {}
+  }
 
   // Lê o cache oficial dos XMLs ou diretamente da pasta oficial do CNPJ
   const xmlDir = "C:\\Users\\tisup\\Downloads\\CNPJ_65522409000113_2026-01-01_2026-11-30";
@@ -703,6 +748,16 @@ export async function getRadarInvoices(): Promise<{ invoices: RadarInvoice[]; la
     realInvoices = (bundledRadarInvoices as unknown as RadarInvoice[]) || [];
   }
 
+  // Mescla notas persistidas no banco com o pacote base (sem duplicar accessKey)
+  const mergedByKey = new Map<string, RadarInvoice>();
+  for (const inv of realInvoices) {
+    if (inv?.accessKey) mergedByKey.set(inv.accessKey, inv);
+  }
+  for (const inv of dbRadarInvoices) {
+    if (inv?.accessKey) mergedByKey.set(inv.accessKey, inv);
+  }
+  realInvoices = Array.from(mergedByKey.values());
+
   // Remove quaisquer notas fake/homologação (9900xx ou (TESTE))
   realInvoices = realInvoices.filter(
     (inv) =>
@@ -711,11 +766,11 @@ export async function getRadarInvoices(): Promise<{ invoices: RadarInvoice[]; la
       !String(inv.supplierName || "").includes("TESTE HOMOLOGACAO")
   );
 
-  // Atualiza flag de importado com base no banco atual e marcação oficial de notas legadas do Saipos
+  // Atualiza flag de importado com base no banco atual e regra oficial:
+  // Notas de 08/11/2026 em diante ficam no Radar XML principal; anteriores ficam na aba Saipos
   realInvoices = realInvoices.map(inv => {
-    const isLegacy = inv.isLegacySaipos !== undefined 
-      ? inv.isLegacySaipos 
-      : (new Date(inv.issueDate) <= new Date("2026-10-31T23:59:59"));
+    const issueTs = new Date(inv.issueDate).getTime();
+    const isLegacy = Number.isFinite(issueTs) ? issueTs < RADAR_CUTOFF_DATE.getTime() : Boolean(inv.isLegacySaipos);
     return {
       ...inv,
       imported: importedNums.has(inv.invoiceNum),
@@ -789,7 +844,7 @@ export async function manifestDFe(
   }
 }
 
-export async function syncRadarWithSefazAction(): Promise<{
+export async function syncRadarWithSefazAction(options?: { resetNsu?: boolean }): Promise<{
   success: boolean;
   message: string;
   docsReceived: number;
@@ -804,9 +859,25 @@ export async function syncRadarWithSefazAction(): Promise<{
       return { success: false, message: "Empresa não autenticada", docsReceived: 0, error: "Empresa não autenticada" };
     }
 
+    await ensureRadarInvoicesTable();
+
     const fiscal = await prisma.fiscalConfig.findUnique({ where: { companyId: company.id } });
     if (!fiscal) {
       return { success: false, message: "Configuração fiscal não encontrada", docsReceived: 0, error: "Configuração fiscal não encontrada" };
+    }
+
+    if (options?.resetNsu) {
+      let meta: Record<string, any> = {};
+      try {
+        if (fiscal.emitterEndpoint && fiscal.emitterEndpoint.startsWith("{")) {
+          meta = JSON.parse(fiscal.emitterEndpoint);
+        }
+      } catch {}
+      meta.lastNsu = "000000000000000";
+      await prisma.fiscalConfig.update({
+        where: { companyId: company.id },
+        data: { emitterEndpoint: JSON.stringify(meta) },
+      });
     }
 
     const dfeRes = await querySefazDistribuicaoDFe(company.id);
@@ -875,7 +946,7 @@ export async function syncRadarWithSefazAction(): Promise<{
           itemsPreview.push({ name, quantity: qty, unit, unitCost, totalCost, barcode, ncm, cfop });
         }
 
-        cachedList.unshift({
+        const newRadarInv: RadarInvoice = {
           accessKey,
           invoiceNum: nNF,
           series: serie,
@@ -891,7 +962,25 @@ export async function syncRadarWithSefazAction(): Promise<{
           imported: false,
           nsu: doc.nsu,
           itemsPreview,
-        });
+        };
+
+        cachedList.unshift(newRadarInv);
+
+        // Persiste no banco de dados (PostgreSQL) para funcionar em produção (Vercel)
+        try {
+          await prisma.$executeRawUnsafe(
+            `INSERT INTO "radar_invoices" ("companyId", "accessKey", "issueDate", "payloadJson", "createdAt")
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT ("companyId", "accessKey") DO UPDATE SET
+               "issueDate" = EXCLUDED."issueDate",
+               "payloadJson" = EXCLUDED."payloadJson"`,
+            company.id,
+            accessKey,
+            dhEmi,
+            JSON.stringify(newRadarInv),
+            new Date().toISOString()
+          );
+        } catch {}
 
         existingKeys.add(accessKey);
         newDocsCount++;
