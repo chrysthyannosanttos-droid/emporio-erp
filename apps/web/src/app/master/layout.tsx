@@ -9,6 +9,7 @@ import {
   ChevronRight,
   Settings,
   Headphones,
+  Database,
 } from "lucide-react";
 import { prisma } from "@emporio/database";
 import { getSession } from "@/lib/session";
@@ -45,6 +46,11 @@ export default async function MasterLayout({
       : session?.role === "ADMIN"
         ? "Admin Master"
         : "Super Admin";
+  const isCristiano =
+    Boolean(session) &&
+    ((session?.name || "").toLowerCase().includes("cristiano") ||
+      (session?.email || "").toLowerCase().includes("cristiano") ||
+      Boolean(session?.isSuperAdmin));
 
   return (
     <div className="flex h-screen w-screen overflow-hidden font-sans bg-[#f3f7fe]">
@@ -76,6 +82,9 @@ export default async function MasterLayout({
           <NavItem href="/master/users" icon={<Users size={15} />} label="Equipe Master & Suporte" />
           <NavItem href="/master/settings" icon={<Settings size={15} />} label="Configurações Globais" />
           <NavItem href="/master/logs" icon={<ShieldCheck size={15} />} label="Logs do Sistema" />
+          {isCristiano && (
+            <NavItem href="/master/backups" icon={<Database size={15} />} label="Backups por Cliente" />
+          )}
         </nav>
 
         <div className="p-3 relative z-10 border-t border-emerald-500/[0.08]">

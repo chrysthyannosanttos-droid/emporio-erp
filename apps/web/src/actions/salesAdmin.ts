@@ -807,34 +807,223 @@ export async function bulkCancelOrDeleteSalesAdmin(input: {
     return { success: false, error: "Nenhuma venda selecionada.", successCount: 0, errors: [] as string[] };
   }
 
-  let successCount = 0;
-  const errors: string[] = [];
-  let requiresFiscalHandling = false;
-
-  for (const saleId of ids) {
-    const res = await cancelOrDeleteSaleAdmin({
-      saleId,
-      mode: input.mode,
-      reason: input.reason,
-      cancelInvoiceOnSefaz: input.cancelInvoiceOnSefaz,
-      forceWithoutInvoiceCancel: input.forceWithoutInvoiceCancel,
-    });
-    if (res.success) {
-      successCount++;
-    } else {
-      if ((res as any).requiresFiscalHandling) requiresFiscalHandling = true;
-      errors.push(`#${saleId.slice(0, 8)}: ${res.error || "Erro"}`);
+  try {
+    const ctx = await resolveContext();
+    if (!ctx) {
+      return { success: false, error: "Empresa ativa não encontrada.", successCount: 0, errors: [] as string[] };
     }
-  }
 
-  revalidateSaleRelatedPaths();
-  return {
-    success: successCount > 0 && errors.length === 0,
-    partial: successCount > 0 && errors.length > 0,
-    requiresFiscalHandling,
-    successCount,
-    errors,
-  };
+    const sales = await prisma.sale.findMany({
+      where: { id: { in: ids }, companyId: ctx.company.id },
+      include: {
+        items: true,
+        customer: { select: { id: true, name: true } },
+      },
+    });
+
+    if (sales.length === 0) {
+      return { success: false, error: "Nenhuma venda encontrada.", successCount: 0, errors: [] as string[] };
+    }
+
+    const invoiceIds = Array.from(new Set(sales.map((s) => s.invoiceId).filter(Boolean) as string[]));
+    const invoices = invoiceIds.length > 0
+      ? await prisma.invoice.findMany({ where: { id: { in: invoiceIds } } })
+      : [];
+    const invoiceById = new Map(invoices.map((inv) => [inv.id, inv]));
+
+    const errors: string[] = [];
+    let requiresFiscalHandling = false;
+    const eligibleSales: typeof sales = [];
+
+    for (const sale of sales) {
+      const invoice = sale.invoiceId ? invoiceById.get(sale.invoiceId) : null;
+      if (invoice && invoice.status === "AUTHORIZED" && invoice.environment === "producao") {
+        if (input.cancelInvoiceOnSefaz) {
+          const { cancelInvoice } = await import("./invoice");
+          const sefazCancel = await cancelInvoice(
+            invoice.id,
+            input.reason?.trim() || "Cancelamento administrativo em lote por erro operacional."
+          );
+          if (sefazCancel?.error && !input.forceWithoutInvoiceCancel) {
+            requiresFiscalHandling = true;
+            errors.push(`#${sale.id.slice(0, 8)}: SEFAZ recusou cancelamento (${sefazCancel.error})`);
+            continue;
+          }
+        } else if (!input.forceWithoutInvoiceCancel) {
+          requiresFiscalHandling = true;
+          errors.push(
+            `#${sale.id.slice(0, 8)}: Possui ${invoice.type} #${invoice.number || "S/N"} AUTORIZADA em Produção na SEFAZ.`
+          );
+          continue;
+        }
+      }
+      eligibleSales.push(sale);
+    }
+
+    if (eligibleSales.length > 0) {
+      const eligibleIds = eligibleSales.map((s) => s.id);
+      const activeSales = eligibleSales.filter((s) => s.status !== "CANCELED");
+      const activeIds = activeSales.map((s) => s.id);
+
+      // Agrega quantidades de estoque por produto para devolver em lote
+      const stockByProduct = new Map<string, number>();
+      for (const s of activeSales) {
+        for (const it of s.items) {
+          stockByProduct.set(
+            it.productId,
+            (stockByProduct.get(it.productId) || 0) + Number(it.quantity || 0)
+          );
+        }
+      }
+      const stockItems = Array.from(stockByProduct.entries()).map(([productId, quantity]) => ({
+        productId,
+        quantity,
+      }));
+
+      await prisma.$transaction(
+        async (tx) => {
+          if (stockItems.length > 0) {
+            await adjustProductStockWithParent(tx, stockItems, "INCREMENT");
+          }
+
+          if (activeIds.length > 0) {
+            const cashbackLogs = await tx.cashbackLog.findMany({
+              where: { saleId: { in: activeIds } },
+            });
+            if (cashbackLogs.length > 0) {
+              const cashbackDeltaByCustomer = new Map<string, number>();
+              for (const log of cashbackLogs) {
+                if (!log.customerId) continue;
+                const amt = Number(log.amount || 0);
+                const delta = log.type === "EARN" ? amt : log.type === "REDEEM" ? -amt : 0;
+                cashbackDeltaByCustomer.set(
+                  log.customerId,
+                  (cashbackDeltaByCustomer.get(log.customerId) || 0) + delta
+                );
+              }
+              for (const [custId, netEarned] of cashbackDeltaByCustomer.entries()) {
+                if (Math.abs(netEarned) < 0.001) continue;
+                const cust = await tx.customer.findUnique({
+                  where: { id: custId },
+                  select: { cashbackBalance: true },
+                });
+                if (cust) {
+                  await tx.customer.update({
+                    where: { id: custId },
+                    data: {
+                      cashbackBalance: Math.max(0, roundMoney(Number(cust.cashbackBalance || 0) - netEarned)),
+                    },
+                  });
+                }
+              }
+              await tx.cashbackLog.deleteMany({ where: { saleId: { in: activeIds } } });
+            }
+          }
+
+          const linkedTxs = await tx.transaction.findMany({
+            where: { companyId: ctx.company.id, orderId: { in: eligibleIds } },
+          });
+          if (linkedTxs.length > 0) {
+            const saleById = new Map(eligibleSales.map((s) => [s.id, s]));
+            const crediarioByCustomer = new Map<string, number>();
+            for (const t of linkedTxs) {
+              if (t.category === "Crediário Funcionários" && t.status !== "RECEIVED" && t.orderId) {
+                const custId = saleById.get(t.orderId)?.customerId;
+                if (custId) {
+                  crediarioByCustomer.set(
+                    custId,
+                    (crediarioByCustomer.get(custId) || 0) + Math.abs(Number(t.amount || 0))
+                  );
+                }
+              }
+            }
+            for (const [custId, openAmt] of crediarioByCustomer.entries()) {
+              const cust = await tx.customer.findUnique({
+                where: { id: custId },
+                select: { creditUsed: true },
+              });
+              if (cust) {
+                await tx.customer.update({
+                  where: { id: custId },
+                  data: {
+                    creditUsed: Math.max(0, roundMoney(Number(cust.creditUsed || 0) - openAmt)),
+                  },
+                });
+              }
+            }
+            await tx.transaction.deleteMany({
+              where: { companyId: ctx.company.id, orderId: { in: eligibleIds } },
+            });
+          }
+
+          await tx.return.updateMany({
+            where: { saleId: { in: eligibleIds } },
+            data: { saleId: null },
+          });
+
+          if (input.mode === "CANCEL") {
+            await tx.sale.updateMany({
+              where: { id: { in: eligibleIds }, companyId: ctx.company.id },
+              data: {
+                status: "CANCELED",
+                adjustedAt: new Date(),
+                adjustedByUserId: ctx.userId,
+                adjustmentReason: input.reason?.trim() || "Venda cancelada em lote pelo administrador",
+              },
+            });
+          } else {
+            await tx.sale.deleteMany({
+              where: { id: { in: eligibleIds }, companyId: ctx.company.id },
+            });
+          }
+        },
+        { timeout: 30000 }
+      );
+
+      // Registra auditoria individual em 1 único insert em lote (createMany)
+      if (ctx.userId) {
+        const defaultReason =
+          input.reason?.trim() ||
+          (input.mode === "CANCEL" ? "Cancelamento de venda em lote" : "Exclusão definitiva de venda em lote");
+        await prisma.auditLog.createMany({
+          data: eligibleSales.map((sale) => {
+            const inv = sale.invoiceId ? invoiceById.get(sale.invoiceId) : null;
+            const invoiceSummary = inv ? ` | NF: ${inv.type} #${inv.number || "S/N"}` : "";
+            return {
+              companyId: ctx.company.id,
+              userId: ctx.userId!,
+              operation: input.mode === "CANCEL" ? "SALE_CANCEL" : "SALE_DELETE",
+              action: input.mode === "CANCEL" ? "CANCEL" : "DELETE",
+              entity: "Sale",
+              entityId: sale.id,
+              oldValue: `Venda #${sale.id.slice(0, 8)} | Total: R$ ${Number(sale.total).toFixed(2)} | Cliente: ${sale.customer?.name || "Consumidor Final"}${invoiceSummary}`,
+              newValue: input.mode === "CANCEL" ? "CANCELED" : "DELETED",
+              reason: defaultReason,
+              result: "SUCCESS",
+            };
+          }),
+        });
+      }
+    }
+
+    revalidateSaleRelatedPaths();
+    const successCount = eligibleSales.length;
+    return {
+      success: successCount > 0 && errors.length === 0,
+      partial: successCount > 0 && errors.length > 0,
+      requiresFiscalHandling,
+      successCount,
+      errors,
+    };
+  } catch (err: any) {
+    console.error("Erro em bulkCancelOrDeleteSalesAdmin:", err);
+    return {
+      success: false,
+      error: err?.message || "Erro ao processar exclusão/cancelamento em lote.",
+      successCount: 0,
+      errors: [err?.message || "Erro inesperado"],
+    };
+  }
 }
 
 export interface DeletedSaleAuditRecord {

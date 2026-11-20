@@ -794,7 +794,18 @@ export default function SalesManagementPage() {
           sale={deletingSale.sale}
           initialMode={deletingSale.mode}
           onClose={() => setDeletingSale(null)}
-          onDone={loadSales}
+          onDone={() => {
+            const targetId = deletingSale.sale.id;
+            const targetMode = deletingSale.mode;
+            setSales((prev) =>
+              targetMode === "DELETE"
+                ? prev.filter((s) => s.id !== targetId)
+                : prev.map((s) => (s.id === targetId ? { ...s, status: "CANCELED" } : s))
+            );
+            setSelectedIds((prev) => prev.filter((id) => id !== targetId));
+            void loadSales();
+            void loadDeletedLogs();
+          }}
         />
       )}
 
@@ -815,9 +826,17 @@ export default function SalesManagementPage() {
           selectedSales={sales.filter((s) => selectedIds.includes(s.id))}
           initialMode={bulkActionMode}
           onClose={() => setBulkActionMode(null)}
-          onDone={async () => {
+          onDone={() => {
+            const targetSet = new Set(selectedIds);
+            const targetMode = bulkActionMode;
+            setSales((prev) =>
+              targetMode === "DELETE"
+                ? prev.filter((s) => !targetSet.has(s.id))
+                : prev.map((s) => (targetSet.has(s.id) ? { ...s, status: "CANCELED" } : s))
+            );
             setSelectedIds([]);
-            await loadSales();
+            void loadSales();
+            void loadDeletedLogs();
           }}
         />
       )}
