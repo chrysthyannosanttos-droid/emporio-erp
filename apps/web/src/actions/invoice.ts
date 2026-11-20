@@ -769,7 +769,11 @@ export async function cancelInvoice(invoiceId: string, justification = "Cancelam
 /**
  * Exclui uma nota NÃO autorizada inutilizando oficialmente o número na SEFAZ-AL (NfeInutilizacao4).
  */
-export async function inutilizarAndDeleteInvoiceAction(invoiceId: string, justification: string) {
+export async function inutilizarAndDeleteInvoiceAction(
+  invoiceId: string,
+  justification: string,
+  forceLocal = false
+) {
   try {
     const session = await getSession();
     if (!session?.companyId) return { ok: false, error: "Não autorizado." };
@@ -794,26 +798,44 @@ export async function inutilizarAndDeleteInvoiceAction(invoiceId: string, justif
     }
 
     const num = Number(invoice.number || 0);
-    if (!num) {
+    if (!num && !forceLocal) {
       return { ok: false, error: "Número da nota inválido para inutilização na SEFAZ." };
     }
 
-    const inutRes = await inutilizarSefazNumeracao(companyId, {
-      model,
-      series: invoice.series || "1",
-      startNumber: num,
-      endNumber: num,
-      year: String(new Date(invoice.createdAt).getFullYear()),
-      justification,
-    });
+    let inutRes: { ok: boolean; cStat: string; xMotivo: string; nProt: string } = {
+      ok: false,
+      cStat: "LOCAL",
+      xMotivo: "Exclusão local forçada",
+      nProt: "",
+    };
 
-    if (!inutRes.ok) {
+    if (num > 0) {
+      inutRes = await inutilizarSefazNumeracao(companyId, {
+        model,
+        series: invoice.series || "1",
+        startNumber: num,
+        endNumber: num,
+        year: String(new Date(invoice.createdAt).getFullYear()),
+        justification,
+      }).catch((e: any) => ({
+        ok: false,
+        cStat: "ERR",
+        xMotivo: e?.message || "Erro na SEFAZ",
+        nProt: "",
+      }));
+    }
+
+    if (!inutRes.ok && !forceLocal) {
       return { ok: false, error: `SEFAZ (${inutRes.cStat}): ${inutRes.xMotivo}` };
     }
 
     await prisma.$transaction(async (tx) => {
       await tx.sale.updateMany({
         where: { invoiceId: invoice.id, companyId },
+        data: { invoiceId: null },
+      });
+      await tx.return.updateMany({
+        where: { invoiceId: invoice.id },
         data: { invoiceId: null },
       });
       await tx.invoice.delete({
@@ -1098,6 +1120,160 @@ export async function cancelZeroValueInvoicesAction() {
     };
   } catch (err: any) {
     return { ok: false, error: err?.message || "Erro ao cancelar notas zeradas." };
+  }
+}
+
+/**
+ * Inutiliza na SEFAZ (por faixa) e exclui do banco local TODAS as notas pendentes/rejeitadas.
+ * Notas que porventura já constem como AUTORIZADAS na SEFAZ são sincronizadas para AUTHORIZED em vez de excluídas.
+ */
+export async function inutilizarAllRejectedInvoicesAction(forceLocal = true) {
+  try {
+    const session = await getSession();
+    if (!session?.companyId) return { ok: false, error: "Não autorizado." };
+    const companyId = session.companyId;
+
+    const invoices = await prisma.invoice.findMany({
+      where: {
+        companyId,
+        status: { notIn: ["AUTHORIZED", "CANCELED"] },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (invoices.length === 0) {
+      return { ok: true, deletedCount: 0, sefazInutilizadas: 0, syncedAuthorized: 0, message: "Nenhuma nota pendente/rejeitada encontrada." };
+    }
+
+    const alreadyAuthorizedIds: string[] = [];
+    const toDeleteInvoices: typeof invoices = [];
+
+    // 1. Verifica protocolo na SEFAZ em lotes paralelos de 10
+    const withKey = invoices.filter((inv) => inv.accessKey && inv.accessKey.length === 44);
+    const withoutKey = invoices.filter((inv) => !inv.accessKey || inv.accessKey.length !== 44);
+    toDeleteInvoices.push(...withoutKey);
+
+    for (let i = 0; i < withKey.length; i += 10) {
+      const chunk = withKey.slice(i, i + 10);
+      const checks = await Promise.all(
+        chunk.map(async (inv) => {
+          const model: "65" | "55" = inv.type === "NFe" ? "55" : "65";
+          const check = await querySefazProtocolo(companyId, inv.accessKey!, model).catch(() => null);
+          return { inv, authorized: Boolean(check?.authorized) };
+        })
+      );
+      for (const c of checks) {
+        if (c.authorized) alreadyAuthorizedIds.push(c.inv.id);
+        else toDeleteInvoices.push(c.inv);
+      }
+    }
+
+    if (alreadyAuthorizedIds.length > 0) {
+      await prisma.invoice.updateMany({
+        where: { companyId, id: { in: alreadyAuthorizedIds } },
+        data: { status: "AUTHORIZED", errorMsg: null },
+      });
+    }
+
+    // 2. Agrupa numerações consecutivas por (modelo, série, ano) e inutiliza faixas em paralelo (chunks de 5)
+    type InutRange = { model: "65" | "55"; series: string; year: string; startNumber: number; endNumber: number; invs: typeof invoices };
+    const grouped = new Map<string, { num: number; inv: (typeof invoices)[number] }[]>();
+    const noNumberIds: string[] = [];
+
+    for (const inv of toDeleteInvoices) {
+      const num = Number(inv.number || 0);
+      if (num <= 0) {
+        noNumberIds.push(inv.id);
+        continue;
+      }
+      const model: "65" | "55" = inv.type === "NFe" ? "55" : "65";
+      const series = inv.series || "1";
+      const year = String(new Date(inv.createdAt).getFullYear());
+      const key = `${model}::${series}::${year}`;
+      const list = grouped.get(key) || [];
+      list.push({ num, inv });
+      grouped.set(key, list);
+    }
+
+    const ranges: InutRange[] = [];
+    for (const [key, entries] of grouped.entries()) {
+      const [model, series, year] = key.split("::") as ["65" | "55", string, string];
+      entries.sort((a, b) => a.num - b.num);
+      let start = entries[0].num;
+      let end = entries[0].num;
+      let bucket = [entries[0].inv];
+      for (let i = 1; i < entries.length; i++) {
+        if (entries[i].num === end + 1) {
+          end = entries[i].num;
+          bucket.push(entries[i].inv);
+        } else if (entries[i].num === end) {
+          bucket.push(entries[i].inv);
+        } else {
+          ranges.push({ model, series, year, startNumber: start, endNumber: end, invs: bucket });
+          start = entries[i].num;
+          end = entries[i].num;
+          bucket = [entries[i].inv];
+        }
+      }
+      ranges.push({ model, series, year, startNumber: start, endNumber: end, invs: bucket });
+    }
+
+    let sefazInutilizadas = 0;
+    const confirmedDeleteIds = [...noNumberIds];
+
+    for (let i = 0; i < ranges.length; i += 5) {
+      const chunk = ranges.slice(i, i + 5);
+      const results = await Promise.all(
+        chunk.map(async (r) => {
+          const inutRes = await inutilizarSefazNumeracao(companyId, {
+            model: r.model,
+            series: r.series,
+            startNumber: r.startNumber,
+            endNumber: r.endNumber,
+            year: r.year,
+            justification: "Inutilizacao em lote de numeracao nao autorizada/rejeitada.",
+          }).catch(() => null);
+          const ok = Boolean(inutRes?.ok || ["102", "206", "256", "563"].includes(String(inutRes?.cStat || "")));
+          return { ok, invs: r.invs };
+        })
+      );
+      for (const res of results) {
+        if (res.ok) {
+          sefazInutilizadas += res.invs.length;
+          confirmedDeleteIds.push(...res.invs.map((x) => x.id));
+        } else if (forceLocal) {
+          confirmedDeleteIds.push(...res.invs.map((x) => x.id));
+        }
+      }
+    }
+
+    const idsToRemove = Array.from(new Set(confirmedDeleteIds));
+    if (idsToRemove.length > 0) {
+      await prisma.$transaction(async (tx) => {
+        await tx.sale.updateMany({
+          where: { companyId, invoiceId: { in: idsToRemove } },
+          data: { invoiceId: null },
+        });
+        await tx.return.updateMany({
+          where: { invoiceId: { in: idsToRemove } },
+          data: { invoiceId: null },
+        });
+        await tx.invoice.deleteMany({
+          where: { companyId, id: { in: idsToRemove } },
+        });
+      });
+    }
+
+    revalidatePath("/fiscal");
+    return {
+      ok: true,
+      deletedCount: idsToRemove.length,
+      sefazInutilizadas,
+      syncedAuthorized: alreadyAuthorizedIds.length,
+      message: `${idsToRemove.length} nota(s) pendente(s) inutilizada(s)/excluída(s) (${sefazInutilizadas} confirmada(s) na SEFAZ, ${alreadyAuthorizedIds.length} autorizada(s) sincronizada(s)).`,
+    };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || "Erro ao inutilizar/excluir notas pendentes." };
   }
 }
 

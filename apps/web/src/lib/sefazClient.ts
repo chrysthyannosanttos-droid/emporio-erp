@@ -792,7 +792,7 @@ export async function inutilizarSefazNumeracao(
   const nProt = (res.body.match(/<nProt>(.*?)<\/nProt>/) || [])[1] || "";
 
   return {
-    ok: ["102", "563"].includes(cStat),
+    ok: ["102", "206", "256", "563"].includes(cStat),
     cStat,
     xMotivo,
     nProt,

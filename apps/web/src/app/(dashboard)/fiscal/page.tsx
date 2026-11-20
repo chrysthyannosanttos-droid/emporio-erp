@@ -39,6 +39,7 @@ import {
   updateRejectedInvoiceAction,
   sendCartaCorrecaoAction,
   inutilizarAndDeleteInvoiceAction,
+  inutilizarAllRejectedInvoicesAction,
   cleanupDuplicateInvoicesAction,
   cancelZeroValueInvoicesAction,
   autoFixPendingInvoicesNcmAction,
@@ -97,6 +98,7 @@ export default function FiscalPage() {
   const [busyInvoiceId, setBusyInvoiceId] = useState<string | null>(null);
   const [cleaningDuplicates, setCleaningDuplicates] = useState(false);
   const [cleaningZeros, setCleaningZeros] = useState(false);
+  const [inutilizingAll, setInutilizingAll] = useState(false);
   const [fixingNcm, setFixingNcm] = useState(false);
   const [attemptedIds, setAttemptedIds] = useState<Record<string, boolean>>({});
   const [queueLogs, setQueueLogs] = useState<Array<{ id: string; number: string; ok: boolean; msg: string; time: string }>>([]);
@@ -415,6 +417,21 @@ export default function FiscalPage() {
     }
   };
 
+  const handleInutilizarAllRejected = async () => {
+    setInutilizingAll(true);
+    setError("");
+    setSuccess("");
+    const res = await inutilizarAllRejectedInvoicesAction(true);
+    setInutilizingAll(false);
+    if (res.ok) {
+      setAttemptedIds({});
+      setSuccess(res.message || "Notas pendentes inutilizadas e excluídas com sucesso.");
+      await loadInvoices(true);
+    } else {
+      setError(res.error || "Erro ao inutilizar/excluir notas pendentes.");
+    }
+  };
+
   const handleFixPendingNcm = async () => {
     setFixingNcm(true);
     setError("");
@@ -507,7 +524,7 @@ export default function FiscalPage() {
     }
   };
 
-  const handleConfirmSefazDeleteOrCancel = async () => {
+  const handleConfirmSefazDeleteOrCancel = async (forceLocal = false) => {
     if (!sefazActionModal) return;
     const { inv, mode } = sefazActionModal;
     setSefazActionLoading(true);
@@ -525,11 +542,15 @@ export default function FiscalPage() {
         setError(res.error || "SEFAZ recusou o cancelamento.");
       }
     } else {
-      const res = await inutilizarAndDeleteInvoiceAction(inv.id, sefazJust);
+      const res = await inutilizarAndDeleteInvoiceAction(inv.id, sefazJust, forceLocal);
       setSefazActionLoading(false);
       if (res.ok) {
         setSefazActionModal(null);
-        setSuccess(`Numeração #${inv.number} INUTILIZADA na SEFAZ (${res.cStat}: ${res.xMotivo}) e excluída da fila com segurança.`);
+        setSuccess(
+          forceLocal
+            ? `Nota #${inv.number} excluída da fila local com segurança.`
+            : `Numeração #${inv.number} INUTILIZADA na SEFAZ (${res.cStat}: ${res.xMotivo}) e excluída da fila com segurança.`
+        );
         await loadInvoices(true);
       } else {
         setError(res.error || "SEFAZ recusou a inutilização.");
@@ -1060,13 +1081,24 @@ export default function FiscalPage() {
 
                 <button
                   type="button"
-                  disabled={cleaningZeros || cleaningDuplicates || !!busyInvoiceId || stats.rejected === 0}
+                  disabled={cleaningZeros || cleaningDuplicates || inutilizingAll || !!busyInvoiceId || stats.rejected === 0}
                   onClick={handleCancelZeroInvoices}
                   className="px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-40 text-white shadow-sm cursor-pointer"
                   title="Inutiliza na SEFAZ e cancela todas as notas pendentes/rejeitadas com valor R$ 0,00 ou sem itens vinculados"
                 >
                   {cleaningZeros ? <Loader2 size={15} className="animate-spin" /> : <XCircle size={15} />}
                   Cancelar Zeradas
+                </button>
+
+                <button
+                  type="button"
+                  disabled={inutilizingAll || cleaningZeros || cleaningDuplicates || !!busyInvoiceId || stats.rejected === 0}
+                  onClick={handleInutilizarAllRejected}
+                  className="px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 bg-red-700 hover:bg-red-800 disabled:opacity-40 text-white shadow-sm cursor-pointer"
+                  title="Inutiliza na SEFAZ por faixa e exclui todas as notas pendentes/rejeitadas não autorizadas (preserva 100% das autorizadas)"
+                >
+                  {inutilizingAll ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                  Inutilizar Pendentes
                 </button>
 
                 <button
@@ -1618,7 +1650,7 @@ export default function FiscalPage() {
               />
               <p className="text-[11px] text-gray-400 mt-1">{sefazJust.trim().length} / 15 caracteres mínimos</p>
             </div>
-            <div className="flex justify-end gap-2">
+            <div className="flex flex-wrap justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setSefazActionModal(null)}
@@ -1626,10 +1658,21 @@ export default function FiscalPage() {
               >
                 Voltar
               </button>
+              {sefazActionModal.mode === "INUTILIZAR" && (
+                <button
+                  type="button"
+                  disabled={sefazActionLoading}
+                  onClick={() => void handleConfirmSefazDeleteOrCancel(true)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-amber-800 bg-amber-100 hover:bg-amber-200 border border-amber-300 disabled:opacity-40 flex items-center gap-1.5 cursor-pointer"
+                  title="Remove da fila local se a SEFAZ nunca autorizou esta nota"
+                >
+                  <Trash2 size={14} /> Forçar Exclusão Local
+                </button>
+              )}
               <button
                 type="button"
                 disabled={sefazActionLoading || sefazJust.trim().length < 15}
-                onClick={handleConfirmSefazDeleteOrCancel}
+                onClick={() => void handleConfirmSefazDeleteOrCancel(false)}
                 className="px-4 py-2 rounded-xl text-xs font-black text-white bg-red-600 hover:bg-red-700 disabled:opacity-40 flex items-center gap-1.5 cursor-pointer"
               >
                 {sefazActionLoading ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
