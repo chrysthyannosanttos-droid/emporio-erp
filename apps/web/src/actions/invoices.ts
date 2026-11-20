@@ -703,6 +703,14 @@ export async function getRadarInvoices(): Promise<{ invoices: RadarInvoice[]; la
     realInvoices = (bundledRadarInvoices as unknown as RadarInvoice[]) || [];
   }
 
+  // Remove quaisquer notas fake/homologação (9900xx ou (TESTE))
+  realInvoices = realInvoices.filter(
+    (inv) =>
+      !/^9900\d{2}$/.test(String(inv.invoiceNum || "")) &&
+      !String(inv.supplierName || "").includes("(TESTE)") &&
+      !String(inv.supplierName || "").includes("TESTE HOMOLOGACAO")
+  );
+
   // Atualiza flag de importado com base no banco atual e marcação oficial de notas legadas do Saipos
   realInvoices = realInvoices.map(inv => {
     const isLegacy = inv.isLegacySaipos !== undefined 
