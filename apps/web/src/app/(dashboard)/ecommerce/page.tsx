@@ -70,6 +70,7 @@ import {
   rejectDigitalMenuOrder,
   advanceDigitalMenuOrderStatus,
   toggleProductDigitalMenu,
+  deleteDigitalMenuOrders,
 } from "@/actions/order";
 
 type AdminTab =
@@ -180,6 +181,8 @@ export default function EcommerceStoreAdminPage() {
 
   // Filters
   const [orderFilter, setOrderFilter] = useState<string>("ALL");
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [deletingOrders, setDeletingOrders] = useState(false);
   const [productSearch, setProductSearch] = useState("");
   const [productCatFilter, setProductCatFilter] = useState("ALL");
   const [productOnlyActive, setProductOnlyActive] = useState(false);
@@ -382,6 +385,23 @@ export default function EcommerceStoreAdminPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Atualização automática dos pedidos do Cardápio Digital (6s + evento de novo pedido)
+  useEffect(() => {
+    const onNewOrder = () => {
+      void loadData();
+    };
+    window.addEventListener("digital-menu-new-order", onNewOrder);
+    const interval = setInterval(() => {
+      if (tab === "orders") {
+        void loadData();
+      }
+    }, 6000);
+    return () => {
+      window.removeEventListener("digital-menu-new-order", onNewOrder);
+      clearInterval(interval);
+    };
+  }, [tab, loadData]);
 
   const fullStoreUrl = useMemo(() => {
     if (typeof window === "undefined") return menuPath;
@@ -765,28 +785,78 @@ export default function EcommerceStoreAdminPage() {
       {/* ── ABA 2: PEDIDOS ── */}
       {tab === "orders" && (
         <div className="space-y-4">
-          <div className="flex flex-wrap gap-1.5 bg-white p-2 rounded-2xl border border-emerald-100">
-            {[
-              { key: "ALL", label: "Todos" },
-              { key: "PENDING_APPROVAL", label: "Novos" },
-              { key: "CONFIRMED", label: "Confirmados" },
-              { key: "PREPARING", label: "Preparando" },
-              { key: "OUT_FOR_DELIVERY", label: "Saiu p/ entrega" },
-              { key: "DELIVERED", label: "Entregues" },
-            ].map((f) => (
-              <button
-                key={f.key}
-                type="button"
-                onClick={() => setOrderFilter(f.key)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer ${
-                  orderFilter === f.key
-                    ? "bg-[#0B5D2E] text-white"
-                    : "bg-slate-50 text-slate-600 hover:bg-emerald-50"
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center justify-between gap-2 bg-white p-2.5 rounded-2xl border border-emerald-100">
+            <div className="flex flex-wrap gap-1.5">
+              {[
+                { key: "ALL", label: "Todos" },
+                { key: "PENDING_APPROVAL", label: "Novos" },
+                { key: "CONFIRMED", label: "Confirmados" },
+                { key: "PREPARING", label: "Preparando" },
+                { key: "OUT_FOR_DELIVERY", label: "Saiu p/ entrega" },
+                { key: "DELIVERED", label: "Entregues" },
+              ].map((f) => (
+                <button
+                  key={f.key}
+                  type="button"
+                  onClick={() => setOrderFilter(f.key)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer ${
+                    orderFilter === f.key
+                      ? "bg-[#0B5D2E] text-white"
+                      : "bg-slate-50 text-slate-600 hover:bg-emerald-50"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              {filteredOrders.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const visibleIds = filteredOrders.map((o) => o.id);
+                    const allSelected = visibleIds.every((id) => selectedOrderIds.includes(id));
+                    if (allSelected) {
+                      setSelectedOrderIds((prev) => prev.filter((id) => !visibleIds.includes(id)));
+                    } else {
+                      setSelectedOrderIds((prev) => Array.from(new Set([...prev, ...visibleIds])));
+                    }
+                  }}
+                  className="px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 cursor-pointer"
+                >
+                  {filteredOrders.every((o) => selectedOrderIds.includes(o.id))
+                    ? "Desmarcar Todos"
+                    : `Marcar Todos (${filteredOrders.length})`}
+                </button>
+              )}
+
+              {selectedOrderIds.length > 0 && (
+                <button
+                  type="button"
+                  disabled={deletingOrders}
+                  onClick={async () => {
+                    if (!confirm(`Deseja apagar ${selectedOrderIds.length} pedido(s) marcado(s)? Se já aprovados, o estoque será devolvido.`)) {
+                      return;
+                    }
+                    setDeletingOrders(true);
+                    const r = await deleteDigitalMenuOrders(selectedOrderIds);
+                    setDeletingOrders(false);
+                    if (r.error) {
+                      notify(r.error);
+                    } else {
+                      notify(`${r.deletedCount || selectedOrderIds.length} pedido(s) apagado(s) com sucesso!`);
+                      setSelectedOrderIds([]);
+                      loadData();
+                    }
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl text-xs font-black bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white inline-flex items-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <Trash2 size={13} />
+                  {deletingOrders ? "Apagando..." : `Apagar Marcados (${selectedOrderIds.length})`}
+                </button>
+              )}
+            </div>
           </div>
 
           {filteredOrders.length === 0 ? (
@@ -800,26 +870,44 @@ export default function EcommerceStoreAdminPage() {
                   label: ord.status,
                   badge: "bg-slate-100 text-slate-700 border-slate-200",
                 };
+                const isChecked = selectedOrderIds.includes(ord.id);
                 return (
                   <div
                     key={ord.id}
-                    className="bg-white border border-emerald-100 rounded-3xl p-5 shadow-2xs space-y-3"
+                    className={`bg-white border rounded-3xl p-5 shadow-2xs space-y-3 transition-all ${
+                      isChecked ? "border-rose-400 ring-2 ring-rose-100" : "border-emerald-100"
+                    }`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono font-black text-sm text-[#0B5D2E]">
-                            #{ord.orderNumber || ord.id.slice(0, 6)}
-                          </span>
-                          <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-black ${stMeta.badge}`}>
-                            {stMeta.label}
-                          </span>
-                        </div>
-                        <div className="text-sm font-black text-slate-900 mt-1">
-                          {ord.customerName || ord.customer?.name || "Cliente"}
-                        </div>
-                        <div className="text-xs text-slate-500 font-mono">
-                          {ord.customerPhone || ord.customer?.phone || "Sem telefone"} • {fmtDate(ord.createdAt)}
+                      <div className="flex items-start gap-2.5">
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedOrderIds((prev) => [...prev, ord.id]);
+                            } else {
+                              setSelectedOrderIds((prev) => prev.filter((id) => id !== ord.id));
+                            }
+                          }}
+                          className="mt-1 h-4 w-4 accent-rose-600 rounded cursor-pointer"
+                          title="Marcar para apagar"
+                        />
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono font-black text-sm text-[#0B5D2E]">
+                              #{ord.orderNumber || ord.id.slice(0, 6)}
+                            </span>
+                            <span className={`px-2.5 py-0.5 rounded-full border text-[10px] font-black ${stMeta.badge}`}>
+                              {stMeta.label}
+                            </span>
+                          </div>
+                          <div className="text-sm font-black text-slate-900 mt-1">
+                            {ord.customerName || ord.customer?.name || "Cliente"}
+                          </div>
+                          <div className="text-xs text-slate-500 font-mono">
+                            {ord.customerPhone || ord.customer?.phone || "Sem telefone"} • {fmtDate(ord.createdAt)}
+                          </div>
                         </div>
                       </div>
                       <div className="text-right">
@@ -925,6 +1013,27 @@ export default function EcommerceStoreAdminPage() {
                           ))}
                         </>
                       )}
+
+                      <button
+                        type="button"
+                        disabled={busyId === ord.id || deletingOrders}
+                        onClick={async () => {
+                          if (!confirm(`Deseja apagar o pedido #${ord.orderNumber || ord.id.slice(0, 6)}?`)) {
+                            return;
+                          }
+                          setBusyId(ord.id);
+                          const r = await deleteDigitalMenuOrders([ord.id]);
+                          setBusyId(null);
+                          if (r.error) notify(r.error);
+                          else notify("Pedido apagado com sucesso!");
+                          setSelectedOrderIds((prev) => prev.filter((id) => id !== ord.id));
+                          loadData();
+                        }}
+                        className="ml-auto px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold inline-flex items-center gap-1 cursor-pointer"
+                        title="Apagar este pedido"
+                      >
+                        <Trash2 size={12} /> Apagar
+                      </button>
                     </div>
                   </div>
                 );

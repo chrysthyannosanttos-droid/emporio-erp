@@ -867,6 +867,42 @@ export function DigitalMenuClient({
     }
   };
 
+  // Atualização automática do status do pedido na tela do cliente (polling a cada 6s)
+  useEffect(() => {
+    const activeIds = new Set<string>();
+    const terminalStatuses = new Set(["DELIVERED", "REJECTED", "CANCELED"]);
+    if (selectedOrderDetail && !terminalStatuses.has(selectedOrderDetail.status)) {
+      activeIds.add(selectedOrderDetail.id);
+    }
+    for (const o of customerOrders) {
+      if (!terminalStatuses.has(o.status)) {
+        activeIds.add(o.id);
+      }
+    }
+    if (activeIds.size === 0) return;
+
+    const interval = setInterval(async () => {
+      for (const orderId of activeIds) {
+        try {
+          const res = await getPublicOrderStatus(orderId);
+          if (res.success && res.order) {
+            const updated = res.order as unknown as SubmittedOrder;
+            setSelectedOrderDetail((prev) => (prev && prev.id === updated.id ? updated : prev));
+            setCustomerOrders((prev) => {
+              const prevOrder = prev.find((o) => o.id === updated.id);
+              if (prevOrder && prevOrder.status !== updated.status) {
+                showToast("Status do seu pedido foi atualizado!");
+              }
+              return prev.map((o) => (o.id === updated.id ? updated : o));
+            });
+          }
+        } catch {}
+      }
+    }, 6000);
+
+    return () => clearInterval(interval);
+  }, [selectedOrderDetail?.id, selectedOrderDetail?.status, customerOrders.length]);
+
   const handleGeneratePixForOrder = async (orderId: string) => {
     setGeneratingPix(true);
     try {

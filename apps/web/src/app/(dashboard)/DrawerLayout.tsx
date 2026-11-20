@@ -6,13 +6,13 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, ShoppingCart, Users, Package, Wallet, FileText,
   LogOut, Bell, Hammer, Percent, Tag, Truck, ClipboardList, BarChart2,
-  ChevronRight, Store, Landmark, HeartHandshake, AlertTriangle,
+  ChevronRight, ChevronDown, Store, Landmark, HeartHandshake, AlertTriangle,
   Scale, ShoppingBag, Palette, ArrowLeftRight, FolderTree,
   Utensils, ChefHat, BookOpen, Menu, X, ShieldAlert, ShieldCheck, Shield,
   Sliders, Settings, Search, Calendar, HelpCircle, Hexagon,
   CreditCard, TrendingDown, TrendingUp, Building2, Monitor,
   Plus, Pin, PinOff, Sparkles, Receipt, RefreshCw, Globe, Smartphone,
-  ClipboardCheck, BedDouble
+  ClipboardCheck, BedDouble, Pencil, Trash2
 } from "lucide-react";
 import { logout, switchToMaster } from "@/actions/auth";
 import { WhatsNewModal } from "@/components/WhatsNewModal";
@@ -20,6 +20,8 @@ import { AutoInstallLogo } from "@/components/AutoInstallLogo";
 import { CybertechBrand } from "@/components/CybertechBrand";
 import { ConcurrentSessionWatcher } from "@/components/ConcurrentSessionWatcher";
 import { DemoTourGuide } from "@/components/DemoTourGuide";
+import { GlobalTabActionModal } from "@/components/GlobalTabActionModal";
+import { DigitalMenuOrderNotifier } from "@/components/DigitalMenuOrderNotifier";
 
 interface DrawerLayoutProps {
   children: React.ReactNode;
@@ -32,6 +34,7 @@ interface DrawerLayoutProps {
   canMobilePdv?: boolean;
   isMasterEligible?: boolean;
   isCristiano?: boolean;
+  stores?: Array<{ id: string; name: string }>;
 }
 
 interface WorkspaceTab {
@@ -45,11 +48,14 @@ const ROUTE_DEFINITIONS: Record<string, { title: string; iconName: string }> = {
   "/": { title: "Dashboard", iconName: "LayoutDashboard" },
   "/pdv": { title: "PDV Caixa", iconName: "Store" },
   "/pdv/mobile": { title: "PDV Mobile", iconName: "Smartphone" },
+  "/sales": { title: "Vendas", iconName: "ShoppingBag" },
+  "/vendas-diretas": { title: "Venda Direta", iconName: "Receipt" },
   "/ecommerce": { title: "Cardápio Digital", iconName: "ShoppingBag" },
   "/comandas": { title: "Comandas / Quartos", iconName: "BedDouble" },
   "/contracts": { title: "Contratos de Venda", iconName: "FileText" },
   "/distribution/orders": { title: "Pedidos", iconName: "ClipboardList" },
   "/customers": { title: "Clientes", iconName: "Users" },
+  "/fiscal": { title: "Central Fiscal & SEFAZ", iconName: "Receipt" },
   "/invoices": { title: "Entrada de Notas", iconName: "Receipt" },
   "/fiscal/decretos": { title: "Decretos AL & NCMs", iconName: "Scale" },
   "/decretos": { title: "Decretos AL & NCMs", iconName: "Scale" },
@@ -74,6 +80,7 @@ const ROUTE_DEFINITIONS: Record<string, { title: string; iconName: string }> = {
   "/reports": { title: "Relatórios & BI", iconName: "FileText" },
   "/guide": { title: "Guia & Demonstração", iconName: "BookOpen" },
   "/settings/terminals": { title: "Terminais PDV", iconName: "Monitor" },
+  "/settings/pdv-screensaver": { title: "Descanso de Tela PDV", iconName: "Monitor" },
   "/settings/modules": { title: "Lojas & Módulos", iconName: "Building2" },
   "/settings/users": { title: "Usuários", iconName: "Users" },
   "/settings/roles": { title: "Perfis & Setores", iconName: "Shield" },
@@ -148,6 +155,7 @@ export function DrawerLayout({
   canMobilePdv = false,
   isMasterEligible = false,
   isCristiano = false,
+  stores = [],
 }: DrawerLayoutProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -156,6 +164,29 @@ export function DrawerLayout({
   const [isPinned, setIsPinned] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
+  const [globalActionMode, setGlobalActionMode] = useState<"edit" | "delete" | null>(null);
+  const [menuSearch, setMenuSearch] = useState("");
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
+    vendas: true,
+    fiscal: true,
+  });
+
+  const toggleMenuGroup = (groupKey: string) => {
+    setOpenGroups((prev) => {
+      const next = { ...prev, [groupKey]: !prev[groupKey] };
+      try {
+        localStorage.setItem("EMPORIO_MENU_GROUPS", JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("EMPORIO_MENU_GROUPS");
+      if (saved) setOpenGroups((prev) => ({ ...prev, ...JSON.parse(saved) }));
+    } catch {}
+  }, []);
 
   const [tabs, setTabs] = useState<WorkspaceTab[]>([
     { id: "/", href: "/", title: "Dashboard", iconName: "LayoutDashboard" },
@@ -172,6 +203,8 @@ export function DrawerLayout({
       "/settings/integrations",
       "/settings/terminals",
       "/pdv",
+      "/sales",
+      "/vendas-diretas",
       "/finance",
       "/reports",
       "/migration",
@@ -339,96 +372,168 @@ export function DrawerLayout({
         </div>
       </div>
 
-      {/* Navigation List */}
-      <nav className="flex-1 px-3 py-3 space-y-4 overflow-y-auto custom-scrollbar">
-        {/* Main Dashboard item */}
+      {/* Navigation List — Organizada por Setor com Busca e Grupos Recolhíveis */}
+      <nav className="flex-1 px-3 py-3 space-y-2.5 overflow-y-auto custom-scrollbar">
+        {/* Busca rápida no menu */}
+        <div className="relative">
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={menuSearch}
+            onChange={(e) => setMenuSearch(e.target.value)}
+            placeholder="Filtrar menu..."
+            className="w-full bg-gray-50 border border-gray-200 focus:border-blue-500 rounded-xl pl-8 pr-7 py-1.5 text-xs text-gray-800 placeholder:text-gray-400 outline-none"
+          />
+          {menuSearch && (
+            <button
+              type="button"
+              onClick={() => setMenuSearch("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
+
+        {/* Dashboard Principal */}
         <div>
-          <NavItem 
-            href="/" 
-            icon={<LayoutDashboard size={16} />} 
-            label="Dashboard" 
-            active={pathname === "/"} 
-            onNavigate={handleNavigate} 
+          <NavItem
+            href="/"
+            icon={<LayoutDashboard size={16} />}
+            label="Dashboard"
+            active={pathname === "/"}
+            onNavigate={handleNavigate}
           />
         </div>
 
-        {/* VENDAS & COMERCIAL */}
-        <div className="space-y-0.5">
-          <SectionLabel>VENDAS & COMERCIAL</SectionLabel>
-          {hasModule("PDV") && <NavItem href="/pdv" icon={<Store size={16} />} label="PDV Caixa" active={pathname === "/pdv"} onNavigate={handleNavigate} />}
-          {hasModule("PDV") && canMobilePdv && <NavItem href="/pdv/mobile" icon={<Smartphone size={16} />} label="PDV Mobile" active={pathname === "/pdv/mobile"} onNavigate={handleNavigate} />}
-          {hasModule("ECOMMERCE") && <NavItem href="/ecommerce" icon={<ShoppingBag size={16} />} label="Cardápio Digital" active={pathname?.startsWith("/ecommerce")} onNavigate={handleNavigate} />}
-          {hasModule("HOTEL_TABS") && (
-            <NavItem href="/comandas" icon={<BedDouble size={16} />} label="Comandas / Quartos" active={pathname?.startsWith("/comandas")} onNavigate={handleNavigate} />
-          )}
-          {hasModule("DISTRIBUTION_ORDERS") && <NavItem href="/distribution/orders" icon={<ClipboardList size={16} />} label="Pedidos" active={pathname?.startsWith("/distribution/orders")} onNavigate={handleNavigate} />}
-          {(isCristiano || hasModule("CONTRACTS")) && (
-            <NavItem href="/contracts" icon={<FileText size={16} />} label="Contratos de Venda" active={pathname === "/contracts"} onNavigate={handleNavigate} />
-          )}
-          {hasModule("CRM") && <NavItem href="/customers" icon={<Users size={16} />} label="Clientes" active={pathname === "/customers"} onNavigate={handleNavigate} />}
-        </div>
+        {(() => {
+          const q = menuSearch.trim().toLowerCase();
+          const groups = [
+            {
+              key: "vendas",
+              title: "Vendas & Atendimento",
+              items: [
+                hasModule("PDV") && { href: "/pdv", icon: <Store size={15} />, label: "PDV Caixa", active: pathname === "/pdv" },
+                hasModule("PDV") && canMobilePdv && { href: "/pdv/mobile", icon: <Smartphone size={15} />, label: "PDV Mobile", active: pathname === "/pdv/mobile" },
+                { href: "/sales", icon: <ShoppingBag size={15} />, label: "Vendas", active: pathname === "/sales" },
+                { href: "/vendas-diretas", icon: <Receipt size={15} />, label: "Venda Direta", active: Boolean(pathname?.startsWith("/vendas-diretas")) },
+                hasModule("ECOMMERCE") && { href: "/ecommerce", icon: <ShoppingBag size={15} />, label: "Cardápio Digital", active: Boolean(pathname?.startsWith("/ecommerce")) },
+                hasModule("DISTRIBUTION_ORDERS") && { href: "/distribution/orders", icon: <ClipboardList size={15} />, label: "Pedidos", active: Boolean(pathname?.startsWith("/distribution/orders")) },
+                hasModule("HOTEL_TABS") && { href: "/comandas", icon: <BedDouble size={15} />, label: "Comandas / Quartos", active: Boolean(pathname?.startsWith("/comandas")) },
+                (isCristiano || hasModule("CONTRACTS")) && { href: "/contracts", icon: <FileText size={15} />, label: "Contratos de Venda", active: pathname === "/contracts" },
+                hasModule("CRM") && { href: "/customers", icon: <Users size={15} />, label: "Clientes", active: pathname === "/customers" },
+              ].filter(Boolean) as Array<{ href: string; icon: React.ReactNode; label: string; active: boolean }>,
+            },
+            {
+              key: "fiscal",
+              title: "Fiscal & Notas (SEFAZ)",
+              items: [
+                { href: "/fiscal", icon: <Receipt size={15} />, label: "Central Fiscal & SEFAZ", active: pathname === "/fiscal" },
+                hasModule("FISCAL_RADAR") && { href: "/invoices", icon: <FileText size={15} />, label: "Entrada de Notas & XML", active: pathname === "/invoices" },
+                hasModule("FISCAL") && { href: "/fiscal/decretos", icon: <Scale size={15} />, label: "Decretos AL & NCMs", active: Boolean(pathname?.startsWith("/fiscal/decretos") || pathname === "/decretos") },
+              ].filter(Boolean) as Array<{ href: string; icon: React.ReactNode; label: string; active: boolean }>,
+            },
+            {
+              key: "compras",
+              title: "Compras & Fornecedores",
+              items: [
+                hasModule("PURCHASES") && { href: "/purchases", icon: <ClipboardList size={15} />, label: "Pedidos de Compra & Cotações", active: Boolean(pathname?.startsWith("/purchases")) },
+                hasModule("SUPPLIERS") && { href: "/suppliers", icon: <Truck size={15} />, label: "Fornecedores", active: pathname === "/suppliers" },
+                hasModule("PURCHASES") && { href: "/reports/purchases-by-supplier", icon: <BarChart2 size={15} />, label: "Compras por Fornecedor", active: pathname === "/reports/purchases-by-supplier" },
+              ].filter(Boolean) as Array<{ href: string; icon: React.ReactNode; label: string; active: boolean }>,
+            },
+            {
+              key: "estoque",
+              title: "Produtos & Estoque",
+              items: [
+                hasModule("STOCK") && { href: "/stock", icon: <Landmark size={15} />, label: "Estoque & Produtos", active: pathname === "/stock" },
+                hasModule("STOCK") && { href: "/stock/new", icon: <Package size={15} />, label: "Cadastrar Produto", active: pathname === "/stock/new" },
+                hasModule("MERCADOLOGICO") && { href: "/mercadologico", icon: <FolderTree size={15} />, label: "Categorias", active: pathname === "/mercadologico" },
+                hasModule("PRICING") && { href: "/pricing", icon: <Percent size={15} />, label: "Precificação & Margens", active: pathname === "/pricing" },
+                hasModule("LABELS") && { href: "/labels", icon: <Tag size={15} />, label: "Impressão de Etiquetas", active: pathname === "/labels" },
+                hasModule("SCALES") && { href: "/scales", icon: <Scale size={15} />, label: "Balanças (Toledo MGV6)", active: pathname === "/scales" },
+                hasModule("EXPIRATIONS") && { href: "/expirations", icon: <Calendar size={15} />, label: "Controle de Validades", active: pathname === "/expirations" },
+                hasModule("STOCK") && { href: "/stock/inventory", icon: <ClipboardCheck size={15} />, label: "Balanço & Inventário", active: pathname === "/stock/inventory" },
+                hasModule("LOSSES") && { href: "/losses", icon: <AlertTriangle size={15} />, label: "Avarias & Perdas", active: Boolean(pathname?.startsWith("/losses")) },
+                hasModule("COI") && { href: "/coi", icon: <Sliders size={15} />, label: "Operações de Estoque (COI)", active: pathname === "/coi" },
+                hasModule("PRODUCTION") && { href: "/production", icon: <Hammer size={15} />, label: "Produção Própria", active: Boolean(pathname?.startsWith("/production")) },
+                hasModule("ASSETS") && { href: "/assets", icon: <Shield size={15} />, label: "Ativo Imobilizado", active: pathname === "/assets" },
+              ].filter(Boolean) as Array<{ href: string; icon: React.ReactNode; label: string; active: boolean }>,
+            },
+            {
+              key: "restaurante",
+              title: "Restaurante",
+              items: [
+                hasModule("RESTAURANT") && { href: "/restaurant/pdv", icon: <Utensils size={15} />, label: "PDV Touch & Mesas", active: Boolean(pathname?.startsWith("/restaurant/pdv")) },
+                hasModule("RESTAURANT") && { href: "/restaurant/kds", icon: <ChefHat size={15} />, label: "Cozinha (KDS)", active: Boolean(pathname?.startsWith("/restaurant/kds")) },
+                hasModule("RECIPES") && { href: "/restaurant/recipes", icon: <BookOpen size={15} />, label: "Fichas Técnicas", active: Boolean(pathname?.startsWith("/restaurant/recipes")) },
+              ].filter(Boolean) as Array<{ href: string; icon: React.ReactNode; label: string; active: boolean }>,
+            },
+            {
+              key: "financeiro",
+              title: "Financeiro & Relatórios",
+              items: [
+                hasModule("FINANCE") && { href: "/finance", icon: <Wallet size={15} />, label: "Financeiro Completo", active: pathname === "/finance" },
+                hasModule("RECONCILIATION") && { href: "/finance/reconciliation", icon: <Landmark size={15} />, label: "Conciliação Bancária", active: Boolean(pathname?.startsWith("/finance/reconciliation")) },
+                hasModule("CASH_CLOSINGS") && { href: "/finance/cash-closings", icon: <Receipt size={15} />, label: "Fechamento & Tesouraria", active: Boolean(pathname?.startsWith("/finance/cash-closings")) },
+                hasModule("REPORTS") && { href: "/reports", icon: <FileText size={15} />, label: "Relatórios & BI", active: pathname === "/reports" },
+              ].filter(Boolean) as Array<{ href: string; icon: React.ReactNode; label: string; active: boolean }>,
+            },
+            {
+              key: "configuracoes",
+              title: "Configurações & Sistema",
+              items: [
+                { href: "/settings/terminals", icon: <Monitor size={15} />, label: "Terminais PDV", active: pathname === "/settings/terminals" },
+                { href: "/settings/pdv-screensaver", icon: <Monitor size={15} />, label: "Descanso de Tela PDV", active: pathname === "/settings/pdv-screensaver" },
+                { href: "/settings/modules", icon: <Building2 size={15} />, label: "Lojas & Módulos", active: pathname === "/settings/modules" },
+                { href: "/settings/users", icon: <Users size={15} />, label: "Usuários", active: pathname === "/settings/users" },
+                { href: "/settings/roles", icon: <Shield size={15} />, label: "Perfis & Setores", active: pathname === "/settings/roles" },
+                { href: "/settings/integrations", icon: <Globe size={15} />, label: "Integrações & IP Nuvem", active: pathname === "/settings/integrations" },
+                isCristiano && { href: "/audit", icon: <ShieldAlert size={15} />, label: "Log Auditoria & Segurança", active: pathname === "/audit" || pathname === "/settings/audit" },
+                hasModule("MIGRATION") && { href: "/migration", icon: <RefreshCw size={15} />, label: "Migração Saipos", active: pathname === "/migration" },
+                { href: "/settings", icon: <Settings size={15} />, label: "Configurações Gerais", active: pathname === "/settings" },
+                { href: "/guide", icon: <BookOpen size={15} />, label: "Guia & Demonstração", active: pathname === "/guide" },
+              ].filter(Boolean) as Array<{ href: string; icon: React.ReactNode; label: string; active: boolean }>,
+            },
+          ];
 
-        {/* PRODUTOS & ESTOQUE */}
-        <div className="space-y-0.5">
-          <SectionLabel>PRODUTOS & ESTOQUE</SectionLabel>
-          {hasModule("STOCK") && <NavItem href="/stock" icon={<Landmark size={16} />} label="Estoque & Produtos" active={pathname === "/stock"} onNavigate={handleNavigate} />}
-          {hasModule("STOCK") && <NavItem href="/stock/inventory" icon={<ClipboardCheck size={16} />} label="Balanço & Inventário" active={pathname === "/stock/inventory"} onNavigate={handleNavigate} />}
-          {hasModule("COI") && <NavItem href="/coi" icon={<Sliders size={16} />} label="Operações de Estoque (COI)" active={pathname === "/coi"} onNavigate={handleNavigate} />}
-          {hasModule("LOSSES") && <NavItem href="/losses" icon={<AlertTriangle size={16} />} label="Avarias & Perdas" active={pathname?.startsWith("/losses")} onNavigate={handleNavigate} />}
-          {hasModule("PRODUCTION") && <NavItem href="/production" icon={<Hammer size={16} />} label="Produção Própria" active={pathname?.startsWith("/production")} onNavigate={handleNavigate} />}
-          {hasModule("ASSETS") && <NavItem href="/assets" icon={<Shield size={16} />} label="Ativo Imobilizado" active={pathname === "/assets"} onNavigate={handleNavigate} />}
-          {hasModule("STOCK") && <NavItem href="/stock/new" icon={<Package size={16} />} label="Cadastrar Produto" active={pathname === "/stock/new"} onNavigate={handleNavigate} />}
-          {hasModule("PURCHASES") && <NavItem href="/purchases" icon={<ClipboardList size={16} />} label="Pedidos de Compra & Cotações" active={pathname?.startsWith("/purchases")} onNavigate={handleNavigate} />}
-          {hasModule("FISCAL_RADAR") && <NavItem href="/invoices" icon={<Receipt size={16} />} label="Entrada de Notas & XML" active={pathname === "/invoices"} onNavigate={handleNavigate} />}
-          {hasModule("FISCAL") && <NavItem href="/fiscal/decretos" icon={<Scale size={16} />} label="Decretos AL & NCMs" active={pathname?.startsWith("/fiscal/decretos") || pathname === "/decretos"} onNavigate={handleNavigate} />}
-          {hasModule("PRICING") && <NavItem href="/pricing" icon={<Percent size={16} />} label="Precificação & Margens" active={pathname === "/pricing"} onNavigate={handleNavigate} />}
-          {hasModule("LABELS") && <NavItem href="/labels" icon={<Tag size={16} />} label="Impressão de Etiquetas" active={pathname === "/labels"} onNavigate={handleNavigate} />}
-          {hasModule("SCALES") && <NavItem href="/scales" icon={<Scale size={16} />} label="Balanças (Toledo MGV6)" active={pathname === "/scales"} onNavigate={handleNavigate} />}
-          {hasModule("EXPIRATIONS") && <NavItem href="/expirations" icon={<Calendar size={16} />} label="Controle de Validades" active={pathname === "/expirations"} onNavigate={handleNavigate} />}
-          {hasModule("SUPPLIERS") && <NavItem href="/suppliers" icon={<Truck size={16} />} label="Fornecedores" active={pathname === "/suppliers"} onNavigate={handleNavigate} />}
-          {hasModule("PURCHASES") && <NavItem href="/reports/purchases-by-supplier" icon={<BarChart2 size={16} />} label="Compras por Fornecedor" active={pathname === "/reports/purchases-by-supplier"} onNavigate={handleNavigate} />}
-          {hasModule("MERCADOLOGICO") && <NavItem href="/mercadologico" icon={<FolderTree size={16} />} label="Categorias" active={pathname === "/mercadologico"} onNavigate={handleNavigate} />}
-        </div>
+          return groups.map((group) => {
+            const visibleItems = q
+              ? group.items.filter((it) => it.label.toLowerCase().includes(q))
+              : group.items;
+            if (visibleItems.length === 0) return null;
 
-        {/* GASTRONOMIA */}
-        {(hasModule("RESTAURANT") || hasModule("RECIPES")) && (
-          <div className="space-y-0.5">
-            <SectionLabel>RESTAURANTE</SectionLabel>
-            {hasModule("RESTAURANT") && <NavItem href="/restaurant/pdv" icon={<Utensils size={16} />} label="PDV Touch & Mesas" active={pathname?.startsWith("/restaurant/pdv")} onNavigate={handleNavigate} />}
-            {hasModule("RESTAURANT") && <NavItem href="/restaurant/kds" icon={<ChefHat size={16} />} label="Cozinha (KDS)" active={pathname?.startsWith("/restaurant/kds")} onNavigate={handleNavigate} />}
-            {hasModule("RECIPES") && <NavItem href="/restaurant/recipes" icon={<BookOpen size={16} />} label="Fichas Técnicas" active={pathname?.startsWith("/restaurant/recipes")} onNavigate={handleNavigate} />}
-          </div>
-        )}
+            const hasActiveChild = visibleItems.some((it) => it.active);
+            const isGroupOpen = q.length > 0 || hasActiveChild || Boolean(openGroups[group.key]);
 
-        {/* FINANCEIRO */}
-        <div className="space-y-0.5">
-          <SectionLabel>FINANCEIRO</SectionLabel>
-          {hasModule("FINANCE") && <NavItem href="/finance" icon={<Wallet size={16} />} label="Financeiro Completo" active={pathname === "/finance"} onNavigate={handleNavigate} />}
-          {hasModule("RECONCILIATION") && <NavItem href="/finance/reconciliation" icon={<Landmark size={16} />} label="Conciliação Bancária" active={pathname?.startsWith("/finance/reconciliation")} onNavigate={handleNavigate} />}
-          {hasModule("CASH_CLOSINGS") && <NavItem href="/finance/cash-closings" icon={<Receipt size={16} />} label="Fechamento & Tesouraria" active={pathname?.startsWith("/finance/cash-closings")} onNavigate={handleNavigate} />}
-          {hasModule("REPORTS") && <NavItem href="/reports" icon={<FileText size={16} />} label="Relatórios & BI" active={pathname === "/reports"} onNavigate={handleNavigate} />}
-        </div>
-
-        {/* CONFIGURAÇÕES */}
-        <div className="space-y-0.5">
-          <SectionLabel>CONFIGURAÇÕES</SectionLabel>
-          {isCristiano && (
-            <NavItem href="/audit" icon={<ShieldAlert size={16} />} label="Log Auditoria & Segurança" active={pathname === "/audit" || pathname === "/settings/audit"} onNavigate={handleNavigate} />
-          )}
-          <NavItem href="/settings/terminals" icon={<Monitor size={16} />} label="Terminais PDV" active={pathname === "/settings/terminals"} onNavigate={handleNavigate} />
-          <NavItem href="/settings/modules" icon={<Building2 size={16} />} label="Lojas & Módulos" active={pathname === "/settings/modules"} onNavigate={handleNavigate} />
-          <NavItem href="/settings/users" icon={<Users size={16} />} label="Usuários" active={pathname === "/settings/users"} onNavigate={handleNavigate} />
-          <NavItem href="/settings/roles" icon={<Shield size={16} />} label="Perfis & Setores" active={pathname === "/settings/roles"} onNavigate={handleNavigate} />
-          <NavItem href="/settings/integrations" icon={<Globe size={16} />} label="Integrações & IP Nuvem" active={pathname === "/settings/integrations"} onNavigate={handleNavigate} />
-          {hasModule("MIGRATION") && <NavItem href="/migration" icon={<RefreshCw size={16} />} label="Migração Saipos" active={pathname === "/migration"} onNavigate={handleNavigate} />}
-          <NavItem href="/settings" icon={<Settings size={16} />} label="Configurações Gerais" active={pathname === "/settings"} onNavigate={handleNavigate} />
-        </div>
-
-        {/* TREINAMENTO & GUIA DO SISTEMA */}
-        <div className="space-y-0.5 pt-1">
-          <SectionLabel>TREINAMENTO & APRESENTAÇÃO</SectionLabel>
-          <NavItem href="/guide" icon={<BookOpen size={16} />} label="Guia & Demonstração" active={pathname === "/guide"} onNavigate={handleNavigate} />
-        </div>
+            return (
+              <div key={group.key} className="border-t border-gray-100 pt-2">
+                <button
+                  type="button"
+                  onClick={() => toggleMenuGroup(group.key)}
+                  className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider text-gray-500 hover:text-gray-800 hover:bg-gray-50 transition-colors cursor-pointer"
+                >
+                  <span>{group.title}</span>
+                  {isGroupOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                </button>
+                {isGroupOpen && (
+                  <div className="space-y-0.5 mt-1">
+                    {visibleItems.map((it) => (
+                      <NavItem
+                        key={it.href}
+                        href={it.href}
+                        icon={it.icon}
+                        label={it.label}
+                        active={it.active}
+                        onNavigate={handleNavigate}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          });
+        })()}
       </nav>
 
       {/* Novidades & Logout */}
@@ -533,14 +638,20 @@ export function DrawerLayout({
               />
             </div>
 
-            {/* Seletor de Loja */}
-            <div className="hidden sm:flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl text-xs text-gray-700">
-              <Store size={14} className="text-blue-600" />
-              <select className="bg-transparent border-none text-gray-700 text-xs font-semibold outline-none cursor-pointer">
-                <option className="bg-white">Todas as Lojas</option>
-                <option className="bg-white">Matriz Centro</option>
-              </select>
-            </div>
+            {/* Seletor de Loja (exibido apenas quando a empresa possui mais de 1 loja) */}
+            {stores.length > 1 && (
+              <div className="hidden sm:flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl text-xs text-gray-700">
+                <Store size={14} className="text-blue-600" />
+                <select className="bg-transparent border-none text-gray-700 text-xs font-semibold outline-none cursor-pointer">
+                  <option value="todas" className="bg-white">Todas as Lojas</option>
+                  {stores.map((s) => (
+                    <option key={s.id} value={s.id} className="bg-white">
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Data Atual */}
             <div className="hidden xl:flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl text-xs text-gray-600">
@@ -652,18 +763,39 @@ export function DrawerLayout({
             </button>
           </div>
 
-          {/* Opção Fechar Outras Abas */}
-          {tabs.length > 1 && (
-            <div className="shrink-0 flex items-center pl-2 border-l border-gray-200">
+          {/* Ações Globais da Aba Atual (Editar / Excluir) + Fechar outras abas */}
+          <div className="shrink-0 flex items-center gap-2 pl-2 border-l border-gray-300/70">
+            <div className="flex items-center bg-white border border-gray-200 rounded-xl p-0.5 shadow-2xs gap-0.5">
+              <button
+                type="button"
+                onClick={() => setGlobalActionMode("edit")}
+                title={`Editar registros em ${getRouteMeta(pathname || "/").title}`}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold text-blue-700 hover:bg-blue-50 transition-colors cursor-pointer"
+              >
+                <Pencil size={12} />
+                <span className="hidden md:inline">Editar</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setGlobalActionMode("delete")}
+                title={`Excluir / Apagar registros em ${getRouteMeta(pathname || "/").title}`}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+              >
+                <Trash2 size={12} />
+                <span className="hidden md:inline">Excluir</span>
+              </button>
+            </div>
+
+            {tabs.length > 1 && (
               <button
                 onClick={handleCloseOthers}
                 title="Fechar todas as abas exceto a atual"
-                className="text-[11px] font-semibold text-gray-400 hover:text-gray-700 px-2 py-1 rounded transition-colors"
+                className="text-[11px] font-semibold text-gray-500 hover:text-gray-800 px-2 py-1 rounded transition-colors cursor-pointer"
               >
                 Fechar outras &gt;
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Scrollable Page Body */}
@@ -692,6 +824,16 @@ export function DrawerLayout({
 
       {/* Tour Interativo do Sistema e Apresentação */}
       <DemoTourGuide isDemoUser={userName.toLowerCase().includes("demonstrativo")} />
+      <DigitalMenuOrderNotifier />
+
+      {/* Ação Rápida Global de Editar / Excluir da Aba Atual */}
+      {globalActionMode && (
+        <GlobalTabActionModal
+          mode={globalActionMode}
+          pathname={pathname || "/"}
+          onClose={() => setGlobalActionMode(null)}
+        />
+      )}
     </div>
   );
 }

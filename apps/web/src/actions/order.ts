@@ -859,3 +859,145 @@ export async function advanceDigitalMenuOrderStatus(orderId: string, nextStatus:
     return { error: err.message || "Erro ao atualizar status do pedido." };
   }
 }
+
+export async function deleteDigitalMenuOrders(orderIds: string[]) {
+  try {
+    const session = await getSession();
+    if (!session?.companyId) {
+      return { error: "Não autorizado" };
+    }
+
+    const ids = Array.from(new Set(orderIds || [])).filter(Boolean);
+    if (ids.length === 0) {
+      return { error: "Nenhum pedido selecionado para exclusão." };
+    }
+
+    const orders = await prisma.order.findMany({
+      where: {
+        id: { in: ids },
+        companyId: session.companyId,
+        channel: "DIGITAL_MENU",
+      },
+      include: {
+        items: {
+          include: {
+            product: {
+              select: {
+                id: true,
+                isSelfProduced: true,
+                recipe: {
+                  select: {
+                    yield: true,
+                    items: {
+                      select: {
+                        productId: true,
+                        quantity: true,
+                        itemRole: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (orders.length === 0) {
+      return { error: "Pedidos não encontrados." };
+    }
+
+    const foundIds = orders.map((o) => o.id);
+
+    await prisma.$transaction(async (tx) => {
+      for (const order of orders) {
+        for (const item of order.items) {
+          if (item.stockDeducted) {
+            await restockOrderItemStock(tx, item);
+          }
+        }
+      }
+
+      await tx.sale.updateMany({
+        where: { companyId: session.companyId, orderId: { in: foundIds } },
+        data: { orderId: null },
+      });
+      await tx.invoice.updateMany({
+        where: { companyId: session.companyId, orderId: { in: foundIds } },
+        data: { orderId: null },
+      });
+      await tx.orderItem.deleteMany({
+        where: { orderId: { in: foundIds } },
+      });
+      await tx.order.deleteMany({
+        where: { id: { in: foundIds }, companyId: session.companyId },
+      });
+    });
+
+    try {
+      const { logAudit } = await import("./audit");
+      await logAudit({
+        operation: "ORDER_DELETE_DIGITAL_MENU",
+        action: "DELETE",
+        entity: "Order",
+        entityId: foundIds.join(",").slice(0, 120),
+        oldValue: `${orders.length} pedido(s) do Cardápio Digital: ${orders.map((o) => `#${o.orderNumber || o.id.slice(0, 6)}`).join(", ")}`,
+        newValue: "DELETED",
+        reason: "Exclusão de pedido(s) / teste no Cardápio Digital",
+        companyId: session.companyId,
+        userId: session.userId || undefined,
+      });
+    } catch {}
+
+    revalidatePath("/ecommerce");
+    revalidatePath("/stock");
+    revalidatePath("/pdv");
+    return {
+      success: true,
+      deletedCount: orders.length,
+    };
+  } catch (err: any) {
+    return { error: err.message || "Erro ao excluir pedido(s) do cardápio digital." };
+  }
+}
+
+export async function getPendingDigitalMenuOrdersSummary() {
+  try {
+    const session = await getSession();
+    if (!session?.companyId) {
+      return { orders: [] as Array<{ id: string; orderNumber: string; customerName: string; total: number; deliveryType: string; createdAt: string }> };
+    }
+
+    const rows = await prisma.order.findMany({
+      where: {
+        companyId: session.companyId,
+        channel: "DIGITAL_MENU",
+        status: "PENDING_APPROVAL",
+      },
+      orderBy: { createdAt: "desc" },
+      take: 20,
+      select: {
+        id: true,
+        orderNumber: true,
+        customerName: true,
+        total: true,
+        deliveryType: true,
+        createdAt: true,
+      },
+    });
+
+    return {
+      orders: rows.map((r) => ({
+        id: r.id,
+        orderNumber: r.orderNumber || r.id.slice(0, 6),
+        customerName: r.customerName || "Cliente",
+        total: Number(r.total || 0),
+        deliveryType: r.deliveryType || "ENTREGA",
+        createdAt: r.createdAt.toISOString(),
+      })),
+    };
+  } catch {
+    return { orders: [] };
+  }
+}

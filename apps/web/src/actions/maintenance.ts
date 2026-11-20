@@ -201,7 +201,7 @@ export async function setupDemonstrativoAndCleanReal(companyIdParam?: string) {
 
       // 5.2 Deletar Caixas e Movimentações
       await prisma.cashMovement.deleteMany({
-        where: { register: { companyId: currentCompanyId } }
+        where: { cashRegister: { companyId: currentCompanyId } }
       });
       const delRegisters = await prisma.cashRegister.deleteMany({
         where: { companyId: currentCompanyId }
