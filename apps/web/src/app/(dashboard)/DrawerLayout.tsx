@@ -396,18 +396,25 @@ export function DrawerLayout({
         </div>
 
         {/* Dashboard Principal */}
-        <div>
-          <NavItem
-            href="/"
-            icon={<LayoutDashboard size={16} />}
-            label="Dashboard"
-            active={pathname === "/"}
-            onNavigate={handleNavigate}
-          />
-        </div>
+        {(!menuSearch.trim() || "dashboard".includes(menuSearch.trim().toLowerCase())) && (
+          <div>
+            <NavItem
+              href="/"
+              icon={<LayoutDashboard size={16} />}
+              label="Dashboard"
+              active={pathname === "/"}
+              onNavigate={handleNavigate}
+            />
+          </div>
+        )}
 
         {(() => {
-          const q = menuSearch.trim().toLowerCase();
+          const normalizeText = (s: string) =>
+            (s || "")
+              .normalize("NFD")
+              .replace(/[\u0300-\u036f]/g, "")
+              .toLowerCase();
+          const q = normalizeText(menuSearch.trim());
           const groups = [
             {
               key: "vendas",
@@ -497,9 +504,16 @@ export function DrawerLayout({
             },
           ];
 
-          return groups.map((group) => {
+          const renderedGroups = groups.map((group) => {
+            const groupTitleMatches = q ? normalizeText(group.title).includes(q) : false;
             const visibleItems = q
-              ? group.items.filter((it) => it.label.toLowerCase().includes(q))
+              ? groupTitleMatches
+                ? group.items
+                : group.items.filter(
+                    (it) =>
+                      normalizeText(it.label).includes(q) ||
+                      normalizeText(it.href).includes(q)
+                  )
               : group.items;
             if (visibleItems.length === 0) return null;
 
@@ -532,7 +546,17 @@ export function DrawerLayout({
                 )}
               </div>
             );
-          });
+          }).filter(Boolean);
+
+          if (q && renderedGroups.length === 0 && !"dashboard".includes(q)) {
+            return (
+              <div className="px-3 py-4 text-center text-xs text-gray-400 font-medium">
+                Nenhum menu encontrado para &quot;{menuSearch.trim()}&quot;.
+              </div>
+            );
+          }
+
+          return renderedGroups;
         })()}
       </nav>
 
@@ -684,7 +708,7 @@ export function DrawerLayout({
             >
               <Sparkles size={13} className="text-blue-500" />
               <span className="hidden sm:inline">Novidades</span>
-              <span className="text-[10px] bg-blue-600 text-white px-1 rounded font-mono">v2.2</span>
+              <span className="text-[10px] bg-blue-600 text-white px-1 rounded font-mono">v2.3</span>
             </button>
 
             {/* Perfil & Logout */}

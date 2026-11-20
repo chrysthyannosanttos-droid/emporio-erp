@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 
 // Versão do anúncio atual do sistema. Sempre que houver uma atualização, basta mudar esta chave!
-export const SYSTEM_CHANGELOG_VERSION = "2.2.0-drawer-tabs";
+export const SYSTEM_CHANGELOG_VERSION = "2.3.0-fiscal-realtime";
 
 interface ChangelogItem {
   icon: any;
@@ -21,40 +21,40 @@ interface ChangelogItem {
 
 const CHANGELOG_ITEMS: ChangelogItem[] = [
   {
-    icon: Menu,
-    iconBg: "bg-indigo-500/15",
-    iconColor: "text-indigo-600",
-    badge: "Novo Design",
-    badgeColor: "bg-indigo-500/10 text-indigo-700 border-indigo-200",
-    title: "Menu Gaveta Flutuante (100% de Tela Livre)",
-    description: "O menu agora desliza em uma gaveta rápida ao clicar no botão superior esquerdo. Com isso, o PDV e os relatórios ocupam todo o seu monitor sem barras fixas atrapalhando.",
-  },
-  {
-    icon: Layers,
-    iconBg: "bg-purple-500/15",
-    iconColor: "text-purple-600",
-    badge: "Multitarefas",
-    badgeColor: "bg-purple-500/10 text-purple-700 border-purple-500/20",
-    title: "Sistema de Abas de Navegação",
-    description: "Trabalhe em várias telas ao mesmo tempo! Abra PDV, Estoque, Pedidos e Clientes em abas no topo e alterne entre elas com um clique, sem perder o que estava fazendo.",
-  },
-  {
-    icon: Zap,
-    iconBg: "bg-amber-500/15",
-    iconColor: "text-amber-600",
-    badge: "Super Rápido",
-    badgeColor: "bg-amber-500/10 text-amber-700 border-amber-500/20",
-    title: "Carregamento Instantâneo (Turbopack)",
-    description: "O motor do sistema foi turbinado. As novas telas agora abrem em menos de 300ms, com redução drástica de consumo de memória do servidor.",
-  },
-  {
     icon: ShieldCheck,
     iconBg: "bg-emerald-500/15",
     iconColor: "text-emerald-600",
-    badge: "Otimizado",
+    badge: "SEFAZ 4.0",
     badgeColor: "bg-emerald-500/10 text-emerald-700 border-emerald-500/20",
-    title: "Rotas Corrigidas & Gastronomia Integrada",
-    description: "Módulos de PDV Restaurante, Cozinha (KDS), Fichas Técnicas e relatórios de fluxo financeiro totalmente sincronizados.",
+    title: "Correção SEFAZ (464 / Desconto) & Limpeza de Duplicadas",
+    description: "Corrigido o hash do QR Code 2.0 e rateio de desconto nos itens. Em /fiscal agora você vê o motivo de cada rejeição, corrige na hora e remove notas duplicadas em 1 clique.",
+  },
+  {
+    icon: BellRing,
+    iconBg: "bg-amber-500/15",
+    iconColor: "text-amber-600",
+    badge: "PDV & Tempo Real",
+    badgeColor: "bg-amber-500/10 text-amber-700 border-amber-500/20",
+    title: "Alerta Sonoro 2 min no PDV & Cardápio Digital ao Vivo",
+    description: "PDV avisa com som se houver venda idêntica em menos de 2 minutos (com opção de cancelar ou continuar). Cardápio Digital atualiza o status para o cliente e toca campainha com balão flutuante no painel.",
+  },
+  {
+    icon: Layers,
+    iconBg: "bg-indigo-500/15",
+    iconColor: "text-indigo-600",
+    badge: "Relatórios & Logs",
+    badgeColor: "bg-indigo-500/10 text-indigo-700 border-indigo-200",
+    title: "Relatórios Unificados, Preços, Insumos & Auditoria",
+    description: "Todos os relatórios reunidos em /reports: Alteração de Preços, Notas/Vendas Apagadas, Compras por Fornecedor, Filtro de Insumos no Estoque e Auditoria com filtros por dia, usuário e módulo.",
+  },
+  {
+    icon: Rocket,
+    iconBg: "bg-purple-500/15",
+    iconColor: "text-purple-600",
+    badge: "Performance & Backup",
+    badgeColor: "bg-purple-500/10 text-purple-700 border-purple-500/20",
+    title: "Exclusão em Lote Rápida & Backup Incremental",
+    description: "Exclusão em lote em /sales até 20x mais rápida com remoção imediata na tela, exclusão em lote no Cardápio Digital e Backup Completo + Incremental por cliente exclusivo no Portal Master.",
   },
 ];
 
@@ -124,7 +124,7 @@ export function WhatsNewModal({ userName = "Usuário", forceOpen, onClose }: Wha
               <div className="flex items-center gap-2">
                 <span className="flex items-center gap-1.5 text-[11px] font-bold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 rounded-full tracking-wide">
                   <Sparkles size={13} className="text-amber-400 animate-spin" style={{ animationDuration: '6s' }} />
-                  Novidades da Versão v2.2
+                  Novidades da Versão v2.3
                 </span>
                 <span className="text-[11px] font-mono text-slate-300">Cybertech RP</span>
               </div>
