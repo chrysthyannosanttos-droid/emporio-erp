@@ -39,6 +39,8 @@ import {
   sendCartaCorrecaoAction,
   inutilizarAndDeleteInvoiceAction,
   cleanupDuplicateInvoicesAction,
+  cancelZeroValueInvoicesAction,
+  autoFixPendingInvoicesNcmAction,
 } from "@/actions/invoice";
 import { generateSpedAndXmlData } from "@/actions/accounting";
 
@@ -93,6 +95,8 @@ export default function FiscalPage() {
   const [countdown, setCountdown] = useState(5);
   const [busyInvoiceId, setBusyInvoiceId] = useState<string | null>(null);
   const [cleaningDuplicates, setCleaningDuplicates] = useState(false);
+  const [cleaningZeros, setCleaningZeros] = useState(false);
+  const [fixingNcm, setFixingNcm] = useState(false);
   const [attemptedIds, setAttemptedIds] = useState<Record<string, boolean>>({});
   const [queueLogs, setQueueLogs] = useState<Array<{ id: string; number: string; ok: boolean; msg: string; time: string }>>([]);
   const isSendingRef = useRef(false);
@@ -354,6 +358,36 @@ export default function FiscalPage() {
       await loadInvoices(true);
     } else {
       setError(res.error || "Erro ao excluir notas duplicadas.");
+    }
+  };
+
+  const handleCancelZeroInvoices = async () => {
+    setCleaningZeros(true);
+    setError("");
+    setSuccess("");
+    const res = await cancelZeroValueInvoicesAction();
+    setCleaningZeros(false);
+    if (res.ok) {
+      setAttemptedIds({});
+      setSuccess(res.message || "Notas zeradas canceladas com sucesso.");
+      await loadInvoices(true);
+    } else {
+      setError(res.error || "Erro ao cancelar notas zeradas.");
+    }
+  };
+
+  const handleFixPendingNcm = async () => {
+    setFixingNcm(true);
+    setError("");
+    setSuccess("");
+    const res = await autoFixPendingInvoicesNcmAction();
+    setFixingNcm(false);
+    if (res.ok) {
+      setAttemptedIds({});
+      setSuccess(res.message || "NCMs verificados e corrigidos.");
+      await loadInvoices(true);
+    } else {
+      setError(res.error || "Erro ao corrigir NCMs.");
     }
   };
 
@@ -984,6 +1018,28 @@ export default function FiscalPage() {
                 >
                   {cleaningDuplicates ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
                   Excluir Duplicadas
+                </button>
+
+                <button
+                  type="button"
+                  disabled={cleaningZeros || cleaningDuplicates || !!busyInvoiceId || stats.rejected === 0}
+                  onClick={handleCancelZeroInvoices}
+                  className="px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-40 text-white shadow-sm cursor-pointer"
+                  title="Inutiliza na SEFAZ e cancela todas as notas pendentes/rejeitadas com valor R$ 0,00 ou sem itens vinculados"
+                >
+                  {cleaningZeros ? <Loader2 size={15} className="animate-spin" /> : <XCircle size={15} />}
+                  Cancelar Zeradas
+                </button>
+
+                <button
+                  type="button"
+                  disabled={fixingNcm || cleaningZeros || cleaningDuplicates || !!busyInvoiceId || stats.rejected === 0}
+                  onClick={handleFixPendingNcm}
+                  className="px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white shadow-sm cursor-pointer"
+                  title="Verifica e corrige NCM, CFOP e CSOSN dos produtos das notas pendentes usando XMLs reais e tabela NCM"
+                >
+                  {fixingNcm ? <Loader2 size={15} className="animate-spin" /> : <ShieldCheck size={15} />}
+                  Corrigir NCMs
                 </button>
 
                 {Object.keys(attemptedIds).length > 0 && (

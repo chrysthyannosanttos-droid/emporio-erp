@@ -906,3 +906,247 @@ export async function cleanupDuplicateInvoicesAction() {
     return { ok: false, error: err.message || "Erro ao excluir notas duplicadas." };
   }
 }
+
+/**
+ * Cancela / inutiliza na SEFAZ todas as notas pendentes/rejeitadas zeradas (R$ 0,00) ou sem venda/itens vinculados.
+ */
+export async function cancelZeroValueInvoicesAction() {
+  try {
+    const session = await getSession();
+    if (!session?.companyId) return { ok: false, error: "Não autorizado." };
+    const companyId = session.companyId;
+
+    const invoices = await prisma.invoice.findMany({
+      where: {
+        companyId,
+        status: { notIn: ["AUTHORIZED", "CANCELED"] },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (invoices.length === 0) {
+      return { ok: true, resolvedCount: 0, message: "Nenhuma nota pendente/rejeitada encontrada." };
+    }
+
+    const invoiceIds = invoices.map((i) => i.id);
+    const sales = await prisma.sale.findMany({
+      where: { companyId, invoiceId: { in: invoiceIds } },
+      include: { items: { select: { id: true } } },
+    });
+    const saleByInv = new Map(sales.map((s) => [s.invoiceId!, s]));
+
+    const zeroInvoices = invoices.filter((inv) => {
+      const s = saleByInv.get(inv.id);
+      if (!s) return true;
+      if (!s.items || s.items.length === 0) return true;
+      return Number(s.total || 0) <= 0;
+    });
+
+    if (zeroInvoices.length === 0) {
+      return { ok: true, resolvedCount: 0, message: "Nenhuma nota zerada ou sem itens encontrada." };
+    }
+
+    let sefazInutilizadas = 0;
+    let canceledLocal = 0;
+
+    for (const inv of zeroInvoices) {
+      const model: "65" | "55" = inv.type === "NFe" ? "55" : "65";
+      const num = Number(inv.number || 0);
+
+      // Se por acaso já foi autorizada na SEFAZ, apenas sincroniza para AUTHORIZED
+      if (inv.accessKey && inv.accessKey.length === 44) {
+        const check = await querySefazProtocolo(companyId, inv.accessKey, model).catch(() => null);
+        if (check?.authorized) {
+          await prisma.invoice.update({
+            where: { id: inv.id },
+            data: { status: "AUTHORIZED", errorMsg: null },
+          });
+          continue;
+        }
+      }
+
+      if (num > 0) {
+        const inutRes = await inutilizarSefazNumeracao(companyId, {
+          model,
+          series: inv.series || "1",
+          startNumber: num,
+          endNumber: num,
+          year: String(new Date(inv.createdAt).getFullYear()),
+          justification: "Inutilizacao de numeracao de nota zerada ou sem venda vinculada.",
+        }).catch(() => null);
+
+        if (inutRes?.ok || ["102", "206", "563"].includes(String(inutRes?.cStat || ""))) {
+          sefazInutilizadas++;
+        }
+      }
+
+      await prisma.invoice.update({
+        where: { id: inv.id },
+        data: {
+          status: "CANCELED",
+          errorMsg: null,
+        },
+      });
+      canceledLocal++;
+    }
+
+    revalidatePath("/fiscal");
+    return {
+      ok: true,
+      resolvedCount: canceledLocal,
+      sefazInutilizadas,
+      message: `${canceledLocal} nota(s) zerada(s)/sem itens cancelada(s) (${sefazInutilizadas} inutilizada(s) na SEFAZ).`,
+    };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || "Erro ao cancelar notas zeradas." };
+  }
+}
+
+function inferCorrectNcmFromName(name: string): string {
+  const n = (name || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  if (n.includes("cafe")) return "09012100";
+  if (n.includes("acucar")) return "17019900";
+  if (n.includes("arroz")) return "10063021";
+  if (n.includes("feijao")) return "07133319";
+  if (n.includes("macarrao") || n.includes("espaguete") || n.includes("massa")) return "19021900";
+  if (n.includes("farinha") && n.includes("mandioca")) return "11062000";
+  if (n.includes("farinha") || n.includes("trigo") || n.includes("fuba") || n.includes("cuscuz") || n.includes("flocao")) return "11010010";
+  if (n.includes("leite") && n.includes("po")) return "04022110";
+  if (n.includes("leite") && n.includes("condensado")) return "04029900";
+  if (n.includes("leite")) return "04012010";
+  if (n.includes("creme de leite")) return "04014029";
+  if (n.includes("manteiga")) return "04051000";
+  if (n.includes("margarina")) return "15171000";
+  if (n.includes("queijo") || n.includes("mussarela") || n.includes("coalho") || n.includes("requeijao")) return "04069090";
+  if (n.includes("iogurte")) return "04031000";
+  if (n.includes("ovo")) return "04072100";
+  if (n.includes("bacon") || n.includes("calabresa") || n.includes("linguica") || n.includes("salsicha") || n.includes("mortadela") || n.includes("presunto")) return "16010000";
+  if (n.includes("frango") || n.includes("peito") || n.includes("coxa")) return "02071400";
+  if (n.includes("carne") || n.includes("picanha") || n.includes("alcatra") || n.includes("charque") || n.includes("boi")) return "02023000";
+  if (n.includes("oleo")) return "15079011";
+  if (n.includes("azeite")) return "15091000";
+  if (n.includes("sal ")) return "25010020";
+  if (n.includes("paprica") || n.includes("lemon pepper") || n.includes("chimichurri") || n.includes("acafrao") || n.includes("curcuma") || n.includes("tempero") || n.includes("oregano") || n.includes("pimenta") || n.includes("cominho") || n.includes("colorau")) return "09109900";
+  if (n.includes("alho")) return "07032090";
+  if (n.includes("cebola")) return "07031019";
+  if (n.includes("alface") || n.includes("tomate") || n.includes("batata") || n.includes("verdura")) return "07051100";
+  if (n.includes("banana") || n.includes("maca") || n.includes("laranja") || n.includes("limao") || n.includes("fruta")) return "08039000";
+  if (n.includes("rapadura") || n.includes("bananada") || n.includes("goiabada") || n.includes("cocada") || n.includes("doce") || n.includes("bala") || n.includes("chiclete") || n.includes("pirulito")) return "17049090";
+  if (n.includes("chocolate") || n.includes("cacau") || n.includes("achocolatado")) return "18069000";
+  if (n.includes("biscoito") || n.includes("bolacha") || n.includes("wafer") || n.includes("torrada")) return "19053100";
+  if (n.includes("pao") || n.includes("bolo") || n.includes("salgado")) return "19059090";
+  if (n.includes("agua")) return "22011000";
+  if (n.includes("refrigerante") || n.includes("coca") || n.includes("guarana") || n.includes("fanta") || n.includes("sprite") || n.includes("suco") || n.includes("energetico") || n.includes("red bull")) return "22021000";
+  if (n.includes("cerveja") || n.includes("heineken") || n.includes("brahma") || n.includes("skol") || n.includes("amstel")) return "22030000";
+  if (n.includes("vinho")) return "22042100";
+  if (n.includes("cachaca") || n.includes("whisky") || n.includes("vodka") || n.includes("gin")) return "22084000";
+  if (n.includes("sabao") || n.includes("detergente") || n.includes("amaciante") || n.includes("desinfetante")) return "34022000";
+  if (n.includes("papel higienico") || n.includes("papel toalha") || n.includes("guardanapo")) return "48181000";
+  if (n.includes("racao")) return "23099010";
+  if (n.includes("barra proteina") || n.includes("whey") || n.includes("suplemento")) return "21069030";
+  return "21069090";
+}
+
+/**
+ * Verifica e corrige NCM, CFOP e CSOSN dos produtos vinculados às notas pendentes/rejeitadas.
+ */
+export async function autoFixPendingInvoicesNcmAction() {
+  try {
+    const session = await getSession();
+    if (!session?.companyId) return { ok: false, error: "Não autorizado." };
+    const companyId = session.companyId;
+
+    const pendingInvoices = await prisma.invoice.findMany({
+      where: { companyId, status: { notIn: ["AUTHORIZED", "CANCELED"] } },
+      select: { id: true },
+    });
+
+    if (pendingInvoices.length === 0) {
+      return { ok: true, updatedProducts: 0, message: "Nenhuma nota pendente/rejeitada para revisar NCM." };
+    }
+
+    const sales = await prisma.sale.findMany({
+      where: { companyId, invoiceId: { in: pendingInvoices.map((i) => i.id) } },
+      include: {
+        items: {
+          include: { product: true },
+        },
+      },
+    });
+
+    // Mapa de NCMs reais vindos dos XMLs de fornecedores (por EAN)
+    const xmlNcmByBarcode = new Map<string, string>();
+    try {
+      const { getRadarInvoices } = await import("./invoices");
+      const radar = await getRadarInvoices();
+      for (const inv of radar.invoices || []) {
+        for (const it of inv.itemsPreview || []) {
+          const bc = (it.barcode || "").replace(/\D/g, "");
+          const ncm = (it.ncm || "").replace(/\D/g, "");
+          if (bc.length >= 8 && ncm.length === 8 && ncm !== "00000000") {
+            xmlNcmByBarcode.set(bc, ncm);
+          }
+        }
+      }
+    } catch {}
+
+    const checkedProductIds = new Set<string>();
+    let updatedProducts = 0;
+
+    for (const sale of sales) {
+      for (const it of sale.items) {
+        const p = it.product;
+        if (!p || checkedProductIds.has(p.id)) continue;
+        checkedProductIds.add(p.id);
+
+        const currentNcm = (p.ncm || "").replace(/\D/g, "");
+        const bcClean = (p.barcode || "").replace(/\D/g, "");
+        const xmlNcm = bcClean ? xmlNcmByBarcode.get(bcClean) : undefined;
+
+        let targetNcm = currentNcm;
+        if (xmlNcm) {
+          targetNcm = xmlNcm;
+        } else if (currentNcm.length !== 8 || currentNcm === "00000000" || currentNcm === "21069090") {
+          targetNcm = inferCorrectNcmFromName(p.name);
+        }
+
+        const currentCfop = (p.cfop || "").replace(/\D/g, "");
+        const currentCsosn = (p.csosn || "").replace(/\D/g, "");
+        const targetCsosn = ["102", "500"].includes(currentCsosn) ? currentCsosn : "102";
+        const targetCfop =
+          currentCfop.length === 4 && ["5", "6"].includes(currentCfop[0])
+            ? currentCfop
+            : targetCsosn === "500"
+            ? "5405"
+            : "5102";
+
+        if (targetNcm !== p.ncm || targetCfop !== p.cfop || targetCsosn !== p.csosn) {
+          await prisma.product.update({
+            where: { id: p.id },
+            data: {
+              ncm: targetNcm,
+              cfop: targetCfop,
+              csosn: targetCsosn,
+            },
+          });
+          updatedProducts++;
+        }
+      }
+    }
+
+    revalidatePath("/fiscal");
+    revalidatePath("/stock");
+    return {
+      ok: true,
+      updatedProducts,
+      checkedCount: checkedProductIds.size,
+      message: `${checkedProductIds.size} produto(s) verificado(s) e ${updatedProducts} NCM/CFOP/CSOSN corrigido(s) automaticamente!`,
+    };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || "Erro ao verificar e corrigir NCMs." };
+  }
+}
