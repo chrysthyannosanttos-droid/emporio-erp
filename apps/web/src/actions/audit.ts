@@ -80,14 +80,18 @@ export async function listAuditLogs(filters?: {
   storeId?: string;
   userId?: string;
   operation?: string;
+  module?: string;
+  action?: string;
   result?: string;
+  startDate?: string;
+  endDate?: string;
   search?: string;
   limit?: number;
 }) {
   try {
     const session = await getSession();
     if (!session?.companyId) {
-      return { logs: [], error: "Não autorizado" };
+      return { logs: [], users: [], error: "Não autorizado" };
     }
 
     const isCristiano =
@@ -96,7 +100,7 @@ export async function listAuditLogs(filters?: {
       Boolean(session.email?.toLowerCase().includes("cristiano"));
 
     if (!isCristiano) {
-      return { logs: [], error: "Acesso restrito ao Administrador Geral (Cristiano)." };
+      return { logs: [], users: [], error: "Acesso restrito ao Administrador Geral (Cristiano)." };
     }
 
     const where: any = { companyId: session.companyId };
@@ -104,29 +108,70 @@ export async function listAuditLogs(filters?: {
     if (filters?.storeId) where.storeId = filters.storeId;
     if (filters?.userId) where.userId = filters.userId;
     if (filters?.operation) where.operation = { contains: filters.operation, mode: "insensitive" };
+    if (filters?.action) where.action = filters.action;
     if (filters?.result) where.result = filters.result;
+
+    if (filters?.startDate || filters?.endDate) {
+      where.createdAt = {};
+      if (filters.startDate) {
+        where.createdAt.gte = new Date(`${filters.startDate}T00:00:00.000-03:00`);
+      }
+      if (filters.endDate) {
+        where.createdAt.lte = new Date(`${filters.endDate}T23:59:59.999-03:00`);
+      }
+    }
+
+    if (filters?.module && filters.module !== "ALL") {
+      const moduleMap: Record<string, string[]> = {
+        SALE: ["Sale", "Order"],
+        PRODUCT: ["Product", "Category", "PriceTable"],
+        STOCK: ["StockEntry", "Inventory", "Loss", "ProductionOrder"],
+        FISCAL: ["Invoice", "FiscalConfig"],
+        FINANCE: ["Transaction", "CashRegister", "CashMovement"],
+        CUSTOMER: ["Customer"],
+        USER: ["User", "Role"],
+        APPROVAL: ["ApprovalRequest"],
+      };
+      const entities = moduleMap[filters.module];
+      if (entities) {
+        where.entity = { in: entities };
+      }
+    }
+
     if (filters?.search) {
       where.OR = [
         { operation: { contains: filters.search, mode: "insensitive" } },
+        { entity: { contains: filters.search, mode: "insensitive" } },
+        { entityId: { contains: filters.search, mode: "insensitive" } },
+        { oldValue: { contains: filters.search, mode: "insensitive" } },
+        { newValue: { contains: filters.search, mode: "insensitive" } },
         { reason: { contains: filters.search, mode: "insensitive" } },
         { terminal: { contains: filters.search, mode: "insensitive" } },
+        { ipAddress: { contains: filters.search, mode: "insensitive" } },
         { user: { name: { contains: filters.search, mode: "insensitive" } } },
       ];
     }
 
-    const logs = await prisma.auditLog.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      take: filters?.limit || 100,
-      include: {
-        user: { select: { id: true, name: true, email: true, role: true } },
-        authorizer: { select: { id: true, name: true, email: true, role: true } },
-        store: { select: { id: true, code: true, name: true } },
-      },
-    });
+    const [logs, users] = await Promise.all([
+      prisma.auditLog.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: filters?.limit || 300,
+        include: {
+          user: { select: { id: true, name: true, email: true, role: true } },
+          authorizer: { select: { id: true, name: true, email: true, role: true } },
+          store: { select: { id: true, code: true, name: true } },
+        },
+      }),
+      prisma.user.findMany({
+        where: { companyId: session.companyId },
+        select: { id: true, name: true, role: true },
+        orderBy: { name: "asc" },
+      }),
+    ]);
 
-    return { logs: toPlain(logs) };
+    return { logs: toPlain(logs), users: toPlain(users) };
   } catch (err: any) {
-    return { logs: [], error: err.message };
+    return { logs: [], users: [], error: err.message };
   }
 }

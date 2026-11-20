@@ -4,6 +4,7 @@ import { prisma } from "@emporio/database";
 import { revalidatePath } from "next/cache";
 import { simulateInvoiceEmission } from "./invoice";
 import { getSession } from "@/lib/session";
+import { adjustProductStockWithParent } from "@/lib/stockDeduction";
 
 async function getOrCreateCompany() {
   let company = await prisma.company.findFirst();
@@ -64,6 +65,8 @@ export async function createSale(data: {
   customerCpf?: string;
   customerId?: string;
   creditAuthorizedBy?: string;
+  clientRequestId?: string;
+  allowDuplicate?: boolean;
 }) {
   try {
     const { company, user } = await resolveCompanyAndUser();
@@ -256,7 +259,72 @@ export async function createSale(data: {
     }
 
     // Start a transaction to ensure atomic updates
-    const result = await prisma.$transaction(async (tx) => {
+    const cleanClientReqId = (data.clientRequestId || "").trim() || null;
+    const reqItemsSig = data.items
+      .map((i) => `${i.productId}:${Number(i.quantity).toFixed(4)}`)
+      .sort()
+      .join("|");
+
+    const txOutcome = await prisma.$transaction(async (tx) => {
+      // 0a. Trava transacional idempotente por clientRequestId (evita duplicação por clique duplo, timeout ou fila offline)
+      if (cleanClientReqId) {
+        await tx.$executeRawUnsafe(
+          `SELECT pg_advisory_xact_lock(hashtext($1))`,
+          `sale:${company.id}:${cleanClientReqId}`
+        );
+        const existingAudit = await tx.auditLog.findFirst({
+          where: {
+            companyId: company.id,
+            entity: "Sale",
+            operation: "pdv.create_sale",
+            reason: cleanClientReqId,
+          },
+          orderBy: { createdAt: "desc" },
+          select: { entityId: true },
+        });
+        if (existingAudit?.entityId) {
+          const existingSale = await tx.sale.findUnique({
+            where: { id: existingAudit.entityId },
+          });
+          if (existingSale) {
+            return { sale: existingSale, deduplicated: true };
+          }
+        }
+      }
+
+      // 0b. Aviso/proteção anti-duplicação (2 minutos): mesmo operador/empresa/cliente/itens/total
+      if (!data.allowDuplicate) {
+        await tx.$executeRawUnsafe(
+          `SELECT pg_advisory_xact_lock(hashtext($1))`,
+          `sale-burst:${company.id}:${user.id}:${total.toFixed(2)}`
+        );
+        const recentCandidates = await tx.sale.findMany({
+          where: {
+            companyId: company.id,
+            userId: user.id,
+            customerId: customerId || null,
+            status: "COMPLETED",
+            createdAt: { gte: new Date(Date.now() - 120_000) },
+          },
+          include: {
+            items: { select: { productId: true, quantity: true } },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 10,
+        });
+        for (const cand of recentCandidates) {
+          if (Math.abs(Number(cand.total) - total) >= 0.01) continue;
+          const candSig = cand.items
+            .map((i) => `${i.productId}:${Number(i.quantity).toFixed(4)}`)
+            .sort()
+            .join("|");
+          if (candSig === reqItemsSig) {
+            const secondsAgo = Math.max(1, Math.round((Date.now() - new Date(cand.createdAt).getTime()) / 1000));
+            return { sale: cand, deduplicated: true, duplicateBlocked: true, secondsAgo };
+          }
+        }
+      }
+
       // 1. Create the Sale
       const sale = await tx.sale.create({
         data: {
@@ -316,17 +384,15 @@ export async function createSale(data: {
         });
       }
 
-      // 2. Decrement stock for each product
-      for (const item of data.items) {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: {
-            stock: {
-              decrement: item.quantity
-            }
-          }
-        });
-      }
+      // 2. Decrement stock for each product (follows parentProductId * unitConvFactor if fractional)
+      await adjustProductStockWithParent(
+        tx,
+        data.items.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+        })),
+        "DECREMENT"
+      );
 
       // 3. If linked to an order, update the status
       if (data.orderId) {
@@ -375,14 +441,40 @@ export async function createSale(data: {
         }
       }
 
-      return sale;
+      if (cleanClientReqId) {
+        await tx.auditLog.create({
+          data: {
+            companyId: company.id,
+            userId: user.id,
+            operation: "pdv.create_sale",
+            action: "CREATE",
+            entity: "Sale",
+            entityId: sale.id,
+            reason: cleanClientReqId,
+            result: "SUCCESS",
+          },
+        });
+      }
+
+      return { sale, deduplicated: false, duplicateBlocked: false, secondsAgo: 0 };
     });
 
-    // 6. Simulate Fiscal Invoice Emission
-    try {
-      await simulateInvoiceEmission(result.id);
-    } catch (fiscErr) {
-      console.error("Falha ao simular nota fiscal:", fiscErr);
+    if (txOutcome.duplicateBlocked) {
+      return {
+        success: false,
+        duplicateBlocked: true,
+        existingSaleId: txOutcome.sale.id,
+        error: `Venda duplicada bloqueada! Já existe uma venda idêntica registrada há ${txOutcome.secondsAgo}s. Aguarde 2 minutos ou altere os itens/cliente se for uma nova compra.`,
+      };
+    }
+
+    // 6. Simulate Fiscal Invoice Emission (apenas quando não é reenvio idempotente)
+    if (!txOutcome.deduplicated) {
+      try {
+        await simulateInvoiceEmission(txOutcome.sale.id);
+      } catch (fiscErr) {
+        console.error("Falha ao simular nota fiscal:", fiscErr);
+      }
     }
 
     revalidatePath("/stock");
@@ -392,12 +484,13 @@ export async function createSale(data: {
     revalidatePath("/customers");
     revalidatePath("/finance");
 
-    return { 
-      success: true, 
-      saleId: result.id, 
-      cashbackEarned, 
-      promoDiscountApplied, 
-      generatedCoupons 
+    return {
+      success: true,
+      saleId: txOutcome.sale.id,
+      deduplicated: txOutcome.deduplicated,
+      cashbackEarned,
+      promoDiscountApplied,
+      generatedCoupons,
     };
   } catch (err: any) {
     return { error: err.message || "Erro ao realizar venda" };
@@ -594,7 +687,7 @@ export async function adjustSale(data: {
           // Cancelar nota anterior
           await cancelInvoice(sale.invoiceId);
           // Reemitir nota com os novos valores
-          const newInvRes = await simulateInvoiceEmission(sale.id);
+          const newInvRes = await simulateInvoiceEmission(sale.id, { forceReissue: true });
           if (newInvRes.success) {
             invoiceMessage = " Cupom fiscal anterior cancelado e nova NFC-e emitida com sucesso.";
           }

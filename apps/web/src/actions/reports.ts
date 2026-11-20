@@ -4,6 +4,7 @@ import { prisma } from "@emporio/database";
 import { revalidatePath } from "next/cache";
 import { resolveActiveCompany } from "@/lib/tenant";
 import { getSession } from "@/lib/session";
+import { computeEffectiveStock } from "@/lib/stockDeduction";
 
 let comodatoTableEnsured = false;
 
@@ -170,21 +171,63 @@ export async function getAllReportsDashboardData() {
       }
     }
 
-    // 2. Relatório de Estoque Real da Empresa
-    const products = await prisma.product.findMany({
-      where: { companyId: company.id },
-      include: {
-        category: true,
-        stockEntryItems: true,
-        purchaseItems: true,
-        saleItems: true,
-      },
-      orderBy: { name: "asc" },
-    });
+    // 2. Relatório de Estoque Real da Empresa (todos os itens, com seção, fornecedores, custo, venda, margem e curva ABC)
+    const [products, allCategories, allSuppliers] = await Promise.all([
+      prisma.product.findMany({
+        where: { companyId: company.id },
+        include: {
+          category: true,
+          parentProduct: {
+            select: { id: true, name: true, stock: true, unit: true },
+          },
+          stockEntryItems: {
+            include: {
+              stockEntry: {
+                select: {
+                  entryDate: true,
+                  supplierId: true,
+                  supplier: { select: { id: true, name: true, tradeName: true } },
+                },
+              },
+            },
+          },
+          purchaseItems: {
+            include: {
+              purchaseOrder: {
+                select: {
+                  createdAt: true,
+                  supplierId: true,
+                  supplier: { select: { id: true, name: true, tradeName: true } },
+                },
+              },
+            },
+          },
+          saleItems: {
+            include: {
+              sale: { select: { createdAt: true, status: true } },
+            },
+          },
+        },
+        orderBy: { name: "asc" },
+      }),
+      prisma.category.findMany({
+        where: { companyId: company.id },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      }),
+      prisma.supplier.findMany({
+        where: { companyId: company.id },
+        select: { id: true, name: true, tradeName: true },
+        orderBy: { name: "asc" },
+      }),
+    ]);
 
-    const stockReportRows = products.map((p) => {
+    const nowMs = Date.now();
+    const thirtyDaysAgoMs = nowMs - 30 * 24 * 60 * 60 * 1000;
+
+    const rawStockRows = products.map((p) => {
       const code = p.internalCode || p.sku || p.barcode || p.id.slice(0, 6).toUpperCase();
-      const currentStock = Number(p.stock || 0);
+      const currentStock = Number(computeEffectiveStock(p).toFixed(4));
       const entryPurchased = (p.stockEntryItems || []).reduce(
         (acc, it) => acc + Number(it.quantity || 0),
         0
@@ -193,28 +236,157 @@ export async function getAllReportsDashboardData() {
         (acc, it) => acc + Number(it.quantity || 0),
         0
       );
-      const soldQty = (p.saleItems || []).reduce(
-        (acc, it) => acc + Number(it.quantity || 0),
-        0
-      );
-      const purchasedQty = entryPurchased + orderPurchased;
+
+      let soldQty = 0;
+      let soldLast30Qty = 0;
+      let lastSaleMs = 0;
+      for (const it of p.saleItems || []) {
+        if (it.sale?.status === "CANCELED") continue;
+        const q = Number(it.quantity || 0);
+        soldQty += q;
+        const sMs = it.sale?.createdAt ? new Date(it.sale.createdAt).getTime() : 0;
+        if (sMs >= thirtyDaysAgoMs) soldLast30Qty += q;
+        if (sMs > lastSaleMs) lastSaleMs = sMs;
+      }
+
+      const daysSinceLastSale =
+        lastSaleMs > 0 ? Math.max(0, Math.floor((nowMs - lastSaleMs) / (24 * 60 * 60 * 1000))) : null;
+
+      // Fornecedores vinculados ao item por NF-e (StockEntry) e Pedidos de Compra
+      const supplierEvents: { id: string; name: string; dateMs: number }[] = [];
+      for (const it of p.stockEntryItems || []) {
+        const sup = it.stockEntry?.supplier;
+        if (sup) {
+          supplierEvents.push({
+            id: sup.id,
+            name: sup.tradeName || sup.name,
+            dateMs: it.stockEntry?.entryDate ? new Date(it.stockEntry.entryDate).getTime() : 0,
+          });
+        }
+      }
+      for (const it of p.purchaseItems || []) {
+        const sup = it.purchaseOrder?.supplier;
+        if (sup) {
+          supplierEvents.push({
+            id: sup.id,
+            name: sup.tradeName || sup.name,
+            dateMs: it.purchaseOrder?.createdAt ? new Date(it.purchaseOrder.createdAt).getTime() : 0,
+          });
+        }
+      }
+      supplierEvents.sort((a, b) => b.dateMs - a.dateMs);
+      const uniqueSuppliers: { id: string; name: string }[] = [];
+      const seenSup = new Set<string>();
+      for (const ev of supplierEvents) {
+        if (!seenSup.has(ev.id)) {
+          seenSup.add(ev.id);
+          uniqueSuppliers.push({ id: ev.id, name: ev.name });
+        }
+      }
+
+      const purchasedQty = Number((entryPurchased + orderPurchased).toFixed(3));
       const itemType = classifyProductType(p);
+      const cost = Number(p.cost || 0);
+      const price = Number(p.price || 0);
+      const positiveStock = currentStock > 0 ? currentStock : 0;
+      const totalCostValue = Number((positiveStock * cost).toFixed(2));
+      const totalSaleValue = Number((positiveStock * price).toFixed(2));
+      const projectedProfit = Number((totalSaleValue - totalCostValue).toFixed(2));
+      const marginPercent =
+        price > 0
+          ? Number((((price - cost) / price) * 100).toFixed(1))
+          : 0;
+      const markupPercent =
+        cost > 0
+          ? Number((((price - cost) / cost) * 100).toFixed(1))
+          : 0;
+
+      const primarySupplier = uniqueSuppliers[0] || null;
+      const primarySupplierName =
+        primarySupplier?.name || p.manufacturer || "Sem Fornecedor";
 
       return {
         id: p.id,
         code,
+        internalCode: p.internalCode || "",
+        sku: p.sku || "",
         barcode: p.barcode || "---",
         name: p.name,
-        section: p.category?.name || "Geral",
+        brand: p.brand || "",
+        manufacturer: p.manufacturer || "",
+        ncm: p.ncm || "",
+        categoryId: p.categoryId || null,
+        section: p.category?.name || "Sem Seção",
+        supplierIds: uniqueSuppliers.map((s) => s.id),
+        suppliersList: uniqueSuppliers,
+        primarySupplierId: primarySupplier?.id || null,
+        primarySupplierName,
         unit: p.unitSale || p.unit || "UN",
         currentStock,
+        minStock: Number(p.minStock || 0),
         purchasedQty,
-        soldQty,
-        cost: Number(p.cost || 0),
-        price: Number(p.price || 0),
+        soldQty: Number(soldQty.toFixed(3)),
+        soldLast30Qty: Number(soldLast30Qty.toFixed(3)),
+        daysSinceLastSale,
+        cost,
+        price,
+        totalCostValue,
+        totalSaleValue,
+        projectedProfit,
+        marginPercent,
+        markupPercent,
         itemType,
+        isFractionalChild: Boolean(p.parentProductId && p.parentProduct && Number(p.unitConvFactor || 1) > 0),
+        parentProductName: p.parentProduct?.name || null,
+        abcClass: "C" as "A" | "B" | "C",
       };
     });
+
+    // Cálculo automático de Curva ABC sobre o valor em estoque a preço de venda (ou custo quando venda = 0)
+    const grandTotalForAbc = rawStockRows.reduce(
+      (acc, r) => acc + (r.totalSaleValue > 0 ? r.totalSaleValue : r.totalCostValue),
+      0
+    );
+    const abcMap = new Map<string, "A" | "B" | "C">();
+    if (grandTotalForAbc > 0) {
+      const sortedForAbc = [...rawStockRows].sort((a, b) => {
+        const va = a.totalSaleValue > 0 ? a.totalSaleValue : a.totalCostValue;
+        const vb = b.totalSaleValue > 0 ? b.totalSaleValue : b.totalCostValue;
+        return vb - va;
+      });
+      let cumulative = 0;
+      for (const row of sortedForAbc) {
+        const val = row.totalSaleValue > 0 ? row.totalSaleValue : row.totalCostValue;
+        const prevShare = cumulative / grandTotalForAbc;
+        cumulative += val;
+        if (val <= 0) {
+          abcMap.set(row.id, "C");
+        } else if (prevShare < 0.8) {
+          abcMap.set(row.id, "A");
+        } else if (prevShare < 0.95) {
+          abcMap.set(row.id, "B");
+        } else {
+          abcMap.set(row.id, "C");
+        }
+      }
+    }
+
+    const stockReportRows = rawStockRows.map((r) => ({
+      ...r,
+      abcClass: abcMap.get(r.id) || "C",
+    }));
+
+    const stockSections = Array.from(
+      new Set([
+        ...allCategories.map((c) => c.name),
+        ...stockReportRows.map((r) => r.section),
+      ])
+    ).sort((a, b) => a.localeCompare(b, "pt-BR"));
+
+    const stockSuppliers = allSuppliers.map((s) => ({
+      id: s.id,
+      name: s.tradeName || s.name,
+    }));
 
     // 3. Comodatos Reais (Emprestados em comodato_loans + Patrimônio Comodato em Asset)
     const comodatoRows: Array<{
@@ -334,6 +506,8 @@ export async function getAllReportsDashboardData() {
       })),
       resaleSales: resaleSalesRows,
       stockReport: stockReportRows,
+      stockSections,
+      stockSuppliers,
       comodatos: comodatoRows.map((c) => ({
         ...c,
         quantity: Number(c.quantity || 1),
@@ -362,6 +536,8 @@ export async function getAllReportsDashboardData() {
       customers: [],
       resaleSales: [],
       stockReport: [],
+      stockSections: [],
+      stockSuppliers: [],
       comodatos: [],
       comodatoAssets: [],
       dreComparison: null,
@@ -1006,6 +1182,115 @@ export async function getExpirationsReport() {
         safeCount: 0,
         totalRiskCost: 0,
       },
+    };
+  }
+}
+
+export async function getPriceChangesReport(filters?: {
+  startDate?: string;
+  endDate?: string;
+  userName?: string;
+  search?: string;
+}) {
+  try {
+    const company = await resolveActiveCompany();
+    const companyId = company?.id;
+    if (!companyId) {
+      return { success: false, error: "Empresa não encontrada.", rows: [], users: [] as string[], summary: { total: 0, increases: 0, decreases: 0 } };
+    }
+
+    const { ensurePriceHistoryTable } = await import("./labels");
+    await ensurePriceHistoryTable();
+
+    const rawRows = (await prisma.$queryRawUnsafe(
+      `SELECT
+         h."id",
+         h."productId",
+         h."oldPrice",
+         h."newPrice",
+         h."sectionName",
+         h."userId",
+         h."userName",
+         h."changedAt",
+         p."name" AS "productName",
+         p."barcode" AS "barcode",
+         p."internalCode" AS "internalCode"
+       FROM "product_price_history" h
+       LEFT JOIN "products" p ON p."id" = h."productId"
+       WHERE h."companyId" = $1
+       ORDER BY h."changedAt" DESC
+       LIMIT 1000`,
+      companyId
+    )) as Array<any>;
+
+    const usersSet = new Set<string>();
+    const startMs = filters?.startDate ? new Date(`${filters.startDate}T00:00:00.000-03:00`).getTime() : null;
+    const endMs = filters?.endDate ? new Date(`${filters.endDate}T23:59:59.999-03:00`).getTime() : null;
+    const q = (filters?.search || "").trim().toLowerCase();
+
+    const mapped = rawRows.map((r) => {
+      const oldPrice = Number(r.oldPrice || 0);
+      const newPrice = Number(r.newPrice || 0);
+      const diffValue = Number((newPrice - oldPrice).toFixed(2));
+      const diffPercent = oldPrice > 0 ? Number((((newPrice - oldPrice) / oldPrice) * 100).toFixed(2)) : 0;
+      const uName = (r.userName || "Operador").trim();
+      usersSet.add(uName);
+
+      return {
+        id: String(r.id),
+        productId: String(r.productId),
+        productName: String(r.productName || "Produto removido"),
+        barcode: r.barcode ? String(r.barcode) : "",
+        internalCode: r.internalCode ? String(r.internalCode) : "",
+        sectionName: String(r.sectionName || "Sem Seção"),
+        oldPrice,
+        newPrice,
+        diffValue,
+        diffPercent,
+        userId: String(r.userId || ""),
+        userName: uName,
+        changedAt: String(r.changedAt),
+      };
+    });
+
+    const filtered = mapped.filter((row) => {
+      const ts = new Date(row.changedAt).getTime();
+      if (startMs && ts < startMs) return false;
+      if (endMs && ts > endMs) return false;
+      if (filters?.userName && filters.userName !== "ALL" && row.userName !== filters.userName) return false;
+      if (q) {
+        const hit =
+          row.productName.toLowerCase().includes(q) ||
+          row.barcode.toLowerCase().includes(q) ||
+          row.internalCode.toLowerCase().includes(q) ||
+          row.sectionName.toLowerCase().includes(q) ||
+          row.userName.toLowerCase().includes(q);
+        if (!hit) return false;
+      }
+      return true;
+    });
+
+    const increases = filtered.filter((r) => r.diffValue > 0).length;
+    const decreases = filtered.filter((r) => r.diffValue < 0).length;
+
+    return {
+      success: true,
+      rows: filtered,
+      users: Array.from(usersSet).sort((a, b) => a.localeCompare(b)),
+      summary: {
+        total: filtered.length,
+        increases,
+        decreases,
+      },
+    };
+  } catch (err: any) {
+    console.error("Erro em getPriceChangesReport:", err);
+    return {
+      success: false,
+      error: err?.message || "Erro ao carregar relatório de alteração de preços.",
+      rows: [],
+      users: [] as string[],
+      summary: { total: 0, increases: 0, decreases: 0 },
     };
   }
 }

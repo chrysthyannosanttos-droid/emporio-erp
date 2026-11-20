@@ -38,6 +38,7 @@ import {
   updateRejectedInvoiceAction,
   sendCartaCorrecaoAction,
   inutilizarAndDeleteInvoiceAction,
+  cleanupDuplicateInvoicesAction,
 } from "@/actions/invoice";
 import { generateSpedAndXmlData } from "@/actions/accounting";
 
@@ -85,11 +86,13 @@ export default function FiscalPage() {
   const [success, setSuccess] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"todas" | "pendentes" | "autorizadas" | "canceladas">("todas");
+  const [rejectionFilter, setRejectionFilter] = useState<string>("");
 
   // Fila de Retransmissão Automática 5s + Manual SEFAZ-AL
   const [autoEnabled, setAutoEnabled] = useState(false);
   const [countdown, setCountdown] = useState(5);
   const [busyInvoiceId, setBusyInvoiceId] = useState<string | null>(null);
+  const [cleaningDuplicates, setCleaningDuplicates] = useState(false);
   const [attemptedIds, setAttemptedIds] = useState<Record<string, boolean>>({});
   const [queueLogs, setQueueLogs] = useState<Array<{ id: string; number: string; ok: boolean; msg: string; time: string }>>([]);
   const isSendingRef = useRef(false);
@@ -339,6 +342,21 @@ export default function FiscalPage() {
     await loadInvoices(true);
   };
 
+  const handleCleanupDuplicates = async () => {
+    setCleaningDuplicates(true);
+    setError("");
+    setSuccess("");
+    const res = await cleanupDuplicateInvoicesAction();
+    setCleaningDuplicates(false);
+    if (res.ok) {
+      setAttemptedIds({});
+      setSuccess(res.message || "Limpeza de duplicadas concluída.");
+      await loadInvoices(true);
+    } else {
+      setError(res.error || "Erro ao excluir notas duplicadas.");
+    }
+  };
+
   const openEditModal = (invoice: any) => {
     if (invoice.sefazAuthorized) {
       if (invoice.type === "NFCe") {
@@ -484,12 +502,37 @@ export default function FiscalPage() {
     totalValue: invoices.reduce((acc, i) => acc + (i.effectiveStatus === "AUTHORIZED" ? Number(i.total) : 0), 0),
   };
 
+  const getRejectionHint = (errorMsg?: string | null) => {
+    const msg = (errorMsg || "").toLowerCase();
+    if (!msg) return "Clique em Subir Manual para transmitir.";
+    if (msg.includes("464") || msg.includes("hash")) return "Corrigido no sistema — clique em Subir Manual (confira se o CSC Token está salvo).";
+    if (msg.includes("204") || msg.includes("539") || msg.includes("duplicidade")) return "Numeração duplicada — clique em Subir Manual para avançar ou Excluir Duplicadas.";
+    if (msg.includes("ncm") || msg.includes("cfop") || msg.includes("csosn") || msg.includes("gtin") || msg.includes("ean") || msg.includes("610") || msg.includes("total")) {
+      return "Clique em Corrigir para ajustar os itens/tributação e reenviar.";
+    }
+    return "Clique em Corrigir para revisar os itens ou em Subir Manual para retransmitir.";
+  };
+
+  const rejectionSummary = Object.entries(
+    invoices
+      .filter((i) => i.effectiveStatus === "REJECTED")
+      .reduce<Record<string, number>>((acc, i) => {
+        const key = (i.errorMsg || "Aguardando primeira transmissão").trim();
+        acc[key] = (acc[key] || 0) + 1;
+        return acc;
+      }, {})
+  ).sort((a, b) => b[1] - a[1]);
+
   const filteredInvoices = invoices.filter((i) => {
     const matchesSearch =
       i.accessKey?.toLowerCase().includes(search.toLowerCase()) ||
       i.number?.includes(search) ||
-      i.customerName?.toLowerCase().includes(search.toLowerCase());
+      i.customerName?.toLowerCase().includes(search.toLowerCase()) ||
+      (i.errorMsg || "").toLowerCase().includes(search.toLowerCase());
     if (!matchesSearch) return false;
+    if (rejectionFilter) {
+      return i.effectiveStatus === "REJECTED" && (i.errorMsg || "Aguardando primeira transmissão").trim() === rejectionFilter;
+    }
     if (statusFilter === "pendentes") return i.effectiveStatus === "REJECTED";
     if (statusFilter === "autorizadas") return i.effectiveStatus === "AUTHORIZED";
     if (statusFilter === "canceladas") return i.effectiveStatus === "CANCELED";
@@ -932,6 +975,17 @@ export default function FiscalPage() {
                   Subir Próxima Manual
                 </button>
 
+                <button
+                  type="button"
+                  disabled={cleaningDuplicates || !!busyInvoiceId || stats.rejected === 0}
+                  onClick={handleCleanupDuplicates}
+                  className="px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-40 text-white shadow-sm cursor-pointer"
+                  title="Remove notas pendentes/rejeitadas duplicadas (mesmo pedido, número ou chave), preservando todas as autorizadas e canceladas"
+                >
+                  {cleaningDuplicates ? <Loader2 size={15} className="animate-spin" /> : <Trash2 size={15} />}
+                  Excluir Duplicadas
+                </button>
+
                 {Object.keys(attemptedIds).length > 0 && (
                   <button
                     type="button"
@@ -952,6 +1006,49 @@ export default function FiscalPage() {
                     [{l.time}] Nota #{l.number} → {l.msg}
                   </div>
                 ))}
+              </div>
+            )}
+
+            {rejectionSummary.length > 0 && (
+              <div className="rounded-xl border border-red-200 bg-red-50/60 p-3.5 space-y-2">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className="text-xs font-black text-red-900 uppercase tracking-wide flex items-center gap-1.5">
+                    <AlertCircle size={14} className="text-red-600" />
+                    Motivos das Notas Rejeitadas / Pendentes (clique para filtrar)
+                  </span>
+                  {rejectionFilter && (
+                    <button
+                      type="button"
+                      onClick={() => setRejectionFilter("")}
+                      className="text-[11px] font-bold text-red-700 hover:underline cursor-pointer"
+                    >
+                      Limpar filtro de motivo
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {rejectionSummary.map(([reason, count]) => {
+                    const active = rejectionFilter === reason;
+                    return (
+                      <button
+                        key={reason}
+                        type="button"
+                        onClick={() => {
+                          setStatusFilter("pendentes");
+                          setRejectionFilter(active ? "" : reason);
+                        }}
+                        className={`text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                          active
+                            ? "bg-red-600 text-white border-red-700 shadow-sm"
+                            : "bg-white text-red-800 border-red-200 hover:bg-red-100"
+                        }`}
+                      >
+                        <span className="font-black mr-1.5">({count}x)</span>
+                        <span>{reason}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>
@@ -1083,10 +1180,13 @@ export default function FiscalPage() {
                                     <AlertCircle size={12} /> Rejeitada / Pendente
                                   </span>
                                   {invoice.errorMsg && (
-                                    <p className="text-[11px] text-red-600 font-medium leading-tight">
+                                    <p className="text-[11px] text-red-700 font-semibold leading-snug break-words">
                                       {invoice.errorMsg}
                                     </p>
                                   )}
+                                  <p className="text-[10px] text-slate-500 leading-snug">
+                                    {getRejectionHint(invoice.errorMsg)}
+                                  </p>
                                 </div>
                               )}
                             </td>
@@ -1119,10 +1219,14 @@ export default function FiscalPage() {
                                   <button
                                     type="button"
                                     onClick={() => openEditModal(invoice)}
-                                    className="text-amber-700 hover:bg-amber-50 px-2 py-1.5 bg-gray-50 rounded-lg border border-amber-200 text-xs font-semibold inline-flex items-center gap-1 cursor-pointer"
-                                    title={invoice.sefazAuthorized ? "Carta de Correção SEFAZ (NF-e 55)" : "Editar Itens/Impostos antes de reenviar"}
+                                    className={`px-2.5 py-1.5 rounded-lg border text-xs font-bold inline-flex items-center gap-1 cursor-pointer ${
+                                      invoice.sefazAuthorized
+                                        ? "text-amber-700 hover:bg-amber-50 bg-gray-50 border-amber-200"
+                                        : "text-amber-900 bg-amber-100 hover:bg-amber-200 border-amber-300"
+                                    }`}
+                                    title={invoice.sefazAuthorized ? "Carta de Correção SEFAZ (NF-e 55)" : "Corrigir itens, NCM, CFOP, CSOSN ou desconto e reenviar para SEFAZ"}
                                   >
-                                    <Pencil size={12} /> {invoice.sefazAuthorized ? "CC-e" : "Editar"}
+                                    <Pencil size={12} /> {invoice.sefazAuthorized ? "CC-e" : "Corrigir"}
                                   </button>
                                 )}
 
@@ -1202,6 +1306,16 @@ export default function FiscalPage() {
             </div>
 
             <div className="p-5 overflow-y-auto space-y-4 flex-1">
+              {editModalInv.errorMsg && (
+                <div className="p-3.5 bg-red-50 border border-red-200 rounded-xl space-y-1">
+                  <div className="text-xs font-black text-red-800 flex items-center gap-1.5">
+                    <AlertCircle size={14} /> Motivo da Rejeição SEFAZ
+                  </div>
+                  <p className="text-xs font-semibold text-red-700">{editModalInv.errorMsg}</p>
+                  <p className="text-[11px] text-red-600">{getRejectionHint(editModalInv.errorMsg)}</p>
+                </div>
+              )}
+
               {editItems.length === 0 ? (
                 <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 font-bold">
                   Esta nota não possui itens de venda vinculados no PDV para edição.

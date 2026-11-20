@@ -172,3 +172,29 @@ export function playScannerBeep(): void {
   }
 }
 
+// ── Alerta Sonoro de Venda Duplicada (2 bips de atenção) ────────
+export function playDuplicateWarningSound(): void {
+  if (typeof window === "undefined") return;
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+    const ctx = new AudioContextClass();
+    const playTone = (freq: number, startOffset: number, duration: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + startOffset);
+      gain.gain.setValueAtTime(0.25, ctx.currentTime + startOffset);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + startOffset + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + startOffset);
+      osc.stop(ctx.currentTime + startOffset + duration);
+    };
+    playTone(620, 0, 0.18);
+    playTone(460, 0.22, 0.26);
+  } catch {
+    // Silently ignore audio restrictions
+  }
+}
+

@@ -3,6 +3,7 @@
 import { prisma } from "@emporio/database";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/session";
+import { logAudit } from "./audit";
 
 export interface PriceHistorySearchFilters {
   section?: string; // "ALL" or category name/id
@@ -32,7 +33,7 @@ export interface LabelProductRow {
 
 let tableEnsured = false;
 
-async function ensurePriceHistoryTable() {
+export async function ensurePriceHistoryTable() {
   if (tableEnsured) return;
   try {
     await prisma.$executeRawUnsafe(`
@@ -198,6 +199,20 @@ export async function recordPriceChange(params: {
       companyId,
       nowIso
     );
+
+    if (companyId) {
+      await logAudit({
+        operation: "product.price_change",
+        action: "UPDATE",
+        entity: "Product",
+        entityId: params.productId,
+        oldValue: `R$ ${oldP.toFixed(2)}`,
+        newValue: `R$ ${newP.toFixed(2)}`,
+        reason: `Alteração de preço (${sectionName}) por ${userName}`,
+        companyId,
+        userId: userId !== "system" ? userId : undefined,
+      });
+    }
 
     return { recorded: true };
   } catch (err) {

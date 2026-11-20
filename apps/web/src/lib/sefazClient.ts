@@ -760,51 +760,96 @@ export async function transmitSefazNfe4(params: {
   const cNF = key.slice(35, 43);
   const cDV = key.slice(43, 44);
 
-  let vProdSum = 0;
-  const detTags = params.items
-    .map((item, idx) => {
-      const nItem = idx + 1;
-      const cProd = String(nItem).padStart(4, "0");
-      const cEAN = item.barcode && /^\d{8,14}$/.test(item.barcode) ? item.barcode : "SEM GTIN";
-      const xProd =
-        tpAmb === "2" && nItem === 1
-          ? "NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
-          : sanitizeSefazText(item.name, 120, "PRODUTO");
-      const cleanNcm = (item.ncm || "").replace(/\D/g, "");
-      const ncm = cleanNcm.length === 8 && cleanNcm !== "00000000" ? cleanNcm : "21069090";
-      const cleanCfop = (item.cfop || "").replace(/\D/g, "");
-      const cfop = cleanCfop.length === 4 ? cleanCfop : "5102";
-      const uCom = sanitizeSefazText(item.unit, 6, "UN").slice(0, 6);
-      const qComNum = Number(item.quantity || 0);
-      const vUnComNum = Number(item.unitPrice || 0);
-      const qCom = qComNum.toFixed(4);
-      const vUnCom = vUnComNum.toFixed(4);
-      const vProdItem = Number((qComNum * vUnComNum).toFixed(2));
-      vProdSum = Number((vProdSum + vProdItem).toFixed(2));
-      const vProd = vProdItem.toFixed(2);
-      const csosn = item.csosn || "102";
+  const preparedItems = params.items.map((item, idx) => {
+    const nItem = idx + 1;
+    const cProd = String(nItem).padStart(4, "0");
+    const cEAN = item.barcode && /^\d{8,14}$/.test(item.barcode) ? item.barcode : "SEM GTIN";
+    const xProd =
+      tpAmb === "2" && nItem === 1
+        ? "NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
+        : sanitizeSefazText(item.name, 120, "PRODUTO");
+    const cleanNcm = (item.ncm || "").replace(/\D/g, "");
+    const ncm = cleanNcm.length === 8 && cleanNcm !== "00000000" ? cleanNcm : "21069090";
+    const csosn = item.csosn || "102";
+    const cleanCfop = (item.cfop || "").replace(/\D/g, "");
+    const cfop =
+      cleanCfop.length === 4 && ["5", "6", "7"].includes(cleanCfop[0])
+        ? cleanCfop
+        : csosn === "500"
+        ? "5405"
+        : "5102";
+    const uCom = sanitizeSefazText(item.unit, 6, "UN").slice(0, 6);
+    const qComNum = Number(item.quantity || 0);
+    const vUnComNum = Number(item.unitPrice || 0);
+    const vProdItem = Number((qComNum * vUnComNum).toFixed(2));
+    return {
+      nItem,
+      cProd,
+      cEAN,
+      xProd,
+      ncm,
+      cfop,
+      uCom,
+      qCom: qComNum.toFixed(4),
+      vUnCom: vUnComNum.toFixed(4),
+      vProdItem,
+      csosn,
+    };
+  });
 
+  const vProdSum = Number(
+    preparedItems.reduce((acc, it) => acc + it.vProdItem, 0).toFixed(2)
+  );
+  const rawDiscount = Number((params.discount || 0).toFixed(2));
+  const vProdTotal = vProdSum.toFixed(2);
+  const vDescNum = Math.min(vProdSum, Math.max(0, rawDiscount));
+  const vDesc = vDescNum.toFixed(2);
+  const vNF = Math.max(0, Number((vProdSum - vDescNum).toFixed(2))).toFixed(2);
+
+  // Rateio proporcional do desconto entre os itens (obrigatório na NF-e/NFC-e 4.00)
+  let remainingDescCents = Math.round(vDescNum * 100);
+  const itemDiscounts = preparedItems.map((it, idx) => {
+    if (remainingDescCents <= 0 || vProdSum <= 0) return 0;
+    if (idx === preparedItems.length - 1) {
+      const val = Math.min(Math.round(it.vProdItem * 100), remainingDescCents);
+      remainingDescCents -= val;
+      return val / 100;
+    }
+    const share = Math.min(
+      Math.round(it.vProdItem * 100),
+      Math.round((it.vProdItem / vProdSum) * vDescNum * 100)
+    );
+    remainingDescCents -= share;
+    return share / 100;
+  });
+
+  const detTags = preparedItems
+    .map((it, idx) => {
+      const vProd = it.vProdItem.toFixed(2);
+      const itemDesc = itemDiscounts[idx] || 0;
+      const vDescTag = itemDesc > 0 ? `<vDesc>${itemDesc.toFixed(2)}</vDesc>` : "";
       const icmsTag =
-        csosn === "500"
+        it.csosn === "500"
           ? `<ICMSSN500><orig>0</orig><CSOSN>500</CSOSN></ICMSSN500>`
           : `<ICMSSN102><orig>0</orig><CSOSN>102</CSOSN></ICMSSN102>`;
 
       return (
-        `<det nItem="${nItem}">` +
+        `<det nItem="${it.nItem}">` +
         `<prod>` +
-        `<cProd>${cProd}</cProd>` +
-        `<cEAN>${cEAN}</cEAN>` +
-        `<xProd>${xProd}</xProd>` +
-        `<NCM>${ncm}</NCM>` +
-        `<CFOP>${cfop}</CFOP>` +
-        `<uCom>${uCom}</uCom>` +
-        `<qCom>${qCom}</qCom>` +
-        `<vUnCom>${vUnCom}</vUnCom>` +
+        `<cProd>${it.cProd}</cProd>` +
+        `<cEAN>${it.cEAN}</cEAN>` +
+        `<xProd>${it.xProd}</xProd>` +
+        `<NCM>${it.ncm}</NCM>` +
+        `<CFOP>${it.cfop}</CFOP>` +
+        `<uCom>${it.uCom}</uCom>` +
+        `<qCom>${it.qCom}</qCom>` +
+        `<vUnCom>${it.vUnCom}</vUnCom>` +
         `<vProd>${vProd}</vProd>` +
-        `<cEANTrib>${cEAN}</cEANTrib>` +
-        `<uTrib>${uCom}</uTrib>` +
-        `<qTrib>${qCom}</qTrib>` +
-        `<vUnTrib>${vUnCom}</vUnTrib>` +
+        `<cEANTrib>${it.cEAN}</cEANTrib>` +
+        `<uTrib>${it.uCom}</uTrib>` +
+        `<qTrib>${it.qCom}</qTrib>` +
+        `<vUnTrib>${it.vUnCom}</vUnTrib>` +
+        vDescTag +
         `<indTot>1</indTot>` +
         `</prod>` +
         `<imposto>` +
@@ -817,12 +862,6 @@ export async function transmitSefazNfe4(params: {
     })
     .join("");
 
-  const rawDiscount = Number((params.discount || 0).toFixed(2));
-  const vProdTotal = vProdSum.toFixed(2);
-  const vDescNum = Math.min(vProdSum, Math.max(0, rawDiscount));
-  const vDesc = vDescNum.toFixed(2);
-  const vNF = Math.max(0, Number((vProdSum - vDescNum).toFixed(2))).toFixed(2);
-
   const tPagMap: Record<string, string> = {
     MONEY: "01",
     CASH: "01",
@@ -831,8 +870,11 @@ export async function transmitSefazNfe4(params: {
     CREDIT: "03",
     DEBIT_CARD: "04",
     DEBIT: "04",
-    PIX: "17",
     VOUCHER: "10",
+    BOLETO: "15",
+    PIX: "17",
+    TRANSFERENCIA: "18",
+    BANK_TRANSFER: "18",
   };
   const tPag = tPagMap[(params.paymentMethod || "MONEY").toUpperCase()] || "01";
 
@@ -911,7 +953,11 @@ export async function transmitSefazNfe4(params: {
     `</ICMSTot>` +
     `</total>` +
     `<transp><modFrete>9</modFrete></transp>` +
-    `<pag><detPag><tPag>${tPag}</tPag><vPag>${vNF}</vPag></detPag></pag>` +
+    `<pag><detPag><tPag>${tPag}</tPag><vPag>${vNF}</vPag>${
+      ["03", "04", "10", "11", "17", "18"].includes(tPag)
+        ? "<card><tpIntegra>2</tpIntegra></card>"
+        : ""
+    }</detPag></pag>` +
     `</infNFe>`;
 
   const infNFeXml = `<infNFe Id="${infNFeId}" versao="4.00">${infNFeInner}`;
@@ -924,18 +970,26 @@ export async function transmitSefazNfe4(params: {
     certBase64Clean
   );
 
-  // QR Code 2.0 oficial SEFAZ-AL (NFC-e Modelo 65)
+  // QR Code 2.0 oficial SEFAZ-AL (NFC-e Modelo 65 - NT 2016.002)
   let infNFeSupl = "";
   if (params.model === "65") {
     const cIdToken = String(Number(meta.cscId || "1"));
-    const csc = meta.cscToken || "000001";
-    const sEntrada = `${key}|2|${tpAmb}|`;
+    const csc = (meta.cscToken || "").trim();
+    if (!csc) {
+      return {
+        ok: false,
+        authorized: false,
+        cStat: "464",
+        xMotivo: "CSC Token da NFC-e não configurado nas Configurações Fiscais da loja.",
+      };
+    }
+    const sEntrada = `${key}|2|${tpAmb}|${cIdToken}`;
     const cHashQRCode = crypto
       .createHash("sha1")
       .update(sEntrada + csc, "utf8")
       .digest("hex")
       .toUpperCase();
-    const qrUrl = `http://nfce.sefaz.al.gov.br/QRCode/consultarNFCe.jsp?p=${sEntrada}${cIdToken}|${cHashQRCode}`;
+    const qrUrl = `http://nfce.sefaz.al.gov.br/QRCode/consultarNFCe.jsp?p=${sEntrada}|${cHashQRCode}`;
     const urlChave = "http://nfce.sefaz.al.gov.br/consulta";
     infNFeSupl = `<infNFeSupl><qrCode><![CDATA[${qrUrl}]]></qrCode><urlChave>${urlChave}</urlChave></infNFeSupl>`;
   }

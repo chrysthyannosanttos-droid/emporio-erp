@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, Suspense, useCallback } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Search, ShoppingCart, Trash2, CreditCard, Banknote, QrCode,
   Keyboard, Plus, Minus, X, FileText, Check, AlertCircle,
@@ -9,7 +10,7 @@ import {
   DollarSign, BarChart2, LogOut, RefreshCw, Zap, Download, Settings,
   Maximize2, Minimize2, Wifi, Volume2, Battery, Barcode, Tag, Key,
   Smartphone, Share2, MessageCircle, Mail, Copy, ExternalLink, Printer,
-  Lock, Eye, EyeOff, ShieldCheck, BedDouble, Briefcase
+  Lock, Eye, EyeOff, ShieldCheck, BedDouble, Briefcase, ArrowLeft, LayoutDashboard, Loader2
 } from "lucide-react";
 import {
   buildReceiptText,
@@ -36,12 +37,13 @@ import { CybertechBrand } from "@/components/CybertechBrand";
 import { PdvConfigModal } from "@/components/PdvConfigModal";
 import { PdvAdjustSaleModal } from "@/components/PdvAdjustSaleModal";
 import { ConcurrentSessionWatcher } from "@/components/ConcurrentSessionWatcher";
-import { playScannerBeep } from "@/lib/pdvHardwareConfig";
+import { playScannerBeep, playDuplicateWarningSound } from "@/lib/pdvHardwareConfig";
 import { activateTerminalOnline } from "@/actions/terminals";
 import { getPdvOperators, verifyPdvPin, verifySupervisorPin } from "@/actions/users";
 import { getCustomers } from "@/actions/customer";
 import { logout } from "@/actions/auth";
 import { testSefazConnectionAction } from "@/actions/fiscalConfig";
+import { getPdvScreensaverConfig } from "@/actions/pdvScreensaver";
 import {
   loadPdvPaymentConfig,
   savePdvPaymentConfig,
@@ -647,6 +649,13 @@ function SelectCashierScreen({ onSelect, autoCaixa }: { onSelect: (session: Cash
         <div className="flex items-center gap-3 sm:gap-4">
           <CybertechBrand size="sm" />
           <span className="hidden sm:inline text-gray-400 text-sm border-l border-gray-200 pl-3 font-medium">Abertura de Turno / Caixa</span>
+          <Link
+            href="/"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 text-xs font-bold transition-colors"
+          >
+            <ArrowLeft size={14} />
+            <span>Voltar ao Sistema</span>
+          </Link>
         </div>
         <div className="text-right">
           <div className="text-gray-800 text-lg sm:text-2xl font-black tracking-tight" suppressHydrationWarning>
@@ -871,6 +880,15 @@ function PDVContainer() {
   // Splash Screen desativada para carregamento instantâneo do PDV
   const [showSplash, setShowSplash] = useState(false);
 
+  const genClientReqId = () =>
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : `PDV-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const [isFinalizing, setIsFinalizing] = useState(false);
+  const isFinalizingRef = useRef(false);
+  const isSyncingOfflineRef = useRef(false);
+  const checkoutIdempotencyKeyRef = useRef<string>(genClientReqId());
+
   // Session - Inicia diretamente no PDV pronto para vendas
   const [session, setSession] = useState<CashierSession | null>(() => {
     let savedNum = 1;
@@ -925,6 +943,7 @@ function PDVContainer() {
 
   // UI state
   const [errorMessage, setErrorMessage] = useState("");
+  const [duplicateWarningMsg, setDuplicateWarningMsg] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [onlineLookup, setOnlineLookup] = useState<{ name: string; source: string; barcode: string; imageUrl?: string } | null>(null);
@@ -992,6 +1011,8 @@ function PDVContainer() {
   // Sincronização automática de vendas offline quando a conexão com a nuvem é restabelecida
   useEffect(() => {
     const handleSyncOfflineSales = async () => {
+      if (isSyncingOfflineRef.current) return;
+      isSyncingOfflineRef.current = true;
       try {
         const raw = localStorage.getItem("CYBERTECH_OFFLINE_SALES_QUEUE");
         if (!raw) return;
@@ -1006,7 +1027,8 @@ function PDVContainer() {
               items: item.items,
               paymentMethod: item.paymentMethod,
               discount: item.discount,
-              customerCpf: item.customerCpf
+              customerCpf: item.customerCpf,
+              clientRequestId: item.clientRequestId || item.saleId,
             });
             if (!res.success) {
               remaining.push(item);
@@ -1016,7 +1038,10 @@ function PDVContainer() {
           }
         }
         localStorage.setItem("CYBERTECH_OFFLINE_SALES_QUEUE", JSON.stringify(remaining));
-      } catch {}
+      } catch {
+      } finally {
+        isSyncingOfflineRef.current = false;
+      }
     };
 
     window.addEventListener("online", handleSyncOfflineSales);
@@ -1043,7 +1068,7 @@ function PDVContainer() {
   }, [selectedCategory]);
 
   // Modals & Config
-  const [modal, setModal] = useState<"" | "payment" | "success" | "order" | "closing" | "withdrawal" | "pricecheck" | "cpf" | "hotkeys" | "quantity" | "sefaz" | "roomlaunch">("");
+  const [modal, setModal] = useState<"" | "payment" | "success" | "order" | "closing" | "withdrawal" | "pricecheck" | "cpf" | "hotkeys" | "quantity" | "sefaz" | "roomlaunch" | "duplicate_warning">("");
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -1290,6 +1315,29 @@ function PDVContainer() {
     if (savedTimeout) {
       setIdleTimeout(parseInt(savedTimeout) * 1000);
     }
+
+    // Sincroniza imagens e tempos do descanso de tela configurados na nuvem
+    getPdvScreensaverConfig()
+      .then((res) => {
+        if (res?.config) {
+          const activeList = (res.config.ads || []).filter((x) => x.active);
+          if (activeList.length > 0) {
+            setPromotionalAds(activeList);
+          }
+          if (res.config.rotationSpeedSec) {
+            setRotationSpeed(res.config.rotationSpeedSec * 1000);
+          }
+          if (res.config.idleTimeoutSec) {
+            setIdleTimeout(res.config.idleTimeoutSec * 1000);
+          }
+          try {
+            localStorage.setItem("EMPORIO_PDV_PROMOTIONAL_ADS", JSON.stringify(res.config.ads));
+            localStorage.setItem("EMPORIO_PDV_AD_SPEED", String(res.config.rotationSpeedSec));
+            localStorage.setItem("EMPORIO_PDV_IDLE_TIMEOUT", String(res.config.idleTimeoutSec));
+          } catch {}
+        }
+      })
+      .catch(() => {});
   }, []);
 
 
@@ -1930,6 +1978,7 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
     setCart([]); setCartQtyDraft({}); setCartBrlMode({}); setDiscountInput("0"); setLinkedOrderId(null);
     setSelectedCustomer(null); setCpfInput(""); setCrediarioPin(""); setCrediarioError(""); setPaymentMethod("MONEY");
     setBarcodeInput(""); setErrorMessage(""); setAmountGiven("");
+    checkoutIdempotencyKeyRef.current = genClientReqId();
     if (typeof window !== "undefined" && window.location.search) {
       router.replace("/pdv");
     }
@@ -2043,8 +2092,9 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
     setModal("");
   };
 
-  const handleFinalizeSale = async () => {
-    if (cart.length === 0) return;
+  const handleFinalizeSale = async (forceAllowDuplicate = false) => {
+    const allowDup = forceAllowDuplicate === true;
+    if (isFinalizingRef.current || cart.length === 0) return;
     const isPosCard = paymentMethod === "CREDIT_CARD" || paymentMethod === "DEBIT_CARD" || paymentMethod === "VOUCHER";
     if (isPosCard && pdvPayConfig.posModeEnabled) {
       if (posStep === "ACQUIRER") {
@@ -2064,7 +2114,6 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
     const saleGiven = parseFloat(amountGiven) || 0;
     const saleChange = paymentMethod === "MONEY" && saleGiven >= total ? saleGiven - total : 0;
 
-    let creditAuthorizedBy: string | undefined = undefined;
     if (paymentMethod === "CREDIARIO") {
       if (!selectedCustomer || selectedCustomer.customerType !== "FUNCIONARIO") {
         setCrediarioError("Selecione um funcionário cadastrado (F8) para liberar o Crediário.");
@@ -2074,60 +2123,31 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
         setCrediarioError("Crediário de funcionário exige conexão online para validar PIN e saldo.");
         return;
       }
-      setVerifyingCrediario(true);
-      setCrediarioError("");
-      const pinCheck = await verifySupervisorPin(crediarioPin);
-      setVerifyingCrediario(false);
-      if (!pinCheck.success) {
-        setCrediarioError(pinCheck.error || "PIN de confirmação inválido.");
-        return;
-      }
-      creditAuthorizedBy = pinCheck.userName || "Supervisor";
     }
 
-    let res: any;
-    const isActuallyOffline = isOfflineMode || (typeof navigator !== "undefined" && !navigator.onLine);
-    if (isActuallyOffline) {
-      const mockSaleId = `OFF-${Date.now()}`;
-      res = {
-        success: true,
-        saleId: mockSaleId,
-        cashbackEarned: 0,
-        generatedCoupons: []
-      };
-      setContingencySales(prev => [...prev, {
-        saleId: mockSaleId,
-        items: cart.map(i => ({ productId: i.id, quantity: i.quantity, unitPrice: i.price })),
-        paymentMethod,
-        discount: disc,
-        at: new Date()
-      }]);
-      try {
-        const queue = JSON.parse(localStorage.getItem("CYBERTECH_OFFLINE_SALES_QUEUE") || "[]");
-        queue.push({
-          saleId: mockSaleId,
-          items: cart.map(i => ({ productId: i.id, quantity: i.quantity, unitPrice: i.price })),
-          paymentMethod,
-          discount: disc,
-          customerCpf: cpfInput || undefined,
-          at: new Date().toISOString()
-        });
-        localStorage.setItem("CYBERTECH_OFFLINE_SALES_QUEUE", JSON.stringify(queue));
-      } catch {}
-    } else {
-      try {
-        res = await createSale({
-          items: cart.map(i => ({ productId: i.id, quantity: i.quantity, unitPrice: i.price })),
-          paymentMethod,
-          discount: disc,
-          orderId: linkedOrderId || undefined,
-          customerCpf: cpfInput || selectedCustomer?.document || undefined,
-          customerId: selectedCustomer?.id || undefined,
-          creditAuthorizedBy,
-        });
-      } catch {
-        // Fallback instantâneo para contingência offline caso caia a rede na finalização
-        const mockSaleId = `OFF-${Date.now()}`;
+    isFinalizingRef.current = true;
+    setIsFinalizing(true);
+    try {
+      let creditAuthorizedBy: string | undefined = undefined;
+      if (paymentMethod === "CREDIARIO") {
+        setVerifyingCrediario(true);
+        setCrediarioError("");
+        const pinCheck = await verifySupervisorPin(crediarioPin);
+        setVerifyingCrediario(false);
+        if (!pinCheck.success) {
+          setCrediarioError(pinCheck.error || "PIN de confirmação inválido.");
+          return;
+        }
+        creditAuthorizedBy = pinCheck.userName || "Supervisor";
+      }
+
+      const reqKey = checkoutIdempotencyKeyRef.current || genClientReqId();
+      checkoutIdempotencyKeyRef.current = reqKey;
+
+      let res: any;
+      const isActuallyOffline = isOfflineMode || (typeof navigator !== "undefined" && !navigator.onLine);
+      if (isActuallyOffline) {
+        const mockSaleId = `OFF-${reqKey}`;
         res = {
           success: true,
           saleId: mockSaleId,
@@ -2145,6 +2165,7 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
           const queue = JSON.parse(localStorage.getItem("CYBERTECH_OFFLINE_SALES_QUEUE") || "[]");
           queue.push({
             saleId: mockSaleId,
+            clientRequestId: reqKey,
             items: cart.map(i => ({ productId: i.id, quantity: i.quantity, unitPrice: i.price })),
             paymentMethod,
             discount: disc,
@@ -2153,110 +2174,163 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
           });
           localStorage.setItem("CYBERTECH_OFFLINE_SALES_QUEUE", JSON.stringify(queue));
         } catch {}
-      }
-    }
-
-    if (res.success && res.saleId) {
-      if (session) {
-        setSession(prev => prev ? { ...prev, sales: [...prev.sales, { id: res.saleId, total, paymentMethod, at: new Date() }] } : prev);
-      }
-
-      const cashback = res.cashbackEarned || 0;
-      const finalDiscount = disc + (res.promoDiscountApplied || 0);
-      const finalTotal = Math.max(0, subtotal - finalDiscount);
-
-      const snapshotReceipt: ReceiptData = {
-        saleId: res.saleId,
-        number: shortSaleNumber(res.saleId),
-        createdAt: new Date().toISOString(),
-        companyName: "Cybertech RP",
-        companyDocument: "",
-        operatorName: session?.operator || "Operador",
-        customerName: selectedCustomer?.name || undefined,
-        paymentMethod,
-        subtotal,
-        discount: finalDiscount,
-        total: finalTotal,
-        amountGiven: paymentMethod === "MONEY" ? (saleGiven || finalTotal) : undefined,
-        change: paymentMethod === "MONEY" ? saleChange : undefined,
-        items: cart.map(i => ({
-          name: i.name,
-          unit: i.unit || "UN",
-          quantity: i.quantity,
-          unitPrice: i.price,
-          total: i.price * i.quantity,
-        })),
-      };
-      setLastReceiptData(snapshotReceipt);
-      if (paymentMethod === "CREDIARIO") {
-        loadPdvCustomers();
-      }
-      setSharePhone("");
-      setShareEmail("");
-      setCopiedLink(false);
-
-      // No desktop imprime automaticamente; no celular prioriza envio por WhatsApp/Cupom Digital
-      if (typeof window !== "undefined" && window.innerWidth >= 1024) {
-        printReceipt(
-          res.saleId,
-          cart,
-          finalTotal,
-          subtotal,
-          finalDiscount,
-          paymentMethod,
-          saleGiven,
-          saleChange,
-          cashback,
-          res.generatedCoupons || []
-        );
-      }
-
-      // Se for venda POS Cartão/Voucher, registra internamente
-      if (isPosCard && pdvPayConfig.posModeEnabled) {
+      } else {
         try {
-          const rate = paymentMethod === "DEBIT_CARD" ? 0.85 : 1.98;
-          const feeValue = Number(((finalTotal * rate) / 100).toFixed(2));
-          const netValue = Number((finalTotal - feeValue).toFixed(2));
-
-          const existing = JSON.parse(localStorage.getItem("EMPORIO_POS_CARD_SALES") || "[]");
-          existing.unshift({
-            id: `pos-${Date.now()}`,
-            saleId: res.saleId,
-            date: new Date().toLocaleDateString("pt-BR"),
-            acquirer: posAcquirer,
-            bank: posAcquirer,
-            brand: posBrand,
-            modality: paymentMethod === "DEBIT_CARD" ? "DEBITO" : "CREDITO",
-            authCode: posAuthCode.trim() || "S/N",
-            installments: paymentMethod === "CREDIT_CARD" ? parseInt(posInstallments) || 1 : 1,
-            grossAmount: finalTotal,
-            rate,
-            feeAmount: feeValue,
-            netAmount: netValue,
+          res = await createSale({
+            items: cart.map(i => ({ productId: i.id, quantity: i.quantity, unitPrice: i.price })),
+            paymentMethod,
+            discount: disc,
+            orderId: linkedOrderId || undefined,
+            customerCpf: cpfInput || selectedCustomer?.document || undefined,
+            customerId: selectedCustomer?.id || undefined,
+            creditAuthorizedBy,
+            clientRequestId: reqKey,
+            allowDuplicate: allowDup,
           });
-          localStorage.setItem("EMPORIO_POS_CARD_SALES", JSON.stringify(existing.slice(0, 50)));
-        } catch { }
+        } catch {
+          // Fallback instantâneo para contingência offline caso caia a rede na finalização
+          const mockSaleId = `OFF-${reqKey}`;
+          res = {
+            success: true,
+            saleId: mockSaleId,
+            cashbackEarned: 0,
+            generatedCoupons: []
+          };
+          setContingencySales(prev => [...prev, {
+            saleId: mockSaleId,
+            items: cart.map(i => ({ productId: i.id, quantity: i.quantity, unitPrice: i.price })),
+            paymentMethod,
+            discount: disc,
+            at: new Date()
+          }]);
+          try {
+            const queue = JSON.parse(localStorage.getItem("CYBERTECH_OFFLINE_SALES_QUEUE") || "[]");
+            queue.push({
+              saleId: mockSaleId,
+              clientRequestId: reqKey,
+              items: cart.map(i => ({ productId: i.id, quantity: i.quantity, unitPrice: i.price })),
+              paymentMethod,
+              discount: disc,
+              customerCpf: cpfInput || undefined,
+              at: new Date().toISOString()
+            });
+            localStorage.setItem("CYBERTECH_OFFLINE_SALES_QUEUE", JSON.stringify(queue));
+          } catch {}
+        }
       }
 
-      setLastSaleId(res.saleId);
-      setModal("success");
-      setCart([]);
-      setCartQtyDraft({});
-      setCartBrlMode({});
-      setDiscountInput("0");
-      setLinkedOrderId(null);
-      setBarcodeInput("");
-      setErrorMessage("");
-      setAmountGiven("");
-      setPosAuthCode("");
-      setPosInstallments("1");
-      setCrediarioPin("");
-      setCrediarioError("");
-      setSelectedCustomer(null);
-      setCpfInput("");
-      setPaymentMethod("MONEY");
-    } else {
-      alert("Erro ao finalizar: " + (res.error || "Desconhecido"));
+      if (res.success && res.saleId) {
+        checkoutIdempotencyKeyRef.current = genClientReqId();
+        if (session) {
+          setSession(prev => prev ? { ...prev, sales: [...prev.sales, { id: res.saleId, total, paymentMethod, at: new Date() }] } : prev);
+        }
+
+        const cashback = res.cashbackEarned || 0;
+        const finalDiscount = disc + (res.promoDiscountApplied || 0);
+        const finalTotal = Math.max(0, subtotal - finalDiscount);
+
+        const snapshotReceipt: ReceiptData = {
+          saleId: res.saleId,
+          number: shortSaleNumber(res.saleId),
+          createdAt: new Date().toISOString(),
+          companyName: "Cybertech RP",
+          companyDocument: "",
+          operatorName: session?.operator || "Operador",
+          customerName: selectedCustomer?.name || undefined,
+          paymentMethod,
+          subtotal,
+          discount: finalDiscount,
+          total: finalTotal,
+          amountGiven: paymentMethod === "MONEY" ? (saleGiven || finalTotal) : undefined,
+          change: paymentMethod === "MONEY" ? saleChange : undefined,
+          items: cart.map(i => ({
+            name: i.name,
+            unit: i.unit || "UN",
+            quantity: i.quantity,
+            unitPrice: i.price,
+            total: i.price * i.quantity,
+          })),
+        };
+        setLastReceiptData(snapshotReceipt);
+        if (paymentMethod === "CREDIARIO") {
+          loadPdvCustomers();
+        }
+        setSharePhone("");
+        setShareEmail("");
+        setCopiedLink(false);
+
+        // No desktop imprime automaticamente; no celular prioriza envio por WhatsApp/Cupom Digital
+        if (typeof window !== "undefined" && window.innerWidth >= 1024) {
+          printReceipt(
+            res.saleId,
+            cart,
+            finalTotal,
+            subtotal,
+            finalDiscount,
+            paymentMethod,
+            saleGiven,
+            saleChange,
+            cashback,
+            res.generatedCoupons || []
+          );
+        }
+
+        // Se for venda POS Cartão/Voucher, registra internamente
+        if (isPosCard && pdvPayConfig.posModeEnabled) {
+          try {
+            const rate = paymentMethod === "DEBIT_CARD" ? 0.85 : 1.98;
+            const feeValue = Number(((finalTotal * rate) / 100).toFixed(2));
+            const netValue = Number((finalTotal - feeValue).toFixed(2));
+
+            const existing = JSON.parse(localStorage.getItem("EMPORIO_POS_CARD_SALES") || "[]");
+            existing.unshift({
+              id: `pos-${Date.now()}`,
+              saleId: res.saleId,
+              date: new Date().toLocaleDateString("pt-BR"),
+              acquirer: posAcquirer,
+              bank: posAcquirer,
+              brand: posBrand,
+              modality: paymentMethod === "DEBIT_CARD" ? "DEBITO" : "CREDITO",
+              authCode: posAuthCode.trim() || "S/N",
+              installments: paymentMethod === "CREDIT_CARD" ? parseInt(posInstallments) || 1 : 1,
+              grossAmount: finalTotal,
+              rate,
+              feeAmount: feeValue,
+              netAmount: netValue,
+            });
+            localStorage.setItem("EMPORIO_POS_CARD_SALES", JSON.stringify(existing.slice(0, 50)));
+          } catch { }
+        }
+
+        setLastSaleId(res.saleId);
+        setModal("success");
+        setCart([]);
+        setCartQtyDraft({});
+        setCartBrlMode({});
+        setDiscountInput("0");
+        setLinkedOrderId(null);
+        setBarcodeInput("");
+        setErrorMessage("");
+        setAmountGiven("");
+        setPosAuthCode("");
+        setPosInstallments("1");
+        setCrediarioPin("");
+        setCrediarioError("");
+        setSelectedCustomer(null);
+        setCpfInput("");
+        setPaymentMethod("MONEY");
+      } else if ((res as any).duplicateBlocked) {
+        const msg = res.error || "Possível venda duplicada detectada (há menos de 2 minutos). Deseja continuar mesmo assim?";
+        playDuplicateWarningSound();
+        setDuplicateWarningMsg(msg);
+        setErrorMessage(msg);
+        setModal("duplicate_warning");
+      } else {
+        alert("Erro ao finalizar: " + (res.error || "Desconhecido"));
+      }
+    } finally {
+      isFinalizingRef.current = false;
+      setIsFinalizing(false);
     }
   };
 
@@ -2472,6 +2546,25 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-3 relative z-10 shrink-0">
+            {/* Voltar ao Sistema (ERP) */}
+            <button
+              type="button"
+              onClick={() => {
+                if (cart.length > 0) {
+                  if (!window.confirm("Há itens em andamento na venda. Deseja realmente voltar para o sistema?")) return;
+                }
+                if (document.fullscreenElement) {
+                  document.exitFullscreen().catch(() => {});
+                }
+                router.push("/");
+              }}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs font-bold transition-all cursor-pointer shadow-2xs"
+              title="Voltar ao Painel do Sistema (ERP)"
+            >
+              <LayoutDashboard size={14} />
+              <span className="hidden md:inline">Voltar ao Sistema</span>
+            </button>
+
             {/* Pause Button */}
             <button
               type="button"
@@ -3396,8 +3489,8 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
 
       {/* ── Payment Modal ── */}
       {modal === "payment" && (
-        <ModalWrapper title="Pagamento da Venda" icon={<CreditCard size={18} />} onClose={() => setModal("")}>
-          <form onSubmit={e => { e.preventDefault(); if (!(paymentMethod === "MONEY" && parseFloat(amountGiven) < total && amountGiven !== "")) handleFinalizeSale(); }} className="p-4 space-y-3.5">
+        <ModalWrapper title="Pagamento da Venda" icon={<CreditCard size={18} />} onClose={() => { if (!isFinalizingRef.current) setModal(""); }}>
+          <form onSubmit={e => { e.preventDefault(); if (!isFinalizingRef.current && !(paymentMethod === "MONEY" && parseFloat(amountGiven) < total && amountGiven !== "")) handleFinalizeSale(); }} className="p-4 space-y-3.5">
             {/* Total Banner */}
             <div className="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 rounded-xl p-3.5 text-white shadow-md flex items-center justify-between">
               <div>
@@ -3930,21 +4023,38 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
             <div className="flex gap-2.5 pt-2.5 border-t border-gray-200">
               <button
                 type="button"
-                onClick={() => setModal("")}
-                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer"
+                disabled={isFinalizing}
+                onClick={() => { if (!isFinalizingRef.current) setModal(""); }}
+                className="flex-1 bg-gray-100 hover:bg-gray-200 disabled:opacity-50 text-gray-700 font-bold py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all cursor-pointer"
               >
                 Voltar (ESC)
               </button>
               <button
                 type="submit"
                 disabled={
+                  isFinalizing ||
                   verifyingCrediario ||
                   (paymentMethod === "MONEY" && parseFloat(amountGiven) < total && amountGiven !== "") ||
                   (paymentMethod === "CREDIARIO" && !crediarioPin.trim())
                 }
                 className="flex-[2] bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 rounded-xl text-xs uppercase tracking-widest transition-all shadow-md shadow-emerald-600/20 disabled:opacity-50 cursor-pointer flex items-center justify-center gap-1.5"
               >
-                <Check size={16} /> {verifyingCrediario ? "Validando PIN..." : "Confirmar Venda (ENTER)"}
+                {isFinalizing ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Finalizando &amp; Emitindo...</span>
+                  </>
+                ) : verifyingCrediario ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Validando PIN...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check size={16} />
+                    <span>Confirmar Venda (ENTER)</span>
+                  </>
+                )}
               </button>
             </div>
           </form>
@@ -4985,6 +5095,53 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
               Confirmar Quantidade (ENTER)
             </button>
           </form>
+        </ModalWrapper>
+      )}
+
+      {/* ── Aviso de Venda Duplicada (Regra de 2 minutos com escolha do operador) ── */}
+      {modal === "duplicate_warning" && (
+        <ModalWrapper
+          title="Possível Venda Duplicada"
+          icon={<AlertCircle size={20} className="text-amber-600" />}
+          onClose={() => {
+            setModal("");
+            setTimeout(() => inputRef.current?.focus(), 50);
+          }}
+        >
+          <div className="p-5 space-y-4">
+            <div className="p-4 rounded-xl border border-amber-300 bg-amber-50 text-amber-950 space-y-2">
+              <div className="flex items-center gap-2 font-black text-sm text-amber-900">
+                <AlertCircle size={18} className="text-amber-600 shrink-0" />
+                <span>Atenção Operador — Venda idêntica em menos de 2 minutos</span>
+              </div>
+              <p className="text-sm font-medium leading-relaxed">
+                {duplicateWarningMsg || "Já existe uma venda idêntica registrada há menos de 2 minutos. Deseja realmente continuar e finalizar esta venda?"}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setModal("");
+                  setTimeout(() => inputRef.current?.focus(), 50);
+                }}
+                className="w-full py-3 rounded-xl bg-gray-200 hover:bg-gray-300 text-gray-900 font-black text-sm cursor-pointer"
+              >
+                Não, cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  checkoutIdempotencyKeyRef.current = genClientReqId();
+                  setModal("");
+                  void handleFinalizeSale(true);
+                }}
+                className="w-full py-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-sm shadow-sm cursor-pointer"
+              >
+                Sim, continuar
+              </button>
+            </div>
+          </div>
         </ModalWrapper>
       )}
 

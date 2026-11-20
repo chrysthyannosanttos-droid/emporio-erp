@@ -4,6 +4,7 @@ import { prisma } from "@emporio/database";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/session";
 import { resolveActiveCompany } from "@/lib/tenant";
+import { computeEffectiveStock } from "@/lib/stockDeduction";
 
 async function getOrCreateCompany() {
   let company = await resolveActiveCompany();
@@ -616,6 +617,22 @@ export async function updateProduct(
     revalidatePath("/scales");
     revalidatePath("/production");
     revalidatePath("/restaurant/recipes");
+
+    const oldPriceVal = Number(existingProduct.price || 0);
+    if (Math.abs(price - oldPriceVal) >= 0.005) {
+      try {
+        const { recordPriceChange } = await import("./labels");
+        await recordPriceChange({
+          productId,
+          oldPrice: oldPriceVal,
+          newPrice: price,
+          companyId,
+          userId: session.userId,
+          userName: session.name,
+        });
+      } catch {}
+    }
+
     return { success: true };
   } catch (err: any) {
     if (err?.code === "P2002" || err?.message?.includes("Unique constraint")) {
@@ -683,7 +700,21 @@ export async function createProductsFromInvoice(productsList: any[]) {
 }
 
 // Catálogo de referência rápida de produtos populares no Brasil (offline/fallback)
-const POPULAR_BR_PRODUCTS: Record<string, { name: string; brand: string; ncm: string; unit: string; category: string; price?: number; cost?: number }> = {
+const POPULAR_BR_PRODUCTS: Record<
+  string,
+  {
+    name: string;
+    brand: string;
+    ncm: string;
+    cest?: string;
+    cfop?: string;
+    cst?: string;
+    unit: string;
+    category: string;
+    price?: number;
+    cost?: number;
+  }
+> = {
   "7891022100139": { name: "Detergente Líquido Ypê Neutro 500ml", brand: "Ypê", ncm: "3402.20.00", unit: "UN", category: "Limpeza", price: 2.89, cost: 1.65 },
   "7891022100115": { name: "Detergente Líquido Ypê Maçã 500ml", brand: "Ypê", ncm: "3402.20.00", unit: "UN", category: "Limpeza", price: 2.89, cost: 1.65 },
   "7891022100122": { name: "Detergente Líquido Ypê Coco 500ml", brand: "Ypê", ncm: "3402.20.00", unit: "UN", category: "Limpeza", price: 2.89, cost: 1.65 },
@@ -710,10 +741,37 @@ const POPULAR_BR_PRODUCTS: Record<string, { name: string; brand: string; ncm: st
   "7891000123456": { name: "Café Gourmet Torrado 500g", brand: "Café Brasil", ncm: "0901.21.00", unit: "UN", category: "Mercearia", price: 24.90, cost: 14.50 },
   "7891000654321": { name: "Azeite de Oliva Extra Virgem 500ml", brand: "Gallo", ncm: "1509.10.00", unit: "UN", category: "Mercearia", price: 39.90, cost: 26.00 },
   "7892000112233": { name: "Vinho Tinto Reserva Cabernet 750ml", brand: "Concha y Toro", ncm: "2204.21.00", unit: "UN", category: "Bebidas", price: 89.90, cost: 48.00 },
+  "7893789210929": { name: "Cigarro Marlboro Red Box (Maço 20 un)", brand: "Marlboro", ncm: "2402.20.00", cest: "04.001.00", cfop: "5405", cst: "500", unit: "UN", category: "Tabacaria & Conveniência", price: 14.00, cost: 11.20 },
+  "7893789211469": { name: "Cigarro Chesterfield Blue Box (Maço 20 un)", brand: "Chesterfield", ncm: "2402.20.00", cest: "04.001.00", cfop: "5405", cst: "500", unit: "UN", category: "Tabacaria & Conveniência", price: 10.50, cost: 8.40 },
 };
 
-function inferNcmAndCategory(name: string, brand?: string): { ncm: string; category: string } {
+function inferNcmAndCategory(
+  name: string,
+  brand?: string
+): { ncm: string; category: string; cest?: string; cfop?: string; cst?: string } {
   const text = `${name} ${brand || ""}`.toLowerCase();
+
+  if (/cigarro|marlboro|malboro|dunhill|carlton|hollywood|derby|kent|lucky\s*strike|luckies|rothmans|chesterfield|camel|winston|l&m|minister|palheiro|paiero|paiol|tabaco|fumo|seda|piteira/.test(text)) {
+    return { ncm: "2402.20.00", category: "Tabacaria & Conveniência", cest: "04.001.00", cfop: "5405", cst: "500" };
+  }
+  if (/isqueiro|bic\s*(maxi|mini)|clipper|zippo/.test(text)) {
+    return { ncm: "9613.10.00", category: "Tabacaria & Conveniência" };
+  }
+  if (/carv[aã]o|narguil[eé]|ess[eê]ncia/.test(text)) {
+    return { ncm: "4402.90.00", category: "Tabacaria & Conveniência" };
+  }
+  if (/energ[eé]tico|red\s*bull|monster|bally|fusion|tnt\s*energy|vibe/.test(text)) {
+    return { ncm: "2202.99.00", category: "Bebidas", cest: "03.007.00", cfop: "5405", cst: "500" };
+  }
+  if (/whisky|whiskey|vodka|\bgin\b|cacha[cç]a|pinga|\brum\b|tequila|conhaque|campari|licor|red\s*label|black\s*label|white\s*horse|ballantines|chivas|jack\s*daniel|absolut|smirnoff|tanqueray|beefeater|gordons|corote|velho\s*barreiro|ypioca|dreher|catuaba/.test(text)) {
+    return { ncm: "2208.30.20", category: "Bebidas Destiladas" };
+  }
+  if (/preservativo|camisinha|jontex|olla|prudence|blowtex/.test(text)) {
+    return { ncm: "4014.10.00", category: "Conveniência" };
+  }
+  if (/\bgelo\b|saco de gelo/.test(text)) {
+    return { ncm: "2201.90.00", category: "Bebidas" };
+  }
 
   if (/refrigerante|coca|guaran[aá]|fanta|pepsi|sprite|sukita|schweppes/.test(text)) {
     return { ncm: "2202.10.00", category: "Bebidas" };
@@ -866,9 +924,9 @@ export async function getProductInfoByAiBarcode(barcode: string) {
       cost: popular.cost || 0,
       stock: 1,
       ncm: popular.ncm,
-      cest: "",
-      cfop: "5102",
-      cst: "102",
+      cest: popular.cest || "",
+      cfop: popular.cfop || "5102",
+      cst: popular.cst || "102",
       ibsRate: 0,
       cbsRate: 0,
       isRate: 0,
@@ -878,7 +936,54 @@ export async function getProductInfoByAiBarcode(barcode: string) {
     };
   }
 
-  // 2. Se houver token do Cosmos Bluesoft configurado, consulta a API do Cosmos
+  // 1B. Busca na Base Nacional Compartilhada Empório (somente metadados públicos cadastrais/fiscais, sem preço/custo/estoque de terceiros)
+  if (!resultTemplate) {
+    try {
+      const session = await getSession();
+      const sharedCatalog = await prisma.product.findFirst({
+        where: {
+          barcode: cleanBarcode,
+          ...(session?.companyId ? { companyId: { not: session.companyId } } : {}),
+        },
+        select: {
+          name: true,
+          brand: true,
+          unit: true,
+          ncm: true,
+          cest: true,
+          cfop: true,
+          cst: true,
+          category: { select: { name: true } },
+        },
+        orderBy: { updatedAt: "desc" },
+      });
+
+      if (sharedCatalog && sharedCatalog.name) {
+        const inferred = inferNcmAndCategory(sharedCatalog.name, sharedCatalog.brand || undefined);
+        resultTemplate = {
+          success: true,
+          source: "Base Nacional Compartilhada Empório",
+          name: sharedCatalog.name,
+          brand: sharedCatalog.brand || "",
+          price: 0,
+          cost: 0,
+          stock: 1,
+          ncm: sharedCatalog.ncm || inferred.ncm,
+          cest: sharedCatalog.cest || inferred.cest || "",
+          cfop: sharedCatalog.cfop || inferred.cfop || "5102",
+          cst: sharedCatalog.cst || inferred.cst || "102",
+          ibsRate: 0,
+          cbsRate: 0,
+          isRate: 0,
+          unit: sharedCatalog.unit || "UN",
+          categorySuggested: sharedCatalog.category?.name || inferred.category,
+          description: `Produto identificado via Base Compartilhada Empório (EAN ${cleanBarcode}).`,
+        };
+      }
+    } catch (_) {}
+  }
+
+  // 2. Se houver token do Cosmos Bluesoft configurado, consulta a API do Cosmos (melhor cobertura BR incl. tabacaria)
   const cosmosToken = process.env.COSMOS_TOKEN;
   if (!resultTemplate && cosmosToken) {
     try {
@@ -889,6 +994,7 @@ export async function getProductInfoByAiBarcode(barcode: string) {
       if (res.ok) {
         const data = await res.json();
         if (data && data.description) {
+          const inferred = inferNcmAndCategory(data.description, data.brand?.name);
           resultTemplate = {
             success: true,
             source: "Bluesoft Cosmos",
@@ -896,16 +1002,60 @@ export async function getProductInfoByAiBarcode(barcode: string) {
             brand: data.brand?.name || "",
             price: data.avg_price ? Number(data.avg_price) : 0,
             cost: data.avg_price ? Number((data.avg_price * 0.7).toFixed(2)) : 0,
-            ncm: data.ncm?.code || "",
-            cest: data.cest?.code || "",
-            cfop: "5102",
-            cst: "102",
+            ncm: data.ncm?.code || inferred.ncm,
+            cest: data.cest?.code || inferred.cest || "",
+            cfop: inferred.cfop || "5102",
+            cst: inferred.cst || "102",
             ibsRate: 0,
             cbsRate: 0,
             isRate: 0,
             unit: data.unit_of_measurement || "UN",
             imageUrl: data.thumbnail || data.picture_url || null,
-            description: `Marca: ${data.brand?.name || "—"} | NCM: ${data.ncm?.code || "—"}`,
+            categorySuggested: inferred.category,
+            description: `Marca: ${data.brand?.name || "—"} | NCM: ${data.ncm?.code || inferred.ncm || "—"}`,
+          };
+        }
+      }
+    } catch (_) {}
+  }
+
+  // 2B. Se houver token SI5 Global configurado, consulta base brasileira de conveniência/varejo
+  const si5Token = process.env.SI5_TOKEN;
+  if (!resultTemplate && si5Token) {
+    try {
+      const res = await fetch(`https://global.si5.com.br/api/produtos/${cleanBarcode}`, {
+        headers: {
+          Authorization: `Bearer ${si5Token}`,
+          Accept: "application/json",
+        },
+        next: { revalidate: 3600 },
+      });
+      if (res.ok) {
+        const rawData = await res.json();
+        const item = rawData?.produto || rawData?.data || rawData;
+        const name = (item?.descricao || item?.nome || item?.description || "").trim();
+        if (name) {
+          const brand = (item?.marca || item?.brand || "").trim();
+          const inferred = inferNcmAndCategory(name, brand);
+          resultTemplate = {
+            success: true,
+            source: "SI5 Base Nacional",
+            name,
+            brand,
+            price: Number(item?.preco || item?.avg_price || 0) || 0,
+            cost: 0,
+            stock: 1,
+            ncm: item?.ncm || inferred.ncm,
+            cest: item?.cest || inferred.cest || "",
+            cfop: inferred.cfop || "5102",
+            cst: inferred.cst || "102",
+            ibsRate: 0,
+            cbsRate: 0,
+            isRate: 0,
+            unit: item?.unidade || item?.unit || "UN",
+            imageUrl: item?.imagem || item?.thumbnail || null,
+            categorySuggested: item?.categoria || inferred.category,
+            description: `Identificado via SI5 Global (EAN ${cleanBarcode}).`,
           };
         }
       }
@@ -1000,14 +1150,67 @@ export async function getProductInfoByAiBarcode(barcode: string) {
     } catch (_) {}
   }
 
-  // Se encontrou produto, ajusta NCM se estiver vazio e aplica a grade tributária
-  if (resultTemplate) {
-    if (!resultTemplate.ncm) {
-      const inferred = inferNcmAndCategory(resultTemplate.name, resultTemplate.brand);
-      resultTemplate.ncm = inferred.ncm;
-      if (!resultTemplate.categorySuggested) {
-        resultTemplate.categorySuggested = inferred.category;
+  // 4B. Consulta ao Open Products Facts (produtos gerais, tabaco, descartáveis, utilidades)
+  if (!resultTemplate) {
+    try {
+      const res = await fetch(
+        `https://world.openproductsfacts.org/api/v2/product/${cleanBarcode}?fields=product_name,product_name_pt,brands,quantity,categories,image_url`,
+        { next: { revalidate: 3600 } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === 1 && data.product) {
+          const p = data.product;
+          const rawName = (p.product_name_pt || p.product_name || "").trim();
+          const brand = (p.brands || "").split(",")[0].trim();
+          const qty = (p.quantity || "").trim();
+          const fullName = [brand, rawName, qty].filter(Boolean).join(" ").trim() || rawName;
+
+          if (fullName) {
+            const inferred = inferNcmAndCategory(fullName, brand);
+            resultTemplate = {
+              success: true,
+              source: "Open Products Facts",
+              name: fullName,
+              brand: brand || "",
+              price: 0,
+              cost: 0,
+              stock: 1,
+              ncm: inferred.ncm,
+              cest: inferred.cest || "",
+              cfop: inferred.cfop || "5102",
+              cst: inferred.cst || "102",
+              ibsRate: 0,
+              cbsRate: 0,
+              isRate: 0,
+              unit: "UN",
+              imageUrl: p.image_url || null,
+              categorySuggested: inferred.category,
+              description: `Produto identificado via Open Products Facts. Código EAN: ${cleanBarcode}`,
+            };
+          }
+        }
       }
+    } catch (_) {}
+  }
+
+  // Se encontrou produto, ajusta NCM/CEST/CFOP/CST se estiverem faltando e aplica a grade tributária
+  if (resultTemplate) {
+    const inferred = inferNcmAndCategory(resultTemplate.name, resultTemplate.brand);
+    if (!resultTemplate.ncm) {
+      resultTemplate.ncm = inferred.ncm;
+    }
+    if (!resultTemplate.categorySuggested) {
+      resultTemplate.categorySuggested = inferred.category;
+    }
+    if (!resultTemplate.cest && inferred.cest) {
+      resultTemplate.cest = inferred.cest;
+    }
+    if ((!resultTemplate.cfop || resultTemplate.cfop === "5102") && inferred.cfop) {
+      resultTemplate.cfop = inferred.cfop;
+    }
+    if ((!resultTemplate.cst || resultTemplate.cst === "102") && inferred.cst) {
+      resultTemplate.cst = inferred.cst;
     }
 
     if (resultTemplate.ncm) {
@@ -1043,15 +1246,18 @@ export async function getProductInfoByAiBarcode(barcode: string) {
   }
 
   // 5. Fallback — não localizado
+  const hasPaidBRCatalog = Boolean(process.env.COSMOS_TOKEN || process.env.SI5_TOKEN);
   return {
     success: false,
-    error: `Produto não encontrado nas bases para o código ${cleanBarcode}. Preencha os dados manualmente.`,
+    error: hasPaidBRCatalog
+      ? `Produto não encontrado nas bases nacionais para o código ${cleanBarcode}. Preencha manualmente.`
+      : `Código ${cleanBarcode} não consta nas bases gratuitas (cigarros/tabacaria exigem token Cosmos/SI5 ou importação XML NF-e). Preencha manualmente — ao salvar, passa a integrar a base compartilhada.`,
   };
 }
 
 /**
  * Consulta real de código de barras na internet — usado pelo PDV e Estoque.
- * Busca primeiro no banco local, depois nas APIs públicas.
+ * Busca primeiro no banco local, depois na base compartilhada e APIs externas.
  */
 export async function lookupBarcodeOnline(barcode: string): Promise<{
   found: boolean;
@@ -1061,10 +1267,14 @@ export async function lookupBarcodeOnline(barcode: string): Promise<{
   quantity?: string;
   imageUrl?: string;
   ncm?: string;
+  cest?: string;
+  cfop?: string;
+  cst?: string;
   price?: number;
   cost?: number;
   unit?: string;
   categorySuggested?: string;
+  hint?: string;
 }> {
   const ean = barcode.trim();
   if (!ean) return { found: false };
@@ -1079,6 +1289,9 @@ export async function lookupBarcodeOnline(barcode: string): Promise<{
       brand: info.brand,
       imageUrl: info.imageUrl,
       ncm: info.ncm,
+      cest: info.cest,
+      cfop: info.cfop,
+      cst: info.cst,
       price: info.price,
       cost: info.cost,
       unit: info.unit,
@@ -1086,7 +1299,7 @@ export async function lookupBarcodeOnline(barcode: string): Promise<{
     };
   }
 
-  return { found: false };
+  return { found: false, hint: info.error };
 }
 
 /**
@@ -1099,12 +1312,28 @@ export async function quickCreateProductByBarcode(data: {
   cost?: number;
   stock?: number;
   ncm?: string;
+  cest?: string;
+  cfop?: string;
+  cst?: string;
   brand?: string;
   unit?: string;
   categoryName?: string;
 }) {
   try {
-    const { barcode, name, price, cost = 0, stock = 1, ncm = "", brand = "", unit = "UN", categoryName } = data;
+    const {
+      barcode,
+      name,
+      price,
+      cost = 0,
+      stock = 1,
+      ncm = "",
+      cest = "",
+      cfop: cfopInput = "",
+      cst: cstInput = "",
+      brand = "",
+      unit = "UN",
+      categoryName,
+    } = data;
     if (!barcode || !name || isNaN(price)) {
       return { error: "Código de barras, Nome e Preço de venda são obrigatórios." };
     }
@@ -1151,9 +1380,12 @@ export async function quickCreateProductByBarcode(data: {
       categoryId = cat.id;
     }
 
-    // 3. Regras Fiscais automáticas da empresa
-    let cfop = "5102";
-    let cst = "102";
+    // 3. Regras Fiscais automáticas da empresa + inferência por NCM/nome
+    const inferredFiscal = inferNcmAndCategory(name, brand);
+    const resolvedNcm = ncm || inferredFiscal.ncm || "";
+    const resolvedCest = cest || inferredFiscal.cest || null;
+    let cfop = cfopInput || inferredFiscal.cfop || "5102";
+    let cst = cstInput || inferredFiscal.cst || "102";
     let icmsRate = 0;
     let pisRate = 0;
     let cofinsRate = 0;
@@ -1161,7 +1393,7 @@ export async function quickCreateProductByBarcode(data: {
     let cbsRate = 0;
     let isRate = 0;
 
-    if (ncm) {
+    if (resolvedNcm) {
       try {
         const activeGrid = await prisma.taxGrid.findFirst({
           where: { companyId, active: true },
@@ -1169,8 +1401,8 @@ export async function quickCreateProductByBarcode(data: {
         });
         if (activeGrid && activeGrid.rules.length > 0) {
           const rule =
-            activeGrid.rules.find((r) => r.ncmPattern === ncm) ||
-            activeGrid.rules.find((r) => r.ncmPattern.includes("*") && ncm.startsWith(r.ncmPattern.replace("*", ""))) ||
+            activeGrid.rules.find((r) => r.ncmPattern === resolvedNcm) ||
+            activeGrid.rules.find((r) => r.ncmPattern.includes("*") && resolvedNcm.startsWith(r.ncmPattern.replace("*", ""))) ||
             activeGrid.rules.find((r) => r.ncmPattern === "*");
           if (rule) {
             if (rule.cfopOrigin) cfop = rule.cfopOrigin;
@@ -1196,7 +1428,8 @@ export async function quickCreateProductByBarcode(data: {
         stock: stock || 0,
         unit: unit || "UN",
         brand: brand || null,
-        ncm: ncm || null,
+        ncm: resolvedNcm || null,
+        cest: resolvedCest,
         cfop,
         cst,
         origin: "0",
@@ -1221,8 +1454,19 @@ export async function quickCreateProductByBarcode(data: {
 
 function serializeProduct(p: any): any {
   if (!p) return p;
+  const factor = Number(p.unitConvFactor || 1);
+  const isFractionalChild = Boolean(p.parentProductId && p.parentProduct && factor > 0);
+  const effectiveStock = computeEffectiveStock(p);
   return {
     ...p,
+    stock: effectiveStock,
+    rawStock: Number(p.stock || 0),
+    parentProductName: p.parentProduct?.name || null,
+    parentProductUnit: p.parentProduct?.unit || null,
+    parentProductStock: p.parentProduct ? Number(p.parentProduct.stock || 0) : null,
+    isFractionalChild,
+    yieldPerParent:
+      p.parentProductId && factor > 0 ? Math.round((1 / factor) * 100) / 100 : null,
     price: Number(p.price),
     cost: p.cost !== null && p.cost !== undefined ? Number(p.cost) : null,
     // Flags & Balança
@@ -1321,6 +1565,9 @@ export async function getProducts() {
       where: companyId ? { companyId } : undefined,
       include: {
         category: true,
+        parentProduct: {
+          select: { id: true, name: true, stock: true, unit: true },
+        },
         recipe: {
           include: {
             items: {
@@ -1352,6 +1599,9 @@ export async function getProductById(productId: string) {
       where: { id: productId, companyId },
       include: {
         category: true,
+        parentProduct: {
+          select: { id: true, name: true, stock: true, unit: true },
+        },
         recipe: {
           include: {
             items: {
@@ -1444,12 +1694,18 @@ export async function searchProducts(query: string, companyIdParam?: string) {
             OR: [
               { name: { contains: query, mode: "insensitive" } },
               { barcode: { contains: query } },
-              { internalCode: { contains: query } }
+              { internalCode: { contains: query } },
+              { sku: { contains: query, mode: "insensitive" } },
             ]
           }
         ]
       },
-      take: 20
+      include: {
+        parentProduct: {
+          select: { id: true, name: true, stock: true, unit: true },
+        },
+      },
+      take: 30
     });
     const serialized = products.map(serializeProduct);
     const withPromo = await applyPromoPrices(serialized);
@@ -1466,9 +1722,17 @@ export async function getProductByBarcode(barcode: string, companyIdParam?: stri
 
     const product = await prisma.product.findFirst({
       where: {
-        barcode,
+        OR: [
+          { barcode },
+          { internalCode: barcode },
+        ],
         ...(companyId ? { companyId } : {})
-      }
+      },
+      include: {
+        parentProduct: {
+          select: { id: true, name: true, stock: true, unit: true },
+        },
+      },
     });
     if (!product) return { product: null };
     const serialized = serializeProduct(product);
@@ -1490,6 +1754,11 @@ export async function getFullCatalogForOfflineSync(companyIdParam?: string) {
 
     const products = await prisma.product.findMany({
       where: companyId ? { companyId } : undefined,
+      include: {
+        parentProduct: {
+          select: { id: true, name: true, stock: true, unit: true },
+        },
+      },
       orderBy: { name: "asc" }
     });
     const serialized = products.map(serializeProduct);
@@ -1509,9 +1778,16 @@ export async function getProductsByCategory(categoryName: string) {
       companyId = comp?.id;
     }
 
+    const parentInclude = {
+      parentProduct: {
+        select: { id: true, name: true, stock: true, unit: true },
+      },
+    };
+
     if (categoryName === "Todos") {
       const products = await prisma.product.findMany({
         where: companyId ? { companyId } : undefined,
+        include: parentInclude,
         orderBy: { name: 'asc' },
         take: 30
       });
@@ -1535,6 +1811,7 @@ export async function getProductsByCategory(categoryName: string) {
           ],
           ...(companyId ? { companyId } : {})
         },
+        include: parentInclude,
         take: 20
       });
       return { products: products.map(serializeProduct) };
@@ -1545,6 +1822,7 @@ export async function getProductsByCategory(categoryName: string) {
         categoryId: category.id,
         ...(companyId ? { companyId } : {})
       },
+      include: parentInclude,
       orderBy: { name: 'asc' }
     });
 
@@ -1554,9 +1832,207 @@ export async function getProductsByCategory(categoryName: string) {
   }
 }
 
+/**
+ * Cria um produto fracionado ("Cigarro Avulso", "Dose de Whisky 50ml", etc.) vinculado a um produto pai (maço, garrafa).
+ * Quando vendido no PDV ou Venda Direta, o estoque deduzido é `quantidade * unitConvFactor` no produto pai.
+ */
+export async function createFractionalVariantAction(input: {
+  parentProductId: string;
+  name: string;
+  unit?: string;
+  yieldPerParent: number;
+  price: number;
+  barcode?: string;
+  internalCode?: string;
+}) {
+  try {
+    const session = await getSession();
+    if (!session?.companyId) {
+      return { success: false, error: "Sessão inválida ou empresa não identificada." };
+    }
+    const companyId = session.companyId;
+
+    const parent = await prisma.product.findFirst({
+      where: { id: input.parentProductId, companyId },
+    });
+    if (!parent) {
+      return { success: false, error: "Produto pai não encontrado nesta empresa." };
+    }
+
+    const name = (input.name || "").trim();
+    const yieldQty = Number(input.yieldPerParent);
+    const price = Number(input.price);
+    if (!name) return { success: false, error: "Informe o nome da fração / dose / unidade." };
+    if (!Number.isFinite(yieldQty) || yieldQty <= 0) {
+      return { success: false, error: "Informe o rendimento por embalagem pai maior que zero." };
+    }
+    if (!Number.isFinite(price) || price <= 0) {
+      return { success: false, error: "Informe o preço de venda maior que zero." };
+    }
+
+    const cleanBarcode = input.barcode?.trim() || null;
+    if (cleanBarcode) {
+      const conflictBarcode = await prisma.product.findFirst({
+        where: { barcode: cleanBarcode, companyId },
+        select: { id: true, name: true },
+      });
+      if (conflictBarcode) {
+        return {
+          success: false,
+          error: `Já existe um produto nesta empresa com o código de barras ${cleanBarcode} (${conflictBarcode.name}).`,
+        };
+      }
+    }
+
+    let internalCode = input.internalCode?.trim() || null;
+    if (!internalCode) {
+      // Gera próximo código curto numérico (PLU / atalho PDV) único
+      const allCodes = await prisma.product.findMany({
+        where: { companyId, internalCode: { not: null } },
+        select: { internalCode: true },
+      });
+      let maxNum = 900;
+      for (const item of allCodes) {
+        const parsed = parseInt(String(item.internalCode || ""), 10);
+        if (Number.isFinite(parsed) && parsed > maxNum && parsed < 90000) {
+          maxNum = parsed;
+        }
+      }
+      internalCode = String(maxNum + 1).padStart(4, "0");
+    } else {
+      const conflictCode = await prisma.product.findFirst({
+        where: { internalCode, companyId },
+        select: { id: true, name: true },
+      });
+      if (conflictCode) {
+        return {
+          success: false,
+          error: `Já existe um produto com o código interno ${internalCode} (${conflictCode.name}).`,
+        };
+      }
+    }
+
+    const unitConvFactor = Number((1 / yieldQty).toFixed(6));
+    const unitCost =
+      parent.cost !== null && parent.cost !== undefined
+        ? Number((Number(parent.cost) / yieldQty).toFixed(4))
+        : null;
+    const unit = (input.unit || "UN").trim().toUpperCase() || "UN";
+
+    const created = await prisma.product.create({
+      data: {
+        companyId,
+        name,
+        barcode: cleanBarcode,
+        internalCode,
+        price,
+        cost: unitCost,
+        stock: 0, // Estoque calculado dinamicamente pelo produto pai
+        unit,
+        unitPurchase: parent.unitSale || parent.unit || "UN",
+        unitSale: unit,
+        unitConvFactor,
+        unitsPerPack: yieldQty,
+        parentProductId: parent.id,
+        categoryId: parent.categoryId,
+        brand: parent.brand,
+        manufacturer: parent.manufacturer,
+        ncm: parent.ncm,
+        cest: parent.cest,
+        cfop: parent.cfop,
+        cst: parent.cst,
+        origin: parent.origin || "0",
+        icmsRate: parent.icmsRate,
+        icmsRedBaseRate: parent.icmsRedBaseRate,
+        pisRate: parent.pisRate,
+        cstPis: parent.cstPis,
+        cofinsRate: parent.cofinsRate,
+        cstCofins: parent.cstCofins,
+        ibsRate: parent.ibsRate,
+        cbsRate: parent.cbsRate,
+        isRate: parent.isRate,
+      },
+      include: {
+        parentProduct: {
+          select: { id: true, name: true, stock: true, unit: true },
+        },
+        category: true,
+      },
+    });
+
+    revalidatePath("/stock");
+    revalidatePath("/pdv");
+    revalidatePath("/pricing");
+    revalidatePath("/labels");
+    revalidatePath("/reports");
+
+    return {
+      success: true,
+      product: serializeProduct(created),
+      message: `"${created.name}" criado (Cód. PDV: ${internalCode}) vinculado a "${parent.name}". Cada venda baixa ${(unitConvFactor * 100).toFixed(2)}% de 1 ${parent.unit || "UN"} do pai.`,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      error: err.message || "Erro ao criar produto fracionado.",
+    };
+  }
+}
+
 export async function seedSampleCategoryProducts() {
   // Desativado: o sistema utiliza exclusivamente os dados reais importados da empresa
   return { success: true, count: 0 };
+}
+
+export async function deleteProductSafe(productId: string) {
+  try {
+    const session = await getSession();
+    if (!session?.companyId) {
+      return { success: false, error: "Sessão inválida ou empresa não identificada." };
+    }
+
+    const existing = await prisma.product.findFirst({
+      where: { id: productId, companyId: session.companyId },
+      include: {
+        _count: {
+          select: {
+            saleItems: true,
+            orderItems: true,
+            stockEntryItems: true,
+            purchaseItems: true,
+            losses: true,
+          },
+        },
+      },
+    });
+    if (!existing) {
+      return { success: false, error: "Produto não encontrado nesta empresa." };
+    }
+
+    const refs =
+      existing._count.saleItems +
+      existing._count.orderItems +
+      existing._count.stockEntryItems +
+      existing._count.purchaseItems +
+      existing._count.losses;
+
+    if (refs > 0) {
+      return {
+        success: false,
+        error: `Este produto possui histórico vinculado (${existing._count.saleItems} venda(s), ${existing._count.stockEntryItems} entrada(s), ${existing._count.losses} avaria(s)). Exclua os lançamentos antes ou edite o cadastro.`,
+      };
+    }
+
+    await prisma.product.delete({ where: { id: existing.id } });
+    revalidatePath("/stock");
+    revalidatePath("/pricing");
+    revalidatePath("/labels");
+    revalidatePath("/pdv");
+    revalidatePath("/scales");
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "Erro ao excluir produto." };
+  }
 }
 
 

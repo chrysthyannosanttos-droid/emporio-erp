@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import {
   ShieldCheck, Search, Store, User, Terminal, Clock,
   AlertCircle, CheckCircle, Eye, Loader2, ArrowRight,
-  Filter, FileText, Lock, X
+  Filter, FileText, Lock, X, Calendar, Download
 } from "lucide-react";
 import { listAuditLogs } from "@/actions/audit";
 import { listStores } from "@/actions/stores";
@@ -12,10 +12,16 @@ import { listStores } from "@/actions/stores";
 export default function AuditClient() {
   const [logs, setLogs] = useState<any[]>([]);
   const [stores, setStores] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedStore, setSelectedStore] = useState("ALL");
+  const [selectedUser, setSelectedUser] = useState("ALL");
+  const [selectedModule, setSelectedModule] = useState("ALL");
+  const [selectedAction, setSelectedAction] = useState("ALL");
   const [selectedResult, setSelectedResult] = useState("ALL");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [selectedLog, setSelectedLog] = useState<any | null>(null);
 
   const loadData = async () => {
@@ -24,14 +30,20 @@ export default function AuditClient() {
       const [logRes, storeRes] = await Promise.all([
         listAuditLogs({
           storeId: selectedStore === "ALL" ? undefined : selectedStore,
+          userId: selectedUser === "ALL" ? undefined : selectedUser,
+          module: selectedModule === "ALL" ? undefined : selectedModule,
+          action: selectedAction === "ALL" ? undefined : selectedAction,
           result: selectedResult === "ALL" ? undefined : selectedResult,
+          startDate: startDate || undefined,
+          endDate: endDate || undefined,
           search: search || undefined,
-          limit: 150,
+          limit: 300,
         }),
         listStores(),
       ]);
 
       if (logRes.logs) setLogs(logRes.logs);
+      if ((logRes as any).users) setUsers((logRes as any).users);
       if (storeRes.stores) setStores(storeRes.stores);
     } catch (err) {
       console.error("Erro ao carregar logs de auditoria:", err);
@@ -42,7 +54,48 @@ export default function AuditClient() {
 
   useEffect(() => {
     loadData();
-  }, [selectedStore, selectedResult, search]);
+  }, [selectedStore, selectedUser, selectedModule, selectedAction, selectedResult, startDate, endDate, search]);
+
+  const setQuickDayFilter = (daysBack: number | null) => {
+    if (daysBack === null) {
+      setStartDate("");
+      setEndDate("");
+      return;
+    }
+    const today = new Date();
+    const from = new Date(Date.now() - daysBack * 86400000);
+    setStartDate(from.toISOString().slice(0, 10));
+    setEndDate(today.toISOString().slice(0, 10));
+  };
+
+  const exportAuditCsv = () => {
+    const header = "Data/Hora;Usuario;Modulo;Operacao;Acao;Anterior;Novo;Motivo;Loja;Terminal;IP;Resultado\n";
+    const rows = logs
+      .map((l) =>
+        [
+          new Date(l.createdAt).toLocaleString("pt-BR"),
+          l.user?.name || "Sistema",
+          l.entity || "-",
+          l.operation,
+          l.action,
+          (l.oldValue || "-").replace(/;/g, ",").replace(/\n/g, " "),
+          (l.newValue || "-").replace(/;/g, ",").replace(/\n/g, " "),
+          (l.reason || "-").replace(/;/g, ",").replace(/\n/g, " "),
+          l.store?.code || "Matriz",
+          l.terminal || "Web/PDV",
+          l.ipAddress || "-",
+          l.result,
+        ].join(";")
+      )
+      .join("\n");
+    const blob = new Blob(["\uFEFF" + header + rows], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `logs-auditoria-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="h-full flex flex-col gap-5">
@@ -68,19 +121,112 @@ export default function AuditClient() {
       </div>
 
       {/* Filter Bar */}
-      <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl p-3 flex flex-wrap items-center justify-between gap-3 shrink-0">
-        <div className="relative flex-1 min-w-[220px]">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar por usuário, operação, motivo ou terminal..."
-            className="w-full pl-9 pr-3 py-1.5 bg-[#e8f0fc] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 rounded-xl outline-none text-xs placeholder:text-slate-600"
-          />
+      <div className="bg-[#fbfdff] border border-[#c4d5ee] rounded-2xl p-3.5 space-y-2.5 shrink-0">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Buscar por usuário, operação, valor alterado, motivo, IP ou terminal..."
+              className="w-full pl-9 pr-3 py-1.5 bg-[#e8f0fc] border border-[#c4d5ee] focus:border-indigo-500 text-gray-900 rounded-xl outline-none text-xs placeholder:text-slate-600"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setQuickDayFilter(0)}
+              className="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold cursor-pointer"
+            >
+              Hoje
+            </button>
+            <button
+              type="button"
+              onClick={() => setQuickDayFilter(7)}
+              className="px-2.5 py-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold cursor-pointer"
+            >
+              7 dias
+            </button>
+            <button
+              type="button"
+              onClick={() => setQuickDayFilter(null)}
+              className="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 text-xs font-bold cursor-pointer"
+            >
+              Tudo
+            </button>
+
+            <div className="flex items-center gap-1.5 bg-[#e8f0fc] border border-[#c4d5ee] rounded-xl px-2.5 py-1 text-xs">
+              <Calendar size={12} className="text-indigo-600" />
+              <input
+                type="date"
+                value={startDate}
+                onChange={e => setStartDate(e.target.value)}
+                className="bg-transparent font-mono text-gray-800 outline-none text-[11px]"
+              />
+              <span className="text-slate-400">até</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={e => setEndDate(e.target.value)}
+                className="bg-transparent font-mono text-gray-800 outline-none text-[11px]"
+              />
+            </div>
+
+            <button
+              type="button"
+              disabled={logs.length === 0}
+              onClick={exportAuditCsv}
+              className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+            >
+              <Download size={13} /> Exportar CSV
+            </button>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={selectedModule}
+            onChange={e => setSelectedModule(e.target.value)}
+            className="bg-[#e8f0fc] border border-[#c4d5ee] text-slate-700 font-semibold text-xs px-3 py-1.5 rounded-xl outline-none"
+          >
+            <option value="ALL">Todos os Módulos</option>
+            <option value="SALE">PDV &amp; Vendas</option>
+            <option value="PRODUCT">Produtos &amp; Preços</option>
+            <option value="STOCK">Estoque, Balanço &amp; Perdas</option>
+            <option value="FISCAL">Fiscal &amp; SEFAZ</option>
+            <option value="FINANCE">Financeiro &amp; Caixa</option>
+            <option value="CUSTOMER">Clientes &amp; CRM</option>
+            <option value="USER">Usuários &amp; Permissões</option>
+            <option value="APPROVAL">Aprovações</option>
+          </select>
+
+          <select
+            value={selectedAction}
+            onChange={e => setSelectedAction(e.target.value)}
+            className="bg-[#e8f0fc] border border-[#c4d5ee] text-slate-700 font-semibold text-xs px-3 py-1.5 rounded-xl outline-none"
+          >
+            <option value="ALL">Todas as Operações</option>
+            <option value="CREATE">Criação (CREATE)</option>
+            <option value="UPDATE">Alteração (UPDATE)</option>
+            <option value="DELETE">Exclusão (DELETE)</option>
+            <option value="CANCEL">Cancelamento (CANCEL)</option>
+            <option value="APPROVE">Aprovação (APPROVE)</option>
+            <option value="REJECT">Rejeição (REJECT)</option>
+          </select>
+
+          <select
+            value={selectedUser}
+            onChange={e => setSelectedUser(e.target.value)}
+            className="bg-[#e8f0fc] border border-[#c4d5ee] text-slate-700 font-semibold text-xs px-3 py-1.5 rounded-xl outline-none"
+          >
+            <option value="ALL">Todos os Usuários</option>
+            {users.map(u => (
+              <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+            ))}
+          </select>
+
           <select
             value={selectedStore}
             onChange={e => setSelectedStore(e.target.value)}
@@ -152,16 +298,28 @@ export default function AuditClient() {
                       </td>
 
                       {/* Operação */}
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1.5 mb-0.5">
+                      <td className="px-4 py-3 max-w-md">
+                        <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+                          {log.entity && (
+                            <span className="text-[9px] font-black bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded uppercase">
+                              {log.entity}
+                            </span>
+                          )}
                           <span className="text-xs font-bold text-indigo-700">{log.operation}</span>
                           <span className="text-[9px] font-bold bg-[#f3f7fe] text-slate-500 px-1.5 py-0.5 rounded border border-[#c4d5ee] uppercase">
                             {log.action}
                           </span>
                         </div>
+                        {(log.oldValue || log.newValue) && (
+                          <div className="text-[11px] text-slate-700 font-mono truncate">
+                            {log.oldValue ? <span className="text-rose-700">{log.oldValue}</span> : null}
+                            {log.oldValue && log.newValue ? <span className="mx-1 text-slate-400">→</span> : null}
+                            {log.newValue ? <span className="text-emerald-700 font-semibold">{log.newValue}</span> : null}
+                          </div>
+                        )}
                         {log.reason && (
                           <span className="text-[11px] text-slate-500 line-clamp-1 italic">
-                            "{log.reason}"
+                            &quot;{log.reason}&quot;
                           </span>
                         )}
                       </td>

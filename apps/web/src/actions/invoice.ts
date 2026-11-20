@@ -147,7 +147,10 @@ export async function getInvoices() {
   }
 }
 
-export async function simulateInvoiceEmission(saleId: string) {
+export async function simulateInvoiceEmission(
+  saleId: string,
+  options?: { forceReissue?: boolean }
+) {
   try {
     const session = await getSession();
     if (!session?.companyId) {
@@ -169,25 +172,49 @@ export async function simulateInvoiceEmission(saleId: string) {
     });
     if (!sale) return { error: "Venda não encontrada" };
 
-    let fiscalConfig = await prisma.fiscalConfig.findUnique({ where: { companyId } });
-    if (!fiscalConfig) {
-      fiscalConfig = await prisma.fiscalConfig.create({
-        data: {
-          cnpj: company.document,
-          companyName: company.name,
-          companyId,
-          taxRegime: "SN",
-          environment: "homologacao",
-          nextNfceNumber: 1,
-          nextNfeNumber: 1,
-        },
+    // Proteção contra duplicidade de nota na mesma venda
+    if (sale.invoiceId && !options?.forceReissue) {
+      const existingInvoice = await prisma.invoice.findFirst({
+        where: { id: sale.invoiceId, companyId },
       });
+      if (existingInvoice && existingInvoice.status !== "CANCELED") {
+        return { success: true, invoice: existingInvoice, deduplicated: true };
+      }
     }
 
+    // Reserva atomicamente o número da nota ANTES de chamar a SEFAZ para evitar corrida entre caixas/cliques
     const isNfce = !sale.customerId || Number(sale.total) < 500;
+    const reserved = await prisma.$transaction(async (tx) => {
+      let cfg = await tx.fiscalConfig.findUnique({ where: { companyId } });
+      if (!cfg) {
+        cfg = await tx.fiscalConfig.create({
+          data: {
+            cnpj: company.document,
+            companyName: company.name,
+            companyId,
+            taxRegime: "SN",
+            environment: "homologacao",
+            nextNfceNumber: 1,
+            nextNfeNumber: 1,
+          },
+        });
+      }
+      const updatedCfg = await tx.fiscalConfig.update({
+        where: { id: cfg.id },
+        data: isNfce
+          ? { nextNfceNumber: { increment: 1 } }
+          : { nextNfeNumber: { increment: 1 } },
+      });
+      const reservedNumber = isNfce
+        ? updatedCfg.nextNfceNumber - 1
+        : updatedCfg.nextNfeNumber - 1;
+      return { fiscalConfig: updatedCfg, reservedNumber };
+    });
+
+    const fiscalConfig = reserved.fiscalConfig;
     const type = isNfce ? "NFCe" : "NFe";
     const model: "65" | "55" = isNfce ? "65" : "55";
-    const invoiceNumber = isNfce ? fiscalConfig.nextNfceNumber : fiscalConfig.nextNfeNumber;
+    const invoiceNumber = reserved.reservedNumber;
     const series = isNfce ? fiscalConfig.nfceeSeries : fiscalConfig.nfeSeries;
 
     const key = buildSefazAccessKey({
@@ -231,6 +258,19 @@ export async function simulateInvoiceEmission(saleId: string) {
     }
 
     const result = await prisma.$transaction(async (tx) => {
+      const freshSale = await tx.sale.findUnique({
+        where: { id: saleId },
+        select: { invoiceId: true },
+      });
+      if (freshSale?.invoiceId && !options?.forceReissue) {
+        const already = await tx.invoice.findUnique({
+          where: { id: freshSale.invoiceId },
+        });
+        if (already && already.status !== "CANCELED") {
+          return already;
+        }
+      }
+
       const invoice = await tx.invoice.create({
         data: {
           type,
@@ -238,7 +278,7 @@ export async function simulateInvoiceEmission(saleId: string) {
           series,
           accessKey: key,
           status: sefazErrorMsg ? "REJECTED" : "AUTHORIZED",
-          environment: fiscalConfig!.environment,
+          environment: fiscalConfig.environment,
           xmlUrl: `/api/fiscal/xml/${key}`,
           pdfUrl: `/api/fiscal/pdf/${key}`,
           errorMsg: sefazErrorMsg,
@@ -250,13 +290,6 @@ export async function simulateInvoiceEmission(saleId: string) {
       await tx.sale.update({
         where: { id: saleId },
         data: { invoiceId: invoice.id },
-      });
-
-      await tx.fiscalConfig.update({
-        where: { id: fiscalConfig!.id },
-        data: isNfce
-          ? { nextNfceNumber: { increment: 1 } }
-          : { nextNfeNumber: { increment: 1 } },
       });
 
       return invoice;
@@ -749,5 +782,127 @@ export async function inutilizarAndDeleteInvoiceAction(invoiceId: string, justif
     };
   } catch (err: any) {
     return { ok: false, error: err.message || "Erro ao inutilizar/excluir nota na SEFAZ." };
+  }
+}
+
+/**
+ * Remove notas fiscais duplicadas NÃO autorizadas (preserva 100% das notas AUTHORIZED e CANCELED).
+ */
+export async function cleanupDuplicateInvoicesAction() {
+  try {
+    const session = await getSession();
+    if (!session?.companyId) return { ok: false, error: "Não autorizado." };
+    const companyId = session.companyId;
+
+    const invoices = await prisma.invoice.findMany({
+      where: { companyId },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const salesWithInvoice = await prisma.sale.findMany({
+      where: { companyId, invoiceId: { not: null } },
+      select: { id: true, invoiceId: true },
+    });
+    const invoiceIdsWithSale = new Set(
+      salesWithInvoice.map((s) => s.invoiceId).filter(Boolean) as string[]
+    );
+
+    const duplicateIds = new Set<string>();
+    const replacementByDeletedId = new Map<string, string>();
+    const isProtected = (inv: { status: string; errorMsg: string | null }) =>
+      (inv.status === "AUTHORIZED" && !inv.errorMsg) || inv.status === "CANCELED";
+
+    const processGroup = (group: typeof invoices) => {
+      if (group.length <= 1) return;
+      const protectedInv = group.find(isProtected);
+      // Se não há nota autorizada/cancelada, prioriza manter a que tem venda vinculada (e mais recente)
+      const keeper =
+        protectedInv ||
+        group.find((inv) => !duplicateIds.has(inv.id) && invoiceIdsWithSale.has(inv.id)) ||
+        group.find((inv) => !duplicateIds.has(inv.id));
+
+      if (!keeper) return;
+      for (const inv of group) {
+        if (inv.id === keeper.id || isProtected(inv)) continue;
+        duplicateIds.add(inv.id);
+        replacementByDeletedId.set(inv.id, keeper.id);
+      }
+    };
+
+    // 1. Duplicadas pelo mesmo orderId
+    const byOrder = new Map<string, typeof invoices>();
+    for (const inv of invoices) {
+      if (!inv.orderId) continue;
+      const list = byOrder.get(inv.orderId) || [];
+      list.push(inv);
+      byOrder.set(inv.orderId, list);
+    }
+    for (const group of byOrder.values()) processGroup(group);
+
+    // 2. Duplicadas pelo mesmo (type, series, number)
+    const byNumber = new Map<string, typeof invoices>();
+    for (const inv of invoices) {
+      if (duplicateIds.has(inv.id)) continue;
+      const num = (inv.number || "").trim();
+      if (!num) continue;
+      const key = `${inv.type}::${inv.series || "1"}::${num}`;
+      const list = byNumber.get(key) || [];
+      list.push(inv);
+      byNumber.set(key, list);
+    }
+    for (const group of byNumber.values()) processGroup(group);
+
+    // 3. Notas pendentes/rejeitadas duplicadas pela mesma accessKey
+    const byKey = new Map<string, typeof invoices>();
+    for (const inv of invoices) {
+      if (duplicateIds.has(inv.id)) continue;
+      const ak = (inv.accessKey || "").trim();
+      if (!ak) continue;
+      const list = byKey.get(ak) || [];
+      list.push(inv);
+      byKey.set(ak, list);
+    }
+    for (const group of byKey.values()) processGroup(group);
+
+    const idsToDelete = Array.from(duplicateIds);
+    if (idsToDelete.length === 0) {
+      return { ok: true, removedCount: 0, message: "Nenhuma nota duplicada encontrada." };
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Se alguma venda apontava para uma nota removida e a nota que ficou ainda não tem venda, religa
+      for (const sale of salesWithInvoice) {
+        if (!sale.invoiceId || !duplicateIds.has(sale.invoiceId)) continue;
+        const keeperId = replacementByDeletedId.get(sale.invoiceId);
+        if (keeperId && !invoiceIdsWithSale.has(keeperId)) {
+          await tx.sale.update({
+            where: { id: sale.id },
+            data: { invoiceId: keeperId },
+          });
+          invoiceIdsWithSale.add(keeperId);
+        } else {
+          await tx.sale.update({
+            where: { id: sale.id },
+            data: { invoiceId: null },
+          });
+        }
+      }
+      await tx.return.updateMany({
+        where: { invoiceId: { in: idsToDelete } },
+        data: { invoiceId: null },
+      });
+      await tx.invoice.deleteMany({
+        where: { companyId, id: { in: idsToDelete } },
+      });
+    });
+
+    revalidatePath("/fiscal");
+    return {
+      ok: true,
+      removedCount: idsToDelete.length,
+      message: `${idsToDelete.length} nota(s) duplicada(s) excluída(s) com segurança.`,
+    };
+  } catch (err: any) {
+    return { ok: false, error: err.message || "Erro ao excluir notas duplicadas." };
   }
 }
