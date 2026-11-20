@@ -305,7 +305,10 @@ export async function simulateInvoiceEmission(
 /**
  * Retransmite uma nota pendente/rejeitada diretamente para a SEFAZ-AL (SVRS) em tempo real.
  */
-export async function retransmitInvoiceAction(invoiceId: string) {
+export async function retransmitInvoiceAction(
+  invoiceId: string,
+  options?: { skipRevalidate?: boolean }
+) {
   try {
     const session = await getSession();
     if (!session?.companyId) {
@@ -341,7 +344,7 @@ export async function retransmitInvoiceAction(invoiceId: string) {
               environment: fiscalConfig.environment,
             },
           });
-          revalidatePath("/fiscal");
+          if (!options?.skipRevalidate) revalidatePath("/fiscal");
           return {
             ok: true,
             cStat: existingCheck.cStat,
@@ -355,7 +358,7 @@ export async function retransmitInvoiceAction(invoiceId: string) {
             where: { id: invoice.id },
             data: { status: "CANCELED", errorMsg: null },
           });
-          revalidatePath("/fiscal");
+          if (!options?.skipRevalidate) revalidatePath("/fiscal");
           return {
             ok: false,
             cStat: existingCheck.cStat,
@@ -421,13 +424,25 @@ export async function retransmitInvoiceAction(invoiceId: string) {
 
     let sefazRes = await transmitSefazNfe4(buildTransmitPayload(invoiceNumber, key));
 
-    // Se a SEFAZ acusar Duplicidade (204 ou 539), avança para o próximo número oficial da sequência e reenvia
+    // Se a SEFAZ acusar Duplicidade (204 ou 539), reserva atomicamente o próximo número oficial da sequência e reenvia
     if (!sefazRes.authorized && ["204", "539"].includes(sefazRes.cStat)) {
-      const nextNum = isNfce ? fiscalConfig.nextNfceNumber : fiscalConfig.nextNfeNumber;
-      if (nextNum > invoiceNumber) {
-        invoiceNumber = nextNum;
-      } else {
-        invoiceNumber = invoiceNumber + 1;
+      const reservedNext = await prisma.fiscalConfig.update({
+        where: { id: fiscalConfig.id },
+        data: isNfce
+          ? { nextNfceNumber: { increment: 1 } }
+          : { nextNfeNumber: { increment: 1 } },
+      });
+      const seqCandidate = isNfce
+        ? reservedNext.nextNfceNumber - 1
+        : reservedNext.nextNfeNumber - 1;
+      invoiceNumber = seqCandidate > invoiceNumber ? seqCandidate : invoiceNumber + 1;
+      if (invoiceNumber >= (isNfce ? reservedNext.nextNfceNumber : reservedNext.nextNfeNumber)) {
+        await prisma.fiscalConfig.update({
+          where: { id: fiscalConfig.id },
+          data: isNfce
+            ? { nextNfceNumber: invoiceNumber + 1 }
+            : { nextNfeNumber: invoiceNumber + 1 },
+        });
       }
       key = buildSefazAccessKey({
         state: fiscalConfig.state,
@@ -437,12 +452,6 @@ export async function retransmitInvoiceAction(invoiceId: string) {
         invoiceNumber,
       });
       sefazRes = await transmitSefazNfe4(buildTransmitPayload(invoiceNumber, key));
-      await prisma.fiscalConfig.update({
-        where: { id: fiscalConfig.id },
-        data: isNfce
-          ? { nextNfceNumber: invoiceNumber + 1 }
-          : { nextNfeNumber: invoiceNumber + 1 },
-      });
     }
 
     const errorMsg = sefazRes.authorized
@@ -465,7 +474,7 @@ export async function retransmitInvoiceAction(invoiceId: string) {
       },
     });
 
-    revalidatePath("/fiscal");
+    if (!options?.skipRevalidate) revalidatePath("/fiscal");
     return {
       ok: sefazRes.authorized,
       cStat: sefazRes.cStat,
@@ -476,6 +485,45 @@ export async function retransmitInvoiceAction(invoiceId: string) {
     };
   } catch (err: any) {
     return { ok: false, error: err.message || "Erro ao retransmitir nota para a SEFAZ." };
+  }
+}
+
+/**
+ * Retransmite um lote de notas em paralelo (até 10 por chamada) para alta velocidade.
+ */
+export async function retransmitBatchInvoicesAction(invoiceIds: string[]) {
+  try {
+    const session = await getSession();
+    if (!session?.companyId) {
+      return { ok: false, error: "Não autorizado.", results: [] };
+    }
+    const uniqueIds = Array.from(new Set(invoiceIds)).slice(0, 10);
+    if (uniqueIds.length === 0) {
+      return { ok: true, results: [] };
+    }
+
+    const results = await Promise.all(
+      uniqueIds.map(async (id) => {
+        const res = await retransmitInvoiceAction(id, { skipRevalidate: true });
+        return {
+          id,
+          ok: Boolean(res.ok),
+          cStat: res.cStat,
+          xMotivo: res.xMotivo,
+          nProt: res.nProt,
+          error: res.error,
+        };
+      })
+    );
+
+    revalidatePath("/fiscal");
+    return { ok: true, results };
+  } catch (err: any) {
+    return {
+      ok: false,
+      error: err?.message || "Erro ao processar lote de notas.",
+      results: [],
+    };
   }
 }
 
@@ -947,55 +995,106 @@ export async function cancelZeroValueInvoicesAction() {
     }
 
     let sefazInutilizadas = 0;
-    let canceledLocal = 0;
+    const alreadyAuthorizedIds: string[] = [];
+    const toCancelInvoices: typeof zeroInvoices = [];
 
-    for (const inv of zeroInvoices) {
-      const model: "65" | "55" = inv.type === "NFe" ? "55" : "65";
-      const num = Number(inv.number || 0);
+    // 1. Verifica protocolo na SEFAZ em lotes paralelos de 10 (evita inutilizar nota já autorizada)
+    const withKey = zeroInvoices.filter((inv) => inv.accessKey && inv.accessKey.length === 44);
+    const withoutKey = zeroInvoices.filter((inv) => !inv.accessKey || inv.accessKey.length !== 44);
+    toCancelInvoices.push(...withoutKey);
 
-      // Se por acaso já foi autorizada na SEFAZ, apenas sincroniza para AUTHORIZED
-      if (inv.accessKey && inv.accessKey.length === 44) {
-        const check = await querySefazProtocolo(companyId, inv.accessKey, model).catch(() => null);
-        if (check?.authorized) {
-          await prisma.invoice.update({
-            where: { id: inv.id },
-            data: { status: "AUTHORIZED", errorMsg: null },
-          });
-          continue;
-        }
+    for (let i = 0; i < withKey.length; i += 10) {
+      const chunk = withKey.slice(i, i + 10);
+      const checks = await Promise.all(
+        chunk.map(async (inv) => {
+          const model: "65" | "55" = inv.type === "NFe" ? "55" : "65";
+          const check = await querySefazProtocolo(companyId, inv.accessKey!, model).catch(() => null);
+          return { inv, authorized: Boolean(check?.authorized) };
+        })
+      );
+      for (const c of checks) {
+        if (c.authorized) alreadyAuthorizedIds.push(c.inv.id);
+        else toCancelInvoices.push(c.inv);
       }
-
-      if (num > 0) {
-        const inutRes = await inutilizarSefazNumeracao(companyId, {
-          model,
-          series: inv.series || "1",
-          startNumber: num,
-          endNumber: num,
-          year: String(new Date(inv.createdAt).getFullYear()),
-          justification: "Inutilizacao de numeracao de nota zerada ou sem venda vinculada.",
-        }).catch(() => null);
-
-        if (inutRes?.ok || ["102", "206", "563"].includes(String(inutRes?.cStat || ""))) {
-          sefazInutilizadas++;
-        }
-      }
-
-      await prisma.invoice.update({
-        where: { id: inv.id },
-        data: {
-          status: "CANCELED",
-          errorMsg: null,
-        },
-      });
-      canceledLocal++;
     }
+
+    // 2. Agrupa numerações consecutivas por (modelo, série, ano) para inutilizar faixas inteiras na SEFAZ
+    type InutRange = { model: "65" | "55"; series: string; year: string; startNumber: number; endNumber: number; count: number };
+    const grouped = new Map<string, number[]>();
+    for (const inv of toCancelInvoices) {
+      const num = Number(inv.number || 0);
+      if (num <= 0) continue;
+      const model: "65" | "55" = inv.type === "NFe" ? "55" : "65";
+      const series = inv.series || "1";
+      const year = String(new Date(inv.createdAt).getFullYear());
+      const key = `${model}::${series}::${year}`;
+      const list = grouped.get(key) || [];
+      list.push(num);
+      grouped.set(key, list);
+    }
+
+    const ranges: InutRange[] = [];
+    for (const [key, nums] of grouped.entries()) {
+      const [model, series, year] = key.split("::") as ["65" | "55", string, string];
+      const sorted = Array.from(new Set(nums)).sort((a, b) => a - b);
+      let start = sorted[0];
+      let end = sorted[0];
+      for (let i = 1; i < sorted.length; i++) {
+        if (sorted[i] === end + 1) {
+          end = sorted[i];
+        } else {
+          ranges.push({ model, series, year, startNumber: start, endNumber: end, count: end - start + 1 });
+          start = sorted[i];
+          end = sorted[i];
+        }
+      }
+      ranges.push({ model, series, year, startNumber: start, endNumber: end, count: end - start + 1 });
+    }
+
+    // Executa inutilizações de faixa em paralelo (chunks de 5)
+    for (let i = 0; i < ranges.length; i += 5) {
+      const chunk = ranges.slice(i, i + 5);
+      const results = await Promise.all(
+        chunk.map(async (r) => {
+          const inutRes = await inutilizarSefazNumeracao(companyId, {
+            model: r.model,
+            series: r.series,
+            startNumber: r.startNumber,
+            endNumber: r.endNumber,
+            year: r.year,
+            justification: "Inutilizacao de numeracao de nota zerada ou sem venda vinculada.",
+          }).catch(() => null);
+          const ok = Boolean(inutRes?.ok || ["102", "206", "563"].includes(String(inutRes?.cStat || "")));
+          return ok ? r.count : 0;
+        })
+      );
+      sefazInutilizadas += results.reduce((acc, n) => acc + n, 0);
+    }
+
+    // 3. Atualiza o banco local em no máximo 2 queries em lote (updateMany)
+    if (alreadyAuthorizedIds.length > 0) {
+      await prisma.invoice.updateMany({
+        where: { companyId, id: { in: alreadyAuthorizedIds } },
+        data: { status: "AUTHORIZED", errorMsg: null },
+      });
+    }
+
+    const toCancelIds = toCancelInvoices.map((i) => i.id);
+    if (toCancelIds.length > 0) {
+      await prisma.invoice.updateMany({
+        where: { companyId, id: { in: toCancelIds } },
+        data: { status: "CANCELED", errorMsg: null },
+      });
+    }
+
+    const canceledLocal = toCancelIds.length;
 
     revalidatePath("/fiscal");
     return {
       ok: true,
       resolvedCount: canceledLocal,
       sefazInutilizadas,
-      message: `${canceledLocal} nota(s) zerada(s)/sem itens cancelada(s) (${sefazInutilizadas} inutilizada(s) na SEFAZ).`,
+      message: `${canceledLocal} nota(s) zerada(s)/sem itens cancelada(s) em lote (${sefazInutilizadas} inutilizada(s) na SEFAZ).`,
     };
   } catch (err: any) {
     return { ok: false, error: err?.message || "Erro ao cancelar notas zeradas." };
@@ -1078,24 +1177,29 @@ export async function autoFixPendingInvoicesNcmAction() {
       },
     });
 
-    // Mapa de NCMs reais vindos dos XMLs de fornecedores (por EAN)
+    // Mapa de NCMs reais vindos dos XMLs de fornecedores salvos no banco (sem chamada lenta à SEFAZ)
     const xmlNcmByBarcode = new Map<string, string>();
     try {
-      const { getRadarInvoices } = await import("./invoices");
-      const radar = await getRadarInvoices();
-      for (const inv of radar.invoices || []) {
-        for (const it of inv.itemsPreview || []) {
-          const bc = (it.barcode || "").replace(/\D/g, "");
-          const ncm = (it.ncm || "").replace(/\D/g, "");
-          if (bc.length >= 8 && ncm.length === 8 && ncm !== "00000000") {
-            xmlNcmByBarcode.set(bc, ncm);
+      const rows = await prisma.$queryRawUnsafe<{ payloadJson: string }[]>(
+        `SELECT "payloadJson" FROM "radar_invoices" WHERE "companyId" = $1`,
+        companyId
+      ).catch(() => []);
+      for (const r of rows || []) {
+        try {
+          const inv = JSON.parse(r.payloadJson || "{}");
+          for (const it of inv.itemsPreview || []) {
+            const bc = String(it.barcode || "").replace(/\D/g, "");
+            const ncm = String(it.ncm || "").replace(/\D/g, "");
+            if (bc.length >= 8 && ncm.length === 8 && ncm !== "00000000") {
+              xmlNcmByBarcode.set(bc, ncm);
+            }
           }
-        }
+        } catch {}
       }
     } catch {}
 
     const checkedProductIds = new Set<string>();
-    let updatedProducts = 0;
+    const pendingUpdates: { id: string; ncm: string; cfop: string; csosn: string }[] = [];
 
     for (const sale of sales) {
       for (const it of sale.items) {
@@ -1125,18 +1229,29 @@ export async function autoFixPendingInvoicesNcmAction() {
             : "5102";
 
         if (targetNcm !== p.ncm || targetCfop !== p.cfop || targetCsosn !== p.csosn) {
-          await prisma.product.update({
-            where: { id: p.id },
-            data: {
-              ncm: targetNcm,
-              cfop: targetCfop,
-              csosn: targetCsosn,
-            },
+          pendingUpdates.push({
+            id: p.id,
+            ncm: targetNcm,
+            cfop: targetCfop,
+            csosn: targetCsosn,
           });
-          updatedProducts++;
         }
       }
     }
+
+    // Atualiza produtos em lotes transacionais de 50 para máxima velocidade
+    for (let i = 0; i < pendingUpdates.length; i += 50) {
+      const chunk = pendingUpdates.slice(i, i + 50);
+      await prisma.$transaction(
+        chunk.map((u) =>
+          prisma.product.update({
+            where: { id: u.id },
+            data: { ncm: u.ncm, cfop: u.cfop, csosn: u.csosn },
+          })
+        )
+      );
+    }
+    const updatedProducts = pendingUpdates.length;
 
     revalidatePath("/fiscal");
     revalidatePath("/stock");

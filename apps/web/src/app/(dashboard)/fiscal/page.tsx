@@ -34,6 +34,7 @@ import {
   getInvoices,
   cancelInvoice,
   retransmitInvoiceAction,
+  retransmitBatchInvoicesAction,
   consultarSefazInvoiceAction,
   updateRejectedInvoiceAction,
   sendCartaCorrecaoAction,
@@ -193,7 +194,7 @@ export default function FiscalPage() {
     }
   }, [loadInvoices]);
 
-  // Loop automático a cada 5 segundos enquanto autoEnabled === true e houver pendentes
+  // Processamento rápido em lote paralelo (5 notas por requisição, sem espera de 5s)
   useEffect(() => {
     if (!autoEnabled) {
       setCountdown(5);
@@ -206,21 +207,59 @@ export default function FiscalPage() {
       return;
     }
 
-    const timer = setInterval(() => {
-      setCountdown((prev) => {
-        if (prev <= 1) {
-          const nextInv = pendingQueue[0];
-          if (nextInv && !isSendingRef.current) {
-            void handleRetransmitSingle(nextInv, true);
-          }
-          return 5;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+    let cancelled = false;
+    const runBatch = async () => {
+      if (isSendingRef.current || cancelled) return;
+      isSendingRef.current = true;
+      const batch = pendingQueue.slice(0, 5);
+      setBusyInvoiceId(batch[0]?.id || null);
 
-    return () => clearInterval(timer);
-  }, [autoEnabled, pendingQueue, handleRetransmitSingle]);
+      try {
+        const res = await retransmitBatchInvoicesAction(batch.map((b) => b.id));
+        const timeStr = new Date().toLocaleTimeString("pt-BR");
+        const failedIds: Record<string, boolean> = {};
+        const newLogs: { id: string; number: string; ok: boolean; msg: string; time: string }[] = [];
+
+        const byId = new Map((res.results || []).map((r: any) => [r.id, r]));
+        for (const inv of batch) {
+          const r = byId.get(inv.id);
+          if (r?.ok) {
+            const okMsg = `SEFAZ (${r.cStat || "100"}): ${r.xMotivo || "Autorizada"}${r.nProt ? ` • Prot: ${r.nProt}` : ""}`;
+            newLogs.push({ id: inv.id, number: inv.number || "—", ok: true, msg: okMsg, time: timeStr });
+          } else {
+            failedIds[inv.id] = true;
+            const errMsg = r?.error || `${r?.cStat || "ERR"}: ${r?.xMotivo || res.error || "Falha na SEFAZ"}`;
+            newLogs.push({ id: inv.id, number: inv.number || "—", ok: false, msg: errMsg, time: timeStr });
+          }
+        }
+
+        if (Object.keys(failedIds).length > 0) {
+          setAttemptedIds((prev) => ({ ...prev, ...failedIds }));
+        }
+        if (newLogs.length > 0) {
+          setQueueLogs((prev) => [...newLogs, ...prev].slice(0, 50));
+        }
+        await loadInvoices(true);
+      } catch (e: any) {
+        const failedIds: Record<string, boolean> = {};
+        for (const inv of batch) failedIds[inv.id] = true;
+        setAttemptedIds((prev) => ({ ...prev, ...failedIds }));
+        setError(e?.message || "Erro ao processar lote na SEFAZ.");
+      } finally {
+        isSendingRef.current = false;
+        setBusyInvoiceId(null);
+      }
+    };
+
+    const timer = setTimeout(() => {
+      void runBatch();
+    }, 200);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [autoEnabled, pendingQueue, loadInvoices]);
 
   const handleSaveSchedule = () => {
     if (!schedule.accountantEmail.trim()) {
@@ -966,7 +1005,7 @@ export default function FiscalPage() {
                 </div>
                 <p className="text-xs text-gray-500">
                   <strong>{stats.rejected}</strong> nota(s) pendente(s)/rejeitada(s) •{" "}
-                  <strong>{pendingQueue.length}</strong> aguardando tentativa na fila automática de 5s.
+                  <strong>{pendingQueue.length}</strong> na fila para envio em lote paralelo (5 notas por vez).
                   Nenhuma operação é simulada — cada envio, edição, inutilização e cancelamento comunica ao vivo com a SEFAZ-AL.
                 </p>
               </div>
@@ -978,7 +1017,7 @@ export default function FiscalPage() {
                     onClick={() => setAutoEnabled(false)}
                     className="px-4 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-white shadow-sm cursor-pointer"
                   >
-                    <Pause size={15} /> Pausar Automática
+                    <Pause size={15} /> Pausar Lote
                   </button>
                 ) : (
                   <button
@@ -987,12 +1026,11 @@ export default function FiscalPage() {
                     onClick={() => {
                       setError("");
                       setSuccess("");
-                      setCountdown(5);
                       setAutoEnabled(true);
                     }}
                     className="px-4 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white shadow-sm cursor-pointer"
                   >
-                    <Play size={15} /> Iniciar Automática (5s)
+                    <Play size={15} /> Transmitir Fila Rápida (5x)
                   </button>
                 )}
 
