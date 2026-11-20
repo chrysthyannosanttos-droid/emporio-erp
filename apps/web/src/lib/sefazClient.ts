@@ -206,10 +206,17 @@ export async function querySefazDistribuicaoDFe(companyId: string) {
 
   const { certPem, keyPem } = extractPemCredentials(pfxBuffer, fiscal.certPassword);
   const meta = parseSefazMetadata(fiscal.emitterEndpoint);
-  const ultNSU = (meta.lastNsu || "0").padStart(15, "0");
+  let currentUltNSU = (meta.lastNsu || "0").padStart(15, "0");
   const cnpjClean = fiscal.cnpj.replace(/\D/g, "");
 
-  const soapXml = `<?xml version="1.0" encoding="utf-8"?>
+  const allDocs: Array<{ nsu: string; schema: string; xml: string }> = [];
+  let lastCStat = "";
+  let lastXMotivo = "";
+  let maxNSU = currentUltNSU;
+
+  // Faz paginação automática em lotes de 50 documentos até alcançar maxNSU (máx. 8 lotes por chamada)
+  for (let page = 0; page < 8; page++) {
+    const soapXml = `<?xml version="1.0" encoding="utf-8"?>
 <soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
   <soap12:Body>
     <nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
@@ -219,7 +226,7 @@ export async function querySefazDistribuicaoDFe(companyId: string) {
           <cUFAutor>27</cUFAutor>
           <CNPJ>${cnpjClean}</CNPJ>
           <distNSU>
-            <ultNSU>${ultNSU}</ultNSU>
+            <ultNSU>${currentUltNSU}</ultNSU>
           </distNSU>
         </distDFeInt>
       </nfeDadosMsg>
@@ -227,28 +234,39 @@ export async function querySefazDistribuicaoDFe(companyId: string) {
   </soap12:Body>
 </soap12:Envelope>`;
 
-  const res = await soapPostMtls(
-    "https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx",
-    soapXml,
-    certPem,
-    keyPem
-  );
+    const res = await soapPostMtls(
+      "https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx",
+      soapXml,
+      certPem,
+      keyPem
+    );
 
-  const cStat = (res.body.match(/<cStat>(.*?)<\/cStat>/) || [])[1] || "";
-  const xMotivo = (res.body.match(/<xMotivo>(.*?)<\/xMotivo>/) || [])[1] || "";
-  const newUltNsu = (res.body.match(/<ultNSU>(.*?)<\/ultNSU>/) || [])[1] || ultNSU;
+    lastCStat = (res.body.match(/<cStat>(.*?)<\/cStat>/) || [])[1] || "";
+    lastXMotivo = (res.body.match(/<xMotivo>(.*?)<\/xMotivo>/) || [])[1] || "";
+    const newUltNsu = (res.body.match(/<ultNSU>(.*?)<\/ultNSU>/) || [])[1] || currentUltNSU;
+    maxNSU = (res.body.match(/<maxNSU>(.*?)<\/maxNSU>/) || [])[1] || newUltNsu;
 
-  const docs: Array<{ nsu: string; schema: string; xml: string }> = [];
-  const docZipRegex = /<docZip\s+NSU="(\d+)"\s+schema="([^"]+)">([\s\S]*?)<\/docZip>/g;
-  let match;
-  while ((match = docZipRegex.exec(res.body)) !== null) {
-    try {
-      const unzipped = zlib.gunzipSync(Buffer.from(match[3].trim(), "base64")).toString("utf-8");
-      docs.push({ nsu: match[1], schema: match[2], xml: unzipped });
-    } catch {}
+    const docZipRegex = /<docZip([^>]*)>([\s\S]*?)<\/docZip>/g;
+    let match;
+    while ((match = docZipRegex.exec(res.body)) !== null) {
+      const attrs = match[1] || "";
+      const nsu = (attrs.match(/NSU="(\d+)"/) || [])[1] || "";
+      const schema = (attrs.match(/schema="([^"]+)"/) || [])[1] || "";
+      try {
+        const unzipped = zlib.gunzipSync(Buffer.from(match[2].trim(), "base64")).toString("utf-8");
+        allDocs.push({ nsu, schema, xml: unzipped });
+      } catch {}
+    }
+
+    if (newUltNsu) currentUltNSU = newUltNsu.padStart(15, "0");
+
+    // Continua somente se retornou documentos (138) e ainda há NSUs posteriores (ultNSU < maxNSU)
+    if (lastCStat !== "138" || currentUltNSU >= maxNSU.padStart(15, "0")) {
+      break;
+    }
   }
 
-  return { ok: true, cStat, xMotivo, ultNSU: newUltNsu, docs };
+  return { ok: true, cStat: lastCStat, xMotivo: lastXMotivo, ultNSU: currentUltNSU, maxNSU, docs: allDocs };
 }
 
 /**

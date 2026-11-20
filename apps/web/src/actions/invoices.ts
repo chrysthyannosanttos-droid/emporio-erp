@@ -909,19 +909,34 @@ export async function syncRadarWithSefazAction(options?: { resetNsu?: boolean })
     if (Array.isArray(dfeRes.docs)) {
       for (const doc of dfeRes.docs) {
         if (!doc.xml) continue;
+        // Ignora eventos (procEventoNFe / resEvento) que não são notas fiscais de entrada
+        if (doc.schema?.includes("Evento") || doc.xml.includes("<procEventoNFe") || doc.xml.includes("<resEvento")) {
+          continue;
+        }
 
         const chMatch = doc.xml.match(/<chNFe>(.*?)<\/chNFe>/) || doc.xml.match(/Id="NFe(\d+)"/);
         const accessKey = chMatch ? chMatch[1] : "";
-        if (!accessKey || existingKeys.has(accessKey)) continue;
+        if (!accessKey || accessKey.length !== 44) continue;
 
-        const nNF = (doc.xml.match(/<nNF>(.*?)<\/nNF>/) || [])[1] || "";
-        const serie = (doc.xml.match(/<serie>(.*?)<\/serie>/) || [])[1] || "1";
+        const isResumo = doc.schema?.includes("resNFe") || doc.xml.includes("<resNFe");
+        const nNF =
+          (doc.xml.match(/<nNF>(.*?)<\/nNF>/) || [])[1] ||
+          String(Number(accessKey.slice(25, 34)) || "");
+        const serie =
+          (doc.xml.match(/<serie>(.*?)<\/serie>/) || [])[1] ||
+          String(Number(accessKey.slice(22, 25)) || "1");
         const natOp = (doc.xml.match(/<natOp>(.*?)<\/natOp>/) || [])[1] || "COMPRA DE MERCADORIA";
         const dhEmi = (doc.xml.match(/<dhEmi>(.*?)<\/dhEmi>/) || doc.xml.match(/<dEmi>(.*?)<\/dEmi>/) || [])[1] || new Date().toISOString();
 
         const emitBlock = (doc.xml.match(/<emit>([\s\S]*?)<\/emit>/) || [])[1] || "";
-        const supplierName = (emitBlock.match(/<xNome>(.*?)<\/xNome>/) || [])[1] || "Fornecedor Parceiro";
-        const supplierCnpj = (emitBlock.match(/<CNPJ>(.*?)<\/CNPJ>/) || [])[1] || "";
+        const supplierName =
+          (emitBlock.match(/<xNome>(.*?)<\/xNome>/) || [])[1] ||
+          (doc.xml.match(/<xNome>(.*?)<\/xNome>/) || [])[1] ||
+          "Fornecedor";
+        const supplierCnpj =
+          (emitBlock.match(/<CNPJ>(.*?)<\/CNPJ>/) || [])[1] ||
+          (doc.xml.match(/<CNPJ>(.*?)<\/CNPJ>/) || [])[1] ||
+          "";
         const supplierIe = (emitBlock.match(/<IE>(.*?)<\/IE>/) || [])[1] || "";
 
         const vNF = parseFloat((doc.xml.match(/<vNF>(.*?)<\/vNF>/) || [])[1] || "0");
@@ -946,6 +961,9 @@ export async function syncRadarWithSefazAction(options?: { resetNsu?: boolean })
           itemsPreview.push({ name, quantity: qty, unit, unitCost, totalCost, barcode, ncm, cfop });
         }
 
+        // Se já existia e o novo também for só resumo, pula; se o novo for XML completo (procNFe), atualiza!
+        if (existingKeys.has(accessKey) && itemsPreview.length === 0) continue;
+
         const newRadarInv: RadarInvoice = {
           accessKey,
           invoiceNum: nNF,
@@ -957,8 +975,8 @@ export async function syncRadarWithSefazAction(options?: { resetNsu?: boolean })
           supplierIe,
           totalAmount: vNF,
           totalIcms: vICMS,
-          statusManifest: "CIENCIA_EMITIDA",
-          xmlAvailable: true,
+          statusManifest: isResumo && itemsPreview.length === 0 ? "AGUARDANDO_MANIFESTACAO" : "CIENCIA_EMITIDA",
+          xmlAvailable: !isResumo || itemsPreview.length > 0,
           imported: false,
           nsu: doc.nsu,
           itemsPreview,
