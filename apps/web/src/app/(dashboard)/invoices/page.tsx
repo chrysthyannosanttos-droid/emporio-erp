@@ -17,6 +17,7 @@ import {
   matchProducts,
   getRadarInvoices,
   syncRadarWithSefazAction,
+  lookupNFeByAccessKeyAction,
   manifestDFe,
   type RadarInvoice,
   type ManifestType
@@ -232,6 +233,41 @@ export default function InvoicesPage() {
   const [manualInvNum, setManualInvNum] = useState("");
   const [manualSeries, setManualSeries] = useState("1");
   const [manualAccessKey, setManualAccessKey] = useState("");
+  const [lookingUpKey, setLookingUpKey] = useState(false);
+  const [keyLookupMsg, setKeyLookupMsg] = useState("");
+
+  const handleLookupByAccessKey = async (rawKey: string) => {
+    const clean = rawKey.replace(/\D/g, "").slice(0, 44);
+    if (clean.length !== 44) return;
+    setLookingUpKey(true);
+    setKeyLookupMsg("");
+    try {
+      const res = await lookupNFeByAccessKeyAction(clean);
+      setKeyLookupMsg(res.message);
+      if (res.data) {
+        if (res.data.invoiceNum) setManualInvNum(res.data.invoiceNum);
+        if (res.data.series) setManualSeries(res.data.series);
+        if (res.data.issueDate) setManualIssueDate(res.data.issueDate);
+        if (res.data.supplierName) setManualSupplierName(res.data.supplierName);
+        if (res.data.supplierCnpj) setManualSupplierDoc(res.data.supplierCnpj);
+        if (res.data.items && res.data.items.length > 0) {
+          setManualItems(
+            res.data.items.map((it, idx) => ({
+              id: `key_${Date.now()}_${idx}`,
+              name: it.name,
+              barcode: it.barcode,
+              unit: it.unit,
+              quantity: it.quantity,
+              unitCost: it.unitCost,
+              totalCost: it.totalCost,
+            }))
+          );
+        }
+      }
+    } finally {
+      setLookingUpKey(false);
+    }
+  };
   const [manualIssueDate, setManualIssueDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [manualSupplierName, setManualSupplierName] = useState("");
   const [manualSupplierDoc, setManualSupplierDoc] = useState("");
@@ -1255,15 +1291,35 @@ export default function InvoicesPage() {
               </div>
               <div className="lg:col-span-3">
                 <label className="block text-[10px] font-black text-gray-500 uppercase mb-1">
-                  Chave de Acesso (44 dígitos — opcional)
+                  Chave de Acesso (44 dígitos — busca automática na SEFAZ)
                 </label>
-                <input
-                  type="text"
-                  value={manualAccessKey}
-                  onChange={(e) => setManualAccessKey(e.target.value.replace(/\D/g, "").slice(0, 44))}
-                  placeholder="Opcional: cole a chave de 44 dígitos"
-                  className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono outline-none focus:border-blue-500"
-                />
+                <div className="flex gap-1.5">
+                  <input
+                    type="text"
+                    value={manualAccessKey}
+                    onChange={(e) => {
+                      const clean = e.target.value.replace(/\D/g, "").slice(0, 44);
+                      setManualAccessKey(clean);
+                      if (clean.length === 44) {
+                        void handleLookupByAccessKey(clean);
+                      }
+                    }}
+                    placeholder="Cole a chave de 44 dígitos para buscar automaticamente"
+                    className="flex-1 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono outline-none focus:border-blue-500"
+                  />
+                  <button
+                    type="button"
+                    disabled={lookingUpKey || manualAccessKey.length !== 44}
+                    onClick={() => void handleLookupByAccessKey(manualAccessKey)}
+                    className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shrink-0"
+                  >
+                    {lookingUpKey ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />}
+                    Buscar
+                  </button>
+                </div>
+                {keyLookupMsg && (
+                  <p className="text-[11px] font-bold text-blue-700 mt-1">{keyLookupMsg}</p>
+                )}
               </div>
 
               <div className="sm:col-span-2 lg:col-span-4">

@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/session";
 import { resolveActiveCompany } from "@/lib/tenant";
 import bundledRadarInvoices from "@/data/real_radar_invoices.json";
-import { sendSefazManifestacao, querySefazDistribuicaoDFe } from "@/lib/sefazClient";
+import { sendSefazManifestacao, querySefazDistribuicaoDFe, querySefazByAccessKey } from "@/lib/sefazClient";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type NFeItem = {
@@ -1039,6 +1039,178 @@ export async function syncRadarWithSefazAction(options?: { resetNsu?: boolean })
     };
   } catch (err: any) {
     return { success: false, message: err.message || "Erro ao sincronizar com SEFAZ", docsReceived: 0, error: err.message };
+  }
+}
+
+export async function lookupNFeByAccessKeyAction(accessKey: string): Promise<{
+  success: boolean;
+  foundInSefaz: boolean;
+  message: string;
+  data?: {
+    invoiceNum: string;
+    series: string;
+    issueDate: string;
+    supplierName: string;
+    supplierCnpj: string;
+    items: Array<{
+      name: string;
+      barcode: string | null;
+      unit: string;
+      quantity: number;
+      unitCost: number;
+      totalCost: number;
+    }>;
+  };
+}> {
+  const cleanKey = (accessKey || "").replace(/\D/g, "");
+  if (cleanKey.length !== 44) {
+    return { success: false, foundInSefaz: false, message: "Chave de acesso deve conter 44 dígitos." };
+  }
+
+  // Dados básicos extraídos diretamente da estrutura oficial da chave de 44 dígitos
+  const keyCnpj = cleanKey.slice(6, 20);
+  const keySeries = String(Number(cleanKey.slice(22, 25)) || 1);
+  const keyNumber = String(Number(cleanKey.slice(25, 34)) || "");
+  const keyYear = `20${cleanKey.slice(2, 4)}`;
+  const keyMonth = cleanKey.slice(4, 6);
+  const fallbackDate = `${keyYear}-${keyMonth}-01`;
+
+  try {
+    const company = await resolveActiveCompany();
+    if (!company?.id) {
+      return {
+        success: true,
+        foundInSefaz: false,
+        message: "Dados básicos extraídos da chave.",
+        data: { invoiceNum: keyNumber, series: keySeries, issueDate: fallbackDate, supplierName: "", supplierCnpj: keyCnpj, items: [] },
+      };
+    }
+
+    await ensureRadarInvoicesTable();
+
+    // 1. Verifica se já está no Radar (banco)
+    const dbRows = await prisma.$queryRawUnsafe<Array<{ payloadJson: string }>>(
+      `SELECT "payloadJson" FROM "radar_invoices" WHERE "companyId" = $1 AND "accessKey" = $2 LIMIT 1`,
+      company.id,
+      cleanKey
+    );
+    if (dbRows[0]?.payloadJson) {
+      try {
+        const inv = JSON.parse(dbRows[0].payloadJson) as RadarInvoice;
+        if (inv.itemsPreview && inv.itemsPreview.length > 0) {
+          return {
+            success: true,
+            foundInSefaz: true,
+            message: `Nota #${inv.invoiceNum} localizada no Radar com ${inv.itemsPreview.length} item(ns)!`,
+            data: {
+              invoiceNum: inv.invoiceNum || keyNumber,
+              series: inv.series || keySeries,
+              issueDate: String(inv.issueDate || fallbackDate).slice(0, 10),
+              supplierName: inv.supplierName || "",
+              supplierCnpj: inv.supplierCnpj || keyCnpj,
+              items: inv.itemsPreview.map((it) => ({
+                name: it.name,
+                barcode: it.barcode || null,
+                unit: it.unit || "UN",
+                quantity: Number(it.quantity || 1),
+                unitCost: Number(it.unitCost || 0),
+                totalCost: Number(it.totalCost || 0),
+              })),
+            },
+          };
+        }
+      } catch {}
+    }
+
+    // 2. Consulta fornecedor pelo CNPJ no banco local
+    const localSupplier = await prisma.supplier.findFirst({
+      where: {
+        companyId: company.id,
+        OR: [{ document: keyCnpj }, { document: { contains: keyCnpj } }],
+      },
+      select: { name: true, tradeName: true },
+    });
+
+    // 3. Consulta direto na SEFAZ Nacional (consChNFe)
+    const sefazRes = await querySefazByAccessKey(company.id, cleanKey);
+    if (Array.isArray(sefazRes.docs) && sefazRes.docs.length > 0) {
+      const fullDoc = sefazRes.docs.find((d) => d.xml.includes("<nfeProc") || d.xml.includes("<infNFe")) || sefazRes.docs[0];
+      const xml = fullDoc.xml;
+      const nNF = (xml.match(/<nNF>(.*?)<\/nNF>/) || [])[1] || keyNumber;
+      const serie = (xml.match(/<serie>(.*?)<\/serie>/) || [])[1] || keySeries;
+      const dhEmi = (xml.match(/<dhEmi>(.*?)<\/dhEmi>/) || xml.match(/<dEmi>(.*?)<\/dEmi>/) || [])[1] || fallbackDate;
+      const emitBlock = (xml.match(/<emit>([\s\S]*?)<\/emit>/) || [])[1] || "";
+      const supplierName =
+        (emitBlock.match(/<xNome>(.*?)<\/xNome>/) || [])[1] ||
+        (xml.match(/<xNome>(.*?)<\/xNome>/) || [])[1] ||
+        localSupplier?.tradeName ||
+        localSupplier?.name ||
+        "";
+      const supplierCnpj =
+        (emitBlock.match(/<CNPJ>(.*?)<\/CNPJ>/) || [])[1] ||
+        (xml.match(/<CNPJ>(.*?)<\/CNPJ>/) || [])[1] ||
+        keyCnpj;
+
+      const detRegex = /<det\s+nItem="(\d+)">([\s\S]*?)<\/det>/g;
+      let dMatch;
+      const items: Array<{ name: string; barcode: string | null; unit: string; quantity: number; unitCost: number; totalCost: number }> = [];
+      while ((dMatch = detRegex.exec(xml)) !== null) {
+        const b = dMatch[2];
+        const name = (b.match(/<xProd>(.*?)<\/xProd>/) || [])[1] || "";
+        const qty = parseFloat((b.match(/<qCom>(.*?)<\/qCom>/) || [])[1] || "0");
+        const unit = (b.match(/<uCom>(.*?)<\/uCom>/) || [])[1] || "UN";
+        const unitCost = parseFloat((b.match(/<vUnCom>(.*?)<\/vUnCom>/) || [])[1] || "0");
+        const totalCost = parseFloat((b.match(/<vProd>(.*?)<\/vProd>/) || [])[1] || "0");
+        let barcode = (b.match(/<cEAN>(.*?)<\/cEAN>/) || [])[1] || null;
+        if (barcode === "SEM GTIN" || (barcode && barcode.length < 8)) barcode = null;
+        items.push({ name, barcode, unit, quantity: qty, unitCost, totalCost });
+      }
+
+      return {
+        success: true,
+        foundInSefaz: true,
+        message:
+          items.length > 0
+            ? `NF-e #${nNF} baixada da SEFAZ com ${items.length} item(ns)!`
+            : `NF-e #${nNF} localizada na SEFAZ (${sefazRes.cStat}: ${sefazRes.xMotivo}).`,
+        data: {
+          invoiceNum: nNF,
+          series: serie,
+          issueDate: String(dhEmi).slice(0, 10),
+          supplierName,
+          supplierCnpj,
+          items,
+        },
+      };
+    }
+
+    return {
+      success: true,
+      foundInSefaz: false,
+      message: `SEFAZ (${sefazRes.cStat || "?"}): ${sefazRes.xMotivo || "XML completo indisponível sem manifestação prévia"}. Número, série e CNPJ preenchidos pela chave.`,
+      data: {
+        invoiceNum: keyNumber,
+        series: keySeries,
+        issueDate: fallbackDate,
+        supplierName: localSupplier?.tradeName || localSupplier?.name || "",
+        supplierCnpj: keyCnpj,
+        items: [],
+      },
+    };
+  } catch (err: any) {
+    return {
+      success: true,
+      foundInSefaz: false,
+      message: `Dados extraídos da chave (${err?.message || "sem retorno SEFAZ"}).`,
+      data: {
+        invoiceNum: keyNumber,
+        series: keySeries,
+        issueDate: fallbackDate,
+        supplierName: "",
+        supplierCnpj: keyCnpj,
+        items: [],
+      },
+    };
   }
 }
 

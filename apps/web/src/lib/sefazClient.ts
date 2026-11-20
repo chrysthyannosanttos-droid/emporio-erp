@@ -270,6 +270,70 @@ export async function querySefazDistribuicaoDFe(companyId: string) {
 }
 
 /**
+ * Consulta NF-e específica pela Chave de Acesso (44 dígitos) via NFeDistribuicaoDFe (consChNFe)
+ */
+export async function querySefazByAccessKey(companyId: string, accessKey: string) {
+  const cleanKey = accessKey.replace(/\D/g, "");
+  if (cleanKey.length !== 44) {
+    return { ok: false, error: "A chave de acesso deve ter exatamente 44 dígitos.", docs: [] };
+  }
+
+  const fiscal = await prisma.fiscalConfig.findUnique({ where: { companyId } });
+  if (!fiscal) return { ok: false, error: "Configuração fiscal ausente", docs: [] };
+
+  const pfxBuffer = loadCertificateBuffer(fiscal);
+  if (!pfxBuffer || !fiscal.certPassword) {
+    return { ok: false, error: "Certificado A1 ausente", docs: [] };
+  }
+
+  const { certPem, keyPem } = extractPemCredentials(pfxBuffer, fiscal.certPassword);
+  const cnpjClean = fiscal.cnpj.replace(/\D/g, "");
+
+  const soapXml = `<?xml version="1.0" encoding="utf-8"?>
+<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">
+  <soap12:Body>
+    <nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">
+      <nfeDadosMsg>
+        <distDFeInt xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.01">
+          <tpAmb>1</tpAmb>
+          <cUFAutor>27</cUFAutor>
+          <CNPJ>${cnpjClean}</CNPJ>
+          <consChNFe>
+            <chNFe>${cleanKey}</chNFe>
+          </consChNFe>
+        </distDFeInt>
+      </nfeDadosMsg>
+    </nfeDistDFeInteresse>
+  </soap12:Body>
+</soap12:Envelope>`;
+
+  const res = await soapPostMtls(
+    "https://www1.nfe.fazenda.gov.br/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx",
+    soapXml,
+    certPem,
+    keyPem
+  );
+
+  const cStat = (res.body.match(/<cStat>(.*?)<\/cStat>/) || [])[1] || "";
+  const xMotivo = (res.body.match(/<xMotivo>(.*?)<\/xMotivo>/) || [])[1] || "";
+
+  const docs: Array<{ nsu: string; schema: string; xml: string }> = [];
+  const docZipRegex = /<docZip([^>]*)>([\s\S]*?)<\/docZip>/g;
+  let match;
+  while ((match = docZipRegex.exec(res.body)) !== null) {
+    const attrs = match[1] || "";
+    const nsu = (attrs.match(/NSU="(\d+)"/) || [])[1] || "";
+    const schema = (attrs.match(/schema="([^"]+)"/) || [])[1] || "";
+    try {
+      const unzipped = zlib.gunzipSync(Buffer.from(match[2].trim(), "base64")).toString("utf-8");
+      docs.push({ nsu, schema, xml: unzipped });
+    } catch {}
+  }
+
+  return { ok: cStat === "138" || docs.length > 0, cStat, xMotivo, docs };
+}
+
+/**
  * Envia Evento de Manifestação do Destinatário (210210, 210200, 210220, 210240) assinado com Certificado A1 para SEFAZ Nacional
  */
 export async function sendSefazManifestacao(
