@@ -427,6 +427,24 @@ function sanitizeSefazText(value: string | null | undefined, maxLen: number, fal
   return cleaned || fallback;
 }
 
+function sanitizeSefazGtin(barcode?: string | null): string {
+  const code = (barcode || "").trim();
+  if (!/^\d+$/.test(code)) return "SEM GTIN";
+  if (![8, 12, 13, 14].includes(code.length)) return "SEM GTIN";
+  if (/^0+$/.test(code) || /^(\d)\1+$/.test(code)) return "SEM GTIN";
+  if (code.length === 13 && code.startsWith("2")) return "SEM GTIN";
+
+  // Validação oficial do dígito verificador GS1 (Módulo 10) exigida pela SEFAZ (cStat 611)
+  const digits = code.split("").map(Number);
+  const checkDigit = digits[digits.length - 1];
+  let sum = 0;
+  for (let i = digits.length - 2, pos = 1; i >= 0; i--, pos++) {
+    sum += digits[i] * (pos % 2 === 1 ? 3 : 1);
+  }
+  const expected = (10 - (sum % 10)) % 10;
+  return expected === checkDigit ? code : "SEM GTIN";
+}
+
 function getSvrsUrls(model: "65" | "55", tpAmb: "1" | "2") {
   const base =
     model === "65"
@@ -845,7 +863,7 @@ export async function transmitSefazNfe4(params: {
   const preparedItems = params.items.map((item, idx) => {
     const nItem = idx + 1;
     const cProd = String(nItem).padStart(4, "0");
-    const cEAN = item.barcode && /^\d{8,14}$/.test(item.barcode) ? item.barcode : "SEM GTIN";
+    const cEAN = sanitizeSefazGtin(item.barcode);
     const xProd =
       tpAmb === "2" && nItem === 1
         ? "NOTA FISCAL EMITIDA EM AMBIENTE DE HOMOLOGACAO - SEM VALOR FISCAL"
