@@ -436,7 +436,7 @@ export function DrawerLayout({
               title: "Fiscal & Notas (SEFAZ)",
               items: [
                 { href: "/fiscal", icon: <Receipt size={15} />, label: "Central Fiscal & SEFAZ", active: pathname === "/fiscal" },
-                hasModule("FISCAL_RADAR") && { href: "/invoices", icon: <FileText size={15} />, label: "Entrada de Notas & XML", active: pathname === "/invoices" },
+                (hasModule("FISCAL_RADAR") || hasModule("FISCAL") || hasModule("STOCK")) && { href: "/invoices", icon: <FileText size={15} />, label: "Radar XML & Entrada de Notas", active: pathname === "/invoices" },
                 hasModule("FISCAL") && { href: "/fiscal/decretos", icon: <Scale size={15} />, label: "Decretos AL & NCMs", active: Boolean(pathname?.startsWith("/fiscal/decretos") || pathname === "/decretos") },
               ].filter(Boolean) as Array<{ href: string; icon: React.ReactNode; label: string; active: boolean }>,
             },

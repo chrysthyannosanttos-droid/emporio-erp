@@ -42,7 +42,7 @@ import { activateTerminalOnline } from "@/actions/terminals";
 import { getPdvOperators, verifyPdvPin, verifySupervisorPin } from "@/actions/users";
 import { getCustomers } from "@/actions/customer";
 import { logout } from "@/actions/auth";
-import { testSefazConnectionAction } from "@/actions/fiscalConfig";
+import { testSefazConnectionAction, getFiscalConfig } from "@/actions/fiscalConfig";
 import { getPdvScreensaverConfig } from "@/actions/pdvScreensaver";
 import {
   loadPdvPaymentConfig,
@@ -944,6 +944,41 @@ function PDVContainer() {
   // UI state
   const [errorMessage, setErrorMessage] = useState("");
   const [duplicateWarningMsg, setDuplicateWarningMsg] = useState("");
+  const [storeFiscal, setStoreFiscal] = useState<{
+    companyName: string;
+    tradeName?: string | null;
+    cnpj: string;
+    ie?: string | null;
+    street?: string | null;
+    number?: string | null;
+    district?: string | null;
+    city?: string | null;
+    state?: string | null;
+    zipCode?: string | null;
+    phone?: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    getFiscalConfig()
+      .then((res) => {
+        if (res?.config) {
+          setStoreFiscal({
+            companyName: res.config.companyName,
+            tradeName: res.config.tradeName,
+            cnpj: res.config.cnpj,
+            ie: res.config.ie,
+            street: res.config.street,
+            number: res.config.number,
+            district: res.config.district,
+            city: res.config.city,
+            state: res.config.state,
+            zipCode: res.config.zipCode,
+            phone: (res.config as any).phone || null,
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [onlineLookup, setOnlineLookup] = useState<{ name: string; source: string; barcode: string; imageUrl?: string } | null>(null);
@@ -1440,62 +1475,158 @@ function PDVContainer() {
     saleGiven: number,
     saleChange: number,
     cashbackEarned: number = 0,
-    generatedCoupons: { campaignName: string; code: string }[] = []
+    generatedCoupons: { campaignName: string; code: string }[] = [],
+    invoiceInfo?: {
+      number?: string | null;
+      series?: string | null;
+      accessKey?: string | null;
+      status?: string | null;
+      environment?: string | null;
+      qrCodeUrl?: string | null;
+    } | null
   ) => {
     const fmtBRL = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const now = new Date();
     const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-    const payLabels: Record<string, string> = { MONEY: 'Dinheiro', PIX: 'PIX', CREDIT_CARD: 'Cartão Crédito', DEBIT_CARD: 'Cartão Débito', VOUCHER: 'Voucher', CREDIARIO: 'Crediário Funcionário (Em Aberto)' };
-    const itemRows = cartItems.map(i => {
-      const n = i.name.length > 24 ? i.name.substring(0, 24) : i.name;
+    const payLabels: Record<string, string> = { MONEY: 'Dinheiro', PIX: 'PIX', CREDIT_CARD: 'Cartão de Crédito', DEBIT_CARD: 'Cartão de Débito', VOUCHER: 'Vale Alimentação/Refeição', CREDIARIO: 'Crediário Funcionário' };
+
+    const storeTitle = storeFiscal?.tradeName || storeFiscal?.companyName || 'LOJA';
+    const storeRazao = storeFiscal?.companyName || storeTitle;
+    const cnpjRaw = (storeFiscal?.cnpj || '').replace(/\D/g, '');
+    const cnpjFmt = cnpjRaw.length === 14
+      ? cnpjRaw.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
+      : (storeFiscal?.cnpj || 'Não informado');
+    const ieFmt = storeFiscal?.ie || 'ISENTO';
+    const addressParts = [
+      storeFiscal?.street,
+      storeFiscal?.number ? `Nº ${storeFiscal.number}` : null,
+      storeFiscal?.district,
+      storeFiscal?.city && storeFiscal?.state ? `${storeFiscal.city}/${storeFiscal.state}` : (storeFiscal?.city || storeFiscal?.state),
+      storeFiscal?.zipCode ? `CEP: ${storeFiscal.zipCode}` : null,
+    ].filter(Boolean);
+    const storeAddressLine = addressParts.length > 0 ? addressParts.join(' - ') : 'Endereço não configurado';
+
+    const totalQtySum = cartItems.reduce((acc, it) => acc + Number(it.quantity || 0), 0);
+    const itemRows = cartItems.map((i, idx) => {
+      const code = String(idx + 1).padStart(3, '0');
+      const n = i.name.length > 28 ? i.name.substring(0, 28) : i.name;
       const qtyFmt = String(Math.round(Number(i.quantity || 0) * 1000) / 1000).replace('.', ',');
-      return `<tr><td>${n}</td><td style="text-align:center">${qtyFmt}</td><td style="text-align:right">${fmtBRL(i.price)}</td><td style="text-align:right">${fmtBRL(i.quantity * i.price)}</td></tr>`;
+      const un = (i.unit || 'UN').slice(0, 4);
+      return `<tr>
+        <td>${code}</td>
+        <td>${n}</td>
+        <td style="text-align:right">${qtyFmt} ${un}</td>
+        <td style="text-align:right">${fmtBRL(i.price)}</td>
+        <td style="text-align:right">${fmtBRL(i.quantity * i.price)}</td>
+      </tr>`;
     }).join('');
 
-    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Cupom</title>
+    const hasAccessKey = Boolean(invoiceInfo?.accessKey && invoiceInfo.accessKey.length === 44);
+    const formattedKey = hasAccessKey
+      ? invoiceInfo!.accessKey!.replace(/(\d{4})/g, '$1 ').trim()
+      : '';
+    const qrTarget = invoiceInfo?.qrCodeUrl || (hasAccessKey ? `http://nfce.sefaz.al.gov.br/QRCode/consultarNFCe.jsp?p=${invoiceInfo!.accessKey}|2|1|1` : '');
+    const qrImgUrl = qrTarget ? `https://api.qrserver.com/v1/create-qr-code/?size=165x165&margin=2&data=${encodeURIComponent(qrTarget)}` : '';
+
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>DANFE NFC-e</title>
 <style>
 @page{size:80mm auto;margin:0}
 *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important;color:#000!important}
-body{font-family:'Courier New',monospace;font-size:13px;font-weight:700;width:80mm;padding:4mm 2mm;color:#000!important;background:#fff!important;margin:0}
+body{font-family:'Courier New',monospace;font-size:11px;font-weight:700;width:80mm;padding:4mm 2.5mm;color:#000!important;background:#fff!important;margin:0;line-height:1.25}
 .center{text-align:center}
 .bold{font-weight:900}
-.sep{border-top:1px dashed #000;margin:6px 0}
-.store{font-size:16px;font-weight:900;letter-spacing:1px}
+.sep{border-top:1px dashed #000;margin:5px 0}
+.sep-solid{border-top:1px solid #000;margin:5px 0}
+.store{font-size:14px;font-weight:900;text-transform:uppercase}
+.small{font-size:9.5px;font-weight:700}
 table{width:100%;border-collapse:collapse}
-th,td{padding:2px 0;font-size:12px;color:#000!important}
-th{border-bottom:1px solid #000}
-.total-row td{font-size:15px;font-weight:900;padding-top:4px}
-.footer{font-size:10px;margin-top:8px}
+th,td{padding:2px 1px;font-size:10px;color:#000!important;vertical-align:top}
+th{border-bottom:1px solid #000;font-size:9.5px}
+.total-row td{font-size:13px;font-weight:900;padding-top:3px}
+.qr-wrap{margin:6px auto;text-align:center}
+.qr-wrap img{width:140px;height:140px;display:inline-block}
 </style>
 </head><body>
-<div class="center"><div class="store">CYBERTECH RP</div><div>CNPJ: 00.000.000/0001-00</div><div>Rua Principal, 100 - Centro</div></div>
+<div class="center">
+  <div class="store">${storeTitle}</div>
+  ${storeRazao !== storeTitle ? `<div class="small">${storeRazao}</div>` : ''}
+  <div class="small">CNPJ: ${cnpjFmt} &nbsp;|&nbsp; IE: ${ieFmt}</div>
+  <div class="small">${storeAddressLine}</div>
+  ${storeFiscal?.phone ? `<div class="small">Tel: ${storeFiscal.phone}</div>` : ''}
+</div>
+<div class="sep-solid"></div>
+<div class="center bold" style="font-size:10.5px;">
+  ${hasAccessKey ? 'DOCUMENTO AUXILIAR DA NOTA FISCAL DE CONSUMIDOR ELETRÔNICA' : 'COMPROVANTE DE VENDA'}
+</div>
+<div class="center small">Não permite aproveitamento de crédito de ICMS</div>
 <div class="sep"></div>
-<div class="center bold">CUPOM NÃO FISCAL</div>
-<div>Data: ${dateStr} ${timeStr}</div>
-<div>Caixa: ${String(session?.number || 1).padStart(2, '0')} | Op: ${session?.operator || 'Operador'}</div>
-<div>Venda: ${saleId.slice(0, 12).toUpperCase()}</div>
+<table>
+  <thead>
+    <tr>
+      <th style="text-align:left">CÓD</th>
+      <th style="text-align:left">DESCRIÇÃO</th>
+      <th style="text-align:right">QTD</th>
+      <th style="text-align:right">VL.UN</th>
+      <th style="text-align:right">TOTAL</th>
+    </tr>
+  </thead>
+  <tbody>${itemRows}</tbody>
+</table>
 <div class="sep"></div>
-<table><thead><tr><th style="text-align:left">DESCRIÇÃO</th><th>QTD</th><th style="text-align:right">UNIT</th><th style="text-align:right">TOTAL</th></tr></thead><tbody>${itemRows}</tbody></table>
+<table>
+  <tr><td>Qtd. total de itens</td><td style="text-align:right">${String(Math.round(totalQtySum * 1000) / 1000).replace('.', ',')}</td></tr>
+  <tr><td>Valor total R$</td><td style="text-align:right">${fmtBRL(saleSub)}</td></tr>
+  ${saleDiscount > 0 ? `<tr><td>Desconto R$</td><td style="text-align:right">-${fmtBRL(saleDiscount)}</td></tr>` : ''}
+  <tr class="total-row"><td>VALOR A PAGAR R$</td><td style="text-align:right">${fmtBRL(saleTotal)}</td></tr>
+</table>
 <div class="sep"></div>
-<table><tr><td>Subtotal</td><td style="text-align:right">${fmtBRL(saleSub)}</td></tr>
-${saleDiscount > 0 ? `<tr><td>Desconto</td><td style="text-align:right">-${fmtBRL(saleDiscount)}</td></tr>` : ''}
-<tr class="total-row"><td>TOTAL</td><td style="text-align:right">R$ ${fmtBRL(saleTotal)}</td></tr></table>
+<table>
+  <tr><td class="bold">FORMA PAGAMENTO</td><td class="bold" style="text-align:right">VALOR PAGO R$</td></tr>
+  <tr><td>${payLabels[salePay] || salePay}</td><td style="text-align:right">${fmtBRL(salePay === 'MONEY' && saleGiven > 0 ? saleGiven : saleTotal)}</td></tr>
+  ${salePay === 'MONEY' ? `<tr><td>Troco R$</td><td style="text-align:right">${fmtBRL(saleChange)}</td></tr>` : ''}
+</table>
+${(salePay === 'CREDIT_CARD' || salePay === 'DEBIT_CARD' || salePay === 'VOUCHER') ? `<div class="small" style="margin-top:3px;">POS: ${posAcquirer} (${posBrand}) | NSU: ${posAuthCode || 'N/I'}${salePay === 'CREDIT_CARD' ? ` | ${posInstallments}x` : ''}</div>` : ''}
 <div class="sep"></div>
-<div>Forma Pgto: ${payLabels[salePay] || salePay}</div>
-${(salePay === 'CREDIT_CARD' || salePay === 'DEBIT_CARD' || salePay === 'VOUCHER') ? `<div>Adm POS: ${posAcquirer} | Bandeira: ${posBrand}</div><div>Aut/NSU: ${posAuthCode || 'N/I'}${salePay === 'CREDIT_CARD' ? ` | Parc: ${posInstallments}x` : ''}</div>` : ''}
-${salePay === 'MONEY' ? `<div>Recebido: R$ ${fmtBRL(saleGiven)}</div><div class="bold">Troco: R$ ${fmtBRL(saleChange)}</div>` : ''}
-${selectedCustomer ? `<div class="sep"></div><div>Cliente: ${selectedCustomer.name}</div>${selectedCustomer.document ? `<div>CPF/CNPJ: ${selectedCustomer.document}</div>` : ''}${salePay === 'CREDIARIO' ? `<div style="margin-top:14px;border-top:1px solid #000;padding-top:3px;text-align:center;font-size:10px;">Assinatura do Funcionário</div>` : ''}` : cpfInput ? `<div class="sep"></div><div>CPF na Nota: ${cpfInput}</div>` : ''}
-${cashbackEarned > 0 ? `<div class="sep"></div><div class="center bold">FIDELIDADE CRM</div><div class="center bold" style="font-size:14px;color:#000;">CASHBACK CREDITADO: R$ ${fmtBRL(cashbackEarned)}</div>` : ''}
+${hasAccessKey ? `
+<div class="center small">
+  <div>Consulte pela Chave de Acesso em</div>
+  <div class="bold">http://nfce.sefaz.al.gov.br/consulta</div>
+  <div style="margin-top:3px;font-size:9px;letter-spacing:0.3px;">${formattedKey}</div>
+</div>
+<div class="sep"></div>
+` : ''}
+<div class="center small">
+  ${selectedCustomer
+    ? `<div><strong>CONSUMIDOR:</strong> ${selectedCustomer.name}</div>${selectedCustomer.document ? `<div>CPF/CNPJ: ${selectedCustomer.document}</div>` : ''}`
+    : cpfInput
+    ? `<div><strong>CONSUMIDOR CPF/CNPJ:</strong> ${cpfInput}</div>`
+    : `<div class="bold">CONSUMIDOR NÃO IDENTIFICADO</div>`}
+</div>
+${selectedCustomer && salePay === 'CREDIARIO' ? `<div style="margin-top:16px;border-top:1px solid #000;padding-top:3px;text-align:center;font-size:9.5px;">Assinatura do Funcionário</div>` : ''}
+<div class="sep"></div>
+<div class="center small">
+  <div>${hasAccessKey ? `NFC-e nº ${String(invoiceInfo?.number || '0').padStart(6, '0')} &nbsp; Série ${String(invoiceInfo?.series || '1').padStart(3, '0')}` : `Pedido/Venda: ${saleId.slice(0, 10).toUpperCase()}`} &nbsp; ${dateStr} ${timeStr}</div>
+  <div>Caixa: ${String(session?.number || 1).padStart(2, '0')} &nbsp;|&nbsp; Operador: ${session?.operator || 'Operador'}</div>
+  ${hasAccessKey ? `<div class="bold" style="margin-top:2px;">${invoiceInfo?.status === 'AUTHORIZED' ? 'Protocolo de Autorização SEFAZ Homologado' : 'Emitida em Contingência — Aguardando Transmissão SEFAZ'}</div>` : ''}
+</div>
+${qrImgUrl ? `
+<div class="qr-wrap">
+  <img id="nfce-qr" src="${qrImgUrl}" alt="QR Code NFC-e" />
+</div>
+` : ''}
+${cashbackEarned > 0 ? `<div class="sep"></div><div class="center bold">FIDELIDADE • CASHBACK CREDITADO: R$ ${fmtBRL(cashbackEarned)}</div>` : ''}
 ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
   <div class="sep"></div>
-  <div class="center bold" style="font-size:13px;letter-spacing:1px;">CUPOM DA SORTE</div>
-  <div class="center">${c.campaignName}</div>
-  <div class="center" style="font-size:16px;font-weight:900;margin:6px 0;border:1px solid #000;padding:4px;">${c.code}</div>
+  <div class="center bold">CUPOM DA SORTE • ${c.campaignName}</div>
+  <div class="center" style="font-size:14px;font-weight:900;margin:4px 0;border:1px solid #000;padding:3px;">${c.code}</div>
 `).join('') : ''}
 <div class="sep"></div>
-<div class="center footer"><div>Obrigado pela preferência!</div><div>Volte sempre!</div><div style="margin-top:6px">Cybertech RP PDV v2.0</div></div>
-<div style="height:10mm"></div>
+<div class="center small">
+  <div>Tributos Totais Incidentes (Lei Federal 12.741/2012): aprox. R$ ${fmtBRL(saleTotal * 0.15)}</div>
+  <div style="margin-top:4px;">Obrigado pela preferência! Volte sempre!</div>
+</div>
+<div style="height:8mm"></div>
 </body></html>`;
 
     const iframe = receiptFrameRef.current;
@@ -1505,17 +1636,28 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
         doc.open();
         doc.write(html);
         doc.close();
-        setTimeout(() => {
+        let printed = false;
+        const triggerPrint = () => {
+          if (printed) return;
+          printed = true;
           try {
             iframe.contentWindow?.focus();
             iframe.contentWindow?.print();
           } catch (e) {
             console.error("Erro na impressão do cupom:", e);
           }
-        }, 200);
+        };
+        const qrImg = doc.getElementById("nfce-qr") as HTMLImageElement | null;
+        if (qrImg && !qrImg.complete) {
+          qrImg.onload = triggerPrint;
+          qrImg.onerror = triggerPrint;
+          setTimeout(triggerPrint, 900);
+        } else {
+          setTimeout(triggerPrint, 250);
+        }
       }
     }
-  }, [session, cpfInput]);
+  }, [session, selectedCustomer, cpfInput, posAcquirer, posBrand, posAuthCode, posInstallments, storeFiscal]);
 
   // Totals
   useEffect(() => {
@@ -2233,8 +2375,8 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
           saleId: res.saleId,
           number: shortSaleNumber(res.saleId),
           createdAt: new Date().toISOString(),
-          companyName: "Cybertech RP",
-          companyDocument: "",
+          companyName: storeFiscal?.tradeName || storeFiscal?.companyName || "Loja",
+          companyDocument: storeFiscal?.cnpj || "",
           operatorName: session?.operator || "Operador",
           customerName: selectedCustomer?.name || undefined,
           paymentMethod,
@@ -2271,7 +2413,8 @@ ${generatedCoupons.length > 0 ? generatedCoupons.map(c => `
             saleGiven,
             saleChange,
             cashback,
-            res.generatedCoupons || []
+            res.generatedCoupons || [],
+            res.invoiceInfo || null
           );
         }
 

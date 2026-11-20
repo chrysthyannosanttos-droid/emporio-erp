@@ -469,6 +469,15 @@ export async function createSale(data: {
     }
 
     // 6. Simulate Fiscal Invoice Emission (apenas quando não é reenvio idempotente)
+    let invoiceInfo: {
+      number?: string | null;
+      series?: string | null;
+      accessKey?: string | null;
+      status?: string | null;
+      environment?: string | null;
+      qrCodeUrl?: string | null;
+    } | null = null;
+
     if (!txOutcome.deduplicated) {
       try {
         await simulateInvoiceEmission(txOutcome.sale.id);
@@ -476,6 +485,31 @@ export async function createSale(data: {
         console.error("Falha ao simular nota fiscal:", fiscErr);
       }
     }
+
+    try {
+      const latestSale = await prisma.sale.findUnique({
+        where: { id: txOutcome.sale.id },
+        select: { invoiceId: true },
+      });
+      if (latestSale?.invoiceId) {
+        const inv = await prisma.invoice.findUnique({
+          where: { id: latestSale.invoiceId },
+        });
+        if (inv) {
+          const qrUrl = inv.accessKey
+            ? `http://nfce.sefaz.al.gov.br/QRCode/consultarNFCe.jsp?p=${inv.accessKey}|2|${inv.environment === "producao" ? "1" : "2"}|1`
+            : null;
+          invoiceInfo = {
+            number: inv.number,
+            series: inv.series,
+            accessKey: inv.accessKey,
+            status: inv.status,
+            environment: inv.environment,
+            qrCodeUrl: qrUrl,
+          };
+        }
+      }
+    } catch {}
 
     revalidatePath("/stock");
     revalidatePath("/telesales");
@@ -491,6 +525,7 @@ export async function createSale(data: {
       cashbackEarned,
       promoDiscountApplied,
       generatedCoupons,
+      invoiceInfo,
     };
   } catch (err: any) {
     return { error: err.message || "Erro ao realizar venda" };
