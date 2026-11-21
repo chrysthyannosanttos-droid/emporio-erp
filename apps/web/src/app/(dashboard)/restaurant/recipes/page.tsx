@@ -1032,9 +1032,10 @@ export default function RestaurantRecipesPage() {
                 <div className="bg-[#e8f0fc] p-3 rounded-2xl border border-indigo-200 grid grid-cols-1 sm:grid-cols-12 gap-2 items-center">
                   <select
                     value={selectedRoleToAdd}
-                    onChange={(e) =>
-                      setSelectedRoleToAdd(e.target.value as "INGREDIENT" | "PACKAGING")
-                    }
+                    onChange={(e) => {
+                      setSelectedRoleToAdd(e.target.value as "INGREDIENT" | "PACKAGING");
+                      setSelectedMatIdToAdd("");
+                    }}
                     className="sm:col-span-3 bg-white border border-indigo-200 text-gray-900 px-2.5 py-2 rounded-xl text-xs font-bold outline-none"
                   >
                     <option value="INGREDIENT">Insumo</option>
@@ -1042,11 +1043,19 @@ export default function RestaurantRecipesPage() {
                   </select>
 
                   <SearchableProductSelect
-                    products={allProducts.filter((p) => p.id !== editingProductId)}
+                    products={allProducts.filter((p) => {
+                      if (p.id === editingProductId) return false;
+                      if (selectedRoleToAdd === "PACKAGING") return p.isPackaging;
+                      return p.isRawMaterial && !p.isPackaging;
+                    })}
                     value={selectedMatIdToAdd}
                     onChange={setSelectedMatIdToAdd}
                     mode="cost"
-                    placeholder="Buscar insumo/embalagem por código ou nome..."
+                    placeholder={
+                      selectedRoleToAdd === "PACKAGING"
+                        ? "Buscar embalagem por código ou nome..."
+                        : "Buscar insumo por código ou nome..."
+                    }
                     className="sm:col-span-5"
                     inputClassName="bg-white border border-indigo-200 focus:border-indigo-500 text-gray-900 px-2.5 py-2 rounded-xl text-xs font-semibold"
                   />

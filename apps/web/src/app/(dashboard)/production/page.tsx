@@ -788,11 +788,19 @@ export default function ProductionPage() {
                       </select>
 
                       <SearchableProductSelect
-                        products={products.filter((p) => p.id !== selectedProductId)}
+                        products={products.filter((p: any) => {
+                          if (p.id === selectedProductId) return false;
+                          if (item.itemRole === "PACKAGING") return Boolean(p.isPackaging);
+                          return Boolean(p.isRawMaterial) && !Boolean(p.isPackaging);
+                        })}
                         value={item.productId}
                         onChange={(val) => handleRecipeItemChange(index, "productId", val)}
                         mode="cost"
-                        placeholder="Digite código ou descrição do item..."
+                        placeholder={
+                          item.itemRole === "PACKAGING"
+                            ? "Buscar embalagem por código ou descrição..."
+                            : "Buscar insumo por código ou descrição..."
+                        }
                         className="flex-1 min-w-[180px]"
                         inputClassName="bg-white border border-gray-200 focus:border-indigo-500 text-gray-900 rounded-lg px-2.5 py-2 text-xs font-semibold"
                       />
