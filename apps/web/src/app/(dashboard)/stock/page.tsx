@@ -31,6 +31,69 @@ export default function StockPage() {
   const [applyingStd, setApplyingStd] = useState(false);
   const [enrichingEan, setEnrichingEan] = useState(false);
   const [enrichProgress, setEnrichProgress] = useState("");
+  const [lastStdReport, setLastStdReport] = useState<{ date: string; rows: { barcode?: string | null; oldName: string; newName: string; source?: string }[] } | null>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("EMPORIO_LAST_STD_REPORT");
+      if (saved) setLastStdReport(JSON.parse(saved));
+    } catch {}
+  }, []);
+
+  const exportStdReportCsv = (rows: { barcode?: string | null; oldName: string; newName: string; source?: string }[]) => {
+    const header = "EAN;Como Estava (Antes);Como Ficou (Depois);Base / Origem\n";
+    const body = rows
+      .map((r) =>
+        [
+          r.barcode || "",
+          `"${(r.oldName || "").replace(/"/g, '""')}"`,
+          `"${(r.newName || "").replace(/"/g, '""')}"`,
+          `"${(r.source || "Padrão Local").replace(/"/g, '""')}"`,
+        ].join(";")
+      )
+      .join("\n");
+    const blob = new Blob(["\uFEFF" + header + body], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `relatorio-antes-depois-descricoes-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const printStdReport = (rows: { barcode?: string | null; oldName: string; newName: string; source?: string }[], title = "Relatório Antes × Depois — Padronização de Descrições") => {
+    const w = window.open("", "_blank", "width=1000,height=750");
+    if (!w) return;
+    const esc = (s: string) =>
+      String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    w.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>${esc(title)}</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 24px; color: #0f172a; }
+        h1 { font-size: 18px; margin: 0 0 4px; }
+        p { font-size: 12px; color: #475569; margin: 0 0 16px; }
+        table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        th, td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; }
+        th { background: #f1f5f9; text-transform: uppercase; font-size: 10px; }
+        .old { color: #64748b; text-decoration: line-through; }
+        .new { font-weight: bold; color: #1e1b4b; font-family: monospace; }
+        @media print { button { display: none; } }
+      </style></head><body>
+      <h1>${esc(title)}</h1>
+      <p>Gerado em ${new Date().toLocaleString("pt-BR")} • Total: ${rows.length} item(ns)</p>
+      <table><thead><tr><th>#</th><th>EAN</th><th>Como Estava (Antes)</th><th>Como Ficou (Depois)</th><th>Base</th></tr></thead><tbody>
+      ${rows
+        .map(
+          (r, i) =>
+            `<tr><td>${i + 1}</td><td>${esc(r.barcode || "—")}</td><td class="old">${esc(r.oldName)}</td><td class="new">${esc(r.newName)}</td><td>${esc(r.source || "Padrão Local")}</td></tr>`
+        )
+        .join("")}
+      </tbody></table>
+      <script>window.onload = () => window.print();</script>
+      </body></html>`);
+    w.document.close();
+  };
 
   const handleOpenStdModal = () => {
     const items = products
@@ -104,6 +167,19 @@ export default function StockPage() {
     );
     setApplyingStd(false);
     if (res.ok) {
+      const reportPayload = {
+        date: new Date().toLocaleString("pt-BR"),
+        rows: selected.map((s) => ({
+          barcode: s.barcode,
+          oldName: s.oldName,
+          newName: s.newName.trim(),
+          source: s.source,
+        })),
+      };
+      setLastStdReport(reportPayload);
+      try {
+        localStorage.setItem("EMPORIO_LAST_STD_REPORT", JSON.stringify(reportPayload));
+      } catch {}
       setIsStdModalOpen(false);
       const updatedRes = await getProducts();
       if (updatedRes.products) setProducts(updatedRes.products);
@@ -2068,7 +2144,34 @@ export default function StockPage() {
                   Desmarcar todos
                 </button>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                {stdPreviewList.filter((x) => x.checked).length > 0 && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => exportStdReportCsv(stdPreviewList.filter((x) => x.checked))}
+                      className="px-3 py-2 rounded-xl text-xs font-bold bg-white border border-gray-300 text-gray-700 hover:bg-gray-100 cursor-pointer"
+                    >
+                      Exportar CSV (Antes × Depois)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => printStdReport(stdPreviewList.filter((x) => x.checked))}
+                      className="px-3 py-2 rounded-xl text-xs font-bold bg-white border border-indigo-300 text-indigo-700 hover:bg-indigo-50 cursor-pointer"
+                    >
+                      Imprimir / PDF Relatório
+                    </button>
+                  </>
+                )}
+                {lastStdReport && lastStdReport.rows.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => printStdReport(lastStdReport.rows, `Último Ajuste Aplicado (${lastStdReport.date})`)}
+                    className="px-3 py-2 rounded-xl text-xs font-bold bg-emerald-50 border border-emerald-300 text-emerald-700 hover:bg-emerald-100 cursor-pointer"
+                  >
+                    Reimprimir Último Aplicado ({lastStdReport.rows.length})
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setIsStdModalOpen(false)}
