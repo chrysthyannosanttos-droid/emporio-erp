@@ -9,6 +9,7 @@ export interface SearchableProductOption {
   unit?: string | null;
   barcode?: string | null;
   sku?: string | null;
+  internalCode?: string | null;
   price?: number | null;
   cost?: number | null;
   stock?: number | null;
@@ -62,7 +63,8 @@ export function SearchableProductSelect({
         const name = (p.name || "").toLowerCase();
         const barcode = (p.barcode || "").toLowerCase();
         const sku = (p.sku || "").toLowerCase();
-        return name.includes(q) || barcode.includes(q) || sku.includes(q);
+        const internal = (p.internalCode || "").toLowerCase();
+        return name.includes(q) || barcode.includes(q) || sku.includes(q) || internal.includes(q);
       })
       .slice(0, 60);
   }, [products, query]);
@@ -128,7 +130,8 @@ export function SearchableProductSelect({
                 const exact = products.find(
                   (p) =>
                     (p.barcode && p.barcode.toLowerCase() === q) ||
-                    (p.sku && p.sku.toLowerCase() === q)
+                    (p.sku && p.sku.toLowerCase() === q) ||
+                    (p.internalCode && p.internalCode.toLowerCase() === q)
                 );
                 if (exact) {
                   handleSelect(exact);

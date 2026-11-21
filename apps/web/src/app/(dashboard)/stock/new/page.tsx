@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Save, Loader2, AlertCircle, Check, Search, Calculator, Scale, RefreshCw, Hash, Plus, Trash2, ChefHat, Package, Utensils } from "lucide-react";
+import { ArrowLeft, Save, Loader2, AlertCircle, Check, Search, Calculator, Scale, RefreshCw, Hash, Plus, Trash2, ChefHat, Package, Utensils, X } from "lucide-react";
 import Link from "next/link";
 import { createProduct, updateProduct, getProductById, getProductInfoByAiBarcode, getIngredientAndPackagingCatalog, getProducts } from "@/actions/product";
+import { saveRawMaterialProduct } from "@/actions/production";
 import { getMercadologico } from "@/actions/mercadologico";
 import { getOperationalCostConfig } from "@/actions/company";
 import { calculateProductPricing, formatBRL, formatPct } from "@/lib/product-pricing";
@@ -210,6 +211,47 @@ export default function NewProductPage() {
   const [recipeInstructions, setRecipeInstructions] = useState("");
   const [recipeItems, setRecipeItems] = useState<CompositionRow[]>([]);
 
+  // Modal rápido: Cadastrar Insumo/Embalagem direto da ficha técnica
+  const [isQuickInsumoOpen, setIsQuickInsumoOpen] = useState(false);
+  const [quickInsumoName, setQuickInsumoName] = useState("");
+  const [quickInsumoUnit, setQuickInsumoUnit] = useState("KG");
+  const [quickInsumoCost, setQuickInsumoCost] = useState("");
+  const [quickInsumoStock, setQuickInsumoStock] = useState("0");
+  const [quickInsumoPackaging, setQuickInsumoPackaging] = useState(false);
+  const [savingQuickInsumo, setSavingQuickInsumo] = useState(false);
+
+  async function handleSaveQuickInsumo() {
+    if (!quickInsumoName.trim()) return;
+    setSavingQuickInsumo(true);
+    const res = await saveRawMaterialProduct({
+      name: quickInsumoName.trim(),
+      unit: quickInsumoUnit,
+      cost: Number(quickInsumoCost || 0),
+      stock: Number(quickInsumoStock || 0),
+      isPackaging: quickInsumoPackaging,
+    });
+    setSavingQuickInsumo(false);
+    if ((res as any).error) {
+      alert((res as any).error);
+      return;
+    }
+    const createdId = (res as any).product?.id;
+    const catRes = await getIngredientAndPackagingCatalog();
+    if (catRes.success && catRes.products) {
+      setCatalogItems(catRes.products);
+      setCatalogLoaded(true);
+    }
+    if (createdId) {
+      setSelectedCompId(createdId);
+      setSelectedCompUnit(quickInsumoUnit);
+      setSelectedCompRole(quickInsumoPackaging ? "PACKAGING" : "INGREDIENT");
+    }
+    setQuickInsumoName("");
+    setQuickInsumoCost("");
+    setQuickInsumoStock("0");
+    setIsQuickInsumoOpen(false);
+  }
+
   useEffect(() => {
     if (!isSelfProduced || catalogLoaded) return;
     getIngredientAndPackagingCatalog().then((res) => {
@@ -248,12 +290,13 @@ export default function NewProductPage() {
     }
   }, [isSelfProduced, recipeItems, compositionUnitCost]);
 
-  // Carrega produto existente quando aberto via Editar (?id=...)
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const idParam = new URLSearchParams(window.location.search).get("id");
+  // Catálogo rápido para buscar e abrir qualquer produto cadastrado direto por aqui
+  const [quickCatalog, setQuickCatalog] = useState<any[]>([]);
+
+  const loadProductForEdit = (idParam: string) => {
     if (!idParam) return;
     setEditId(idParam);
+    setError("");
     setLoading(true);
     getProductById(idParam).then((res) => {
       const p: any = res?.product;
@@ -344,6 +387,15 @@ export default function NewProductPage() {
       }
       setLoading(false);
     });
+  };
+
+  useEffect(() => {
+    getProducts().then((res) => {
+      if (res?.products) setQuickCatalog(res.products);
+    });
+    if (typeof window === "undefined") return;
+    const idParam = new URLSearchParams(window.location.search).get("id");
+    if (idParam) loadProductForEdit(idParam);
   }, []);
 
   function handleSelectCatalogProduct(prodId: string) {
@@ -656,7 +708,7 @@ export default function NewProductPage() {
 
   return (
     <div className="max-w-full mx-auto w-full flex flex-col gap-5 select-none pb-16">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Link href="/stock" className="p-2.5 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 text-gray-700 shadow-sm transition-colors">
             <ArrowLeft size={18} />
@@ -671,6 +723,28 @@ export default function NewProductPage() {
                 : "Cadastre um novo item no estoque com inteligência artificial e tributação automatizada."}
             </p>
           </div>
+        </div>
+
+        <div className="w-full lg:w-[420px]">
+          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+            Buscar / Abrir Produto Cadastrado (Nome, EAN, PLU ou SKU)
+          </label>
+          <SearchableProductSelect
+            products={quickCatalog}
+            value={editId || ""}
+            onChange={(selectedId) => {
+              if (!selectedId) {
+                setEditId(null);
+                router.replace("/stock/new");
+                return;
+              }
+              router.replace(`/stock/new?id=${selectedId}`);
+              loadProductForEdit(selectedId);
+            }}
+            mode="sale"
+            placeholder="Digite nome, EAN, PLU ou código para carregar..."
+            inputClassName="bg-white border border-gray-300 focus:border-blue-600 text-gray-900 rounded-xl px-3 py-2 text-xs font-semibold shadow-2xs"
+          />
         </div>
       </div>
 
@@ -1092,7 +1166,7 @@ export default function NewProductPage() {
 
                     {/* Filtro + Seletor de Insumo / Embalagem */}
                     <div className="bg-white border border-emerald-200 rounded-xl p-3 space-y-3">
-                      <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="inline-flex rounded-lg border border-gray-200 bg-gray-50 p-0.5">
                           {[
                             { key: "ALL" as const, label: "Todos" },
@@ -1113,6 +1187,16 @@ export default function NewProductPage() {
                             </button>
                           ))}
                         </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setQuickInsumoPackaging(catalogFilter === "PACKAGING");
+                            setIsQuickInsumoOpen(true);
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+                        >
+                          <Plus size={13} /> Cadastrar Novo Insumo / Embalagem
+                        </button>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
@@ -1848,6 +1932,138 @@ export default function NewProductPage() {
           </form>
         </div>
       </div>
+
+      {isQuickInsumoOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl border border-emerald-200 overflow-hidden">
+            <div className="p-5 border-b border-gray-100 bg-emerald-50/70 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
+                  <ChefHat size={18} className="text-emerald-600" />
+                  Cadastrar Novo Insumo / Embalagem
+                </h3>
+                <p className="text-[11px] text-gray-600 mt-0.5">
+                  Salva no estoque e já seleciona para incluir na composição.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsQuickInsumoOpen(false)}
+                className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-3.5">
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">
+                  Nome do Insumo / Embalagem *
+                </label>
+                <input
+                  type="text"
+                  value={quickInsumoName}
+                  onChange={(e) => setQuickInsumoName(e.target.value)}
+                  placeholder="Ex: QUEIJO COALHO KG ou POTE 250ML"
+                  className={inputClass}
+                />
+                {(() => {
+                  const sug = standardizeProductName(quickInsumoName);
+                  if (!quickInsumoName.trim() || quickInsumoName.trim().length < 3 || sug === quickInsumoName.trim()) return null;
+                  return (
+                    <div className="mt-1.5 flex items-center justify-between gap-2 bg-indigo-50 border border-indigo-200 rounded-lg px-2.5 py-1 text-[11px]">
+                      <span className="font-mono font-bold text-indigo-900 truncate">✨ {sug}</span>
+                      <button
+                        type="button"
+                        onClick={() => setQuickInsumoName(sug)}
+                        className="shrink-0 bg-indigo-600 text-white font-bold px-2 py-0.5 rounded text-[10px] cursor-pointer"
+                      >
+                        Aplicar
+                      </button>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Tipo</label>
+                  <select
+                    value={quickInsumoPackaging ? "PACKAGING" : "INGREDIENT"}
+                    onChange={(e) => setQuickInsumoPackaging(e.target.value === "PACKAGING")}
+                    className={inputClass}
+                  >
+                    <option value="INGREDIENT">Insumo / Ingrediente</option>
+                    <option value="PACKAGING">Embalagem</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Unidade</label>
+                  <select
+                    value={quickInsumoUnit}
+                    onChange={(e) => setQuickInsumoUnit(e.target.value)}
+                    className={inputClass}
+                  >
+                    <option value="KG">KG</option>
+                    <option value="G">G</option>
+                    <option value="L">L</option>
+                    <option value="ML">ML</option>
+                    <option value="UN">UN</option>
+                    <option value="CX">CX</option>
+                    <option value="PCT">PCT</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Custo Unit. (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={quickInsumoCost}
+                    onChange={(e) => setQuickInsumoCost(e.target.value)}
+                    placeholder="0.00"
+                    className={inputMonoClass}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 uppercase mb-1">Estoque Inicial</label>
+                  <input
+                    type="number"
+                    step="0.001"
+                    min="0"
+                    value={quickInsumoStock}
+                    onChange={(e) => setQuickInsumoStock(e.target.value)}
+                    placeholder="0"
+                    className={inputMonoClass}
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsQuickInsumoOpen(false)}
+                  className="flex-1 px-4 py-2.5 rounded-xl text-xs font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  disabled={savingQuickInsumo || !quickInsumoName.trim()}
+                  onClick={handleSaveQuickInsumo}
+                  className="flex-1 px-4 py-2.5 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  {savingQuickInsumo ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                  Salvar e Selecionar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
