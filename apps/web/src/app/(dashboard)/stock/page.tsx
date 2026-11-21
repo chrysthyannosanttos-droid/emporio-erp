@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Package, Search, Plus, FileCode, X, Check, AlertCircle, Zap, Loader2, Sparkles, ScanBarcode, ArrowRight, Scale, Edit2, Radio, ClipboardCheck, ChefHat, Trash2, Utensils, Layers } from "lucide-react";
 import Link from "next/link";
-import { getProducts, lookupBarcodeOnline, quickCreateProductByBarcode, updateProduct, getIngredientAndPackagingCatalog, createFractionalVariantAction, batchStandardizeProductNamesAction } from "@/actions/product";
+import { getProducts, lookupBarcodeOnline, quickCreateProductByBarcode, updateProduct, getIngredientAndPackagingCatalog, createFractionalVariantAction, batchStandardizeProductNamesAction, enrichProductDescriptionsByEanAction } from "@/actions/product";
 import { standardizeProductName } from "@/lib/product-name-standardizer";
 
 export default function StockPage() {
@@ -27,20 +27,72 @@ export default function StockPage() {
 
   // Padronização em lote de descrições
   const [isStdModalOpen, setIsStdModalOpen] = useState(false);
-  const [stdPreviewList, setStdPreviewList] = useState<{ id: string; oldName: string; newName: string; checked: boolean }[]>([]);
+  const [stdPreviewList, setStdPreviewList] = useState<{ id: string; barcode?: string | null; brand?: string | null; oldName: string; newName: string; source?: string; manufacturerName?: string | null; checked: boolean }[]>([]);
   const [applyingStd, setApplyingStd] = useState(false);
+  const [enrichingEan, setEnrichingEan] = useState(false);
+  const [enrichProgress, setEnrichProgress] = useState("");
 
   const handleOpenStdModal = () => {
     const items = products
       .map((p) => ({
         id: p.id,
+        barcode: p.barcode,
+        brand: p.brand,
         oldName: p.name,
-        newName: standardizeProductName(p.name),
+        newName: standardizeProductName(p.name, p.brand),
+        source: "Padrão Local",
+        manufacturerName: null as string | null,
         checked: true,
       }))
       .filter((x) => x.newName && x.newName !== x.oldName);
     setStdPreviewList(items);
+    setEnrichProgress("");
     setIsStdModalOpen(true);
+  };
+
+  const handleEnrichFromManufacturerBases = async () => {
+    const withEan = products.filter((p) => (p.barcode || "").replace(/\D/g, "").length >= 8);
+    if (withEan.length === 0) {
+      alert("Nenhum produto possui código de barras (EAN) cadastrado para consulta.");
+      return;
+    }
+    setEnrichingEan(true);
+    const enrichedById = new Map<string, { newName: string; source: string; manufacturerName: string | null }>();
+    for (let i = 0; i < withEan.length; i += 15) {
+      const chunk = withEan.slice(i, i + 15);
+      setEnrichProgress(`Consultando bases nacional e mundial: ${Math.min(i + 15, withEan.length)} / ${withEan.length}...`);
+      const res = await enrichProductDescriptionsByEanAction(
+        chunk.map((p) => ({ id: p.id, name: p.name, barcode: p.barcode, brand: p.brand }))
+      );
+      for (const r of res.results || []) {
+        enrichedById.set(r.id, {
+          newName: r.newName,
+          source: r.source,
+          manufacturerName: r.manufacturerName,
+        });
+      }
+    }
+
+    const merged = products
+      .map((p) => {
+        const hit = enrichedById.get(p.id);
+        const newName = hit ? hit.newName : standardizeProductName(p.name, p.brand);
+        return {
+          id: p.id,
+          barcode: p.barcode,
+          brand: p.brand,
+          oldName: p.name,
+          newName,
+          source: hit ? hit.source : "Padrão Local",
+          manufacturerName: hit ? hit.manufacturerName : null,
+          checked: true,
+        };
+      })
+      .filter((x) => x.newName && x.newName !== x.oldName);
+
+    setStdPreviewList(merged);
+    setEnrichProgress(`Concluído! ${withEan.length} EAN(s) consultados nas bases nacional e mundial.`);
+    setEnrichingEan(false);
   };
 
   const handleApplyStdBatch = async () => {
@@ -1911,23 +1963,37 @@ export default function StockPage() {
       {isStdModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl border border-indigo-200 overflow-hidden flex flex-col max-h-[88vh]">
-            <div className="p-5 border-b border-gray-100 bg-indigo-50/70 flex items-center justify-between">
+            <div className="p-5 border-b border-gray-100 bg-indigo-50/70 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
                   <Sparkles size={18} className="text-indigo-600" />
                   Padronizar Descrições em Lote ({stdPreviewList.length} sugestões)
                 </h3>
                 <p className="text-xs text-gray-600 mt-0.5">
-                  Revise o Antes × Depois seguindo o padrão de abreviações (MAIÚSCULAS, sem acentos, sem repetições).
+                  Revise o Antes × Depois seguindo o padrão do fabricante (MAIÚSCULAS, sem acentos, abreviação oficial).
                 </p>
+                {enrichProgress && (
+                  <p className="text-[11px] font-bold text-indigo-700 mt-1">{enrichProgress}</p>
+                )}
               </div>
-              <button
-                type="button"
-                onClick={() => setIsStdModalOpen(false)}
-                className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg cursor-pointer"
-              >
-                <X size={18} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={enrichingEan}
+                  onClick={handleEnrichFromManufacturerBases}
+                  className="px-3 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white flex items-center gap-1.5 shadow-sm cursor-pointer"
+                >
+                  {enrichingEan ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+                  Buscar Bases Nacional & Mundial (EAN)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsStdModalOpen(false)}
+                  className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 divide-y divide-gray-100">
@@ -1950,7 +2016,19 @@ export default function StockPage() {
                       className="w-4 h-4 accent-indigo-600 shrink-0"
                     />
                     <div className="flex-1 min-w-0">
-                      <div className="text-gray-400 line-through truncate">{row.oldName}</div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-gray-400 line-through truncate">{row.oldName}</span>
+                        {row.source && (
+                          <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-bold">
+                            {row.source}
+                          </span>
+                        )}
+                        {row.manufacturerName && (
+                          <span className="text-[10px] text-emerald-700 truncate">
+                            Fabricante: {row.manufacturerName}
+                          </span>
+                        )}
+                      </div>
                       <input
                         type="text"
                         value={row.newName}

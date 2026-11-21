@@ -3,6 +3,7 @@
 import { prisma } from "@emporio/database";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/session";
+import { standardizeProductName } from "@/lib/product-name-standardizer";
 import { resolveActiveCompany } from "@/lib/tenant";
 import { computeEffectiveStock } from "@/lib/stockDeduction";
 
@@ -1291,6 +1292,10 @@ export async function getProductInfoByAiBarcode(barcode: string) {
         console.error("Erro ao calcular impostos: ", err);
       }
     }
+    if (!resultTemplate.alreadyExists && resultTemplate.name) {
+      resultTemplate.rawName = resultTemplate.name;
+      resultTemplate.name = standardizeProductName(resultTemplate.name, resultTemplate.brand);
+    }
     return resultTemplate;
   }
 
@@ -2118,6 +2123,155 @@ export async function batchStandardizeProductNamesAction(
     return { ok: true, updatedCount: validUpdates.length };
   } catch (err: any) {
     return { ok: false, error: err?.message || "Erro ao padronizar descrições." };
+  }
+}
+
+async function lookupManufacturerNameByEan(ean: string): Promise<{
+  manufacturerName: string;
+  brand: string;
+  source: string;
+} | null> {
+  const popular = POPULAR_BR_PRODUCTS[ean];
+  if (popular?.name) {
+    return { manufacturerName: popular.name, brand: popular.brand || "", source: "Catálogo Brasil" };
+  }
+
+  const cosmosToken = process.env.COSMOS_TOKEN;
+  if (cosmosToken) {
+    try {
+      const res = await fetch(`https://api.cosmos.bluesoft.com.br/gtins/${ean}`, {
+        headers: { "X-Cosmos-Token": cosmosToken },
+        signal: AbortSignal.timeout(3500),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.description) {
+          return {
+            manufacturerName: String(data.description).trim(),
+            brand: String(data.brand?.name || "").trim(),
+            source: "Bluesoft Cosmos",
+          };
+        }
+      }
+    } catch {}
+  }
+
+  const si5Token = process.env.SI5_TOKEN;
+  if (si5Token) {
+    try {
+      const res = await fetch(`https://global.si5.com.br/api/produtos/${ean}`, {
+        headers: { Authorization: `Bearer ${si5Token}`, Accept: "application/json" },
+        signal: AbortSignal.timeout(3500),
+      });
+      if (res.ok) {
+        const rawData = await res.json();
+        const item = rawData?.produto || rawData?.data || rawData;
+        const nm = String(item?.descricao || item?.nome || item?.description || "").trim();
+        if (nm) {
+          return {
+            manufacturerName: nm,
+            brand: String(item?.marca || item?.brand || "").trim(),
+            source: "SI5 Base Nacional",
+          };
+        }
+      }
+    } catch {}
+  }
+
+  try {
+    const res = await fetch(
+      `https://world.openfoodfacts.org/api/v2/product/${ean}?fields=product_name,product_name_pt,brands,quantity`,
+      { signal: AbortSignal.timeout(3500) }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.status === 1 && data.product) {
+        const p = data.product;
+        const rawName = String(p.product_name_pt || p.product_name || "").trim();
+        const brand = String(p.brands || "").split(",")[0].trim();
+        const qty = String(p.quantity || "").trim();
+        const fullName = [rawName, qty].filter(Boolean).join(" ").trim();
+        if (fullName) {
+          return { manufacturerName: fullName, brand, source: "Open Food Facts" };
+        }
+      }
+    }
+  } catch {}
+
+  try {
+    const res = await fetch(
+      `https://world.openbeautyfacts.org/api/v2/product/${ean}?fields=product_name,product_name_pt,brands,quantity`,
+      { signal: AbortSignal.timeout(3500) }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.status === 1 && data.product) {
+        const p = data.product;
+        const rawName = String(p.product_name_pt || p.product_name || "").trim();
+        const brand = String(p.brands || "").split(",")[0].trim();
+        const qty = String(p.quantity || "").trim();
+        const fullName = [rawName, qty].filter(Boolean).join(" ").trim();
+        if (fullName) {
+          return { manufacturerName: fullName, brand, source: "Open Beauty Facts" };
+        }
+      }
+    }
+  } catch {}
+
+  try {
+    const res = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${ean}`, {
+      signal: AbortSignal.timeout(3500),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      const first = data?.items?.[0];
+      if (first?.title) {
+        return {
+          manufacturerName: String(first.title).trim(),
+          brand: String(first.brand || "").trim(),
+          source: "UPCitemdb Mundial",
+        };
+      }
+    }
+  } catch {}
+
+  return null;
+}
+
+export async function enrichProductDescriptionsByEanAction(
+  items: { id: string; name: string; barcode?: string | null; brand?: string | null }[]
+) {
+  try {
+    const session = await getSession();
+    if (!session?.companyId) {
+      return { ok: false, error: "Não autorizado.", results: [] };
+    }
+    const batch = (items || []).slice(0, 20);
+    const results = await Promise.all(
+      batch.map(async (item) => {
+        const ean = (item.barcode || "").replace(/\D/g, "");
+        if (ean.length >= 8) {
+          const found = await lookupManufacturerNameByEan(ean);
+          if (found) {
+            return {
+              id: item.id,
+              newName: standardizeProductName(found.manufacturerName, found.brand || item.brand),
+              source: found.source,
+              manufacturerName: found.manufacturerName,
+            };
+          }
+        }
+        return {
+          id: item.id,
+          newName: standardizeProductName(item.name, item.brand),
+          source: "Padrão Local",
+          manufacturerName: null as string | null,
+        };
+      })
+    );
+    return { ok: true, results };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || "Erro ao consultar bases.", results: [] };
   }
 }
 

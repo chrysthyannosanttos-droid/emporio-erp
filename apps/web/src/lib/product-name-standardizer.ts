@@ -2,10 +2,16 @@
  * Padroniza descrições de produtos seguindo o dicionário oficial de abreviações
  * para caber com clareza em cupom NFC-e 80mm, etiqueta, balança e listagem de estoque.
  */
-export function standardizeProductName(rawName: string): string {
+export function standardizeProductName(rawName: string, brand?: string | null): string {
   if (!rawName) return "";
 
   let s = rawName
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .trim();
+
+  const cleanBrand = (brand || "")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toUpperCase()
@@ -97,6 +103,17 @@ export function standardizeProductName(rawName: string): string {
 
   // Move volume/embalagem CX/X para ficar organizado se terminar limpo
   let result = deduped.join(" ").replace(/\s+/g, " ").trim();
+
+  // Se a marca oficial do fabricante foi informada e não consta na descrição, inclui antes do volume final
+  if (cleanBrand && cleanBrand.length >= 2 && !result.includes(cleanBrand)) {
+    const volMatch = result.match(/\b(\d+(?:[.,]\d+)?(?:ML|L|G|KG|UN))$/);
+    if (volMatch) {
+      const base = result.slice(0, volMatch.index).trim();
+      result = `${base} ${cleanBrand} ${volMatch[1]}`.replace(/\s+/g, " ").trim();
+    } else {
+      result = `${result} ${cleanBrand}`.replace(/\s+/g, " ").trim();
+    }
+  }
 
   // Remove conectivos soltos se ainda passar de 45 chars
   if (result.length > 45) {
