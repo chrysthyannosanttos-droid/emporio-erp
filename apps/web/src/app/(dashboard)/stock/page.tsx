@@ -727,30 +727,30 @@ export default function StockPage() {
         ) : (
           <div className="flex-1 overflow-auto min-h-0">
             <table className="w-full text-sm text-left">
-              <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 sticky top-0">
+              <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 sticky top-0 z-10">
                 <tr>
-                  <th className="px-5 py-3 font-bold uppercase tracking-wider text-[11px]">Produto</th>
-                  <th className="px-5 py-3 font-bold uppercase tracking-wider text-[11px]">Código (EAN)</th>
-                  <th className="px-5 py-3 font-bold uppercase tracking-wider text-[11px]">Cód. Toledo (Prix)</th>
-                  <th className="px-5 py-3 font-bold uppercase tracking-wider text-[11px] text-right">Custo</th>
-                  <th className="px-5 py-3 font-bold uppercase tracking-wider text-[11px] text-right">Margem</th>
-                  <th className="px-5 py-3 font-bold uppercase tracking-wider text-[11px] text-right">Preço Venda</th>
-                  <th className="px-5 py-3 font-bold uppercase tracking-wider text-[11px] text-right">Estoque</th>
-                  <th className="px-5 py-3 font-bold uppercase tracking-wider text-[11px] text-right">Ações</th>
+                  <th className="px-3 py-3 font-bold uppercase tracking-wider text-[11px]">Produto</th>
+                  <th className="px-3 py-3 font-bold uppercase tracking-wider text-[11px] whitespace-nowrap">Código (EAN)</th>
+                  <th className="px-3 py-3 font-bold uppercase tracking-wider text-[11px] whitespace-nowrap">Cód. Toledo</th>
+                  <th className="px-3 py-3 font-bold uppercase tracking-wider text-[11px] text-right whitespace-nowrap">Custo</th>
+                  <th className="px-3 py-3 font-bold uppercase tracking-wider text-[11px] text-right whitespace-nowrap">Margem</th>
+                  <th className="px-3 py-3 font-bold uppercase tracking-wider text-[11px] text-right whitespace-nowrap">Preço Venda</th>
+                  <th className="px-3 py-3 font-bold uppercase tracking-wider text-[11px] text-right whitespace-nowrap">Estoque</th>
+                  <th className="px-3 py-3 font-bold uppercase tracking-wider text-[11px] text-right whitespace-nowrap">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={8} className="px-5 py-10 text-center text-gray-400">Nenhum produto cadastrado nesta área.</td></tr>
+                  <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-400">Nenhum produto cadastrado nesta área.</td></tr>
                 ) : (
                   filtered.map(p => (
                     <tr key={p.id} className="hover:bg-blue-50/40 transition-colors">
-                      <td className="px-5 py-3.5 font-bold text-gray-900 flex items-center gap-3">
+                      <td className="px-3 py-3 font-bold text-gray-900 flex items-center gap-2.5 max-w-[320px] min-w-0">
                         <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100 shrink-0">
                           <Package size={15} />
                         </div>
-                        <div className="flex flex-col">
-                          <span className="truncate">{p.name}</span>
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <span className="truncate" title={p.name}>{p.name}</span>
                           <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
                             {p.category?.name && (
                               <span className="text-[9px] text-gray-600 bg-gray-100 px-1.5 py-0.2 rounded border border-gray-200 font-semibold">
@@ -795,12 +795,12 @@ export default function StockPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-3.5 text-gray-500 font-mono text-xs">{p.barcode || "---"}</td>
-                      <td className="px-5 py-3.5 text-gray-700 font-mono text-xs font-bold">{p.internalCode || "---"}</td>
-                      <td className="px-5 py-3.5 text-slate-600 text-right font-mono text-xs font-semibold">
+                      <td className="px-3 py-3 text-gray-500 font-mono text-xs whitespace-nowrap">{p.barcode || "---"}</td>
+                      <td className="px-3 py-3 text-gray-700 font-mono text-xs font-bold whitespace-nowrap">{p.internalCode || "---"}</td>
+                      <td className="px-3 py-3 text-slate-600 text-right font-mono text-xs font-semibold whitespace-nowrap">
                         R$ {Number(p.cost || 0).toFixed(2).replace('.', ',')}
                       </td>
-                      <td className="px-5 py-3.5 text-right font-mono text-xs">
+                      <td className="px-3 py-3 text-right font-mono text-xs whitespace-nowrap">
                         {(() => {
                           const c = Number(p.cost || 0);
                           const pr = Number(p.price || 0);
@@ -821,10 +821,10 @@ export default function StockPage() {
                           );
                         })()}
                       </td>
-                      <td className="px-5 py-3.5 text-gray-900 text-right font-mono text-xs font-bold">R$ {Number(p.price).toFixed(2).replace('.', ',')}</td>
-                      <td className="px-5 py-3.5 text-right">
+                      <td className="px-3 py-3 text-gray-900 text-right font-mono text-xs font-bold whitespace-nowrap">R$ {Number(p.price).toFixed(2).replace('.', ',')}</td>
+                      <td className="px-3 py-3 text-right whitespace-nowrap">
                         <div className="inline-flex flex-col items-end">
-                          <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold ${p.stock <= 10 ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'
+                          <span className={`px-2 py-1 rounded-md text-[10px] font-bold ${p.stock <= 10 ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'
                             }`}>
                             {p.stock} {p.unit || "UN"}
                           </span>
@@ -835,19 +835,8 @@ export default function StockPage() {
                           )}
                         </div>
                       </td>
-                      <td className="px-5 py-3.5 text-right">
-                        <div className="inline-flex items-center justify-end gap-1.5">
-                          {!p.isFractionalChild && !p.parentProductId && (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenFractionalModal(p)}
-                              title="Criar venda fracionada (cigarro avulso ou dose de bebida)"
-                              className="text-amber-700 hover:text-amber-800 text-xs font-bold bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2.5 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1"
-                            >
-                              <Layers size={12} />
-                              <span>Avulso / Dose</span>
-                            </button>
-                          )}
+                      <td className="px-3 py-3 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center justify-end">
                           <Link
                             href={`/stock/new?id=${p.id}`}
                             className="text-blue-600 hover:text-blue-700 text-xs font-bold bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1"
