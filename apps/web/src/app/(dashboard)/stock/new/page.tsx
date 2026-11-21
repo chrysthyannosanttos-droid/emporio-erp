@@ -9,6 +9,7 @@ import { getMercadologico } from "@/actions/mercadologico";
 import { getOperationalCostConfig } from "@/actions/company";
 import { calculateProductPricing, formatBRL, formatPct } from "@/lib/product-pricing";
 import { standardizeProductName } from "@/lib/product-name-standardizer";
+import { SearchableProductSelect } from "@/components/SearchableProductSelect";
 import { DEFAULT_SCALE_SECTORS, detectScaleSector } from "@/lib/scaleConfig";
 import { getNextScaleCode } from "@/actions/scale";
 
@@ -1112,35 +1113,21 @@ export default function NewProductPage() {
                             </button>
                           ))}
                         </div>
-                        <div className="relative flex-1 min-w-[180px]">
-                          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" size={13} />
-                          <input
-                            type="text"
-                            value={compSearch}
-                            onChange={(e) => setCompSearch(e.target.value)}
-                            placeholder="Filtrar catálogo por nome (ex: Açúcar, Copo)..."
-                            className="w-full pl-8 pr-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs outline-none focus:border-emerald-500"
-                          />
-                        </div>
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
                         <div className="md:col-span-5">
                           <label className="block text-[10px] font-bold text-gray-600 uppercase mb-1">
-                            Produto do Catálogo
+                            Buscar Insumo / Embalagem
                           </label>
-                          <select
+                          <SearchableProductSelect
+                            products={filteredCatalog.filter((item) => item.id !== editId)}
                             value={selectedCompId}
-                            onChange={(e) => handleSelectCatalogProduct(e.target.value)}
-                            className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-semibold text-gray-900 outline-none focus:border-emerald-500"
-                          >
-                            <option value="">Selecione um insumo ou embalagem...</option>
-                            {filteredCatalog.map((item) => (
-                              <option key={item.id} value={item.id}>
-                                {item.name} ({item.unit}) — Custo R$ {item.cost.toFixed(2)} | Saldo: {item.stock}
-                              </option>
-                            ))}
-                          </select>
+                            onChange={handleSelectCatalogProduct}
+                            mode="cost"
+                            placeholder="Digite código ou nome do insumo..."
+                            inputClassName="bg-gray-50 border border-gray-200 focus:border-emerald-500 rounded-xl px-3 py-2 text-xs font-semibold text-gray-900"
+                          />
                         </div>
 
                         <div className="md:col-span-2">
