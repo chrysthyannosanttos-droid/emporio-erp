@@ -24,6 +24,7 @@ import {
   saveRawMaterialProduct,
   deleteRawMaterialProduct,
 } from "@/actions/production";
+import { SearchableProductSelect } from "@/components/SearchableProductSelect";
 
 interface RecipeItemRow {
   productId: string;
@@ -991,19 +992,13 @@ export default function RestaurantRecipesPage() {
                   <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">
                     Produto / Prato Acabado *
                   </label>
-                  <select
-                    required
+                  <SearchableProductSelect
+                    products={allProducts}
                     value={editingProductId}
-                    onChange={(e) => setEditingProductId(e.target.value)}
-                    className="w-full bg-[#e8f0fc] border border-indigo-200 text-gray-900 px-3 py-2.5 rounded-xl text-xs font-bold outline-none"
-                  >
-                    <option value="">Selecione o produto cadastrado...</option>
-                    {allProducts.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} ({p.unit}) — Venda R$ {fmt(p.price)}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setEditingProductId}
+                    mode="sale"
+                    placeholder="Digite código, EAN ou nome do prato/produto..."
+                  />
                 </div>
 
                 <div>
@@ -1046,20 +1041,15 @@ export default function RestaurantRecipesPage() {
                     <option value="PACKAGING">Embalagem</option>
                   </select>
 
-                  <select
+                  <SearchableProductSelect
+                    products={allProducts.filter((p) => p.id !== editingProductId)}
                     value={selectedMatIdToAdd}
-                    onChange={(e) => setSelectedMatIdToAdd(e.target.value)}
-                    className="sm:col-span-5 bg-white border border-indigo-200 text-gray-900 px-2.5 py-2 rounded-xl text-xs font-semibold outline-none"
-                  >
-                    <option value="">Selecione do estoque...</option>
-                    {allProducts
-                      .filter((p) => p.id !== editingProductId)
-                      .map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name} (R$ {fmt(m.cost)}/{m.unit})
-                        </option>
-                      ))}
-                  </select>
+                    onChange={setSelectedMatIdToAdd}
+                    mode="cost"
+                    placeholder="Buscar insumo/embalagem por código ou nome..."
+                    className="sm:col-span-5"
+                    inputClassName="bg-white border border-indigo-200 focus:border-indigo-500 text-gray-900 px-2.5 py-2 rounded-xl text-xs font-semibold"
+                  />
 
                   <input
                     type="number"

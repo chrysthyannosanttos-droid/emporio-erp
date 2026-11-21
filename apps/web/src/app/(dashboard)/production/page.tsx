@@ -25,6 +25,7 @@ import {
   recordProduction,
   getProductionReportByUser,
 } from "@/actions/production";
+import { SearchableProductSelect } from "@/components/SearchableProductSelect";
 
 function fmtBRL(v: number) {
   return Number(v || 0).toLocaleString("pt-BR", {
@@ -707,19 +708,14 @@ export default function ProductionPage() {
                   <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
                     Produto Acabado *
                   </label>
-                  <select
+                  <SearchableProductSelect
+                    products={products}
                     value={selectedProductId}
-                    onChange={(e) => setSelectedProductId(e.target.value)}
-                    className="w-full bg-gray-50 border border-gray-200 focus:border-indigo-500 text-gray-900 rounded-xl px-3 py-2.5 text-xs font-bold outline-none"
-                    required
-                  >
-                    <option value="">Selecione o produto final...</option>
-                    {products.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} ({p.unit}) — Estoque: {p.stock}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setSelectedProductId}
+                    mode="sale"
+                    placeholder="Digite código, EAN ou nome do produto final..."
+                    inputClassName="bg-gray-50 border border-gray-200 focus:border-indigo-500 text-gray-900 rounded-xl px-3 py-2.5 text-xs font-bold"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-600 uppercase mb-1">
@@ -791,21 +787,15 @@ export default function ProductionPage() {
                         <option value="PACKAGING">Embalagem</option>
                       </select>
 
-                      <select
+                      <SearchableProductSelect
+                        products={products.filter((p) => p.id !== selectedProductId)}
                         value={item.productId}
-                        onChange={(e) => handleRecipeItemChange(index, "productId", e.target.value)}
-                        className="flex-1 min-w-[180px] bg-white border border-gray-200 text-gray-900 rounded-lg px-2.5 py-2 text-xs font-semibold outline-none"
-                        required
-                      >
-                        <option value="">Selecione o item...</option>
-                        {products
-                          .filter((p) => p.id !== selectedProductId)
-                          .map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {p.name} ({p.unit}) — Custo R$ {Number(p.cost || 0).toFixed(2)}
-                            </option>
-                          ))}
-                      </select>
+                        onChange={(val) => handleRecipeItemChange(index, "productId", val)}
+                        mode="cost"
+                        placeholder="Digite código ou descrição do item..."
+                        className="flex-1 min-w-[180px]"
+                        inputClassName="bg-white border border-gray-200 focus:border-indigo-500 text-gray-900 rounded-lg px-2.5 py-2 text-xs font-semibold"
+                      />
 
                       <input
                         type="number"
