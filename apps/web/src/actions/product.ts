@@ -2084,4 +2084,41 @@ export async function deleteProductSafe(productId: string) {
   }
 }
 
+export async function batchStandardizeProductNamesAction(
+  updates: { id: string; name: string }[]
+) {
+  try {
+    const session = await getSession();
+    if (!session?.companyId) {
+      return { ok: false, error: "Não autorizado." };
+    }
+    const companyId = session.companyId;
+    const validUpdates = (updates || []).filter(
+      (u) => u && u.id && typeof u.name === "string" && u.name.trim().length > 0
+    );
+    if (validUpdates.length === 0) {
+      return { ok: true, updatedCount: 0 };
+    }
+
+    for (let i = 0; i < validUpdates.length; i += 50) {
+      const chunk = validUpdates.slice(i, i + 50);
+      await prisma.$transaction(
+        chunk.map((u) =>
+          prisma.product.updateMany({
+            where: { id: u.id, companyId },
+            data: { name: u.name.trim() },
+          })
+        )
+      );
+    }
+
+    revalidatePath("/stock");
+    revalidatePath("/pdv");
+    revalidatePath("/scales");
+    return { ok: true, updatedCount: validUpdates.length };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || "Erro ao padronizar descrições." };
+  }
+}
+
 

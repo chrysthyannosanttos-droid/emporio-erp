@@ -8,6 +8,7 @@ import { createProduct, updateProduct, getProductById, getProductInfoByAiBarcode
 import { getMercadologico } from "@/actions/mercadologico";
 import { getOperationalCostConfig } from "@/actions/company";
 import { calculateProductPricing, formatBRL, formatPct } from "@/lib/product-pricing";
+import { standardizeProductName } from "@/lib/product-name-standardizer";
 import { DEFAULT_SCALE_SECTORS, detectScaleSector } from "@/lib/scaleConfig";
 import { getNextScaleCode } from "@/actions/scale";
 
@@ -970,6 +971,25 @@ export default function NewProductPage() {
                   <div className="md:col-span-2">
                     <label className={labelClass}>Nome do Produto *</label>
                     <input type="text" required value={name} onChange={(e) => setName(e.target.value)} className={inputClass} placeholder="Ex: Picanha Bovina Fatiada" />
+                    {(() => {
+                      const suggested = standardizeProductName(name);
+                      if (!name.trim() || name.trim().length < 3 || suggested === name.trim()) return null;
+                      return (
+                        <div className="mt-1.5 flex items-center justify-between gap-2 bg-indigo-50 border border-indigo-200 rounded-xl px-3 py-1.5 text-xs">
+                          <div className="min-w-0 truncate text-indigo-900">
+                            <span className="font-bold text-indigo-700 mr-1.5">✨ Padrão sugerido:</span>
+                            <span className="font-mono font-bold">{suggested}</span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setName(suggested)}
+                            className="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-2.5 py-1 rounded-lg text-[11px] transition-colors cursor-pointer"
+                          >
+                            Aplicar Padrão
+                          </button>
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div>
                     <label className={labelClass}>Unidade de Medida</label>

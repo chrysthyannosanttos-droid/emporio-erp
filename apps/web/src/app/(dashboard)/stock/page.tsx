@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { Package, Search, Plus, FileCode, X, Check, AlertCircle, Zap, Loader2, Sparkles, ScanBarcode, ArrowRight, Scale, Edit2, Radio, ClipboardCheck, ChefHat, Trash2, Utensils, Layers } from "lucide-react";
 import Link from "next/link";
-import { getProducts, lookupBarcodeOnline, quickCreateProductByBarcode, updateProduct, getIngredientAndPackagingCatalog, createFractionalVariantAction } from "@/actions/product";
+import { getProducts, lookupBarcodeOnline, quickCreateProductByBarcode, updateProduct, getIngredientAndPackagingCatalog, createFractionalVariantAction, batchStandardizeProductNamesAction } from "@/actions/product";
+import { standardizeProductName } from "@/lib/product-name-standardizer";
 
 export default function StockPage() {
   const [products, setProducts] = useState<any[]>([]);
@@ -23,6 +24,41 @@ export default function StockPage() {
   const [barcodeFeedback, setBarcodeFeedback] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
   const [savingProduct, setSavingProduct] = useState(false);
   const [sessionCreatedProducts, setSessionCreatedProducts] = useState<any[]>([]);
+
+  // Padronização em lote de descrições
+  const [isStdModalOpen, setIsStdModalOpen] = useState(false);
+  const [stdPreviewList, setStdPreviewList] = useState<{ id: string; oldName: string; newName: string; checked: boolean }[]>([]);
+  const [applyingStd, setApplyingStd] = useState(false);
+
+  const handleOpenStdModal = () => {
+    const items = products
+      .map((p) => ({
+        id: p.id,
+        oldName: p.name,
+        newName: standardizeProductName(p.name),
+        checked: true,
+      }))
+      .filter((x) => x.newName && x.newName !== x.oldName);
+    setStdPreviewList(items);
+    setIsStdModalOpen(true);
+  };
+
+  const handleApplyStdBatch = async () => {
+    const selected = stdPreviewList.filter((x) => x.checked && x.newName.trim());
+    if (selected.length === 0) return;
+    setApplyingStd(true);
+    const res = await batchStandardizeProductNamesAction(
+      selected.map((s) => ({ id: s.id, name: s.newName.trim() }))
+    );
+    setApplyingStd(false);
+    if (res.ok) {
+      setIsStdModalOpen(false);
+      const updatedRes = await getProducts();
+      if (updatedRes.products) setProducts(updatedRes.products);
+    } else {
+      alert(res.error || "Erro ao padronizar descrições.");
+    }
+  };
 
   const barcodeInputRef = useRef<HTMLInputElement>(null);
   const priceInputRef = useRef<HTMLInputElement>(null);
@@ -622,6 +658,13 @@ export default function StockPage() {
             <Scale size={16} />
             <span>Carga Balança (MGV6)</span>
           </Link>
+          <button
+            type="button"
+            onClick={handleOpenStdModal}
+            className="bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 px-3.5 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-colors text-sm shadow-sm cursor-pointer"
+          >
+            <Sparkles size={16} className="text-indigo-600" /> Padronizar Descrições
+          </button>
           <Link href="/invoices" className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2.5 rounded-xl font-bold flex items-center gap-2 transition-colors text-sm shadow-sm">
             <Radio size={16} className="text-blue-600" /> Radar XML & Entradas
           </Link>
@@ -1861,6 +1904,111 @@ export default function StockPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {isStdModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-4xl shadow-2xl border border-indigo-200 overflow-hidden flex flex-col max-h-[88vh]">
+            <div className="p-5 border-b border-gray-100 bg-indigo-50/70 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
+                  <Sparkles size={18} className="text-indigo-600" />
+                  Padronizar Descrições em Lote ({stdPreviewList.length} sugestões)
+                </h3>
+                <p className="text-xs text-gray-600 mt-0.5">
+                  Revise o Antes × Depois seguindo o padrão de abreviações (MAIÚSCULAS, sem acentos, sem repetições).
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsStdModalOpen(false)}
+                className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 divide-y divide-gray-100">
+              {stdPreviewList.length === 0 ? (
+                <div className="py-12 text-center text-sm text-gray-500">
+                  Todos os produtos já estão dentro do padrão de abreviação!
+                </div>
+              ) : (
+                stdPreviewList.map((row, idx) => (
+                  <div key={row.id} className="py-2.5 flex items-center gap-3 text-xs">
+                    <input
+                      type="checkbox"
+                      checked={row.checked}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setStdPreviewList((prev) =>
+                          prev.map((r, i) => (i === idx ? { ...r, checked } : r))
+                        );
+                      }}
+                      className="w-4 h-4 accent-indigo-600 shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="text-gray-400 line-through truncate">{row.oldName}</div>
+                      <input
+                        type="text"
+                        value={row.newName}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setStdPreviewList((prev) =>
+                            prev.map((r, i) => (i === idx ? { ...r, newName: val } : r))
+                          );
+                        }}
+                        className="mt-1 w-full bg-indigo-50/50 border border-indigo-200 rounded-lg px-2.5 py-1 font-mono font-bold text-indigo-900 outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="p-4 border-t border-gray-100 bg-gray-50 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setStdPreviewList((prev) => prev.map((r) => ({ ...r, checked: true })))
+                  }
+                  className="text-xs font-bold text-indigo-700 hover:underline cursor-pointer"
+                >
+                  Marcar todos
+                </button>
+                <span className="text-gray-300">|</span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setStdPreviewList((prev) => prev.map((r) => ({ ...r, checked: false })))
+                  }
+                  className="text-xs font-bold text-gray-500 hover:underline cursor-pointer"
+                >
+                  Desmarcar todos
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsStdModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-white border border-gray-300 text-gray-700 cursor-pointer"
+                >
+                  Fechar
+                </button>
+                <button
+                  type="button"
+                  disabled={applyingStd || stdPreviewList.filter((x) => x.checked).length === 0}
+                  onClick={handleApplyStdBatch}
+                  className="px-4 py-2 rounded-xl text-xs font-black bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 text-white cursor-pointer flex items-center gap-1.5"
+                >
+                  {applyingStd ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                  Aplicar {stdPreviewList.filter((x) => x.checked).length} Padronizações
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
