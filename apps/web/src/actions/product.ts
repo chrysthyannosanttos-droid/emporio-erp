@@ -154,17 +154,33 @@ async function syncProductRecipe(
         | "PACKAGING",
     }));
 
+  let computedUnitCost: number | null = null;
   if (validItems.length > 0) {
     const itemIds = Array.from(new Set(validItems.map((i) => i.productId)));
     const validProducts = await tx.product.findMany({
       where: { id: { in: itemIds }, companyId: params.companyId },
-      select: { id: true },
+      select: { id: true, cost: true },
     });
-    const validSet = new Set(validProducts.map((p: { id: string }) => p.id));
+    const costById = new Map<string, number>();
+    for (const p of validProducts) {
+      costById.set(p.id, Number(p.cost || 0));
+    }
     for (const it of validItems) {
-      if (!validSet.has(it.productId)) {
+      if (!costById.has(it.productId)) {
         throw new Error("Um ou mais insumos/embalagens selecionados não pertencem à empresa.");
       }
+    }
+    const totalRecipeCost = validItems.reduce(
+      (acc, it) => acc + it.quantity * (costById.get(it.productId) || 0),
+      0
+    );
+    const yieldForCost =
+      params.recipeYield && Number.isFinite(params.recipeYield) && params.recipeYield > 0
+        ? Number(params.recipeYield)
+        : 1;
+    const unitCost = Number((totalRecipeCost / yieldForCost).toFixed(4));
+    if (unitCost > 0) {
+      computedUnitCost = unitCost;
     }
   }
 
@@ -215,6 +231,13 @@ async function syncProductRecipe(
           create: validItems,
         },
       },
+    });
+  }
+
+  if (computedUnitCost !== null && computedUnitCost > 0) {
+    await tx.product.update({
+      where: { id: params.productId },
+      data: { cost: computedUnitCost },
     });
   }
 }
@@ -611,6 +634,32 @@ export async function updateProduct(
         recipeYield,
         recipeInstructions,
       });
+
+      // Se o custo deste item (insumo/embalagem) foi alterado, recalcula o custo dos produtos que o usam
+      if (cost !== null && Math.abs(cost - Number(existingProduct.cost || 0)) >= 0.001) {
+        const dependentRecipes = await tx.recipe.findMany({
+          where: {
+            companyId,
+            items: { some: { productId } },
+          },
+          include: {
+            items: { include: { product: { select: { id: true, cost: true } } } },
+          },
+        });
+        for (const rec of dependentRecipes) {
+          const total = rec.items.reduce(
+            (acc, it) => acc + Number(it.quantity || 0) * Number(it.product?.cost || 0),
+            0
+          );
+          const unitCost = Number((total / Math.max(Number(rec.yield || 1), 0.0001)).toFixed(4));
+          if (unitCost > 0) {
+            await tx.product.update({
+              where: { id: rec.productId },
+              data: { cost: unitCost },
+            });
+          }
+        }
+      }
     });
 
     revalidatePath("/stock");

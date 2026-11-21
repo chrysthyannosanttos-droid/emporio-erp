@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Save, Loader2, AlertCircle, Check, Search, Calculator, Scale, RefreshCw, Hash, Plus, Trash2, ChefHat, Package, Utensils } from "lucide-react";
 import Link from "next/link";
-import { createProduct, getProductInfoByAiBarcode, getIngredientAndPackagingCatalog } from "@/actions/product";
+import { createProduct, updateProduct, getProductById, getProductInfoByAiBarcode, getIngredientAndPackagingCatalog, getProducts } from "@/actions/product";
 import { getMercadologico } from "@/actions/mercadologico";
 import { getOperationalCostConfig } from "@/actions/company";
 import { calculateProductPricing, formatBRL, formatPct } from "@/lib/product-pricing";
@@ -31,6 +31,7 @@ const ORIGIN_OPTIONS = [
 
 export default function NewProductPage() {
   const router = useRouter();
+  const [editId, setEditId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [existingProduct, setExistingProduct] = useState<{ id: string; name: string; internalCode?: string | null } | null>(null);
@@ -162,6 +163,10 @@ export default function NewProductPage() {
   const [isFinishedGood, setIsFinishedGood] = useState(false);
   const [isPackaging, setIsPackaging] = useState(false);
   const [showInDigitalMenu, setShowInDigitalMenu] = useState(false);
+  const [parentProductId, setParentProductId] = useState("");
+  const [yieldPerParent, setYieldPerParent] = useState("20");
+  const [parentCatalog, setParentCatalog] = useState<any[]>([]);
+  const [parentCatalogLoaded, setParentCatalogLoaded] = useState(false);
   const [minStock, setMinStock] = useState("");
   const [maxStock, setMaxStock] = useState("");
   const [leadTimeDays, setLeadTimeDays] = useState("");
@@ -233,6 +238,111 @@ export default function NewProductPage() {
     const y = parseFloat(recipeYield);
     return y > 0 ? compositionTotalCost / y : compositionTotalCost;
   }, [compositionTotalCost, recipeYield]);
+
+  // Atualiza automaticamente o custo do produto quando insumos/embalagens são cadastrados ou alterados
+  useEffect(() => {
+    if (isSelfProduced && recipeItems.length > 0 && compositionUnitCost > 0) {
+      setCost(compositionUnitCost.toFixed(2));
+    }
+  }, [isSelfProduced, recipeItems, compositionUnitCost]);
+
+  // Carrega produto existente quando aberto via Editar (?id=...)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const idParam = new URLSearchParams(window.location.search).get("id");
+    if (!idParam) return;
+    setEditId(idParam);
+    setLoading(true);
+    getProductById(idParam).then((res) => {
+      const p: any = res?.product;
+      if (p) {
+        setName(p.name || "");
+        setBarcode(p.barcode || "");
+        setPrice(p.price != null ? String(p.price) : "");
+        setCost(p.cost != null ? String(p.cost) : "");
+        setStock(p.stock != null ? String(p.stock) : "0");
+        setCategoryId(p.categoryId || "");
+        setNcm(p.ncm || "");
+        setCest(p.cest || "");
+        setCfop(p.cfop || "5102");
+        setCst(p.cst || "102");
+        setOrigin(p.origin || "0");
+        setIcmsRate(p.icmsRate != null ? String(p.icmsRate) : "");
+        setIcmsRedBaseRate(p.icmsRedBaseRate != null ? String(p.icmsRedBaseRate) : "");
+        setFecoepRate(p.fecoepRate != null ? String(p.fecoepRate) : "");
+        setCstPis(p.cstPis || "");
+        setPisRate(p.pisRate != null ? String(p.pisRate) : "");
+        setCstCofins(p.cstCofins || "");
+        setCofinsRate(p.cofinsRate != null ? String(p.cofinsRate) : "");
+        setCstIpi(p.cstIpi || "");
+        setIpiRate(p.ipiRate != null ? String(p.ipiRate) : "");
+        setIbsRate(p.ibsRate != null ? String(p.ibsRate) : "");
+        setCbsRate(p.cbsRate != null ? String(p.cbsRate) : "");
+        setIsRate(p.isRate != null ? String(p.isRate) : "");
+        setCfopIn(p.cfopIn || "1102");
+        setCstIn(p.cstIn || "");
+        setIcmsRateIn(p.icmsRateIn != null ? String(p.icmsRateIn) : "");
+        setIcmsRedBaseRateIn(p.icmsRedBaseRateIn != null ? String(p.icmsRedBaseRateIn) : "");
+        setFecoepRateIn(p.fecoepRateIn != null ? String(p.fecoepRateIn) : "");
+        setCstPisIn(p.cstPisIn || "");
+        setPisRateIn(p.pisRateIn != null ? String(p.pisRateIn) : "");
+        setCstCofinsIn(p.cstCofinsIn || "");
+        setCofinsRateIn(p.cofinsRateIn != null ? String(p.cofinsRateIn) : "");
+        setCstIpiIn(p.cstIpiIn || "");
+        setIpiRateIn(p.ipiRateIn != null ? String(p.ipiRateIn) : "");
+        setSku(p.sku || "");
+        setBrand(p.brand || "");
+        setManufacturer(p.manufacturer || "");
+        setUnitPurchase(p.unitPurchase || p.unit || "UN");
+        setUnitSale(p.unitSale || p.unit || "UN");
+        setUnitConvFactor(p.unitConvFactor != null ? String(p.unitConvFactor) : "1");
+        setPackagingType(p.packagingType || "UNIT");
+        setUnitsPerPack(p.unitsPerPack != null ? String(p.unitsPerPack) : "1");
+        setMinOrderQty(p.minOrderQty != null ? String(p.minOrderQty) : "1");
+        setGrossWeight(p.grossWeight != null ? String(p.grossWeight) : "");
+        setNetWeight(p.netWeight != null ? String(p.netWeight) : "");
+        setWidth(p.width != null ? String(p.width) : "");
+        setHeight(p.height != null ? String(p.height) : "");
+        setDepth(p.depth != null ? String(p.depth) : "");
+        setIsSelfProduced(Boolean(p.isSelfProduced));
+        setIsRawMaterial(Boolean(p.isRawMaterial));
+        setIsFinishedGood(Boolean(p.isFinishedGood));
+        setIsPackaging(Boolean(p.isPackaging));
+        setShowInDigitalMenu(Boolean(p.showInDigitalMenu));
+        setSendToScale(Boolean(p.sendToScale));
+        setInternalCode(p.internalCode || "");
+        setScaleDays(p.scaleDays != null ? String(p.scaleDays) : "3");
+        setScaleDept(p.scaleDept != null ? String(p.scaleDept) : "1");
+        setParentProductId(p.parentProductId || "");
+        setYieldPerParent(p.yieldPerParent != null ? String(p.yieldPerParent) : "20");
+        setMinStock(p.minStock != null ? String(p.minStock) : "");
+        setMaxStock(p.maxStock != null ? String(p.maxStock) : "");
+        setLeadTimeDays(p.leadTimeDays != null ? String(p.leadTimeDays) : "");
+        setFreightOther(p.freightOther != null ? String(p.freightOther) : "");
+        if (p.desiredMargin != null) setDesiredMargin(String(p.desiredMargin));
+        if (p.operationalRate != null) setOperationalRate(String(p.operationalRate));
+        if (p.recipe) {
+          setRecipeYield(String(p.recipe.yield || 1));
+          setRecipeInstructions(p.recipe.instructions || "");
+          setRecipeItems(
+            (p.recipe.items || []).map((it: any) => ({
+              productId: it.productId,
+              name: it.product?.name || "Insumo",
+              quantity: Number(it.quantity || 0),
+              unit: it.unit || it.product?.unit || "UN",
+              unitCost: Number(it.product?.cost || 0),
+              stock: Number(it.product?.stock || 0),
+              itemRole: it.itemRole === "PACKAGING" ? "PACKAGING" : "INGREDIENT",
+            }))
+          );
+        }
+        setPriceManual(true);
+      } else if (res?.error) {
+        setError(res.error);
+      }
+      setLoading(false);
+    });
+  }, []);
 
   function handleSelectCatalogProduct(prodId: string) {
     setSelectedCompId(prodId);
@@ -504,6 +614,9 @@ export default function NewProductPage() {
     formData.append("isFinishedGood", String(isFinishedGood));
     formData.append("isPackaging", String(isPackaging));
     formData.append("showInDigitalMenu", String(showInDigitalMenu));
+    if (parentProductId) {
+      formData.append("parentProductId", parentProductId);
+    }
     formData.append("minStock", minStock);
     formData.append("maxStock", maxStock);
     formData.append("leadTimeDays", leadTimeDays);
@@ -524,7 +637,9 @@ export default function NewProductPage() {
       );
     }
 
-    const result = await createProduct(formData);
+    const result = editId
+      ? await updateProduct(editId, formData)
+      : await createProduct(formData);
 
     if (result.error) {
       setError(result.error);
@@ -545,8 +660,14 @@ export default function NewProductPage() {
             <ArrowLeft size={18} />
           </Link>
           <div>
-            <h1 className="text-2xl font-black text-gray-900 tracking-tight">Novo Produto</h1>
-            <p className="text-xs text-gray-500 mt-0.5">Cadastre um novo item no estoque com inteligência artificial e tributação automatizada.</p>
+            <h1 className="text-2xl font-black text-gray-900 tracking-tight">
+              {editId ? "Editar Produto" : "Novo Produto"}
+            </h1>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {editId
+                ? "Atualize os dados completos, tributação, balança e composição de insumos do produto."
+                : "Cadastre um novo item no estoque com inteligência artificial e tributação automatizada."}
+            </p>
           </div>
         </div>
       </div>
@@ -1280,7 +1401,7 @@ export default function NewProductPage() {
                 </div>
 
                 <div>
-                  <p className={sectionTitleClass}>Unidades Múltiplas & Fator de Conversão</p>
+                  <p className={sectionTitleClass}>Unidades Múltiplas &amp; Fator de Conversão</p>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                       <label className={labelClass}>Unidade de Compra</label>
@@ -1288,11 +1409,95 @@ export default function NewProductPage() {
                     </div>
                     <div>
                       <label className={labelClass}>Unidade de Venda</label>
-                      <input type="text" value={unitSale} onChange={(e) => setUnitSale(e.target.value)} className={inputClass} placeholder="Ex: UN, KG, MT, TON" />
+                      <input type="text" value={unitSale} onChange={(e) => setUnitSale(e.target.value)} className={inputClass} placeholder="Ex: UN, DOSE, KG, MT" />
                     </div>
                     <div>
                       <label className={labelClass}>Fator de Conversão (Qtd na Venda por Compra)</label>
-                      <input type="number" step="0.001" value={unitConvFactor} onChange={(e) => setUnitConvFactor(e.target.value)} className={inputMonoClass} placeholder="Ex: 12 (1 CX = 12 UN)" />
+                      <input type="number" step="0.000001" value={unitConvFactor} onChange={(e) => setUnitConvFactor(e.target.value)} className={inputMonoClass} placeholder="Ex: 1 (ou 0.05 p/ fração)" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Venda Fracionada: Cigarro Avulso / Dose de Bebida */}
+                <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-4 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-wider text-amber-950">
+                        Venda Fracionada (Cigarro Avulso / Dose de Bebida Quente)
+                      </p>
+                      <p className="text-[11px] text-amber-800">
+                        Vincule este item a um produto pai (ex.: Maço de Cigarro ou Garrafa 1L) para baixar o estoque proporcional automaticamente em cada venda no PDV.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!parentCatalogLoaded) {
+                          const r = await getProducts();
+                          if (r.products) setParentCatalog(r.products.filter((x: any) => !x.parentProductId));
+                          setParentCatalogLoaded(true);
+                        }
+                      }}
+                      className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-bold"
+                    >
+                      {parentCatalogLoaded ? `${parentCatalog.length} produtos carregados` : "Carregar Produtos Pai"}
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="md:col-span-2">
+                      <label className={labelClass}>Produto Pai (Maço / Garrafa / Caixa)</label>
+                      <select
+                        value={parentProductId}
+                        onFocus={async () => {
+                          if (!parentCatalogLoaded) {
+                            const r = await getProducts();
+                            if (r.products) setParentCatalog(r.products.filter((x: any) => !x.parentProductId));
+                            setParentCatalogLoaded(true);
+                          }
+                        }}
+                        onChange={(e) => {
+                          const pid = e.target.value;
+                          setParentProductId(pid);
+                          if (pid) {
+                            const y = Math.max(1, Number(yieldPerParent || 20));
+                            setUnitConvFactor((1 / y).toFixed(6));
+                            const parent = parentCatalog.find((x) => x.id === pid);
+                            if (parent?.cost) {
+                              setCost((Number(parent.cost) / y).toFixed(4));
+                            }
+                          } else {
+                            setUnitConvFactor("1");
+                          }
+                        }}
+                        className={inputClass}
+                      >
+                        <option value="">Nenhum (produto independente com estoque próprio)</option>
+                        {parentCatalog.map((item: any) => (
+                          <option key={item.id} value={item.id}>
+                            {item.name} — Estoque: {item.stock} {item.unit || "UN"}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className={labelClass}>Rendimento p/ 1 Unid. Pai</label>
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        disabled={!parentProductId}
+                        value={yieldPerParent}
+                        onChange={(e) => {
+                          setYieldPerParent(e.target.value);
+                          const y = Number(e.target.value);
+                          if (parentProductId && y > 0) {
+                            setUnitConvFactor((1 / y).toFixed(6));
+                          }
+                        }}
+                        placeholder="Ex: 20"
+                        className={inputMonoClass}
+                      />
                     </div>
                   </div>
                 </div>

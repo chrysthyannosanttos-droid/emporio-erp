@@ -269,16 +269,26 @@ export async function saveRecipe(data: {
     const itemProductIds = Array.from(new Set(cleanItems.map((i) => i.productId)));
     const validItemProducts = await prisma.product.findMany({
       where: { id: { in: itemProductIds }, companyId },
-      select: { id: true },
+      select: { id: true, cost: true },
     });
     if (validItemProducts.length !== itemProductIds.length) {
       return { error: "Um ou mais insumos/embalagens não pertencem à empresa ativa." };
     }
 
+    const costById = new Map(validItemProducts.map((p) => [p.id, Number(p.cost || 0)]));
+    const totalRecipeCost = cleanItems.reduce(
+      (acc, it) => acc + it.quantity * (costById.get(it.productId) || 0),
+      0
+    );
+    const unitRecipeCost = Number((totalRecipeCost / yieldAmount).toFixed(4));
+
     const saved = await prisma.$transaction(async (tx) => {
       await tx.product.update({
         where: { id: finishedProd.id },
-        data: { isSelfProduced: true },
+        data: {
+          isSelfProduced: true,
+          ...(unitRecipeCost > 0 ? { cost: unitRecipeCost } : {}),
+        },
       });
 
       const existing = await tx.recipe.findUnique({

@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Package, Search, Plus, FileCode, X, Check, AlertCircle, Zap, Loader2, Sparkles, ScanBarcode, ArrowRight, Scale, Edit2, Radio, ClipboardCheck, ChefHat, Trash2, Utensils } from "lucide-react";
+import { Package, Search, Plus, FileCode, X, Check, AlertCircle, Zap, Loader2, Sparkles, ScanBarcode, ArrowRight, Scale, Edit2, Radio, ClipboardCheck, ChefHat, Trash2, Utensils, Layers } from "lucide-react";
 import Link from "next/link";
-import { getProducts, lookupBarcodeOnline, quickCreateProductByBarcode, updateProduct, getIngredientAndPackagingCatalog } from "@/actions/product";
+import { getProducts, lookupBarcodeOnline, quickCreateProductByBarcode, updateProduct, getIngredientAndPackagingCatalog, createFractionalVariantAction } from "@/actions/product";
 
 export default function StockPage() {
   const [products, setProducts] = useState<any[]>([]);
@@ -137,6 +137,100 @@ export default function StockPage() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [editError, setEditError] = useState("");
 
+  // Cadastro rápido manual quando bipagem não localizar nas bases externas
+  const [notFoundManualMode, setNotFoundManualMode] = useState(false);
+  const [manualName, setManualName] = useState("");
+  const [manualBrand, setManualBrand] = useState("");
+  const [manualNcm, setManualNcm] = useState("");
+  const [manualCest, setManualCest] = useState("");
+  const [manualCfop, setManualCfop] = useState("5102");
+  const [manualCst, setManualCst] = useState("102");
+  const [manualCategory, setManualCategory] = useState("Geral");
+
+  // Modal de Produto Fracionado (Cigarro Avulso / Dose de Bebida)
+  const [fractionalParent, setFractionalParent] = useState<any>(null);
+  const [fracName, setFracName] = useState("");
+  const [fracUnit, setFracUnit] = useState("UN");
+  const [fracYield, setFracYield] = useState("20");
+  const [fracPrice, setFracPrice] = useState("");
+  const [fracBarcode, setFracBarcode] = useState("");
+  const [fracInternalCode, setFracInternalCode] = useState("");
+  const [savingFrac, setSavingFrac] = useState(false);
+  const [fracError, setFracError] = useState("");
+
+  const handleOpenFractionalModal = (parent: any) => {
+    setFractionalParent(parent);
+    const nl = (parent.name || "").toLowerCase();
+    const isCigar =
+      /cigarro|marlboro|malboro|dunhill|carlton|hollywood|derby|kent|lucky|rothmans|chesterfield|camel|winston|l&m|minister|palheiro/.test(nl) ||
+      String(parent.ncm || "").startsWith("2402");
+    const defaultYield = isCigar ? 20 : /750/.test(nl) ? 15 : 20;
+    const basePrice = Number(parent.price || 0);
+    const rawSuggested = basePrice > 0 ? (basePrice / defaultYield) * 1.4 : 0;
+    const roundedSuggested = rawSuggested > 0 ? (Math.ceil(rawSuggested * 2) / 2).toFixed(2) : "";
+
+    setFracYield(String(defaultYield));
+    setFracUnit(isCigar ? "UN" : "DOSE");
+    setFracName(
+      isCigar
+        ? `${parent.name} — Avulso (Unidade)`
+        : `Dose ${parent.name} (50ml)`
+    );
+    setFracPrice(roundedSuggested);
+    setFracBarcode("");
+    setFracInternalCode("");
+    setFracError("");
+  };
+
+  const applyFracPreset = (preset: "CIGARRO_20" | "DOSE_1L_20" | "DOSE_750_15" | "DOSE_DUPLA_10") => {
+    if (!fractionalParent) return;
+    const basePrice = Number(fractionalParent.price || 0);
+    if (preset === "CIGARRO_20") {
+      setFracYield("20");
+      setFracUnit("UN");
+      setFracName(`${fractionalParent.name} — Avulso (Unidade)`);
+      if (basePrice > 0) setFracPrice((Math.ceil(((basePrice / 20) * 1.4) * 2) / 2).toFixed(2));
+    } else if (preset === "DOSE_1L_20") {
+      setFracYield("20");
+      setFracUnit("DOSE");
+      setFracName(`Dose ${fractionalParent.name} (50ml)`);
+      if (basePrice > 0) setFracPrice((Math.ceil(((basePrice / 20) * 1.8) * 2) / 2).toFixed(2));
+    } else if (preset === "DOSE_750_15") {
+      setFracYield("15");
+      setFracUnit("DOSE");
+      setFracName(`Dose ${fractionalParent.name} (50ml)`);
+      if (basePrice > 0) setFracPrice((Math.ceil(((basePrice / 15) * 1.8) * 2) / 2).toFixed(2));
+    } else if (preset === "DOSE_DUPLA_10") {
+      setFracYield("10");
+      setFracUnit("DOSE");
+      setFracName(`Dose Dupla ${fractionalParent.name} (100ml)`);
+      if (basePrice > 0) setFracPrice((Math.ceil(((basePrice / 10) * 1.7) * 2) / 2).toFixed(2));
+    }
+  };
+
+  const handleCreateFractional = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fractionalParent) return;
+    setSavingFrac(true);
+    setFracError("");
+    const res = await createFractionalVariantAction({
+      parentProductId: fractionalParent.id,
+      name: fracName.trim(),
+      unit: fracUnit.trim() || "UN",
+      yieldPerParent: Number(fracYield || 1),
+      price: Number(fracPrice || 0),
+      barcode: fracBarcode.trim() || undefined,
+      internalCode: fracInternalCode.trim() || undefined,
+    });
+    setSavingFrac(false);
+    if (!res.success) {
+      setFracError(res.error || "Erro ao criar produto fracionado.");
+      return;
+    }
+    setFractionalParent(null);
+    loadProducts();
+  };
+
   const handleOpenEditModal = async (p: any) => {
     setEditingProduct(p);
     setEditName(p.name);
@@ -241,6 +335,7 @@ export default function StockPage() {
     fd.append("isPackaging", String(editIsPackaging));
     fd.append("showInDigitalMenu", String(editShowInDigitalMenu));
     if (editingProduct.categoryId) fd.append("categoryId", editingProduct.categoryId);
+    if (editingProduct.parentProductId) fd.append("parentProductId", editingProduct.parentProductId);
 
     if (editIsSelfProduced) {
       fd.append("recipeYield", editRecipeYield || "1");
@@ -295,6 +390,7 @@ export default function StockPage() {
     setSearchingBarcode(true);
     setBarcodeFeedback(null);
     setFoundProduct(null);
+    setNotFoundManualMode(false);
 
     try {
       const res = await lookupBarcodeOnline(code);
@@ -311,9 +407,21 @@ export default function StockPage() {
         setTimeout(() => priceInputRef.current?.focus(), 100);
       } else {
         playScanBeep(false);
+        setNotFoundManualMode(true);
+        setManualName("");
+        setManualBrand("");
+        setManualNcm("");
+        setManualCest("");
+        setManualCfop("5102");
+        setManualCst("102");
+        setManualCategory("Geral");
+        setProductPrice("");
+        setProductCost("");
         setBarcodeFeedback({
-          type: "error",
-          message: `Código ${code} não localizado nas bases públicas. Você pode preencher manualmente na tela de Novo Produto.`
+          type: "info",
+          message:
+            res.hint ||
+            `Código ${code} não localizado nas bases externas. Preencha o nome abaixo para cadastrar agora — ele passará a alimentar a base compartilhada.`,
         });
       }
     } catch (_) {
@@ -343,6 +451,9 @@ export default function StockPage() {
       cost: parseFloat(productCost) || 0,
       stock: parseFloat(productStock) || 1,
       ncm: foundProduct.ncm || "",
+      cest: foundProduct.cest || "",
+      cfop: foundProduct.cfop || "",
+      cst: foundProduct.cst || "",
       brand: foundProduct.brand || "",
       unit: foundProduct.unit || "UN",
       categoryName: foundProduct.categorySuggested || "Geral",
@@ -372,6 +483,65 @@ export default function StockPage() {
         // Limpa e prepara para o próximo código de barras
         setBarcodeInput("");
         setFoundProduct(null);
+        setNotFoundManualMode(false);
+        setProductPrice("");
+        setProductCost("");
+        setProductStock("1");
+        setTimeout(() => barcodeInputRef.current?.focus(), 150);
+      } else {
+        setIsBarcodeModalOpen(false);
+      }
+    } else {
+      setBarcodeFeedback({ type: "error", message: res.error || "Erro ao salvar produto." });
+    }
+  };
+
+  const handleQuickManualSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!barcodeInput.trim() || !manualName.trim()) return;
+    const pPrice = parseFloat(productPrice);
+    if (isNaN(pPrice) || pPrice <= 0) {
+      setBarcodeFeedback({ type: "error", message: "Informe um preço de venda válido maior que zero." });
+      return;
+    }
+
+    setSavingProduct(true);
+    const res = await quickCreateProductByBarcode({
+      barcode: barcodeInput.trim(),
+      name: manualName.trim(),
+      price: pPrice,
+      cost: parseFloat(productCost) || 0,
+      stock: parseFloat(productStock) || 1,
+      ncm: manualNcm.trim(),
+      cest: manualCest.trim(),
+      cfop: manualCfop.trim(),
+      cst: manualCst.trim(),
+      brand: manualBrand.trim(),
+      unit: "UN",
+      categoryName: manualCategory || "Geral",
+    });
+    setSavingProduct(false);
+
+    if (res.success) {
+      playScanBeep(true);
+      setBarcodeFeedback({ type: "success", message: res.message || "Produto cadastrado com sucesso!" });
+      setSessionCreatedProducts(prev => [
+        {
+          name: manualName.trim(),
+          barcode: barcodeInput.trim(),
+          price: pPrice,
+          stock: parseFloat(productStock) || 1,
+          time: new Date().toLocaleTimeString(),
+          isUpdate: res.updated,
+        },
+        ...prev,
+      ]);
+      loadProducts();
+      if (continuousMode) {
+        setBarcodeInput("");
+        setFoundProduct(null);
+        setNotFoundManualMode(false);
+        setManualName("");
         setProductPrice("");
         setProductCost("");
         setProductStock("1");
@@ -562,6 +732,8 @@ export default function StockPage() {
                   <th className="px-5 py-3 font-bold uppercase tracking-wider text-[11px]">Produto</th>
                   <th className="px-5 py-3 font-bold uppercase tracking-wider text-[11px]">Código (EAN)</th>
                   <th className="px-5 py-3 font-bold uppercase tracking-wider text-[11px]">Cód. Toledo (Prix)</th>
+                  <th className="px-5 py-3 font-bold uppercase tracking-wider text-[11px] text-right">Custo</th>
+                  <th className="px-5 py-3 font-bold uppercase tracking-wider text-[11px] text-right">Margem</th>
                   <th className="px-5 py-3 font-bold uppercase tracking-wider text-[11px] text-right">Preço Venda</th>
                   <th className="px-5 py-3 font-bold uppercase tracking-wider text-[11px] text-right">Estoque</th>
                   <th className="px-5 py-3 font-bold uppercase tracking-wider text-[11px] text-right">Ações</th>
@@ -569,7 +741,7 @@ export default function StockPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={6} className="px-5 py-10 text-center text-gray-400">Nenhum produto cadastrado nesta área.</td></tr>
+                  <tr><td colSpan={8} className="px-5 py-10 text-center text-gray-400">Nenhum produto cadastrado nesta área.</td></tr>
                 ) : (
                   filtered.map(p => (
                     <tr key={p.id} className="hover:bg-blue-50/40 transition-colors">
@@ -615,26 +787,75 @@ export default function StockPage() {
                                 📱 Cardápio Digital
                               </span>
                             )}
+                            {p.isFractionalChild && p.parentProductName && (
+                              <span className="text-[9px] text-amber-900 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-300 font-bold uppercase tracking-wider">
+                                🔗 Fração ({p.yieldPerParent}x de {p.parentProductName})
+                              </span>
+                            )}
                           </div>
                         </div>
                       </td>
                       <td className="px-5 py-3.5 text-gray-500 font-mono text-xs">{p.barcode || "---"}</td>
                       <td className="px-5 py-3.5 text-gray-700 font-mono text-xs font-bold">{p.internalCode || "---"}</td>
+                      <td className="px-5 py-3.5 text-slate-600 text-right font-mono text-xs font-semibold">
+                        R$ {Number(p.cost || 0).toFixed(2).replace('.', ',')}
+                      </td>
+                      <td className="px-5 py-3.5 text-right font-mono text-xs">
+                        {(() => {
+                          const c = Number(p.cost || 0);
+                          const pr = Number(p.price || 0);
+                          if (c <= 0 || pr <= 0) {
+                            return <span className="text-gray-400">---</span>;
+                          }
+                          const marginPct = ((pr - c) / c) * 100;
+                          const badgeCls =
+                            marginPct <= 0
+                              ? "bg-red-50 text-red-700 border-red-200"
+                              : marginPct < 20
+                              ? "bg-amber-50 text-amber-700 border-amber-200"
+                              : "bg-emerald-50 text-emerald-700 border-emerald-200";
+                          return (
+                            <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold border ${badgeCls}`}>
+                              {marginPct > 0 ? "+" : ""}{marginPct.toFixed(1).replace('.', ',')}%
+                            </span>
+                          );
+                        })()}
+                      </td>
                       <td className="px-5 py-3.5 text-gray-900 text-right font-mono text-xs font-bold">R$ {Number(p.price).toFixed(2).replace('.', ',')}</td>
                       <td className="px-5 py-3.5 text-right">
-                        <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold ${p.stock <= 10 ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'
-                          }`}>
-                          {p.stock} {p.unit || "UN"}
-                        </span>
+                        <div className="inline-flex flex-col items-end">
+                          <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold ${p.stock <= 10 ? 'bg-red-50 text-red-600 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'
+                            }`}>
+                            {p.stock} {p.unit || "UN"}
+                          </span>
+                          {p.isFractionalChild && p.parentProductStock !== null && (
+                            <span className="text-[9px] text-gray-500 mt-0.5 font-mono">
+                              ({p.parentProductStock} {p.parentProductUnit || "UN"} no pai)
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-5 py-3.5 text-right">
-                        <button
-                          onClick={() => handleOpenEditModal(p)}
-                          className="text-blue-600 hover:text-blue-700 text-xs font-bold bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1"
-                        >
-                          <Edit2 size={12} />
-                          <span>Editar</span>
-                        </button>
+                        <div className="inline-flex items-center justify-end gap-1.5">
+                          {!p.isFractionalChild && !p.parentProductId && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenFractionalModal(p)}
+                              title="Criar venda fracionada (cigarro avulso ou dose de bebida)"
+                              className="text-amber-700 hover:text-amber-800 text-xs font-bold bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2.5 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1"
+                            >
+                              <Layers size={12} />
+                              <span>Avulso / Dose</span>
+                            </button>
+                          )}
+                          <Link
+                            href={`/stock/new?id=${p.id}`}
+                            className="text-blue-600 hover:text-blue-700 text-xs font-bold bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1"
+                          >
+                            <Edit2 size={12} />
+                            <span>Editar</span>
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -877,6 +1098,145 @@ export default function StockPage() {
                 </div>
               )}
 
+              {/* Cadastro Rápido Manual quando código não localizado nas bases externas */}
+              {!foundProduct && notFoundManualMode && barcodeInput.trim().length >= 6 && (
+                <form
+                  onSubmit={handleQuickManualSave}
+                  className="p-4 rounded-xl border-2 border-amber-200 bg-amber-50/40 space-y-3"
+                >
+                  <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className="text-[11px] font-black uppercase tracking-wider text-amber-900">
+                      Cadastro Rápido no Modal (EAN {barcodeInput.trim()})
+                    </span>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {[
+                        {
+                          label: "Cigarro (ST)",
+                          ncm: "2402.20.00",
+                          cest: "04.001.00",
+                          cfop: "5405",
+                          cst: "500",
+                          cat: "Tabacaria & Conveniência",
+                        },
+                        {
+                          label: "Destilado",
+                          ncm: "2208.30.20",
+                          cest: "",
+                          cfop: "5102",
+                          cst: "102",
+                          cat: "Bebidas Destiladas",
+                        },
+                        {
+                          label: "Energético (ST)",
+                          ncm: "2202.99.00",
+                          cest: "03.007.00",
+                          cfop: "5405",
+                          cst: "500",
+                          cat: "Bebidas",
+                        },
+                      ].map((preset) => (
+                        <button
+                          key={preset.label}
+                          type="button"
+                          onClick={() => {
+                            setManualNcm(preset.ncm);
+                            setManualCest(preset.cest);
+                            setManualCfop(preset.cfop);
+                            setManualCst(preset.cst);
+                            setManualCategory(preset.cat);
+                          }}
+                          className="px-2 py-0.5 rounded-md bg-white border border-amber-300 hover:bg-amber-100 text-[10px] font-bold text-amber-900"
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="md:col-span-2">
+                      <label className="block text-[10px] font-bold text-gray-700 uppercase mb-1">
+                        Nome do Produto *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={manualName}
+                        onChange={(e) => setManualName(e.target.value)}
+                        placeholder="Ex: Cigarro Dunhill Carlton Blend Box (20 un)"
+                        className="w-full px-3 py-2 bg-white border border-amber-300 text-gray-900 rounded-lg outline-none text-xs font-semibold focus:border-amber-600"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-700 uppercase mb-1">
+                        NCM (Opcional)
+                      </label>
+                      <input
+                        type="text"
+                        value={manualNcm}
+                        onChange={(e) => setManualNcm(e.target.value)}
+                        placeholder="2402.20.00"
+                        className="w-full px-3 py-2 bg-white border border-gray-300 text-gray-900 rounded-lg outline-none font-mono text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-700 uppercase mb-1">
+                        Preço Venda (R$) *
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        required
+                        value={productPrice}
+                        onChange={(e) => setProductPrice(e.target.value)}
+                        placeholder="0,00"
+                        className="w-full px-3 py-2 bg-white border border-green-300 text-green-700 font-mono font-bold rounded-lg outline-none text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-700 uppercase mb-1">
+                        Custo (R$)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={productCost}
+                        onChange={(e) => setProductCost(e.target.value)}
+                        placeholder="0,00"
+                        className="w-full px-3 py-2 bg-white border border-gray-300 text-gray-900 font-mono rounded-lg outline-none text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-gray-700 uppercase mb-1">
+                        Estoque Inicial
+                      </label>
+                      <input
+                        type="number"
+                        step="1"
+                        required
+                        value={productStock}
+                        onChange={(e) => setProductStock(e.target.value)}
+                        className="w-full px-3 py-2 bg-white border border-gray-300 text-gray-900 font-mono rounded-lg outline-none text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end">
+                    <button
+                      type="submit"
+                      disabled={savingProduct || !manualName.trim() || !productPrice}
+                      className="bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white px-4 py-2 rounded-xl font-bold text-xs flex items-center gap-1.5"
+                    >
+                      {savingProduct ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                      <span>Cadastrar &amp; Salvar na Base</span>
+                    </button>
+                  </div>
+                </form>
+              )}
+
               {/* Histórico da Sessão Atual */}
               {sessionCreatedProducts.length > 0 && (
                 <div className="pt-3 border-t border-gray-100 space-y-2">
@@ -948,6 +1308,15 @@ export default function StockPage() {
                 <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2">
                   <AlertCircle size={15} className="shrink-0" />
                   <span>{editError}</span>
+                </div>
+              )}
+
+              {editingProduct.isFractionalChild && (
+                <div className="p-3 bg-amber-50 border border-amber-200 text-amber-900 text-xs rounded-xl">
+                  <strong>Produto Fracionado vinculado a: {editingProduct.parentProductName}</strong>
+                  <p className="text-[11px] text-amber-800 mt-0.5">
+                    O estoque disponível para venda ({editingProduct.stock} {editUnit}) é calculado automaticamente a partir do produto pai (fator {editingProduct.unitConvFactor}). Alterar o estoque manual deve ser feito no produto pai.
+                  </p>
                 </div>
               )}
 
@@ -1312,6 +1681,194 @@ export default function StockPage() {
                   className="flex-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs shadow-md shadow-blue-500/20 transition-all"
                 >
                   {savingEdit ? "Salvando..." : "Salvar Produto"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Criar Venda Fracionada: Cigarro Avulso / Dose de Bebida */}
+      {fractionalParent && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-gray-200 rounded-3xl w-full max-w-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-amber-50/70">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shadow-sm">
+                  <Layers size={18} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-gray-900">
+                    Criar Venda Fracionada (Avulso / Dose)
+                  </h3>
+                  <p className="text-[11px] text-amber-900 font-semibold">
+                    Produto Pai: {fractionalParent.name} • Estoque atual: {fractionalParent.stock} {fractionalParent.unit || "UN"}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFractionalParent(null)}
+                className="p-1.5 rounded-full text-gray-400 hover:text-gray-700 hover:bg-white"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateFractional} className="p-5 space-y-4">
+              {fracError && (
+                <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2">
+                  <AlertCircle size={15} className="shrink-0" />
+                  <span>{fracError}</span>
+                </div>
+              )}
+
+              <div>
+                <span className="block text-[10px] font-black text-gray-600 uppercase tracking-wider mb-1.5">
+                  Modelos Prontos (1 clique)
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { key: "CIGARRO_20" as const, label: "Cigarro Avulso (Maço = 20 un)" },
+                    { key: "DOSE_1L_20" as const, label: "Dose 50ml (Garrafa 1L = 20 doses)" },
+                    { key: "DOSE_750_15" as const, label: "Dose 50ml (750ml = 15 doses)" },
+                    { key: "DOSE_DUPLA_10" as const, label: "Dose Dupla 100ml (1L = 10)" },
+                  ].map((p) => (
+                    <button
+                      key={p.key}
+                      type="button"
+                      onClick={() => applyFracPreset(p.key)}
+                      className="px-2.5 py-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 text-[11px] font-bold transition-colors"
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-gray-700 uppercase tracking-wider mb-1">
+                  Nome no PDV / Cupom *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={fracName}
+                  onChange={(e) => setFracName(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 focus:bg-white text-gray-900 px-3 py-2 text-xs rounded-xl outline-none font-semibold focus:border-amber-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-700 uppercase tracking-wider mb-1">
+                    Rendimento (por 1 Pai) *
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    required
+                    value={fracYield}
+                    onChange={(e) => setFracYield(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-200 text-gray-900 px-3 py-2 text-xs rounded-xl outline-none font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-700 uppercase tracking-wider mb-1">
+                    Unidade *
+                  </label>
+                  <select
+                    value={fracUnit}
+                    onChange={(e) => setFracUnit(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-200 text-gray-900 px-3 py-2 text-xs rounded-xl outline-none font-bold"
+                  >
+                    <option value="UN">UN (Unidade)</option>
+                    <option value="DOSE">DOSE</option>
+                    <option value="COPO">COPO</option>
+                    <option value="ML">ML</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-700 uppercase tracking-wider mb-1">
+                    Preço de Venda (R$) *
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    required
+                    value={fracPrice}
+                    onChange={(e) => setFracPrice(e.target.value)}
+                    className="w-full bg-gray-50 border border-amber-300 text-emerald-700 px-3 py-2 text-xs rounded-xl outline-none font-mono font-black"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-700 uppercase tracking-wider mb-1">
+                    Código Rápido PDV (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={fracInternalCode}
+                    onChange={(e) => setFracInternalCode(e.target.value)}
+                    placeholder="Automático se vazio (ex: 0901)"
+                    className="w-full bg-gray-50 border border-gray-200 text-gray-900 px-3 py-2 text-xs rounded-xl outline-none font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gray-700 uppercase tracking-wider mb-1">
+                    Código de Barras Próprio (opcional)
+                  </label>
+                  <input
+                    type="text"
+                    value={fracBarcode}
+                    onChange={(e) => setFracBarcode(e.target.value)}
+                    placeholder="Opcional (balcão busca por nome/código)"
+                    className="w-full bg-gray-50 border border-gray-200 text-gray-900 px-3 py-2 text-xs rounded-xl outline-none font-mono"
+                  />
+                </div>
+              </div>
+
+              {Number(fracYield) > 0 && (
+                <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-3 text-xs grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <div>
+                    <span className="text-[10px] text-gray-500 uppercase font-bold block">Baixa no Pai / Venda</span>
+                    <span className="font-mono font-black text-amber-900">
+                      -{(1 / Number(fracYield)).toFixed(4)} {fractionalParent.unit || "UN"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-gray-500 uppercase font-bold block">Custo Proporcional</span>
+                    <span className="font-mono font-black text-gray-900">
+                      R$ {((Number(fractionalParent.cost || 0) / Number(fracYield)) || 0).toFixed(2).replace(".", ",")}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-gray-500 uppercase font-bold block">Disponível Hoje no PDV</span>
+                    <span className="font-mono font-black text-emerald-700">
+                      {Math.max(0, Math.floor(Number(fractionalParent.stock || 0) * Number(fracYield)))} {fracUnit}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setFractionalParent(null)}
+                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 rounded-xl text-xs"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingFrac}
+                  className="flex-1 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-bold py-2.5 rounded-xl text-xs shadow-md shadow-amber-500/20"
+                >
+                  {savingFrac ? "Criando..." : "Criar Item Fracionado"}
                 </button>
               </div>
             </form>
