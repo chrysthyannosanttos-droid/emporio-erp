@@ -579,6 +579,7 @@ export async function updateProduct(
     if (r.has("isFinishedGood")) updateData.isFinishedGood = r.bool("isFinishedGood");
     if (r.has("isPackaging")) updateData.isPackaging = r.bool("isPackaging");
     if (r.has("showInDigitalMenu")) updateData.showInDigitalMenu = r.bool("showInDigitalMenu");
+    if (r.has("active")) updateData.active = r.bool("active");
 
     if (r.has("sku")) updateData.sku = r.optStr("sku");
     if (r.has("brand")) updateData.brand = r.optStr("brand");
@@ -1611,12 +1612,15 @@ async function applyPromoPrices(products: any[]) {
   }
 }
 
-export async function getProducts() {
+export async function getProducts(options?: { includeInactive?: boolean }) {
   try {
     const session = await getSession();
     const companyId = session?.companyId;
     const products = await prisma.product.findMany({
-      where: companyId ? { companyId } : undefined,
+      where: {
+        ...(companyId ? { companyId } : {}),
+        ...(options?.includeInactive ? {} : { active: true }),
+      },
       include: {
         category: true,
         parentProduct: {
@@ -1744,6 +1748,7 @@ export async function searchProducts(query: string, companyIdParam?: string) {
       where: {
         AND: [
           companyId ? { companyId } : {},
+          { active: true },
           {
             OR: [
               { name: { contains: query, mode: "insensitive" } },
@@ -2272,6 +2277,59 @@ export async function enrichProductDescriptionsByEanAction(
     return { ok: true, results };
   } catch (err: any) {
     return { ok: false, error: err?.message || "Erro ao consultar bases.", results: [] };
+  }
+}
+
+export async function toggleProductActiveAction(productId: string, active: boolean) {
+  try {
+    const session = await getSession();
+    if (!session?.companyId) {
+      return { ok: false, error: "Não autorizado." };
+    }
+    const companyId = session.companyId;
+    const updated = await prisma.product.updateMany({
+      where: { id: productId, companyId },
+      data: { active },
+    });
+    if (updated.count === 0) {
+      return { ok: false, error: "Produto não encontrado nesta empresa." };
+    }
+    revalidatePath("/stock");
+    revalidatePath("/pdv");
+    revalidatePath("/scales");
+    revalidatePath("/production");
+    revalidatePath("/restaurant/recipes");
+    return { ok: true, active };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || "Erro ao alterar status do produto." };
+  }
+}
+
+export async function batchToggleProductActiveAction(productIds: string[], active: boolean) {
+  try {
+    const session = await getSession();
+    if (!session?.companyId) {
+      return { ok: false, error: "Não autorizado." };
+    }
+    const companyId = session.companyId;
+    const uniqueIds = Array.from(new Set(productIds)).filter(Boolean);
+    if (uniqueIds.length === 0) {
+      return { ok: true, updatedCount: 0 };
+    }
+
+    const res = await prisma.product.updateMany({
+      where: { companyId, id: { in: uniqueIds } },
+      data: { active },
+    });
+
+    revalidatePath("/stock");
+    revalidatePath("/pdv");
+    revalidatePath("/scales");
+    revalidatePath("/production");
+    revalidatePath("/restaurant/recipes");
+    return { ok: true, updatedCount: res.count, active };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || "Erro ao atualizar status em lote." };
   }
 }
 

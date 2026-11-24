@@ -76,6 +76,14 @@ export async function middleware(request: NextRequest) {
   const roleUpper = (session.role || "").trim().toUpperCase();
   const isCashier = roleUpper === "OPERATOR" || roleUpper === "CASHIER";
 
+  // Bloqueia Configurações e Suporte/Migração para usuários que não são ADMIN
+  if (
+    roleUpper !== "ADMIN" &&
+    (pathname.startsWith("/settings") || pathname.startsWith("/migration") || pathname.startsWith("/audit"))
+  ) {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+
   if (isCashier && (pathname === "/" || pathname === "/dashboard")) {
     return NextResponse.redirect(new URL("/pdv", request.url));
   }

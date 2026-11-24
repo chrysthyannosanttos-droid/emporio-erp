@@ -486,22 +486,26 @@ export function DrawerLayout({
                 hasModule("REPORTS") && { href: "/reports", icon: <FileText size={15} />, label: "Relatórios & BI", active: pathname === "/reports" },
               ].filter(Boolean) as Array<{ href: string; icon: React.ReactNode; label: string; active: boolean }>,
             },
-            {
-              key: "configuracoes",
-              title: "Configurações & Sistema",
-              items: [
-                { href: "/settings/terminals", icon: <Monitor size={15} />, label: "Terminais PDV", active: pathname === "/settings/terminals" },
-                { href: "/settings/pdv-screensaver", icon: <Monitor size={15} />, label: "Descanso de Tela PDV", active: pathname === "/settings/pdv-screensaver" },
-                { href: "/settings/modules", icon: <Building2 size={15} />, label: "Lojas & Módulos", active: pathname === "/settings/modules" },
-                { href: "/settings/users", icon: <Users size={15} />, label: "Usuários", active: pathname === "/settings/users" },
-                { href: "/settings/roles", icon: <Shield size={15} />, label: "Perfis & Setores", active: pathname === "/settings/roles" },
-                { href: "/settings/integrations", icon: <Globe size={15} />, label: "Integrações & IP Nuvem", active: pathname === "/settings/integrations" },
-                isCristiano && { href: "/audit", icon: <ShieldAlert size={15} />, label: "Log Auditoria & Segurança", active: pathname === "/audit" || pathname === "/settings/audit" },
-                hasModule("MIGRATION") && { href: "/migration", icon: <RefreshCw size={15} />, label: "Migração Saipos", active: pathname === "/migration" },
-                { href: "/settings", icon: <Settings size={15} />, label: "Configurações Gerais", active: pathname === "/settings" },
-                { href: "/guide", icon: <BookOpen size={15} />, label: "Guia & Demonstração", active: pathname === "/guide" },
-              ].filter(Boolean) as Array<{ href: string; icon: React.ReactNode; label: string; active: boolean }>,
-            },
+            ...(userRole.toUpperCase() === "ADMIN"
+              ? [
+                  {
+                    key: "configuracoes",
+                    title: "Configurações & Sistema",
+                    items: [
+                      { href: "/settings/terminals", icon: <Monitor size={15} />, label: "Terminais PDV", active: pathname === "/settings/terminals" },
+                      { href: "/settings/pdv-screensaver", icon: <Monitor size={15} />, label: "Descanso de Tela PDV", active: pathname === "/settings/pdv-screensaver" },
+                      { href: "/settings/modules", icon: <Building2 size={15} />, label: "Lojas & Módulos", active: pathname === "/settings/modules" },
+                      { href: "/settings/users", icon: <Users size={15} />, label: "Usuários", active: pathname === "/settings/users" },
+                      { href: "/settings/roles", icon: <Shield size={15} />, label: "Perfis & Setores", active: pathname === "/settings/roles" },
+                      { href: "/settings/integrations", icon: <Globe size={15} />, label: "Integrações & IP Nuvem", active: pathname === "/settings/integrations" },
+                      isCristiano && { href: "/audit", icon: <ShieldAlert size={15} />, label: "Log Auditoria & Segurança", active: pathname === "/audit" || pathname === "/settings/audit" },
+                      hasModule("MIGRATION") && { href: "/migration", icon: <RefreshCw size={15} />, label: "Migração Saipos", active: pathname === "/migration" },
+                      { href: "/settings", icon: <Settings size={15} />, label: "Configurações Gerais", active: pathname === "/settings" },
+                      { href: "/guide", icon: <BookOpen size={15} />, label: "Guia & Demonstração", active: pathname === "/guide" },
+                    ].filter(Boolean) as Array<{ href: string; icon: React.ReactNode; label: string; active: boolean }>,
+                  },
+                ]
+              : []),
           ];
 
           const renderedGroups = groups.map((group) => {
@@ -722,9 +726,11 @@ export function DrawerLayout({
                   <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> Online
                 </p>
               </div>
-              <Link href="/settings" className="p-1 text-gray-400 hover:text-gray-700 transition-colors" title="Configurações">
-                <Settings size={15} />
-              </Link>
+              {userRole.toUpperCase() === "ADMIN" && (
+                <Link href="/settings" className="p-1 text-gray-400 hover:text-gray-700 transition-colors" title="Configurações">
+                  <Settings size={15} />
+                </Link>
+              )}
             </div>
           </div>
         </header>

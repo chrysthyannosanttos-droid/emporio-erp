@@ -17,6 +17,8 @@ import {
   Calendar,
   Boxes,
   RefreshCw,
+  Ban,
+  RotateCcw,
 } from "lucide-react";
 import {
   getProductionWorkspace,
@@ -25,6 +27,7 @@ import {
   recordProduction,
   getProductionReportByUser,
 } from "@/actions/production";
+import { toggleProductActiveAction, batchToggleProductActiveAction } from "@/actions/product";
 import { SearchableProductSelect } from "@/components/SearchableProductSelect";
 
 function fmtBRL(v: number) {
@@ -71,6 +74,51 @@ export default function ProductionPage() {
   const [shelfLifeDays, setShelfLifeDays] = useState("10");
   const [expirationDate, setExpirationDate] = useState("");
   const [prodNotes, setProdNotes] = useState("");
+  const [showInactiveRecipes, setShowInactiveRecipes] = useState(false);
+  const [selectedProductIds, setSelectedProductIds] = useState<Record<string, boolean>>({});
+  const [togglingRecipeId, setTogglingRecipeId] = useState<string | null>(null);
+  const [batchToggling, setBatchToggling] = useState(false);
+
+  const handleToggleRecipeProductActive = async (recipe: any) => {
+    const prodId = recipe.productId;
+    if (!prodId) return;
+    const nextActive = recipe.product?.active === false;
+    setTogglingRecipeId(recipe.id);
+    const res = await toggleProductActiveAction(prodId, nextActive);
+    setTogglingRecipeId(null);
+    if (res.ok) {
+      setRecipes((prev) =>
+        prev.map((r) =>
+          r.productId === prodId
+            ? { ...r, product: r.product ? { ...r.product, active: nextActive } : r.product }
+            : r
+        )
+      );
+    } else {
+      setError(res.error || "Erro ao alterar status da ficha técnica.");
+    }
+  };
+
+  const handleBatchToggleRecipesActive = async (active: boolean) => {
+    const ids = Object.keys(selectedProductIds).filter((id) => selectedProductIds[id]);
+    if (ids.length === 0) return;
+    setBatchToggling(true);
+    const res = await batchToggleProductActiveAction(ids, active);
+    setBatchToggling(false);
+    if (res.ok) {
+      const idSet = new Set(ids);
+      setRecipes((prev) =>
+        prev.map((r) =>
+          idSet.has(r.productId)
+            ? { ...r, product: r.product ? { ...r.product, active } : r.product }
+            : r
+        )
+      );
+      setSelectedProductIds({});
+    } else {
+      setError(res.error || "Erro ao atualizar status em lote.");
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -431,29 +479,79 @@ export default function ProductionPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-4 border-b border-indigo-500/[0.08]">
-        <button
-          type="button"
-          onClick={() => setActiveTab("recipes")}
-          className={`pb-3.5 text-sm font-bold border-b-2 px-2 transition-all ${
-            activeTab === "recipes"
-              ? "border-indigo-500 text-gray-900"
-              : "border-transparent text-slate-500 hover:text-slate-600"
-          }`}
-        >
-          Fichas Técnicas ({recipes.length})
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("logs")}
-          className={`pb-3.5 text-sm font-bold border-b-2 px-2 transition-all ${
-            activeTab === "logs"
-              ? "border-indigo-500 text-gray-900"
-              : "border-transparent text-slate-500 hover:text-slate-600"
-          }`}
-        >
-          Histórico de Produção ({filteredLogs.length})
-        </button>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-indigo-500/[0.08]">
+        <div className="flex gap-4">
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab("recipes");
+              setShowInactiveRecipes(false);
+            }}
+            className={`pb-3.5 text-sm font-bold border-b-2 px-2 transition-all ${
+              activeTab === "recipes" && !showInactiveRecipes
+                ? "border-indigo-500 text-gray-900"
+                : "border-transparent text-slate-500 hover:text-slate-600"
+            }`}
+          >
+            Fichas Técnicas ({recipes.filter((r) => r.product?.active !== false).length})
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setActiveTab("recipes");
+              setShowInactiveRecipes(true);
+            }}
+            className={`pb-3.5 text-sm font-bold border-b-2 px-2 transition-all ${
+              activeTab === "recipes" && showInactiveRecipes
+                ? "border-rose-500 text-rose-700"
+                : "border-transparent text-slate-500 hover:text-slate-600"
+            }`}
+          >
+            🚫 Inativas ({recipes.filter((r) => r.product?.active === false).length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab("logs")}
+            className={`pb-3.5 text-sm font-bold border-b-2 px-2 transition-all ${
+              activeTab === "logs"
+                ? "border-indigo-500 text-gray-900"
+                : "border-transparent text-slate-500 hover:text-slate-600"
+            }`}
+          >
+            Histórico de Produção ({filteredLogs.length})
+          </button>
+        </div>
+
+        {activeTab === "recipes" && Object.values(selectedProductIds).some(Boolean) && (
+          <div className="flex items-center gap-2 pb-2">
+            <span className="text-xs font-bold text-slate-700">
+              {Object.values(selectedProductIds).filter(Boolean).length} selecionado(s):
+            </span>
+            <button
+              type="button"
+              disabled={batchToggling}
+              onClick={() => handleBatchToggleRecipesActive(false)}
+              className="px-3 py-1 rounded-lg text-xs font-bold bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white cursor-pointer"
+            >
+              Inativar
+            </button>
+            <button
+              type="button"
+              disabled={batchToggling}
+              onClick={() => handleBatchToggleRecipesActive(true)}
+              className="px-3 py-1 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white cursor-pointer"
+            >
+              Reativar
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedProductIds({})}
+              className="px-2.5 py-1 rounded-lg text-xs font-bold bg-gray-100 text-gray-600 cursor-pointer"
+            >
+              Limpar
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Content */}
@@ -463,16 +561,22 @@ export default function ProductionPage() {
         </div>
       ) : activeTab === "recipes" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {recipes.length === 0 ? (
+          {recipes.filter((r) => (showInactiveRecipes ? r.product?.active === false : r.product?.active !== false)).length === 0 ? (
             <div className="col-span-full bg-white rounded-2xl border border-indigo-100 p-12 text-center text-slate-500">
               <Clipboard size={48} className="mx-auto mb-3 opacity-20" />
-              <p className="font-bold">Nenhuma ficha técnica cadastrada</p>
+              <p className="font-bold">
+                {showInactiveRecipes ? "Nenhuma ficha técnica inativa" : "Nenhuma ficha técnica cadastrada"}
+              </p>
               <p className="text-sm">
-                Clique em &quot;Nova Ficha Técnica&quot; para associar insumos e embalagens aos produtos de fabricação própria.
+                {showInactiveRecipes
+                  ? "As fichas inativadas aparecerão aqui para consulta ou reativação."
+                  : 'Clique em "Nova Ficha Técnica" para associar insumos e embalagens aos produtos de fabricação própria.'}
               </p>
             </div>
           ) : (
-            recipes.map((recipe) => {
+            recipes
+              .filter((r) => (showInactiveRecipes ? r.product?.active === false : r.product?.active !== false))
+              .map((recipe) => {
               const totalCost = calculateRecipeCost(recipe.items);
               const unitCost = totalCost / (Number(recipe.yield) || 1);
               const ingredientsList = recipe.items.filter(
@@ -481,23 +585,61 @@ export default function ProductionPage() {
               const packagingList = recipe.items.filter(
                 (i: any) => i.itemRole === "PACKAGING"
               );
+              const isInactive = recipe.product?.active === false;
 
               return (
                 <div
                   key={recipe.id}
-                  className="bg-white border border-indigo-100 rounded-2xl p-5 flex flex-col justify-between shadow-sm hover:border-indigo-300 transition-all"
+                  className={`bg-white border rounded-2xl p-5 flex flex-col justify-between shadow-sm transition-all ${
+                    selectedProductIds[recipe.productId]
+                      ? "border-indigo-500 ring-2 ring-indigo-200"
+                      : isInactive
+                      ? "border-rose-200 bg-rose-50/20"
+                      : "border-indigo-100 hover:border-indigo-300"
+                  }`}
                 >
                   <div className="space-y-3.5">
                     <div className="flex justify-between items-start gap-2">
-                      <div>
-                        <h2 className="text-base font-black text-gray-900 leading-snug">
-                          {recipe.product?.name}
-                        </h2>
-                        <span className="text-xs text-slate-500 font-mono">
-                          RENDIMENTO: {recipe.yield} {recipe.product?.unit || "UN"}
-                        </span>
+                      <div className="flex items-start gap-2.5 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(selectedProductIds[recipe.productId])}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setSelectedProductIds((prev) => {
+                              const next = { ...prev };
+                              if (checked) next[recipe.productId] = true;
+                              else delete next[recipe.productId];
+                              return next;
+                            });
+                          }}
+                          title="Selecionar para ação em lote"
+                          className="w-4 h-4 mt-1 accent-indigo-600 cursor-pointer shrink-0"
+                        />
+                        <div className="min-w-0">
+                          <h2 className={`text-base font-black leading-snug ${isInactive ? "line-through text-gray-400" : "text-gray-900"}`}>
+                            {recipe.product?.name}
+                          </h2>
+                          <span className="text-xs text-slate-500 font-mono">
+                            RENDIMENTO: {recipe.yield} {recipe.product?.unit || "UN"}
+                          </span>
+                        </div>
                       </div>
                       <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          disabled={togglingRecipeId === recipe.id}
+                          onClick={() => handleToggleRecipeProductActive(recipe)}
+                          title={isInactive ? "Reativar produto e ficha técnica" : "Inativar produto e ficha técnica"}
+                          className={`px-2 py-1.5 rounded-lg text-[11px] font-bold flex items-center gap-1 border cursor-pointer transition-colors disabled:opacity-40 ${
+                            isInactive
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                              : "bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100"
+                          }`}
+                        >
+                          {isInactive ? <RotateCcw size={12} /> : <Ban size={12} />}
+                          <span>{isInactive ? "Reativar" : "Inativar"}</span>
+                        </button>
                         <button
                           type="button"
                           onClick={() => openEditRecipeModal(recipe)}

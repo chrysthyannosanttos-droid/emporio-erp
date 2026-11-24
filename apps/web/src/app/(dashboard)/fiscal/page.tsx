@@ -89,7 +89,7 @@ export default function FiscalPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"todas" | "pendentes" | "autorizadas" | "canceladas">("todas");
+  const [statusFilter, setStatusFilter] = useState<"todas" | "pendentes" | "autorizadas" | "canceladas" | "repetidas">("todas");
   const [rejectionFilter, setRejectionFilter] = useState<string>("");
 
   // Fila de Retransmissão Automática 5s + Manual SEFAZ-AL
@@ -115,6 +115,7 @@ export default function FiscalPage() {
   const [cceSending, setCceSending] = useState(false);
 
   const [sefazActionModal, setSefazActionModal] = useState<{ inv: any; mode: "CANCEL" | "INUTILIZAR" } | null>(null);
+  const [cupomModalInv, setCupomModalInv] = useState<any | null>(null);
   const [sefazJust, setSefazJust] = useState("");
   const [sefazActionLoading, setSefazActionLoading] = useState(false);
 
@@ -617,6 +618,28 @@ export default function FiscalPage() {
       }, {})
   ).sort((a, b) => b[1] - a[1]);
 
+  const repeated2MinIds = (() => {
+    const ids = new Set<string>();
+    const active = invoices
+      .filter((i) => i.effectiveStatus !== "CANCELED" && Number(i.total || 0) > 0)
+      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    for (let i = 0; i < active.length; i++) {
+      const a = active[i];
+      const ta = new Date(a.createdAt).getTime();
+      const va = Number(a.total || 0);
+      for (let j = i + 1; j < active.length; j++) {
+        const b = active[j];
+        const diff = new Date(b.createdAt).getTime() - ta;
+        if (diff > 120_000) break;
+        if (a.environment === b.environment && Math.abs(va - Number(b.total || 0)) < 0.01) {
+          ids.add(a.id);
+          ids.add(b.id);
+        }
+      }
+    }
+    return ids;
+  })();
+
   const filteredInvoices = invoices.filter((i) => {
     const matchesSearch =
       i.accessKey?.toLowerCase().includes(search.toLowerCase()) ||
@@ -630,6 +653,7 @@ export default function FiscalPage() {
     if (statusFilter === "pendentes") return i.effectiveStatus === "REJECTED";
     if (statusFilter === "autorizadas") return i.effectiveStatus === "AUTHORIZED";
     if (statusFilter === "canceladas") return i.effectiveStatus === "CANCELED";
+    if (statusFilter === "repetidas") return repeated2MinIds.has(i.id);
     return true;
   });
 
@@ -1189,6 +1213,7 @@ export default function FiscalPage() {
                     { k: "pendentes", label: `Pendentes / Erro (${stats.rejected})` },
                     { k: "autorizadas", label: `Autorizadas (${stats.authorized})` },
                     { k: "canceladas", label: `Canceladas (${stats.canceled})` },
+                    { k: "repetidas", label: `⚠️ Repetidas < 2 min (${repeated2MinIds.size})` },
                   ] as const
                 ).map((tab) => (
                   <button
@@ -1255,7 +1280,14 @@ export default function FiscalPage() {
                         return (
                           <tr key={invoice.id} className="hover:bg-gray-50/60 transition-colors">
                             <td className="px-4 py-3.5 text-gray-900 font-bold whitespace-nowrap">
-                              #{invoice.number} / Série {invoice.series}
+                              <div className="flex items-center gap-1.5">
+                                <span>#{invoice.number} / Série {invoice.series}</span>
+                                {repeated2MinIds.has(invoice.id) && (
+                                  <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300 text-[10px] font-black">
+                                    ⚠️ Repetida &lt;2min
+                                  </span>
+                                )}
+                              </div>
                               <span className="text-[10px] text-slate-500 block font-normal">
                                 {new Date(invoice.createdAt).toLocaleString("pt-BR")} • {invoice.environment}
                               </span>
@@ -1363,6 +1395,14 @@ export default function FiscalPage() {
                                   title="Download XML"
                                 >
                                   <Download size={14} />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setCupomModalInv(invoice)}
+                                  className="text-indigo-700 hover:bg-indigo-100 px-2.5 py-1.5 bg-indigo-50 rounded-lg border border-indigo-200 text-xs font-bold inline-flex items-center gap-1 transition-colors cursor-pointer"
+                                  title="Visualizar Cupom / Itens da Venda aqui na tela"
+                                >
+                                  <Receipt size={13} /> Cupom
                                 </button>
                                 <a
                                   href={`/invoices/danfe/${invoice.accessKey}`}
@@ -1677,6 +1717,113 @@ export default function FiscalPage() {
               >
                 {sefazActionLoading ? <Loader2 size={14} className="animate-spin" /> : <ShieldCheck size={14} />}
                 {sefazActionModal.mode === "CANCEL" ? "Confirmar Cancelamento SEFAZ" : "Inutilizar na SEFAZ e Excluir"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Modal: Visualizar Cupom na Própria Tela */}
+      {cupomModalInv && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl border border-gray-200 overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="p-4 border-b border-gray-100 bg-slate-50 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Receipt size={18} className="text-indigo-600" />
+                <h3 className="text-sm font-black text-gray-900">
+                  Cupom {cupomModalInv.type} #{cupomModalInv.number} (Série {cupomModalInv.series})
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCupomModalInv(null)}
+                className="p-1 text-gray-400 hover:text-gray-700 rounded-lg cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-5 bg-slate-100">
+              <div className="bg-white border border-dashed border-slate-300 rounded-2xl p-4 font-mono text-xs text-slate-800 space-y-3 shadow-xs">
+                <div className="text-center border-b border-dashed border-slate-300 pb-2.5 space-y-0.5">
+                  <div className="font-black text-sm text-slate-900">
+                    {cupomModalInv.type} Nº {cupomModalInv.number} • SÉRIE {cupomModalInv.series}
+                  </div>
+                  <div className="text-[11px] text-slate-500">
+                    {new Date(cupomModalInv.createdAt).toLocaleString("pt-BR")} • {cupomModalInv.environment}
+                  </div>
+                  <div className="text-[11px] font-bold">
+                    Cliente: {cupomModalInv.customerName || "Consumidor Final"}
+                  </div>
+                  {repeated2MinIds.has(cupomModalInv.id) && (
+                    <div className="inline-block mt-1 px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-black">
+                      ⚠️ NOTA REPETIDA (&lt; 2 MIN)
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2 border-b border-dashed border-slate-300 pb-2.5">
+                  <div className="text-[10px] font-bold text-slate-500 uppercase">Itens da Venda</div>
+                  {(cupomModalInv.items || []).length === 0 ? (
+                    <div className="text-slate-400 italic text-[11px]">
+                      Sem itens detalhados vinculados a esta nota.
+                    </div>
+                  ) : (
+                    (cupomModalInv.items || []).map((it: any, idx: number) => (
+                      <div key={it.id || idx} className="space-y-0.5">
+                        <div className="font-bold text-slate-900">{idx + 1}. {it.name}</div>
+                        <div className="flex justify-between text-[11px] text-slate-600">
+                          <span>
+                            {Number(it.quantity)} {it.unit || "UN"} x R$ {Number(it.unitPrice || 0).toFixed(2).replace(".", ",")}
+                          </span>
+                          <span className="font-bold text-slate-900">
+                            R$ {(Number(it.quantity || 0) * Number(it.unitPrice || 0)).toFixed(2).replace(".", ",")}
+                          </span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div className="space-y-1 text-xs">
+                  {Number(cupomModalInv.discount || 0) > 0 && (
+                    <div className="flex justify-between text-slate-600">
+                      <span>Desconto:</span>
+                      <span>- R$ {Number(cupomModalInv.discount).toFixed(2).replace(".", ",")}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-sm font-black text-slate-900 pt-1">
+                    <span>TOTAL:</span>
+                    <span>R$ {Number(cupomModalInv.total || 0).toFixed(2).replace(".", ",")}</span>
+                  </div>
+                  <div className="flex justify-between text-[11px] text-slate-600">
+                    <span>Pagamento:</span>
+                    <span>{cupomModalInv.paymentMethod || "MONEY"}</span>
+                  </div>
+                </div>
+
+                {cupomModalInv.accessKey && (
+                  <div className="border-t border-dashed border-slate-300 pt-2 text-center space-y-1">
+                    <div className="text-[10px] text-slate-500 uppercase font-bold">Chave de Acesso</div>
+                    <div className="text-[10px] break-all text-slate-700">{cupomModalInv.accessKey}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-gray-100 bg-white flex items-center justify-end gap-2">
+              <a
+                href={`/invoices/danfe/${cupomModalInv.accessKey}`}
+                target="_blank"
+                className="px-3.5 py-2 rounded-xl text-xs font-bold bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 inline-flex items-center gap-1.5"
+              >
+                <Printer size={14} /> Abrir DANFE
+              </a>
+              <button
+                type="button"
+                onClick={() => setCupomModalInv(null)}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-900 text-white hover:bg-slate-800 cursor-pointer"
+              >
+                Fechar
               </button>
             </div>
           </div>

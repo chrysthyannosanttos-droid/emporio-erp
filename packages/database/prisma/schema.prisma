@@ -292,6 +292,7 @@ model Product {
   featured          Boolean   @default(false) // Destaque na vitrine
 
   // Controle de estoque avançado
+  active          Boolean  @default(true) // Ativo / Inativo
   minStock        Float?   @default(0)   // Estoque mínimo
   maxStock        Float?               // Estoque máximo
   leadTimeDays    Int?     @default(0)   // Prazo de reposição (dias)

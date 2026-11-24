@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Package, Search, Plus, FileCode, X, Check, AlertCircle, Zap, Loader2, Sparkles, ScanBarcode, ArrowRight, Scale, Edit2, Radio, ClipboardCheck, ChefHat, Trash2, Utensils, Layers } from "lucide-react";
+import { Package, Search, Plus, FileCode, X, Check, AlertCircle, Zap, Loader2, Sparkles, ScanBarcode, ArrowRight, Scale, Edit2, Radio, ClipboardCheck, ChefHat, Trash2, Utensils, Layers, Ban, RotateCcw } from "lucide-react";
 import Link from "next/link";
-import { getProducts, lookupBarcodeOnline, quickCreateProductByBarcode, updateProduct, getIngredientAndPackagingCatalog, createFractionalVariantAction, batchStandardizeProductNamesAction, enrichProductDescriptionsByEanAction } from "@/actions/product";
+import { getProducts, lookupBarcodeOnline, quickCreateProductByBarcode, updateProduct, getIngredientAndPackagingCatalog, createFractionalVariantAction, batchStandardizeProductNamesAction, enrichProductDescriptionsByEanAction, toggleProductActiveAction, batchToggleProductActiveAction } from "@/actions/product";
 import { standardizeProductName } from "@/lib/product-name-standardizer";
 
 export default function StockPage() {
@@ -210,7 +210,37 @@ export default function StockPage() {
     } catch (_) { }
   };
 
-  const [stockArea, setStockArea] = useState<"ALL" | "SALE" | "PRODUCTION" | "INSUMOS" | "COMODATO" | "CONSUMO" | "LOSS" | "SCALE">("ALL");
+  const [stockArea, setStockArea] = useState<"ALL" | "SALE" | "PRODUCTION" | "INSUMOS" | "COMODATO" | "CONSUMO" | "LOSS" | "SCALE" | "INACTIVE">("ALL");
+  const [togglingActiveId, setTogglingActiveId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
+  const [batchToggling, setBatchToggling] = useState(false);
+
+  const handleToggleActive = async (p: any) => {
+    const nextActive = p.active === false;
+    setTogglingActiveId(p.id);
+    const res = await toggleProductActiveAction(p.id, nextActive);
+    setTogglingActiveId(null);
+    if (res.ok) {
+      setProducts((prev) => prev.map((item) => (item.id === p.id ? { ...item, active: nextActive } : item)));
+    } else {
+      alert(res.error || "Erro ao alterar status do produto.");
+    }
+  };
+
+  const handleBatchToggleActive = async (active: boolean) => {
+    const ids = Object.keys(selectedIds).filter((id) => selectedIds[id]);
+    if (ids.length === 0) return;
+    setBatchToggling(true);
+    const res = await batchToggleProductActiveAction(ids, active);
+    setBatchToggling(false);
+    if (res.ok) {
+      const idSet = new Set(ids);
+      setProducts((prev) => prev.map((item) => (idSet.has(item.id) ? { ...item, active } : item)));
+      setSelectedIds({});
+    } else {
+      alert(res.error || "Erro ao atualizar status em lote.");
+    }
+  };
 
   const isComodatoProduct = (p: any) => {
     const catName = (p.category?.name || "").toLowerCase();
@@ -540,7 +570,7 @@ export default function StockPage() {
   const loadProducts = async () => {
     setLoading(true);
     setError("");
-    const res = await getProducts();
+    const res = await getProducts({ includeInactive: true });
     if (res.products) setProducts(res.products);
     else setError(res.error || "Erro ao buscar produtos");
     setLoading(false);
@@ -722,6 +752,13 @@ export default function StockPage() {
     const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || (p.barcode && p.barcode.includes(search));
     if (!matchesSearch) return false;
 
+    if (stockArea === "INACTIVE") {
+      return p.active === false;
+    }
+    if (p.active === false) {
+      return false;
+    }
+
     if (stockArea === "COMODATO") {
       return isComodatoProduct(p);
     }
@@ -819,7 +856,8 @@ export default function StockPage() {
               { key: "COMODATO", label: "❄️ Comodatos & Equipamentos" },
               { key: "CONSUMO", label: "📦 Uso & Consumo" },
               { key: "SCALE", label: "Balança MGV6" },
-              { key: "LOSS", label: "Avaria / Crítico" }
+              { key: "LOSS", label: "Avaria / Crítico" },
+              { key: "INACTIVE", label: `🚫 Inativos (${products.filter((x) => x.active === false).length})` }
             ].map(tab => (
               <button
                 key={tab.key}
@@ -891,6 +929,41 @@ export default function StockPage() {
           </div>
         )}
 
+        {Object.values(selectedIds).some(Boolean) && (
+          <div className="px-5 py-2.5 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3 text-xs">
+            <span className="font-bold">
+              {Object.values(selectedIds).filter(Boolean).length} item(ns) selecionado(s)
+            </span>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                disabled={batchToggling}
+                onClick={() => handleBatchToggleActive(false)}
+                className="px-3 py-1.5 rounded-lg font-bold bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white flex items-center gap-1.5 cursor-pointer"
+              >
+                {batchToggling ? <Loader2 size={13} className="animate-spin" /> : <Ban size={13} />}
+                Inativar Selecionados
+              </button>
+              <button
+                type="button"
+                disabled={batchToggling}
+                onClick={() => handleBatchToggleActive(true)}
+                className="px-3 py-1.5 rounded-lg font-bold bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white flex items-center gap-1.5 cursor-pointer"
+              >
+                {batchToggling ? <Loader2 size={13} className="animate-spin" /> : <RotateCcw size={13} />}
+                Reativar Selecionados
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedIds({})}
+                className="px-3 py-1.5 rounded-lg font-bold bg-slate-700 hover:bg-slate-600 text-slate-200 cursor-pointer"
+              >
+                Limpar Seleção
+              </button>
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">Carregando...</div>
         ) : error ? (
@@ -900,6 +973,25 @@ export default function StockPage() {
             <table className="w-full text-sm text-left">
               <thead className="bg-gray-50 border-b border-gray-200 text-gray-500 sticky top-0 z-10">
                 <tr>
+                  <th className="pl-4 pr-2 py-3 w-8">
+                    <input
+                      type="checkbox"
+                      checked={filtered.length > 0 && filtered.every((p) => selectedIds[p.id])}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setSelectedIds((prev) => {
+                          const next = { ...prev };
+                          for (const p of filtered) {
+                            if (checked) next[p.id] = true;
+                            else delete next[p.id];
+                          }
+                          return next;
+                        });
+                      }}
+                      title="Selecionar todos os itens visíveis"
+                      className="w-4 h-4 accent-blue-600 cursor-pointer"
+                    />
+                  </th>
                   <th className="px-3 py-3 font-bold uppercase tracking-wider text-[11px]">Produto</th>
                   <th className="px-3 py-3 font-bold uppercase tracking-wider text-[11px] whitespace-nowrap">Código (EAN)</th>
                   <th className="px-3 py-3 font-bold uppercase tracking-wider text-[11px] whitespace-nowrap">Cód. Toledo</th>
@@ -912,17 +1004,38 @@ export default function StockPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={8} className="px-4 py-10 text-center text-gray-400">Nenhum produto cadastrado nesta área.</td></tr>
+                  <tr><td colSpan={9} className="px-4 py-10 text-center text-gray-400">Nenhum produto cadastrado nesta área.</td></tr>
                 ) : (
                   filtered.map(p => (
-                    <tr key={p.id} className="hover:bg-blue-50/40 transition-colors">
+                    <tr key={p.id} className={`hover:bg-blue-50/40 transition-colors ${selectedIds[p.id] ? "bg-blue-50/60" : ""}`}>
+                      <td className="pl-4 pr-2 py-3">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(selectedIds[p.id])}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setSelectedIds((prev) => {
+                              const next = { ...prev };
+                              if (checked) next[p.id] = true;
+                              else delete next[p.id];
+                              return next;
+                            });
+                          }}
+                          className="w-4 h-4 accent-blue-600 cursor-pointer"
+                        />
+                      </td>
                       <td className="px-3 py-3 font-bold text-gray-900 flex items-center gap-2.5 max-w-[320px] min-w-0">
                         <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center border border-blue-100 shrink-0">
                           <Package size={15} />
                         </div>
                         <div className="flex flex-col min-w-0 flex-1">
-                          <span className="truncate" title={p.name}>{p.name}</span>
+                          <span className={`truncate ${p.active === false ? "line-through text-gray-400" : ""}`} title={p.name}>{p.name}</span>
                           <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                            {p.active === false && (
+                              <span className="text-[9px] text-rose-800 bg-rose-50 px-1.5 py-0.2 rounded border border-rose-200 font-bold uppercase tracking-wider">
+                                🚫 Inativo
+                              </span>
+                            )}
                             {p.category?.name && (
                               <span className="text-[9px] text-gray-600 bg-gray-100 px-1.5 py-0.2 rounded border border-gray-200 font-semibold">
                                 {p.category.name}
@@ -1007,7 +1120,7 @@ export default function StockPage() {
                         </div>
                       </td>
                       <td className="px-3 py-3 text-right whitespace-nowrap">
-                        <div className="inline-flex items-center justify-end">
+                        <div className="inline-flex items-center justify-end gap-1.5">
                           <Link
                             href={`/stock/new?id=${p.id}`}
                             className="text-blue-600 hover:text-blue-700 text-xs font-bold bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-lg transition-colors inline-flex items-center gap-1"
@@ -1015,6 +1128,26 @@ export default function StockPage() {
                             <Edit2 size={12} />
                             <span>Editar</span>
                           </Link>
+                          <button
+                            type="button"
+                            disabled={togglingActiveId === p.id}
+                            onClick={() => handleToggleActive(p)}
+                            title={p.active === false ? "Reativar item no PDV e estoque" : "Inativar item (oculta do PDV, cardápio e produção)"}
+                            className={`text-xs font-bold px-2.5 py-1.5 rounded-lg border transition-colors inline-flex items-center gap-1 cursor-pointer disabled:opacity-40 ${
+                              p.active === false
+                                ? "text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200"
+                                : "text-rose-700 bg-rose-50 hover:bg-rose-100 border-rose-200"
+                            }`}
+                          >
+                            {togglingActiveId === p.id ? (
+                              <Loader2 size={12} className="animate-spin" />
+                            ) : p.active === false ? (
+                              <RotateCcw size={12} />
+                            ) : (
+                              <Ban size={12} />
+                            )}
+                            <span>{p.active === false ? "Reativar" : "Inativar"}</span>
+                          </button>
                         </div>
                       </td>
                     </tr>

@@ -166,6 +166,7 @@ export default function NewProductPage() {
   const [isFinishedGood, setIsFinishedGood] = useState(false);
   const [isPackaging, setIsPackaging] = useState(false);
   const [showInDigitalMenu, setShowInDigitalMenu] = useState(false);
+  const [active, setActive] = useState(true);
   const [parentProductId, setParentProductId] = useState("");
   const [yieldPerParent, setYieldPerParent] = useState("20");
   const [parentCatalog, setParentCatalog] = useState<any[]>([]);
@@ -354,6 +355,7 @@ export default function NewProductPage() {
         setIsFinishedGood(Boolean(p.isFinishedGood));
         setIsPackaging(Boolean(p.isPackaging));
         setShowInDigitalMenu(Boolean(p.showInDigitalMenu));
+        setActive(p.active !== false);
         setSendToScale(Boolean(p.sendToScale));
         setInternalCode(p.internalCode || "");
         setScaleDays(p.scaleDays != null ? String(p.scaleDays) : "3");
@@ -668,6 +670,7 @@ export default function NewProductPage() {
     formData.append("isFinishedGood", String(isFinishedGood));
     formData.append("isPackaging", String(isPackaging));
     formData.append("showInDigitalMenu", String(showInDigitalMenu));
+    formData.append("active", String(active));
     if (parentProductId) {
       formData.append("parentProductId", parentProductId);
     }
@@ -909,6 +912,13 @@ export default function NewProductPage() {
                           className="rounded border-indigo-300 text-indigo-600 focus:ring-indigo-500" />
                         <span className="text-[10px] text-indigo-700 font-bold uppercase tracking-wider flex items-center gap-1">
                           <Utensils size={12} className="text-indigo-600" /> Exibir no Cardápio Digital
+                        </span>
+                      </label>
+                      <label className="flex items-center gap-2 cursor-pointer w-fit">
+                        <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)}
+                          className="rounded border-emerald-400 text-emerald-600 focus:ring-emerald-500" />
+                        <span className={`text-[10px] font-bold uppercase tracking-wider ${active ? "text-emerald-700" : "text-rose-700"}`}>
+                          {active ? "✅ Item Ativo" : "🚫 Item Inativo"}
                         </span>
                       </label>
                     </div>

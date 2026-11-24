@@ -39,6 +39,7 @@ function serializeProductCompact(p: any) {
     isPackaging: Boolean(p.isPackaging),
     isFinishedGood: Boolean(p.isFinishedGood),
     isSelfProduced: Boolean(p.isSelfProduced),
+    active: p.active ?? true,
     scaleDays: p.scaleDays ?? 0,
     categoryId: p.categoryId || null,
     categoryName: p.category?.name || "Geral",
@@ -190,7 +191,7 @@ export async function getProductionWorkspace() {
         orderBy: { name: "asc" },
       }),
       prisma.product.findMany({
-        where: { companyId },
+        where: { companyId, active: true },
         include: { category: true },
         orderBy: { name: "asc" },
       }),
